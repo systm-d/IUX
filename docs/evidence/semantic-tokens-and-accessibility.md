@@ -743,6 +743,71 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: offline, 404, slow or malformed, the user sees what they saw a
   moment earlier. A blank circle is a failure the user cannot interpret.
 
+### IUX-OVERLAY-001 — Opening a modal resets the page's scroll position
+
+- **Level**: context_dependent
+- **Scope**: found in IUX-015, affects IUX-016
+- **Sources**: measured — a list at offset 400 snaps to 0 the instant a dialog
+  appears
+- **Status**: **open, and deliberately not fixed here.** `IuxModalLayer`
+  returns its child bare while idle, so the page changes depth in the element
+  tree when a modal opens and its subtree rebuilds, taking scroll offsets,
+  keyboard focus and in-flight animations with it.
+- **Limits**: keeping the `Stack` permanently fixes the scroll loss and breaks
+  something worse — with the page element preserved, `BlockSemantics` no
+  longer removes it from the semantics tree, so a screen-reader user can read
+  and try to activate a page they cannot touch. `PROJECT_PROMPT.md` §5 puts
+  accessibility above ergonomics, so the scroll loss stays until both can be
+  had at once.
+
+### IUX-TRANSIENT-001 — A transient channel cannot carry a failure
+
+- **Level**: standard
+- **Scope**: IUX-015 onward
+- **Sources**: WCAG 2.2 SC 2.2.1 Timing Adjustable
+- **Status**: implemented in the type — `IuxTransientTone` has only `neutral`
+  and `success`. There is no `error` and no `warning`.
+- **Limits**: a message that disappears on a timer is lost by a slow reader, a
+  screen-reader user mid-sentence, or anyone who looked away. Making the
+  channel unable to hold anything needed is what lets replacement-on-collision
+  be defensible.
+
+### IUX-TRANSIENT-002 — An action removes the timer entirely
+
+- **Level**: standard
+- **Scope**: IUX-015 onward
+- **Sources**: WCAG 2.2 SC 2.2.1, SC 2.2.2
+- **Status**: implemented — a message carrying an action never expires, and an
+  expected screen reader also removes the timer
+- **Limits**: "Undo" that vanishes after four seconds is undo for fast people
+  only. The cost is that the message occupies the bottom strip until dealt
+  with; if that is unacceptable, the action does not belong there.
+
+### IUX-LIST-001 — A trailing control is a sibling, never inside the row
+
+- **Level**: strong_guidance
+- **Scope**: IUX-020 onward
+- **Sources**: WCAG 2.2 SC 4.1.2; consistent with IUX-CARD-001
+- **Status**: implemented — `title`, `subtitle` and `trailingText` are
+  `String`, not `Widget`, so a control inside the activatable region is a type
+  error rather than a runtime warning
+- **Limits**: a card's answer was "move the button outside the card"; a row has
+  no outside. `trailingAction` is laid out beside the region, spaced by the
+  floor, exposed as a sibling semantics node, and the press tint stops at the
+  boundary. Whether users perceive it as a second target is a hypothesis.
+
+### IUX-SHEET-001 — The keyboard lift is the residue, not the inset
+
+- **Level**: standard
+- **Scope**: IUX-017 onward
+- **Sources**: measured against a `Scaffold` with the default
+  `resizeToAvoidBottomInset`
+- **Status**: implemented — the sheet lifts by
+  `max(0, keyboard − (windowHeight − boxHeight))`
+- **Limits**: a host that already resized has consumed part of the inset.
+  Adding the full inset on top lifts the sheet twice and leaves a
+  keyboard-sized band of scrim beneath it.
+
 ## Deferred to later missions
 
 | Subject | Mission |

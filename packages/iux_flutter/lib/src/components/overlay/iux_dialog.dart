@@ -321,14 +321,11 @@ class _IuxDialogState extends State<IuxDialog>
       // user can still swipe into content that no longer responds to them, and
       // a control that reads out but does nothing is worse than one that is
       // gone.
-      child: Semantics(
-        // A bare Semantics rather than an IuxSemantics helper: route scoping
-        // is the one configuration the accessibility layer does not yet wrap,
-        // and adding the helper belongs to that layer rather than to this
-        // component. See docs/components/dialog.md.
-        scopesRoute: true,
-        namesRoute: true,
-        explicitChildNodes: true,
+      child: IuxSemantics.route(
+        // Scoped and named through the runtime helper, so the dialog cannot
+        // drift from whatever the next modal layer does. The helper keeps the
+        // subtree's own nodes, which is what leaves the dismissal and the
+        // choices individually reachable.
         label: widget.title,
         child: FocusScope(
           node: _scope,

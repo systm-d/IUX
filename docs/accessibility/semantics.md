@@ -12,15 +12,61 @@ whose reading order is unpredictable.
 
 ## Helpers
 
-| Helper | Use for |
-| --- | --- |
-| `IuxSemantics.action` | anything activatable |
-| `IuxSemantics.header` | a section title a reader can jump to |
-| `IuxSemantics.image` | an image, or `label: ''` for decoration |
-| `IuxSemantics.liveRegion` | a status that appears in place |
-| `IuxSemantics.group` | content that must be read as one unit |
-| `IuxSemantics.decorative` | genuinely redundant content |
-| `IuxSemantics.disabled` | an unavailable control |
+| Helper | Use for | The subtree |
+| --- | --- | --- |
+| `IuxSemantics.action` | a control whose label already says everything | excluded |
+| `IuxSemantics.contentAction` | a control whose content is part of the answer — a card | merged in |
+| `IuxSemantics.selection` | a checkbox, a switch, one radio | excluded |
+| `IuxSemantics.radioGroup` | the set one radio belongs to | kept, separate |
+| `IuxSemantics.field` | a value the user types | merged in |
+| `IuxSemantics.route` | a layer that takes over the screen — a dialog | kept, separate |
+| `IuxSemantics.header` | a section title a reader can jump to | excluded |
+| `IuxSemantics.image` | an image, or `label: ''` for decoration | excluded |
+| `IuxSemantics.liveRegion` | a status that appears in place | kept |
+| `IuxSemantics.group` | content that must be read as one unit | kept |
+| `IuxSemantics.contentContainer` | one object whose parts stay reachable — a card | kept, separate |
+| `IuxSemantics.decorative` | genuinely redundant content | excluded |
+| `IuxSemantics.disabled` | an unavailable control | excluded |
+
+## The third column is the one that goes wrong
+
+Excluding a subtree deletes it from the interface of every screen-reader user,
+and nothing on screen changes when it happens. It is the right default for a
+button reading "Save", whose icon and text only repeat the name it was given.
+It is wrong three ways elsewhere:
+
+- **It deletes content.** A card announcing an order loses the reference, the
+  status and the amount, and stays a plausible-looking button.
+- **It deletes actions.** A field loses set-text, set-selection and
+  move-cursor, so a screen reader can find it, announce it, and never type into
+  it. That is why `field` merges rather than excludes.
+- **It deletes the tap action.** This one already shipped: `action` excluded
+  the subtree and took the child's tap handler with it, so every button in the
+  library announced itself and did nothing. `action` now carries its own
+  `onTap`, and every helper that announces a control can carry one.
+
+The rule that follows: **anything announcing a control takes its activation
+explicitly.** Never rely on a descendant to supply it.
+
+"Kept, separate" is a third answer, and it is not the same as "kept". It forces
+every child to keep its own node. Without it a control that does not declare
+itself a semantic container has its name and role absorbed into the parent, and
+a card is announced as a single button called "Order 3141, Track" — wrong, and
+unreachable, because the control it came from is no longer somewhere the user
+can land.
+
+## Two helpers, one shape: which one
+
+`action` and `contentAction` both announce a button. `group` and
+`contentContainer` both draw a boundary. The pairs differ only in what becomes
+of the content, which is exactly the decision worth naming rather than
+inferring:
+
+- Content that repeats the label → `action`, `group`.
+- Content that *is* the information → `contentAction`, `contentContainer`.
+
+A block that contains its own controls is never `contentAction`: merged into
+one stop, a nested button loses the node the user would have landed on.
 
 ## Leave `selected` null unless it toggles
 
@@ -62,6 +108,24 @@ ellipsis hides precisely the content they asked to see more of.
 
 The 1.3x threshold is a heuristic, not a standard.
 
+## Name, role, value
+
+`IuxSemantics.selection` takes an `IuxSelectionRole` and an
+`IuxSelectionValue`, which are WCAG 4.1.2's own vocabulary rather than three
+booleans. Android reads the three roles differently — "checked" for a box, "on"
+for a switch, one option of a set for a radio — so announcing a switch as a
+checkbox tells the user a Save button is coming that does not exist.
+
+`IuxSelectionValue.partial` is legal only on a checkbox, and that is asserted.
+A switch has two physical positions and a radio is one option among several, so
+neither has anywhere to put a mixed state.
+
+These are runtime types, not the selection controls' own. The runtime sits
+below the components and must not know that a checkbox widget exists, so
+`IuxCheckbox` translates its `IuxSelectionState` into `IuxSelectionValue` on the
+way in. Two enums with the same three names is the price of the layering, and
+the translation is written once so it cannot be written backwards.
+
 ## Rules
 
 1. An icon-only control always has a label.
@@ -69,6 +133,13 @@ The 1.3x threshold is a heuristic, not a standard.
    Hiding anything else removes it from the interface for part of the users.
 3. Reserve `assertive` announcements for what the user must know now.
    Interrupting for less trains users to turn announcements off.
+4. A component composes no bare `Semantics`. If no helper fits, the gap is in
+   the runtime; four components carried that gap as a documented exception
+   until the helpers above existed.
+5. `route` describes a layer. It does not blank the page behind it and does not
+   trap focus — a dialog still needs `BlockSemantics` and a focus scope, and a
+   layer that announces itself while the page underneath stays swipeable is
+   still broken.
 
 ## Limits
 

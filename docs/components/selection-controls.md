@@ -252,7 +252,8 @@ IuxSelectionGroup(label: 'Notify me about', children: checkboxes)
 
 ## Limits
 
-- **Bare `Semantics`.** The component standard §2 says a component uses the
+- ~~Bare `Semantics`~~ — **Fermé.** Le runtime expose désormais les helpers manquants (`IuxSemantics.selection`, `.radioGroup`, `.field`, `.route`, `.contentAction`, `.contentContainer`) et le composant les utilise. Voir `docs/accessibility/semantics.md`.
+- **Historique.** The component standard §2 says a component uses the
   `IuxSemantics` helpers rather than `Semantics` directly. The accessibility
   runtime has no builder for a checked, a mixed or a toggled state, and
   IUX-011 could not extend it. The deviation is contained in one private

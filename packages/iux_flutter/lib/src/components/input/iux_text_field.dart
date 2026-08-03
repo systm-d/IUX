@@ -428,15 +428,11 @@ class _IuxTextFieldState extends State<IuxTextField> {
 /// label a screen-reader user has to find for themselves, and the failure is
 /// silent: the field still works, it is simply announced as "edit box".
 ///
-/// [MergeSemantics] is what does the attaching. Without it the name and the
-/// editable box are two nodes, and the one the user lands on to type is the
-/// one with no name.
-///
-/// This composes `Semantics` directly rather than going through
-/// `IuxSemantics`, which has no field helper yet: the existing helpers all set
-/// `excludeSemantics: true`, and excluding the subtree here would delete the
-/// text-editing actions — set text, move cursor, set selection — that a screen
-/// reader needs in order to edit at all.
+/// `IuxSemantics.field` is what does the attaching. It merges the editing
+/// widget's own node into the named one, so the stop the user lands on to type
+/// is the stop that carries the name — and it merges rather than excludes, so
+/// the text-editing actions the screen reader needs to edit at all (set text,
+/// move cursor, set selection) survive the naming.
 class _IuxFieldSemantics extends StatelessWidget {
   const _IuxFieldSemantics({
     required this.input,
@@ -450,33 +446,27 @@ class _IuxFieldSemantics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: Semantics(
-        textField: true,
-        label: input.semantics.label,
-        // The caller's hint, or their explanation of why the field is
-        // unavailable. Resolved by the model so a text field and a checkbox
-        // cannot announce the same situation differently.
-        hint: input.accessibleHint,
-        enabled: input.availability != IuxInputAvailability.disabled,
-        // Only the read-only case. A disabled field is already announced as
-        // unavailable, and saying both would describe two different reasons
-        // for one state.
-        readOnly: input.availability == IuxInputAvailability.readOnly,
-        // Announced as a property rather than composed into the label. A
-        // framework-authored asterisk or the word "required" would be the
-        // wrong language; the flag is spoken by the platform in the user's.
-        isRequired: input.isRequired,
-        validationResult: switch (input.validation.status) {
-          IuxInputValidationStatus.invalid => SemanticsValidationResult.invalid,
-          IuxInputValidationStatus.valid => SemanticsValidationResult.valid,
-          IuxInputValidationStatus.notValidated ||
-          IuxInputValidationStatus.validating =>
-            SemanticsValidationResult.none,
-        },
-        inputType: content.semanticInputType,
-        child: child,
-      ),
+    return IuxSemantics.field(
+      label: input.semantics.label,
+      // The caller's hint, or their explanation of why the field is
+      // unavailable. Resolved by the model so a text field and a checkbox
+      // cannot announce the same situation differently.
+      hint: input.accessibleHint,
+      enabled: input.availability != IuxInputAvailability.disabled,
+      // Only the read-only case. A disabled field is already announced as
+      // unavailable, and saying both would describe two different reasons for
+      // one state.
+      readOnly: input.availability == IuxInputAvailability.readOnly,
+      isRequired: input.isRequired,
+      validation: switch (input.validation.status) {
+        IuxInputValidationStatus.invalid => SemanticsValidationResult.invalid,
+        IuxInputValidationStatus.valid => SemanticsValidationResult.valid,
+        IuxInputValidationStatus.notValidated ||
+        IuxInputValidationStatus.validating =>
+          SemanticsValidationResult.none,
+      },
+      inputType: content.semanticInputType,
+      child: child,
     );
   }
 }

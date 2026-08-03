@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.1.0-dev.9 — IUX-010, 011, 014, 015, 016, 017, 019, 020, 021, 022
+
+Ten components, plus the runtime helpers four of them needed.
+
+### Added
+
+- Text field, selection controls, inline alerts, transient messages, dialog,
+  bottom sheet, card, list items, badges/chips/status, icons/avatars/images.
+- `IuxSemantics.selection`, `.radioGroup`, `.field`, `.route`,
+  `.contentAction`, `.contentContainer` — the helpers whose absence had forced
+  four components to compose a bare `Semantics` and declare a deviation. All
+  four deviations are now closed.
+- `IuxInsets.keyboard` and `IuxInsets.windowHeight`. A view inset is a
+  measurement, not a preference, so it belongs in the layout layer — and with
+  it there, the bottom sheet needs no exception to the standard either.
+- `IuxModalLayer` gains a `sheet` slot, with an assertion refusing a dialog and
+  a sheet at once.
+
+### Fixed
+
+- **Every button was unusable with a screen reader.** `IuxSemantics.action`
+  sets `excludeSemantics` to control the announced name, which also deleted
+  the child gesture detector's tap action. Nodes announced a button and
+  offered nothing to activate. Present since IUX-005; verified by probe
+  (`actions: 0` → `1`) and locked by two regression tests.
+
+### Known open
+
+- `IUX-OVERLAY-001`: opening a modal resets the page's scroll position,
+  measured at 400 → 0. The one-line fix breaks a working accessibility
+  guarantee, so it stays open. See the evidence registry.
+
+
 ## 0.1.0-dev.8 — IUX-008.1 to IUX-008.3
 
 Component standard, action model, button theme. Additive.

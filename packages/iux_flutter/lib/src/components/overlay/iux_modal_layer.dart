@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'iux_bottom_sheet.dart';
 import 'iux_dialog.dart';
 
 /// Places at most one dialog over a page.
@@ -40,12 +41,22 @@ import 'iux_dialog.dart';
 /// `SafeArea` and its padding, and the dialog would be inset a second time from
 /// a notch that is only there once.
 class IuxModalLayer extends StatelessWidget {
-  /// Places [dialog], when there is one, over [child].
+  /// Places [dialog] or [sheet], when there is one, over [child].
+  ///
+  /// At most one may be open. Two modals at once means one blocks the other's
+  /// semantics, so the user is trapped in a layer a screen reader cannot see
+  /// out of — refused here rather than left to be discovered.
   const IuxModalLayer({
     super.key,
     required this.child,
     this.dialog,
-  });
+    this.sheet,
+  }) : assert(
+          dialog == null || sheet == null,
+          'A dialog and a bottom sheet cannot be open at once. Close one '
+          'before opening the other, or model the second step inside the '
+          'first.',
+        );
 
   /// The page the dialog interrupts.
   final Widget child;
@@ -58,11 +69,29 @@ class IuxModalLayer extends StatelessWidget {
   /// from the call site exactly like one that did.
   final IuxDialog? dialog;
 
+  /// The bottom sheet currently open, or null when none is.
+  ///
+  /// Typed for the same reason as [dialog]: the slot promises focus trapping,
+  /// a blocked page and a named route, and an arbitrary widget would promise
+  /// none of them while reading identically at the call site.
+  final IuxBottomSheet? sheet;
+
   @override
   Widget build(BuildContext context) {
-    final IuxDialog? modal = dialog;
-    // No Stack at all while nothing is open. A layer that costs a render object
-    // on every page whether or not it is used is a layer people stop adding.
+    final Widget? modal = dialog ?? sheet;
+    // No Stack at all while nothing is open.
+    //
+    // This has a measured cost: the page changes depth in the element tree
+    // when a modal opens, so its subtree rebuilds and a list scrolled to 400
+    // snaps back to 0. Keeping the Stack permanently fixes that — and breaks
+    // something worse. With the page element preserved, `BlockSemantics` no
+    // longer removes it from the semantics tree, so a screen-reader user can
+    // still read and try to activate a page they cannot touch.
+    //
+    // PROJECT_PROMPT.md §5 puts accessibility above ergonomics, so the scroll
+    // loss stays and is recorded as IUX-OVERLAY-001. Fixing both at once needs
+    // a way to preserve the element *and* dirty the semantics — not a
+    // one-line change, and not this mission's.
     if (modal == null) return child;
     return Stack(
       // The dialog is painted after the page, which is what lets it block the

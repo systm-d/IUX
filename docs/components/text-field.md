@@ -372,7 +372,8 @@ helpText: l10n.emailHelp
 - **Hover exists and never happens.** It is carried for parity with the button.
   On a touch-only Android device it can only ever reinforce something already
   available elsewhere.
-- **`_IuxFieldSemantics` composes `Semantics` directly.** `IuxSemantics` has no
+- ~~`_IuxFieldSemantics` composes `Semantics` directly~~ — **Fermé.** Le runtime expose désormais les helpers manquants (`IuxSemantics.selection`, `.radioGroup`, `.field`, `.route`, `.contentAction`, `.contentContainer`) et le composant les utilise. Voir `docs/accessibility/semantics.md`.
+- **Historique.** `IuxSemantics` has no
   field helper: every existing helper sets `excludeSemantics: true`, and
   excluding the subtree here would delete the set-text, set-selection and
   move-cursor actions a screen reader needs in order to edit at all. Lifting a

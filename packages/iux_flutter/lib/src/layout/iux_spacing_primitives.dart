@@ -125,6 +125,31 @@ abstract final class IuxInsets {
   static EdgeInsets surface(BuildContext context) =>
       EdgeInsets.all(IuxGeometryTheme.of(context).spacingMd);
 
+  /// The height the software keyboard currently covers.
+  ///
+  /// Layout, not a preference — which is why it lives here rather than on
+  /// [IuxAccessibility]. A component asking "how much of the screen is
+  /// hidden right now" is measuring, not adapting to a user's choice, and the
+  /// component standard's ban on reading `MediaQuery` is about the latter.
+  ///
+  /// Without this, an overlay that must clear the keyboard had to read
+  /// `MediaQuery` directly and declare an exception to the standard. Reading
+  /// it here means the exception disappears.
+  ///
+  /// Note it is the *raw* inset. A host that already resized to avoid the
+  /// keyboard has consumed part of it, and the caller must subtract what its
+  /// own box lost — otherwise the content lifts twice.
+  static double keyboard(BuildContext context) =>
+      MediaQuery.viewInsetsOf(context).bottom;
+
+  /// The height of the window, in logical pixels.
+  ///
+  /// Measurement, like [keyboard], and here for the same reason: a component
+  /// asking how tall the window is is not reading a user preference, and the
+  /// standard's ban on `MediaQuery` inside a component is about preferences.
+  static double windowHeight(BuildContext context) =>
+      MediaQuery.sizeOf(context).height;
+
   /// A compact padding, for dense containers such as a chip.
   static EdgeInsets compact(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);

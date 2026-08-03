@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../accessibility/iux_semantics.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import '../../layout/iux_surface.dart';
 import '../../semantics/iux_semantic_colors.dart';
@@ -99,9 +100,7 @@ class IuxContentGroup extends StatelessWidget {
     // It is the opposite decision from a tappable IuxCard, and deliberately
     // so. That card is one control, so it is one stop. A group is several
     // items, so it is several.
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
+    return IuxSemantics.contentContainer(
       child: IuxSurface(
         role: IuxSurfaceRole.subtle,
         bordered: true,

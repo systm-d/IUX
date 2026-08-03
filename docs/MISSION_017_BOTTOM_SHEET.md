@@ -2,12 +2,12 @@
 mission_id: IUX-017
 title: Bottom Sheet
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,59 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'inset clavier : deux problèmes distincts
+
+**Le soulèvement n'est pas la hauteur du clavier.** Un `Scaffold` avec
+`resizeToAvoidBottomInset` par défaut réduit déjà son corps au-dessus du
+clavier, sans retirer l'inset du `MediaQuery` que ce corps voit. Ajouter
+l'inset complet par-dessus soulève la feuille **deux fois** et laisse une bande
+de voile de la hauteur du clavier en dessous.
+
+La feuille se soulève donc du **résidu** :
+`max(0, clavier − (hauteurFenêtre − hauteurBoîte))`. Deux tests couvrent les
+deux chemins, et chacun vérifie d'abord la hauteur de la boîte — sans quoi l'un
+testerait silencieusement l'autre.
+
+Le soulèvement est un `Padding` simple, non animé : la plateforme rapporte
+l'inset progressivement, donc il est déjà sur une courbe. L'animer à nouveau
+ferait traîner la feuille derrière le clavier.
+
+## Ce que j'ai changé après son rapport
+
+L'agent avait dû lire `MediaQuery` en direct et **déclarer une exception au
+standard**. J'ai ajouté `IuxInsets.keyboard` et `IuxInsets.windowHeight` dans
+la couche layout : une mesure n'est pas une préférence, et le composant lit
+désormais comme n'importe quelle autre métrique. **L'exception a disparu.**
+
+J'ai aussi ouvert `IuxModalLayer` à un emplacement `sheet`, avec une assertion
+interdisant dialogue et feuille simultanés.
+
+## Pas de glissement, pas de poignée
+
+Une poignée est invisible à un lecteur d'écran et hors de portée en cas de
+tremblement ou de dextérité limitée — et une poignée qui ne glisse pas est un
+mensonge. Un test vérifie qu'un glissement vers le bas ne fait rien.
+
+## Il a changé d'avis sur en-tête épinglé, guidé par un test qui échoue
+
+Il avait d'abord épinglé titre + fermeture au-dessus d'un corps défilant. À
+200 % de texte sur 320×480, **l'en-tête seul dépassait le plafond de 560 px** —
+exactement l'échec que `dialog.md` documente. Tout défile désormais, en-tête
+en premier, donc la sortie est visible à l'ouverture et reste le premier
+contrôle au clavier.
+
+## Mouvement
+
+`IuxMotionRole.reveal`, pas `enter` : seul `reveal` transforme le déplacement
+en fondu sous préférence réduite. `enter` ne fait que raccourcir, et un grand
+mouvement rapide est pire qu'un lent pour un trouble vestibulaire.
+
+## Tests
+
+49 nouveaux tests.

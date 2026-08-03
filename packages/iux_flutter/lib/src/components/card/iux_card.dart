@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_semantics.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import '../../layout/iux_surface.dart';
 import '../../motion/iux_motion_policy.dart';
@@ -186,19 +187,12 @@ class IuxCard extends StatelessWidget {
 
     final VoidCallback? activate = onActivate;
     if (activate == null) {
-      // Grouped rather than merged, and the mirror image of the tappable card:
-      // this one is not a control, so its contents must not collapse into one.
-      //
-      // `explicitChildNodes` is the load-bearing half. Without it a control
-      // that does not declare itself a semantic container has its label and
-      // its button role absorbed into this node, and the card is announced as
-      // a single button called "Order 3141, Track" — which is both wrong and
-      // unreachable, because the control it came from no longer exists as
-      // something the user can land on. IuxSemantics.group cannot express
-      // this; see the note in _IuxTappableCardState.build.
-      return Semantics(
-        container: true,
-        explicitChildNodes: true,
+      // One object whose parts stay separately reachable, and the mirror image
+      // of the tappable card: this one is not a control, so its contents must
+      // not collapse into one. A control inside it keeps the node the user
+      // lands on, which `IuxSemantics.group` — whose whole purpose is to
+      // collapse — cannot express.
+      return IuxSemantics.contentContainer(
         child: _IuxCardSurface(child: _content),
       );
     }
@@ -338,42 +332,34 @@ class _IuxTappableCardState extends State<_IuxTappableCard> {
       ],
     );
 
-    // A bare Semantics rather than an IuxSemantics helper, deliberately, and
-    // this is the one place in the component where that is worth the words.
-    //
-    // IuxSemantics.action excludes descendant semantics. That is right for a
-    // button whose only content is its own label, and wrong for a card: it
-    // would delete the price, the status and the date from the interface of
-    // every screen-reader user. IuxSemantics.group keeps them but cannot
-    // announce a role, so the card would be a container the user can activate
-    // without being told that they can.
-    //
-    // MergeSemantics plus an explicit button role gives both: one stop, named,
-    // announced as activatable, reading out everything a sighted user sees.
-    // The helper set has no form for that, and inventing one belongs to the
-    // accessibility runtime rather than to this mission.
-    return MergeSemantics(
-      child: Semantics(
-        container: true,
-        button: true,
-        enabled: true,
-        label: widget.semanticLabel,
-        hint: widget.hint,
-        child: IuxFocusable(
-          autofocus: widget.autofocus,
-          focusNode: widget.focusNode,
-          borderRadius: radius,
-          onActivate: widget.onActivate,
-          child: GestureDetector(
-            // Opaque so the whole card responds, including its padding, and
-            // not only the text painted inside it.
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (TapDownDetails _) => _setPressed(true),
-            onTapUp: (TapUpDetails _) => _setPressed(false),
-            onTapCancel: () => _setPressed(false),
-            onTap: widget.onActivate,
-            child: visual,
-          ),
+    // Not IuxSemantics.action, which excludes descendant semantics: that is
+    // right for a button whose only content is its own label, and it would
+    // delete the price, the status and the date from the interface of every
+    // screen-reader user here. contentAction is the form that keeps them —
+    // one stop, named, announced as activatable, reading out everything a
+    // sighted user sees.
+    return IuxSemantics.contentAction(
+      label: widget.semanticLabel,
+      hint: widget.hint,
+      // Carried on the node itself as well as on the gesture detector below
+      // it. The merged subtree does supply a tap action today, but a control
+      // whose activation depends on a descendant staying put is one refactor
+      // away from being announced and inert.
+      onTap: widget.onActivate,
+      child: IuxFocusable(
+        autofocus: widget.autofocus,
+        focusNode: widget.focusNode,
+        borderRadius: radius,
+        onActivate: widget.onActivate,
+        child: GestureDetector(
+          // Opaque so the whole card responds, including its padding, and not
+          // only the text painted inside it.
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (TapDownDetails _) => _setPressed(true),
+          onTapUp: (TapUpDetails _) => _setPressed(false),
+          onTapCancel: () => _setPressed(false),
+          onTap: widget.onActivate,
+          child: visual,
         ),
       ),
     );

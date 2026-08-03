@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart' show SemanticsRole;
 
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
@@ -15,14 +14,6 @@ import 'iux_selection_tokens.dart';
 
 /// How large the tick on a switch thumb is, relative to the thumb.
 const double _thumbMarkRatio = 0.7;
-
-/// Which of the three selection controls a row is.
-///
-/// Private, and it will stay private. The three are not interchangeable — a
-/// checkbox is an independent yes/no, a switch takes effect the instant it is
-/// moved, a radio is one option among several — so a public parameter choosing
-/// between them would let a call site swap a meaning for a shape.
-enum _SelectionRole { checkbox, toggle, radio }
 
 /// An independent yes/no.
 ///
@@ -120,7 +111,7 @@ class IuxCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _IuxSelectionControl(
-        role: _SelectionRole.checkbox,
+        role: IuxSelectionRole.checkbox,
         value: value,
         label: label,
         input: input,
@@ -219,7 +210,7 @@ class IuxSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _IuxSelectionControl(
-        role: _SelectionRole.toggle,
+        role: IuxSelectionRole.toggle,
         value: value,
         label: label,
         input: input,
@@ -352,16 +343,10 @@ class IuxRadioGroup<T> extends StatelessWidget {
     final String? help = input.helpText;
     final String? message = input.validation.message;
 
-    return Semantics(
-      // The one role Flutter models for this family. It is what lets Android
-      // announce "1 of 3" instead of leaving the user to count.
-      //
-      // A bare Semantics rather than an IuxSemantics helper: the runtime has
-      // no builder for a radio group, a checked state or a toggled state, and
-      // this mission may not extend it. The deviation, and the follow-up, are
-      // recorded in docs/components/selection-controls.md.
-      container: true,
-      role: SemanticsRole.radioGroup,
+    return IuxSemantics.radioGroup(
+      // What lets Android announce "1 of 3" instead of leaving the user to
+      // count. Named from the descriptor rather than from [label], so a group
+      // can read "Delivery speed" and announce "How fast do you need it".
       label: input.semantics.label,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -377,7 +362,7 @@ class IuxRadioGroup<T> extends StatelessWidget {
             children: <Widget>[
               for (final IuxRadioOption<T> option in options)
                 _IuxSelectionControl(
-                  role: _SelectionRole.radio,
+                  role: IuxSelectionRole.radio,
                   value: IuxSelectionState.fromSelected(option.value == value),
                   label: option.label,
                   input: _optionInput(option),
@@ -515,7 +500,7 @@ class _IuxSelectionControl extends StatefulWidget {
     required this.indicator,
   });
 
-  final _SelectionRole role;
+  final IuxSelectionRole role;
   final IuxSelectionState value;
   final String label;
   final IuxInputDescriptor input;
@@ -548,7 +533,7 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
   /// that gesture would re-run whatever the parent does on a choice.
   bool get _canActivate =>
       widget.input.isEditable &&
-      !(widget.role == _SelectionRole.radio && widget.value.isSelected);
+      !(widget.role == IuxSelectionRole.radio && widget.value.isSelected);
 
   void _handleActivate() {
     if (!_canActivate) return;
@@ -672,45 +657,44 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
 
 /// The semantic node a selection control presents.
 ///
-/// A bare `Semantics` rather than an `IuxSemantics` helper, and the deviation
-/// is deliberate: the accessibility runtime has no builder for a checked, a
-/// mixed or a toggled state, and IUX-011 may not extend it. Everything the
-/// helpers would have guaranteed is guaranteed here instead — one node, one
-/// name, the disabled state announced rather than merely greyed — and it is
-/// written once so the three controls cannot disagree.
+/// The whole node comes from the runtime, so a checkbox, a switch and a radio
+/// cannot disagree about what a disabled or a read-only one announces. What is
+/// left here is the translation: the field model's availability and the
+/// component's own selection state, expressed in the vocabulary the runtime
+/// speaks.
 Widget _selectionSemantics({
-  required _SelectionRole role,
+  required IuxSelectionRole role,
   required IuxSelectionState value,
   required IuxInputDescriptor input,
   required VoidCallback? onTap,
   required Widget child,
-}) {
-  final bool selected = value.isSelected;
-  return Semantics(
-    container: true,
-    enabled: input.availability != IuxInputAvailability.disabled,
-    // Distinct from disabled. A read-only control stays in the focus order and
-    // still announces its value; a disabled one leaves the order entirely, and
-    // a value the user cannot reach is a value they do not have.
-    readOnly: input.availability == IuxInputAvailability.readOnly ? true : null,
-    label: input.semantics.label,
-    hint: input.accessibleHint,
-    isRequired: input.isRequired ? true : null,
-    // A checkbox and a radio are "checked"; a switch is "toggled". Android
-    // reads the two differently — "checked" for a box, "on" for a switch — and
-    // announcing a switch as a checkbox tells the user a Save button is coming.
-    checked: role == _SelectionRole.toggle ? null : selected,
-    mixed: role == _SelectionRole.checkbox ? value.isPartial : null,
-    toggled: role == _SelectionRole.toggle ? selected : null,
-    inMutuallyExclusiveGroup: role == _SelectionRole.radio ? true : null,
-    onTap: onTap,
-    // The label, the help text and the tap target all repeat what this node
-    // already says. Left in, they would be announced a second time as
-    // unlabelled fragments.
-    excludeSemantics: true,
-    child: child,
-  );
-}
+}) =>
+    IuxSemantics.selection(
+      role: role,
+      value: _announced(value),
+      label: input.semantics.label,
+      hint: input.accessibleHint,
+      enabled: input.availability != IuxInputAvailability.disabled,
+      // Distinct from disabled. A read-only control stays in the focus order
+      // and still announces its value; a disabled one leaves the order
+      // entirely, and a value the user cannot reach is a value they do not
+      // have.
+      readOnly: input.availability == IuxInputAvailability.readOnly,
+      isRequired: input.isRequired,
+      onTap: onTap,
+      child: child,
+    );
+
+/// The component's selection state, in the runtime's announcement vocabulary.
+///
+/// Two enums rather than one because the runtime sits below the components and
+/// must not know that a checkbox widget exists. The translation is written
+/// once, here, so it cannot be written backwards in three places.
+IuxSelectionValue _announced(IuxSelectionState value) => switch (value) {
+      IuxSelectionState.selected => IuxSelectionValue.selected,
+      IuxSelectionState.partial => IuxSelectionValue.partial,
+      IuxSelectionState.unselected => IuxSelectionValue.unselected,
+    };
 
 /// A square box carrying a tick, a dash, or nothing.
 ///

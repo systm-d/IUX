@@ -281,6 +281,9 @@ IuxContentGroup(children: <Widget>[street, city, postcode])
 
 ## Deviation from the Component Standard
 
+> **Fermé.** Le runtime expose désormais les helpers manquants (`IuxSemantics.selection`, `.radioGroup`, `.field`, `.route`, `.contentAction`, `.contentContainer`) et le composant les utilise. Voir `docs/accessibility/semantics.md`.
+
+
 §2 of the standard says a component uses the `IuxSemantics` helpers rather than
 a bare `Semantics` widget. These three widgets use `Semantics` directly, in
 three places, and the reason is the same each time: the helper set has no form

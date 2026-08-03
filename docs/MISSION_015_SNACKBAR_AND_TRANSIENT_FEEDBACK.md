@@ -2,12 +2,12 @@
 mission_id: IUX-015
 title: Snackbar and Transient Feedback
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,47 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La revendication centrale, mise dans le type
+
+`IuxTransientTone` a exactement deux valeurs : `neutral` et `success`. Pas
+d'`error`, pas de `warning`. Un échec **ne peut pas** être placé dans ce canal.
+
+Ce n'est pas un conseil en commentaire, c'est le type. Et tout le reste en
+découle, y compris la décision de remplacement.
+
+## SC 2.2.1, honoré par quatre mécanismes
+
+1. Rien de nécessaire n'est sous minuterie — voir l'enum ci-dessus.
+2. **Une action supprime la minuterie**, purement et simplement.
+3. **Un lecteur d'écran attendu la supprime aussi** : une région live est mise
+   en file derrière ce que la plateforme énonce déjà, donc une horloge lancée
+   à la peinture ne mesure rien pour cet utilisateur.
+4. L'utilisateur **arrête l'horloge** en touchant ou en focalisant le message,
+   et le retire avec le contrôle nommé toujours présent.
+
+Là où une horloge tourne : `max(4s, caractères ÷ 10/s)` — un plancher, pas de
+plafond, à un rythme délibérément deux fois plus lent que la lecture
+silencieuse moyenne. **Aucun paramètre ne peut raccourcir une durée.**
+
+## Remplacement plutôt que file
+
+Ce qui est détruit, c'est le message le plus ancien, possiblement non lu.
+Défendable **uniquement** parce que le canal refuse de porter quoi que ce soit
+de nécessaire — une file détruirait la *nouveauté* du fait le plus récent.
+
+## Nom
+
+La mission demandait `IuxSnackbar`. Le composant est nommé d'après la
+propriété qui décide si l'on a le droit de l'utiliser, pas d'après son
+apparence. La doc s'ouvre en disant « ce que les autres bibliothèques appellent
+snackbar ou toast ».
+
+## Tests
+
+53 nouveaux tests.
