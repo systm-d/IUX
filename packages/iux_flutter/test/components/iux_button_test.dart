@@ -257,6 +257,16 @@ void main() {
           reason: '${density.name} produced ${size.height}',
         );
         expect(size.width, greaterThanOrEqualTo(IuxTouchTarget.minimum));
+        // An upper bound too. Asserting only the floor let a real defect
+        // through: the container aligned its child instead of shrink-wrapping,
+        // so a button inside a Center filled the viewport while still passing
+        // this test. A floor with no ceiling is half an assertion.
+        expect(
+          size.height,
+          lessThan(120),
+          reason: '${density.name} produced a button ${size.height} tall, '
+              'which is a banner, not a button',
+        );
       }
     });
 

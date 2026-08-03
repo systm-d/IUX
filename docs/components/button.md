@@ -2,7 +2,8 @@
 
 ## Purpose
 
-Identify and activate a textual action.
+Identify and activate a textual action. For an action with no room for a
+label, see [`IuxIconButton`](button-variants.md).
 
 ```dart
 IuxButton(
@@ -117,7 +118,9 @@ Row(children: [IuxButton(action: primaryA), IuxButton(action: primaryB)])
 
 ## Limits
 
-- Text only. Icons and icon-only buttons are IUX-008.5.
+- A leading icon is available via `icon`; an icon-only action uses
+  `IuxIconButton`. There is no trailing icon position — see
+  [button-variants.md](button-variants.md).
 - No asynchronous handling of its own: IUX-008.6.
 - No confirmation flow: IUX-008.7.
 - `expand` fills the width but does not cap it; use `IuxReadableWidth` when

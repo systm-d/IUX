@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../actions/iux_action_descriptor.dart';
@@ -28,6 +29,11 @@ import '../../themes/extensions/iux_button_theme.dart';
 /// [IuxActionDescriptor.operation]; a button that ran its own future would be
 /// guessing at an outcome only the caller knows.
 ///
+/// For an action with no room for a label, use [IuxIconButton]. It is a
+/// separate widget rather than a null [label] because the two have different
+/// obligations: an icon-only control has to take its name from somewhere, and
+/// a nullable label would let a caller ship a control with no name at all.
+///
 /// There is no colour, radius, elevation or duration parameter, and there will
 /// not be one. An API that accepts a colour has already lost the contrast
 /// guarantee: the theme can no longer be held responsible for something a call
@@ -37,18 +43,32 @@ import '../../themes/extensions/iux_button_theme.dart';
 /// action carries availability and operation; focus, press and hover stay
 /// inside the widget, because they belong to this instance and to nothing
 /// else.
-class IuxButton extends StatefulWidget {
+class IuxButton extends StatelessWidget {
   /// Creates a textual action.
   const IuxButton({
     super.key,
     required this.label,
     required this.action,
     required this.onActivate,
+    this.icon,
     this.variant,
     this.autofocus = false,
     this.focusNode,
     this.expand = false,
-  });
+  })  : assert(
+          label.length > 0,
+          'A button must show something. An empty label leaves a container '
+          'that a sighted user can see but cannot identify. When there is no '
+          'room for text, use IuxIconButton: it takes its accessible name '
+          'from the action, so the control still has one.',
+        ),
+        assert(
+          variant != IuxButtonVariant.icon,
+          'IuxButtonVariant.icon is a square target carrying an icon and no '
+          'label, so it cannot describe a button that has one. Use '
+          'IuxIconButton for an icon-only action, or pick the variant that '
+          'expresses the emphasis you wanted.',
+        );
 
   /// The visible text.
   ///
@@ -67,7 +87,30 @@ class IuxButton extends StatefulWidget {
   /// one gesture.
   final VoidCallback onActivate;
 
+  /// A glyph shown before [label], in reading order.
+  ///
+  /// An [IconData] rather than a `Widget`: the button then sizes and colours
+  /// the glyph from the same tokens as the label, so an icon cannot arrive
+  /// carrying a colour that fails against the container it sits on. A widget
+  /// slot would hand that guarantee back to the call site, which is exactly
+  /// what this API refuses to do for colours.
+  ///
+  /// The icon must be redundant with [label]. It is excluded from the
+  /// semantic tree — the action is already named — so an icon carrying
+  /// information the label does not is information a screen-reader user never
+  /// receives.
+  ///
+  /// There is no trailing position. A glyph after the label reads as a
+  /// disclosure indicator rather than as part of the name, and a screen where
+  /// some buttons lead with their icon and others trail it costs the user a
+  /// scan on every row.
+  final IconData? icon;
+
   /// How much visual weight to carry. Defaults to the theme's variant.
+  ///
+  /// Emphasis, not meaning: the same action can be prominent on one screen and
+  /// discreet on another without changing what it does. Meaning stays in
+  /// [IuxActionDescriptor.intent].
   final IuxButtonVariant? variant;
 
   /// Whether this takes focus when first built.
@@ -80,13 +123,188 @@ class IuxButton extends StatefulWidget {
   ///
   /// Off by default: a button as wide as the screen reads as a banner, and its
   /// label drifts far from its edges.
+  ///
+  /// It takes the width only. Height always follows the content, so a button
+  /// in a `Center` or an `Expanded` stays the size of a button.
   final bool expand;
 
   @override
-  State<IuxButton> createState() => _IuxButtonState();
+  Widget build(BuildContext context) {
+    return _IuxActionSurface(
+      action: action,
+      variant: variant,
+      hasLabel: true,
+      onActivate: onActivate,
+      autofocus: autofocus,
+      focusNode: focusNode,
+      expand: expand,
+      builder: (BuildContext context, IuxButtonTokens tokens) {
+        final Widget text = Text(
+          label,
+          style: tokens.textStyle,
+          textAlign: TextAlign.center,
+          // No ellipsis and no line limit. A truncated action label is an
+          // action the user cannot identify, and truncation gets worse exactly
+          // when a user has enlarged their text.
+          softWrap: true,
+        );
+
+        final IconData? glyph = icon;
+        if (glyph == null) return text;
+
+        // Row rather than a fixed layout: the icon leads in *reading* order,
+        // so right-to-left places it on the right without the widget knowing
+        // which language it is in.
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            _IuxButtonGlyph(icon: glyph, tokens: tokens),
+            SizedBox(width: tokens.iconGap),
+            // Flexible so the label keeps wrapping once the icon has taken its
+            // share of the width. Without it, enlarging text turns a wrapping
+            // button into an overflowing one.
+            Flexible(child: text),
+          ],
+        );
+      },
+    );
+  }
 }
 
-class _IuxButtonState extends State<IuxButton> {
+/// An action with no room for a label.
+///
+/// ```dart
+/// IuxIconButton(
+///   icon: Icons.close,
+///   action: const IuxActionDescriptor(
+///     semantics: IuxActionSemantics(label: 'Close'),
+///     role: IuxActionRole.dismiss,
+///   ),
+///   onActivate: controller.close,
+/// )
+/// ```
+///
+/// **Use it** where a label genuinely does not fit and the glyph is already
+/// understood — closing, going back, searching. A row of controls in an app
+/// bar is the usual case.
+///
+/// **Do not use it** for an action whose glyph the user has to guess. An icon
+/// nobody recognises is a control nobody activates, and unlike a label there
+/// is nothing to read. Icons are the least discoverable form of a control, so
+/// reach for [IuxButton] first and drop the label only when space forces it.
+/// Also avoid it for a destructive action reached without confirmation: an
+/// unlabelled control is the easiest one to hit by accident.
+///
+/// **Accessibility.** There is no `label` parameter and no way to omit the
+/// accessible name: it comes from [IuxActionSemantics.label], which the action
+/// model already requires to be non-empty. An icon-only control without a name
+/// is unusable with a screen reader, so this widget makes that state
+/// unrepresentable rather than checked.
+///
+/// The glyph stays small while the interactive region does not: the region
+/// meets the resolved touch target floor even though the icon inside it is
+/// around 20 logical pixels. Enlarging the glyph to fill the target would make
+/// the interface shout; shrinking the target to fit the glyph would make it
+/// hard to hit. They are separate measurements.
+class IuxIconButton extends StatelessWidget {
+  /// Creates an icon-only action.
+  const IuxIconButton({
+    super.key,
+    required this.icon,
+    required this.action,
+    required this.onActivate,
+    this.variant = IuxButtonVariant.icon,
+    this.autofocus = false,
+    this.focusNode,
+  });
+
+  /// The glyph identifying the action.
+  ///
+  /// An [IconData] rather than a `Widget`, for the same reason as
+  /// [IuxButton.icon]: the widget colours it from the tokens that were
+  /// measured against the container behind it.
+  final IconData icon;
+
+  /// What the action is, whether it may run, and — through
+  /// [IuxActionDescriptor.semantics] — what it is called.
+  final IuxActionDescriptor action;
+
+  /// Called once per accepted activation.
+  final VoidCallback onActivate;
+
+  /// How much visual weight to carry.
+  ///
+  /// Defaults to [IuxButtonVariant.icon] rather than to the theme's variant,
+  /// which describes labelled buttons and is normally
+  /// [IuxButtonVariant.filled]. Icon actions usually appear several to a row,
+  /// and a row of filled containers competes with the content it sits above.
+  /// Ask for a heavier variant when one icon action genuinely dominates.
+  final IuxButtonVariant variant;
+
+  /// Whether this takes focus when first built.
+  final bool autofocus;
+
+  /// An externally owned focus node.
+  final FocusNode? focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    return _IuxActionSurface(
+      action: action,
+      variant: variant,
+      // Square padding, so the target does not grow wider than it is tall for
+      // want of a label to balance it.
+      hasLabel: false,
+      onActivate: onActivate,
+      autofocus: autofocus,
+      focusNode: focusNode,
+      expand: false,
+      builder: (BuildContext context, IuxButtonTokens tokens) =>
+          _IuxButtonGlyph(icon: icon, tokens: tokens),
+    );
+  }
+}
+
+/// The container, semantics and gesture handling every button shape shares.
+///
+/// Private on purpose. It is the answer to "what does an activated IUX action
+/// look and behave like", and there is exactly one answer: the labelled
+/// button, the icon button and the asynchronous button of a later mission must
+/// not be able to drift apart on focus order, repeat handling or the hint a
+/// disabled control reads out. Exposing it would invite a call site to build a
+/// fourth kind of button that skips one of them.
+class _IuxActionSurface extends StatefulWidget {
+  const _IuxActionSurface({
+    required this.action,
+    required this.variant,
+    required this.hasLabel,
+    required this.onActivate,
+    required this.autofocus,
+    required this.focusNode,
+    required this.expand,
+    required this.builder,
+  });
+
+  final IuxActionDescriptor action;
+  final IuxButtonVariant? variant;
+  final bool hasLabel;
+  final VoidCallback onActivate;
+  final bool autofocus;
+  final FocusNode? focusNode;
+  final bool expand;
+
+  /// Builds the content, given the appearance resolved for the current state.
+  ///
+  /// A builder rather than a widget, because press and hover live here and the
+  /// content has to be coloured for the state they produce.
+  final Widget Function(BuildContext context, IuxButtonTokens tokens) builder;
+
+  @override
+  State<_IuxActionSurface> createState() => _IuxActionSurfaceState();
+}
+
+class _IuxActionSurfaceState extends State<_IuxActionSurface> {
   bool _pressed = false;
   bool _hovered = false;
 
@@ -112,6 +330,7 @@ class _IuxButtonState extends State<IuxButton> {
       variant: widget.variant,
       hovered: _hovered,
       pressed: _pressed,
+      hasLabel: widget.hasLabel,
     );
 
     final bool activatable = widget.action.isActivatable;
@@ -143,21 +362,24 @@ class _IuxButtonState extends State<IuxButton> {
             ? Border.all(color: tokens.border, width: tokens.borderWidth)
             : null,
       ),
-      alignment: Alignment.center,
-      child: Text(
-        widget.label,
-        style: tokens.textStyle,
-        textAlign: TextAlign.center,
-        // No ellipsis and no line limit. A truncated action label is an action
-        // the user cannot identify, and truncation gets worse exactly when a
-        // user has enlarged their text.
-        softWrap: true,
+      // Centred by a shrink-wrapping Center rather than by the container's own
+      // alignment. A container that aligns its child grows to fill whatever
+      // its parent offers, so a button placed in a Center or an Expanded came
+      // out as tall as the screen — a 792-pixel target that still announced
+      // itself as a button.
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: widget.builder(context, tokens),
       ),
     );
 
-    if (!widget.expand) {
-      visual = IntrinsicWidth(child: visual);
-    }
+    visual = widget.expand
+        // Asks for the width and nothing else. Where no width is on offer —
+        // an unbounded row — this fails loudly rather than quietly ignoring
+        // what the caller asked for.
+        ? SizedBox(width: double.infinity, child: visual)
+        : IntrinsicWidth(child: visual);
 
     return IuxSemantics.action(
       label: widget.action.semantics.label,
@@ -206,5 +428,36 @@ class _IuxButtonState extends State<IuxButton> {
   void _setHovered(bool value) {
     if (_hovered == value) return;
     setState(() => _hovered = value);
+  }
+}
+
+/// A glyph sized and coloured from the tokens the button resolved.
+///
+/// Separate from the buttons so the two cannot disagree about how large an
+/// icon is, and so the text-scaling rule below is written once.
+class _IuxButtonGlyph extends StatelessWidget {
+  const _IuxButtonGlyph({required this.icon, required this.tokens});
+
+  final IconData icon;
+  final IuxButtonTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    // An icon is content, not decoration. A user who enlarged text because
+    // 14pt was unreadable gains nothing from a control whose only content
+    // stays at 20 — and for an icon-only button that content is the whole
+    // control. The target floor is applied separately by the container, so
+    // scaling here never makes the button smaller.
+    final double size = IuxAccessibility.of(context).scaleText(tokens.iconSize);
+
+    return Icon(
+      icon,
+      size: size,
+      color: tokens.foreground,
+      // Flutter would otherwise scale it a second time. The scale is applied
+      // once, through the runtime every other IUX component reads, so an icon
+      // and a label enlarge by the same factor.
+      applyTextScaling: false,
+    );
   }
 }
