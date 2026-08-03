@@ -2,12 +2,12 @@
 mission_id: IUX-030
 title: Loading and Retry Pattern
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,76 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Quatre états, trois branches
+
+Pas de `IuxLoadState.empty`. Un résultat vide est `ready` avec une valeur
+vide, et le constructeur nomme la situation avec `IuxEmptyState`. Une
+quatrième valeur écraserait les quatre situations d'`IuxEmptyStateCause` en un
+seul mot, remettant « Ajoutez votre première facture » à une valeur d'énum de
+« sous un filtre qui en cache quarante ».
+
+## Rien ne réessaie, rien n'expire
+
+Trois garde-fous contre une tempête déclenchée par l'utilisateur : le contrôle
+n'existe pas pendant le chargement ; `ignoreWhileInProgress` du descripteur
+dérivé absorbe les activations qui se chevauchent ; et il n'y a aucun drapeau
+de disponibilité à mal positionner.
+
+Comme rien n'expire, **SC 2.2.1 n'a aucune limite de temps à contraindre** —
+un délai imposé par le framework en aurait *créé* une, sur un écran sans moyen
+de la prolonger.
+
+## Ce qui a été mesuré
+
+Une traversée de la barre indéterminée : **1800 ms** au mouvement standard,
+jamais plus court en `reduced`, `Duration.zero` en `none`.
+
+C'est ce qui fonde l'argument sur le délai : un chargement résolu en 80 ms
+montre la barre moins d'un vingtième d'une traversée. L'utilisateur voit une
+chose apparaître à une position et disparaître de cette position — voilà
+pourquoi ça se lit comme un défaut de rendu et non comme du travail.
+
+Le seuil d'environ 0,1 s (Miller 1968, Nielsen 1993) est documenté comme
+celui de **l'appelant** : un parent qui attend une réponse dans ce délai ne
+devrait pas entrer en `loading` du tout.
+
+## La décision qui a refait la mission en vol
+
+IUX-029 a atterri pendant l'écriture des tests. L'agent avait construit un
+modèle de réessai avec quatre assertions ; IUX-029 livrait un type scellé qui
+rend **inconstructibles** ces quatre mêmes choses.
+
+Il a supprimé sa version. Elle était strictement inférieure : pas de
+`categoryLabel` — le seul porteur de « ceci est une panne » qui survive à un
+lecteur d'écran (SC 1.4.1) — et elle permettait une panne sans issue, ce
+qu'`IuxErrorRecovery` refuse structurellement.
+
+`IuxLoadingRetry` ne dessine plus rien lui-même : il compose, et toute sa
+contribution est l'invariant entre les deux.
+
+## Un type scellé générique cassait l'égalité
+
+Les trois sous-classes comparaient par test de type pendant que `hashCode`
+intégrait `T`. Les génériques Dart étant covariants, `IuxLoadReady<int>`
+**est** un `IuxLoadReady<Object>` : `loose == tight` était vrai, `tight ==
+loose` faux, et les hachages divergeaient. Une valeur qu'un `Set` détient deux
+fois et qu'une `Map` ne retrouve jamais.
+
+C'est le premier type scellé **générique** du projet, d'où le fait que le
+motif de comparaison correct partout ailleurs était silencieusement faux ici.
+
+## Le défaut trouvé ailleurs
+
+L'agent a trouvé qu'`IuxButton` confond « en cours » et « indisponible ». Il
+l'a trouvé **en sondant, pas en lisant** : il avait écrit une documentation
+affirmant que le flux de réessai sur place *préservait* le focus, et son test
+l'a démentie. Consigné IUX-BUTTON-BUSY-001, vérifié indépendamment, et
+programmé avec IUX-A11Y-FOCUS-001.
+
+42 tests.

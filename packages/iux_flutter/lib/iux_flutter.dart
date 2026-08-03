@@ -84,6 +84,8 @@ export 'src/patterns/form/iux_form.dart';
 export 'src/patterns/form/iux_form_model.dart';
 export 'src/patterns/form/iux_form_section.dart';
 export 'src/patterns/form/iux_validation_summary.dart';
+export 'src/patterns/loading/iux_load_state.dart';
+export 'src/patterns/loading/iux_loading_retry.dart';
 export 'src/semantics/colors/iux_action_colors.dart';
 export 'src/semantics/colors/iux_border_colors.dart';
 export 'src/semantics/colors/iux_content_colors.dart';

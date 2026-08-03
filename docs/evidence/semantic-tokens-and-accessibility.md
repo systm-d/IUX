@@ -1209,6 +1209,85 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `arrival` enum. A region that is empty may always have been; a region that
   *failed* is an event by definition.
 
+### IUX-LOAD-001 — Four states, three branches, and no fourth enum value
+
+- **Level**: strong_guidance
+- **Scope**: IUX-030 onward
+- **Sources**: WCAG 2.2 SC 4.1.3; SC 2.2.1, SC 2.2.2, SC 2.3.3
+- **Status**: implemented — there is no `IuxLoadState.empty`. An empty result
+  is `ready` with an empty value, and the builder names the situation with
+  `IuxEmptyState`. A fourth value would flatten `IuxEmptyStateCause`'s four
+  situations back into one word. The impossible combinations are not asserted:
+  one sealed value, one exhaustive `switch`.
+- **Nothing retries on its own and nothing times out.** Three guards against a
+  user-driven storm: the control does not exist while loading, the derived
+  descriptor's `ignoreWhileInProgress` drops overlapping activations, and there
+  is no availability flag to mis-set. Because nothing times out, **SC 2.2.1
+  has no time limit to bind** — a framework timeout would have *created* one,
+  on a screen with no way to extend it. SC 2.2.2 does not bind the bar
+  (essential motion, and the wait replaces content rather than sitting beside
+  it); SC 2.3.3 does, and is honoured through `IuxMotionPolicy`.
+- **Measured**: one traversal of the indeterminate bar is 1800 ms at standard
+  motion, never shorter under `reduced`, `Duration.zero` under `none`. That
+  grounds the delay argument — a load resolving in 80 ms shows the bar for
+  under a twentieth of one crossing, so the user sees something appear at a
+  position and vanish from it, which is why it reads as a rendering fault
+  rather than as work. The ~0.1 s threshold (Miller 1968, Nielsen 1993) is
+  documented as the **caller's**: a parent expecting an answer inside it
+  should not enter `loading` at all.
+- **No skeleton, and no slot for one**: it claims a shape only the caller
+  knows, its shimmer is decorative motion, it is announced as nothing, and the
+  perceived-speed evidence is contested — §9 forbids shipping a hypothesis as
+  fact.
+
+### IUX-LOAD-002 — A generic sealed type broke equality, silently
+
+- **Level**: standard
+- **Scope**: IUX-030
+- **Status**: fixed. All three subclasses of `IuxLoadState<T>` compared with a
+  type test (`other is IuxLoadReady<T>`) while `hashCode` folded `T` in. Dart
+  generics are covariant, so `IuxLoadReady<int>` *is* an
+  `IuxLoadReady<Object>`: `loose == tight` was true, `tight == loose` false,
+  and the hash codes disagreed throughout — a value a `Set` holds twice and a
+  `Map` never finds. Fixed with `runtimeType` and pinned by a symmetry and
+  set-cardinality test.
+- **Why it was missed**: this is the project's first *generic* sealed type,
+  so the comparison pattern used correctly everywhere else was silently wrong
+  here.
+
+### IUX-BUTTON-BUSY-001 — A running button is announced as unavailable (OPEN)
+
+- **Level**: standard
+- **Scope**: every component built on `IuxButton`, including IUX-029's
+  shipped retry
+- **Sources**: WCAG 2.2 SC 4.1.2; probed directly
+- **Status**: **open defect, confirmed by probe.** Reported by the IUX-030
+  agent, verified independently rather than taken on the report.
+
+  | | focus | `enabled` | `hint` |
+  | --- | --- | --- | --- |
+  | idle | held | `Tristate.isTrue` | empty |
+  | in progress | **lost** | **`Tristate.isFalse`** | "Envoi en cours" |
+
+- **Cause**: `_IuxActionSurface` computes `activatable` from
+  `IuxActionDescriptor.isActivatable`, which is false while
+  `operation == inProgress` under the default repeat policy, and feeds that one
+  value to both `IuxFocusable(canRequestFocus:)` and
+  `IuxSemantics.action(enabled:)`. In progress and unavailable are collapsed
+  into one flag.
+- **Consequences**: a keyboard user who presses "Try again" is thrown back to
+  the enclosing scope; Android announces "unavailable" for something that is
+  working; and `busyHint` — added at IUX-008.6 precisely because "silence is
+  indistinguishable from a control that did nothing" — is attached to a node
+  the user has just been moved off.
+- **It contradicts the model it is built on**: IUX-008.2 made the action
+  dimensions orthogonal, and `IuxActionDescriptor` even asserts that a
+  disabled action cannot be in progress in order to keep them apart. The
+  button collapses them anyway.
+- **Scheduled with IUX-A11Y-FOCUS-001** in one pass: same file, same class of
+  defect, and IUX-008.9's audit is strengthening the button tests right now —
+  those tests are the safety net the fix should land against.
+
 ## Deferred to later missions
 
 | Subject | Mission |
