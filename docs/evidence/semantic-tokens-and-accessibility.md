@@ -599,6 +599,51 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   rebuild, so a user correcting the middle of a word ends up typing at the
   end.
 
+### IUX-STATUS-001 — A status without words is unconstructable
+
+- **Level**: standard
+- **Scope**: IUX-021 onward
+- **Sources**: WCAG 2.2 SC 1.4.1 Use of Color
+- **Status**: implemented — every `IuxStatus` constructor requires a non-empty
+  label, `IuxStatusIndicator` always draws it, and there is no parameter that
+  could hide it
+- **Limits**: a coloured dot meaning "online" is the canonical colour-alone
+  failure. Making the words structural rather than recommended is the only
+  form of the rule that survives a deadline.
+
+### IUX-STATUS-002 — Each tone resolves a distinct glyph, and a test proves it
+
+- **Level**: strong_guidance
+- **Scope**: IUX-021 onward
+- **Sources**: WCAG 2.2 SC 1.4.1
+- **Status**: implemented — `IuxStatusResolver.glyph` is public precisely so
+  `IuxStatusTone.values.map(glyph).toSet()` can be asserted to hold four
+  elements
+- **Limits**: automates the "render it in one hue and see what disappears"
+  check. The four glyph choices themselves are a hypothesis.
+
+### IUX-STATUS-003 — A badge may not announce its own number
+
+- **Level**: standard
+- **Scope**: IUX-021 onward
+- **Sources**: WCAG 2.2 SC 4.1.2 Name, Role, Value
+- **Status**: implemented — `IuxBadge.count(count: '3', label: '3')` throws
+- **Limits**: "3" is meaningless; "3 unread messages" is information. The
+  number alone works only for someone who already knows what it counts.
+
+### IUX-STATUS-004 — A tag chip cannot announce itself as a control
+
+- **Level**: standard
+- **Scope**: IUX-021 onward
+- **Sources**: WCAG 2.2 SC 4.1.2
+- **Status**: implemented — two distinct types. A tag is built from
+  `IuxSemantics.group`, contains no gesture detector and no focus node, and
+  resolves `minimumSize` to zero.
+- **Limits**: one type with a nullable callback would look identical whether
+  or not it was a control. The tag also uses `border.subtle`, the one border
+  role IUX forbids on interactive elements, so it looks inert as well as being
+  inert.
+
 ## Deferred to later missions
 
 | Subject | Mission |

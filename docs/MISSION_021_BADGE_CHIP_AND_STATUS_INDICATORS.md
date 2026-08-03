@@ -2,12 +2,12 @@
 mission_id: IUX-021
 title: Badge, Chip and Status Indicators
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,60 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Le test le plus dur de la règle « jamais la couleur seule »
+
+Les indicateurs de statut sont l'endroit où les échecs « couleur seule » se
+concentrent. La règle a donc été rendue **structurelle**, pas consultative :
+
+1. `IuxStatus` n'a **aucun constructeur qui omette les mots**. Un statut porté
+   par une forme colorée est inconstructible.
+2. `IuxStatusIndicator` dessine toujours ce libellé — pas de `showLabel`, pas
+   de variante pastille seule, et aucun paramètre qui pourrait en ajouter une.
+3. Chaque tonalité résout un **glyphe différent**, et `IuxStatusResolver.glyph`
+   est public précisément pour qu'un test puisse assert que
+   `IuxStatusTone.values.map(glyph).toSet()` contient quatre éléments. Cela
+   automatise le contrôle « rends-le en une seule teinte et vois ce qui
+   disparaît ».
+4. `IuxBadge.count(count: '3', label: '3')` **lève**. « 3 » ne veut rien dire ;
+   « 3 messages non lus » est une information.
+5. Une puce de type étiquette ne peut pas s'annoncer comme un contrôle : deux
+   types distincts, celui-ci bâti sur `IuxSemantics.group`, sans détecteur de
+   geste ni nœud de focus, avec `minimumSize` à zéro et `border.subtle` — le
+   seul rôle de bordure qu'IUX interdit sur un élément interactif. Il *paraît*
+   inerte autant qu'il l'est.
+
+## Défaut trouvé pendant les tests
+
+La bordure épaissie de l'état sélectionné élargissait la puce de 2 px, ce qui
+refluait tout le groupe à chaque tap. Corrigé en réservant `strongBorderWidth`
+dans le padding de **tous** les états : une puce est identique au pixel près,
+choisie ou non. Même principe que l'emplacement réservé de la coche, un étage
+plus bas.
+
+## Autres décisions
+
+- **`IuxChipGroup` existe** pour que `kIuxMinimumTargetSpacing` soit structurel
+  et non une note de documentation, et pour que l'ensemble ait un nom
+  accessible — huit boutons sans nom ne disent rien à un lecteur d'écran.
+- **`count` est une `String`, pas un `int`** : « 3 », « ٣ » et « 99+ » sont
+  trois chaînes différentes.
+- **Le statut réutilise les rôles de feedback** au lieu d'inventer une
+  palette : leurs paires sont déjà mesurées sur les quatre profils.
+
+## Tests
+
+48 nouveaux tests.
+
+## Limites
+
+- Les quatre glyphes et la distinction pastille-de-statut / puce-étiquette
+  sont des hypothèses.
+- Pas de badge en superposition, pas de puce supprimable, pas de région live
+  par défaut (l'appelant enveloppe).
+- TalkBack, Voice Access et D-pad restent à valider sur appareil.
