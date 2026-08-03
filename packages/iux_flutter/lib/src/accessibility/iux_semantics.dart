@@ -19,6 +19,11 @@ abstract final class IuxSemantics {
   ///
   /// [busyHint] is appended when the action is running. Supply it already
   /// localised, or leave it null: the framework will not invent one.
+  ///
+  /// Pass [onTap] whenever the wrapped subtree is activatable. It is what a
+  /// screen reader's double-tap invokes; a gesture detector inside the child
+  /// cannot supply it, because this helper excludes the child's semantics in
+  /// order to control the announced name.
   static Widget action({
     required Widget child,
     required String label,
@@ -26,6 +31,7 @@ abstract final class IuxSemantics {
     bool enabled = true,
     bool? selected,
     String? busyHint,
+    VoidCallback? onTap,
   }) =>
       Semantics(
         container: true,
@@ -33,6 +39,11 @@ abstract final class IuxSemantics {
         enabled: enabled,
         selected: selected,
         label: label,
+        // Carried here because [excludeSemantics] removes the child's own tap
+        // action along with its label. Without it the node announces a button
+        // and offers nothing to activate, so a screen-reader double-tap does
+        // nothing at all — the control is visible, named, and unusable.
+        onTap: enabled ? onTap : null,
         // A running action is announced through the hint, because a screen
         // reader gives no standard indication for it and silence is
         // indistinguishable from a control that simply did nothing.

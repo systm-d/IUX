@@ -2,12 +2,12 @@
 mission_id: IUX-019
 title: Card and Grouped Content
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,48 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Le problème de la carte cliquable contenant des actions
+
+Refusé, et en **deux couches** parce qu'aucune ne suffit seule :
+
+1. **API, à la compilation** : `IuxCard.tappable` n'a pas de paramètre
+   `actions`.
+2. **Garde de sous-arbre, à l'exécution en debug** : un contrôle déposé
+   directement dans `child` contourne la couche 1, donc une garde privée
+   parcourt le contenu après la frame et lève une erreur **nommant le
+   coupable**.
+
+Une carte qui est elle-même un contrôle et contient des contrôles a deux
+réponses à « que fait le tap », et rien à l'écran ne dit laquelle on va
+obtenir.
+
+## Un vrai bug trouvé par un test
+
+La carte non cliquable utilisait `IuxSemantics.group`, qui absorbait le
+libellé et le rôle de sa propre action dans un seul nœud — annonçant
+« Commande 3141, Suivre, bouton » avec le contrôle devenu inatteignable.
+Corrigé par `explicitChildNodes: true`.
+
+## Le contenu est fusionné, pas exclu
+
+Une carte cliquable est un `MergeSemantics` : un seul arrêt de lecteur
+d'écran, le nom d'abord, puis le texte de la carte **fusionné**. L'exclure —
+ce que fait `IuxSemantics.action` — supprimerait le statut et le montant de
+l'interface de tout utilisateur de lecteur d'écran.
+
+## L'élévation n'est pas le signal de groupement
+
+Aucun paramètre d'élévation, bordure inconditionnelle. Le test « la surface
+diffère de la page » a **échoué sur le profil clair** — `surface.raised ==
+surface.base` là-bas — ce qui prouve que la bordure porte la charge et n'est
+pas décorative. Test réécrit sur l'invariant réel.
+
+## Tests
+
+38 nouveaux tests.

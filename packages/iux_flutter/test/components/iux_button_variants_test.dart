@@ -141,6 +141,7 @@ void main() {
           isButton: true,
           isEnabled: true,
           hasEnabledState: true,
+          hasTapAction: true,
         ),
       );
     });
@@ -435,6 +436,7 @@ void main() {
           isButton: true,
           isEnabled: true,
           hasEnabledState: true,
+          hasTapAction: true,
         ),
       );
     });
@@ -481,6 +483,9 @@ void main() {
           isButton: true,
           isEnabled: false,
           hasEnabledState: true,
+          // No tap action while unavailable: a screen reader must not offer
+          // an activation that would do nothing.
+          hasTapAction: false,
         ),
       );
     });

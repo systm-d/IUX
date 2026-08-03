@@ -2,12 +2,12 @@
 mission_id: IUX-016
 title: Dialog
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,58 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La contrainte `Navigator`, non pliée
+
+Le standard interdit `Navigator` dans un composant. L'agent ne l'a pas
+contourné : `IuxModalLayer` empile un dialogue au-dessus de la page, que le
+parent contrôle par un drapeau.
+
+Trois conséquences, toutes documentées : le dialogue ne peut pas fuir, la page
+reste montée derrière lui (position de défilement et contrôleurs survivent),
+et **le bouton retour Android ne l'atteint pas**. Ce coût est énoncé, pas
+masqué — la documentation donne le `PopScope` côté parent, à deux lignes du
+drapeau qu'il possède déjà. `PopScope` *est* de la navigation : il appartient
+au site d'appel.
+
+Un seul emplacement de dialogue, donc l'empilement est structurellement
+impossible.
+
+## Focus
+
+Capture du focus précédent en `initState`, **avant** que quoi que ce soit dans
+le dialogue puisse le prendre. Puis déplacement explicite vers le panneau —
+pas via `autofocus`, qui cède à ce qui détient déjà le focus, c'est-à-dire
+exactement le widget de la page qu'on vient de bloquer.
+
+**Le focus se pose sur le panneau, jamais sur un bouton** : un dialogue qui
+focalise son action de confirmation transforme une frappe Entrée en cours en
+une confirmation que personne n'a lue.
+
+L'agent a testé par mutation le piège **et** la restauration — et a découvert
+que le cas simple est aussi couvert par le repli de Flutter, donc que son test
+n'avait pas de mordant. Il en a écrit un discriminant (un widget d'arrière-plan
+prenant le focus pendant que le dialogue est ouvert) qui échoue sans la
+restauration explicite.
+
+## Autres décisions
+
+- Pas de `barrierDismissible` : un voile qui ignore les taps est indiscernable
+  d'un voile cassé. Voile, Échap et bouton appellent le même `onDismiss`, requis.
+- **Tout défile, y compris la rangée d'actions.** Épingler est plus net
+  jusqu'à 200 % de texte sur 320×480, où la rangée épinglée plus le titre ne
+  laissent plus de place au message.
+- Deux choix au maximum. Trois, c'est un menu.
+- La couleur du voile est **dérivée par luminance mesurée**, faute de rôle de
+  voile dans la couche sémantique : celle des surfaces que le thème a résolue
+  la plus sombre, à 60 %. Un voile de thème sombre n'éclaircit donc jamais la
+  page.
+
+## Tests
+
+37 nouveaux tests.

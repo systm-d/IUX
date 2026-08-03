@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
-import 'package:iux_flutter/src/actions/iux_async_action.dart';
-import 'package:iux_flutter/src/components/button/iux_async_button.dart';
 
 /// The four conditions every IUX component is held to.
 const List<IuxThemeConfiguration> _profiles = <IuxThemeConfiguration>[

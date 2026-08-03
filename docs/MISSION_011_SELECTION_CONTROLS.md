@@ -2,12 +2,12 @@
 mission_id: IUX-011
 title: Selection Controls
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,37 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Décisions
+
+- **Un seul enum d'état** (`unselected` / `selected` / `partial`) pour les trois
+  contrôles, jamais un `bool?` — le standard interdit les booléens ambigus.
+  `partial` n'est légal que sur une case à cocher ; `IuxSwitch` assert contre.
+- **Activer un contrôle partiel demande « tout sélectionner »**, jamais
+  « tout effacer » : effacer détruit des choix déjà faits, sélectionner est
+  réversible d'une activation.
+- **`onChanged` non nullable.** L'indisponibilité a un seul domicile. Un
+  rappel nullable serait une seconde façon de dire « indisponible », et les
+  deux dériveraient vers un contrôle qui s'annonce disponible sans rien faire.
+- **Aucun radio isolé.** `IuxRadioGroup` prend des *valeurs*, pas des widgets,
+  donc un radio orphelin est irreprésentable.
+- **L'erreur est au niveau du groupe**, pas par option : peindre cinq cercles
+  en rouge dirait que chaque choix est invalide, alors que le problème est
+  qu'aucun n'a été fait.
+- **La forme n'est pas thématisable** : une case à cocher entièrement arrondie
+  est un radio qui se comporte autrement.
+
+## Ce que cette mission a trouvé dans le code existant
+
+L'agent a remarqué que son nœud sémantique portait son propre `onTap`, alors
+que `IuxButton` n'en avait pas. Vérifié par sonde : `actions: 0`, activation
+sémantique sans effet. Corrigé dans le runtime — voir `IUX-A11Y-009`.
+
+## Tests
+
+58 nouveaux tests.

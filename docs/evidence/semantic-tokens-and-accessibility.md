@@ -644,6 +644,59 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   role IUX forbids on interactive elements, so it looks inert as well as being
   inert.
 
+### IUX-A11Y-009 — A named button with no tap action is unusable
+
+- **Level**: standard
+- **Scope**: IUX-005 (defect), fixed during IUX-011
+- **Sources**: WCAG 2.2 SC 4.1.2 Name, Role, Value
+- **Status**: **fixed**. `IuxSemantics.action` sets `excludeSemantics: true`
+  to control the announced name, which also removed the child gesture
+  detector's tap action. `IuxButton` therefore announced a button and offered
+  nothing to activate — visible, named, and unusable with TalkBack.
+- **Limits**: verified by probe before and after (`actions: 0` → `actions: 1`)
+  and locked by two regression tests, including one asserting a disabled
+  button offers *no* tap action.
+
+### IUX-CARD-001 — A tappable card may not contain controls
+
+- **Level**: strong_guidance
+- **Scope**: IUX-019 onward
+- **Sources**: WCAG 2.2 SC 4.1.2; nested interactive elements
+- **Status**: implemented in two layers — `IuxCard.tappable` has no `actions`
+  parameter, and a debug-only subtree guard throws naming the offender
+- **Limits**: a card that is itself a control and also contains controls has
+  two answers to "what does tapping do", and nothing on screen says which.
+  The guard is a heuristic, compiled out in release, and blind to custom hit
+  testing.
+
+### IUX-DIALOG-001 — A modal is a layer the parent places, not a route
+
+- **Level**: context_dependent
+- **Scope**: IUX-016 onward
+- **Sources**: the component standard forbids `Navigator` in a component
+- **Status**: implemented — `IuxModalLayer` stacks one dialog over the page
+- **Limits**: the real cost is that the Android back button does not reach it;
+  the parent wires `PopScope` to the same dismissal. Stated rather than
+  hidden. A single dialog slot makes stacking structurally impossible.
+
+### IUX-DIALOG-002 — Focus lands on the panel, never on an action
+
+- **Level**: strong_guidance
+- **Scope**: IUX-016 onward
+- **Sources**: WCAG 2.2 SC 2.4.3 Focus Order
+- **Status**: implemented and mutation-tested
+- **Limits**: a dialog that focuses its confirming action turns an in-flight
+  Enter keystroke into a confirmation nobody read.
+
+### IUX-SELECTION-001 — Activating a partial control selects all
+
+- **Level**: strong_guidance
+- **Scope**: IUX-011 onward
+- **Sources**: derived from PROJECT_PROMPT §18 (error prevention)
+- **Status**: implemented — the user can never request `partial`
+- **Limits**: clearing would destroy choices already made; selecting all is
+  recoverable by one more activation.
+
 ## Deferred to later missions
 
 | Subject | Mission |
@@ -654,6 +707,8 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 | Distinct `surface.interactive`, so a read-only field differs by fill | unscheduled |
 | `IuxSemantics.field`, so a text field need not compose `Semantics` directly | unscheduled |
 | A semantic role for text selection, currently inherited from Material | unscheduled |
+| `IuxSemantics` helpers for checked/toggled/route/field, so components stop composing bare `Semantics` | unscheduled |
+| A scrim role in the semantic layer, currently derived by luminance | unscheduled |
 
 ## Manual validation register
 

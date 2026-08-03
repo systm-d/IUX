@@ -407,6 +407,7 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
       hint: _hint,
       enabled: activatable,
       busyHint: widget.action.isBusy ? widget.busyHint : null,
+      onTap: activatable ? _handleActivate : null,
       child: IuxFocusable(
         autofocus: widget.autofocus,
         focusNode: widget.focusNode,

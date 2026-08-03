@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
@@ -171,6 +172,7 @@ void main() {
           isButton: true,
           isEnabled: true,
           hasEnabledState: true,
+          hasTapAction: true,
         ),
       );
     });
@@ -252,6 +254,55 @@ void main() {
       );
       expect(find.text('Delete'), findsOneWidget);
       expect(find.bySemanticsLabel('Delete the March invoice'), findsOneWidget);
+    });
+  });
+
+  group('a screen reader can actually activate it', () {
+    testWidgets('the semantics node carries a tap action',
+        (WidgetTester tester) async {
+      // Regression: IuxSemantics.action excludes the child's semantics in
+      // order to control the announced name, which also removed the gesture
+      // detector's tap action. The node announced a button and offered
+      // nothing to activate — visible, named, and unusable with TalkBack.
+      final List<int> calls = <int>[];
+      await pump(tester, counter: calls);
+
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final SemanticsNode node =
+          tester.getSemantics(find.bySemanticsLabel('Save'));
+
+      expect(
+        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+        reason: 'a button with no tap action cannot be used with a screen '
+            'reader',
+      );
+
+      // performAction is the closest a widget test gets to TalkBack's
+      // double-tap: it invokes the action the platform would.
+      // ignore: deprecated_member_use
+      tester.binding.pipelineOwner.semanticsOwner!
+          .performAction(node.id, SemanticsAction.tap);
+      await tester.pump();
+      expect(calls, hasLength(1));
+      handle.dispose();
+    });
+
+    testWidgets('a disabled button offers no tap action',
+        (WidgetTester tester) async {
+      await pump(
+        tester,
+        action: idle.copyWith(availability: IuxActionAvailability.disabled),
+      );
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Save'))
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isFalse,
+      );
+      handle.dispose();
     });
   });
 
