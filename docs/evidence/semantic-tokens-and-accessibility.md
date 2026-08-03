@@ -697,6 +697,52 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: clearing would destroy choices already made; selecting all is
   recoverable by one more activation.
 
+### IUX-MEDIA-001 — Decorative versus meaningful is stated, never inferred
+
+- **Level**: standard
+- **Scope**: IUX-022 onward
+- **Sources**: WCAG 2.2 SC 1.1.1 Non-text Content
+- **Status**: implemented — `IuxImageDescription` is required with no default
+  and has exactly two constructors, `.meaningful(String)` and `.decorative()`
+- **Limits**: a nullable label where null quietly means decoration collapses
+  "I have not written it yet" and "this says nothing" into one value.
+  `isDecorative` is a field rather than an empty-string check, so a forgotten
+  description and a deliberate absence stay distinguishable in release, where
+  assertions no longer run.
+
+### IUX-MEDIA-002 — An avatar's initials are drawn but never announced
+
+- **Level**: standard
+- **Scope**: IUX-022 onward
+- **Sources**: WCAG 2.2 SC 1.1.1
+- **Status**: implemented structurally — `IuxSemantics.image` excludes
+  descendant semantics, so no arrangement of parameters gets "JD" spoken
+- **Limits**: IUX never derives initials from a name. That rule breaks for
+  李明, van der Berg, mononyms, and every script without spaces. The caller
+  supplies them.
+
+### IUX-MEDIA-003 — A failed meaningful image renders its own description
+
+- **Level**: standard
+- **Scope**: IUX-022 onward
+- **Sources**: WCAG 2.2 SC 1.1.1; HTML `alt` behaviour
+- **Status**: implemented — the node's role changes from image to text,
+  because the truth changed. A failed decorative image keeps its space and
+  stays silent.
+- **Limits**: a screen-reader user is not told the picture *failed*; they get
+  the description as text. Honest, but not identical to a sighted user's
+  experience. IUX invents no failure wording.
+
+### IUX-MEDIA-004 — An avatar has no failure state by construction
+
+- **Level**: strong_guidance
+- **Scope**: IUX-022 onward
+- **Sources**: none external; an IUX design decision
+- **Status**: implemented — the photograph is drawn on top of a fallback that
+  is already present
+- **Limits**: offline, 404, slow or malformed, the user sees what they saw a
+  moment earlier. A blank circle is a failure the user cannot interpret.
+
 ## Deferred to later missions
 
 | Subject | Mission |

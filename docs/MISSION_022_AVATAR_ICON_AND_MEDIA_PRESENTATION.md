@@ -2,12 +2,12 @@
 mission_id: IUX-022
 title: Avatar, Icon and Media Presentation
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,59 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Décoratif ou porteur de sens : énoncé, jamais déduit
+
+`IuxImageDescription` est un paramètre **requis sans défaut**, avec exactement
+deux constructeurs : `.meaningful(String)` — qui assert non vide — et
+`.decorative()`.
+
+Pas de libellé nullable. Un `String?` où `null` signifie discrètement
+« décoratif » confond « je ne l'ai pas encore écrit » et « ça ne dit rien ».
+
+Et `isDecorative` est un **champ**, pas une déduction sur chaîne vide : déduire
+rendrait une description oubliée et une absence délibérée identiques en
+release, là où les assertions ne tournent plus.
+
+## Les initiales sont dessinées, jamais annoncées
+
+Structurellement : `IuxSemantics.image` exclut les sémantiques descendantes,
+donc aucun agencement de paramètres ne fait prononcer « JD ».
+
+Et IUX ne **dérive** jamais les initiales d'un nom — cette règle casse pour
+李明, van der Berg, les mononymes, et toute écriture sans espaces. L'appelant
+les fournit.
+
+## Échec d'image
+
+`IuxAvatar` **n'a pas d'état d'échec par construction** : la photo est
+dessinée *par-dessus* un repli déjà présent. Hors ligne, 404, lent ou corrompu,
+l'utilisateur voit ce qu'il voyait l'instant d'avant.
+
+`IuxImage` rapporte l'échec, parce que là l'image *était* l'information. Une
+image porteuse de sens qui échoue **rend sa propre description en texte** —
+le comportement de `alt` en HTML, autour duquel WCAG SC 1.1.1 est écrit. Le
+rôle du nœud passe d'image à texte, parce que la vérité a changé. Une image
+décorative qui échoue garde sa place et se tait : rien n'a été perdu, donc un
+glyphe cassé serait un message d'erreur à propos d'un non-événement.
+
+## Tests
+
+46 nouveaux tests. Les trois états sont pilotés par de faux `ImageProvider`
+résolvant immédiatement, jamais, et en erreur.
+
+## Limites
+
+- Aucun test ne peut juger si une description est *compréhensible* :
+  « Image » passe tout et n'aide personne.
+- Un utilisateur de lecteur d'écran n'est pas informé de l'*échec* ; il reçoit
+  la description en texte.
+- Une image échouée a besoin de place pour grandir. Épinglée dans une boîte à
+  hauteur fixe, une longue description à 200 % déborde visiblement —
+  délibéré : un débordement en debug est un rapport de bug, une troncature
+  silencieuse est de l'information qui disparaît.
