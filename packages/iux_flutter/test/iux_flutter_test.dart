@@ -27,20 +27,16 @@ void main() {
       );
     });
 
-    test('no component or pattern is exported yet', () {
-      // These layers belong to later missions. Exporting a placeholder now
-      // would pre-empt the API design those missions are meant to produce.
-      // Themes are legitimately exported since IUX-004.
-      for (final String forbidden in <String>[
-        'components/',
-        'patterns/',
-      ]) {
-        expect(
-          exports.where((String line) => line.contains(forbidden)),
-          isEmpty,
-          reason: '$forbidden is out of scope for the semantic layer',
-        );
-      }
+    test('only patterns remain unexported', () {
+      // Components arrived with IUX-008.4, so the blanket ban this test
+      // carried since IUX-003.1 no longer holds. Patterns are still ahead of
+      // their missions, and the Component Standard test now enforces what a
+      // component may contain.
+      expect(
+        exports.where((String line) => line.contains('patterns/')),
+        isEmpty,
+        reason: 'patterns belong to IUX-028 onward',
+      );
     });
 
     test('primitive names describe a hue and a level, not an identity', () {
