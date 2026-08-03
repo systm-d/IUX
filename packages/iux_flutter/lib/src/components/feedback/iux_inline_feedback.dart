@@ -33,7 +33,13 @@ const String _kErrorDismissWithoutRecovery =
     'to do, leave it undismissible: the message is the only account of the '
     'state the user is in.';
 
-/// A recovery path offered inside an inline message.
+/// A labelled control with no lifecycle of its own.
+///
+/// It began as the recovery path inside an inline message, which is where the
+/// name comes from. It is now the library's general value for "a control that
+/// has a name and does one thing": `IuxAlternativeRoute` carries one inside
+/// `IuxErrorRecovery`, and both answers of `IuxPermissionRationale` are one.
+/// The type was right each time; only this sentence had to widen.
 ///
 /// This exists because of the single most common failure in this component
 /// family: a message that says what went wrong and stops there. "Something

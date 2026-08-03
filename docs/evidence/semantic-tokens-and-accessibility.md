@@ -1502,6 +1502,59 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   destructions must each be reversible the way back belongs in a durable
   trash.
 
+### IUX-PERMISSION-001 — Before and after cannot be confused, because they are different types
+
+- **Level**: standard
+- **Scope**: IUX-031 onward
+- **Sources**: Android permission guidance *(to verify)*; EDPB deceptive-design
+  guidelines *(to verify)*
+- **Status**: implemented. `IuxPermissionMoment` is sealed:
+  `IuxBeforeAsking({required ask, required decline})`,
+  `IuxAfterRefusal({askAgain, required decline})`,
+  `IuxSystemWillNotAsk({openSettings, required decline})`.
+- **The one thing made unrepresentable rather than asserted**:
+  `IuxSystemWillNotAsk` has **no ask parameter at all**. A control offering to
+  request a permission the system will refuse to request produces nothing when
+  pressed and reads as a broken app.
+- **`decline` is required on all three**, and this is the loop-breaker rather
+  than advice: the user always has a way out, and the parent always receives
+  the refusal — the only signal an app gets that the user said no to *being
+  asked*. A pattern with no such signal can only nag, because the caller has
+  nothing to record.
+- **Re-asking is permitted once, where the user came back.** Forbidding it
+  would push every app that needs `shouldShowRequestPermissionRationale` out
+  of the pattern, where nothing constrains them at all. Stated plainly in code
+  and docs: **a parent that rebuilds this on every screen entry will nag, and
+  no widget can stop it.**
+- **The framework touches no platform.** Verified by parsing the source files
+  rather than by inspection: every import must be `package:flutter/…` or
+  relative, and code outside comments must contain no `MethodChannel`,
+  `Platform.`, `dart:io`, `permission_handler`, `openAppSettings`,
+  `requestPermissions` or `shouldShowRequestPermissionRationale`.
+
+### IUX-PERMISSION-002 — Focus never moves, and the hazard is worse than a retry
+
+- **Level**: standard
+- **Scope**: IUX-031 onward
+- **Sources**: WCAG 2.2 SC 4.1.3, SC 3.2.2
+- **Status**: implemented. The live region is unconditional — a region that is
+  empty may always have been, but **a request is an event by definition**, and
+  a question nobody heard is not a question.
+- **Why focus does not move, and why there is no hook**: focus arms the next
+  Enter, and the armed control opens the **OS permission prompt**. A refusal
+  the user never meant to give can close that prompt permanently. This is the
+  fourth pattern to decide focus and the first where the cost is irreversible.
+- **Refusal first in reading order**, so the way out is never past the request
+  and the prompt-opening control is never under the first Enter. Both answers
+  are real `IuxButton`s, and there is no parameter that draws the refusal as a
+  grey link — **that asymmetry, not the wording, is the manipulation.**
+- **SC 3.3.1 does not bind and the docs say so** rather than claiming it:
+  nothing the user entered was rejected.
+- **Measured, not assumed**: one Tab and one Enter run the refusal, not the
+  request. The two controls **wrap to a second line** at 400 px with real
+  labels, so the spacing test measures whichever axis they land on — behaviour
+  documented rather than hidden.
+
 ## Deferred to later missions
 
 | Subject | Mission |

@@ -2,12 +2,12 @@
 mission_id: IUX-031
 title: Permission Rationale
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: IUX-031 pattern agent
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,69 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Trois moments, et la forme de chaque constructeur *est* l'affirmation
+
+Une justification montrée **avant** l'invite système demande l'autorisation de
+poser la question. Une justification montrée **après** un refus est autre
+chose entièrement, et confondre les deux est la mécanique par laquelle une
+application se met à harceler.
+
+Ici elles ne peuvent pas se confondre : ce sont des types différents avec des
+constructeurs différents. Une justification qui ne peut pas mener à la
+question est inconstructible, et **`IuxSystemWillNotAsk` n'a aucun paramètre
+`ask`** — la seule chose rendue irreprésentable plutôt qu'assertée, parce
+qu'un bouton proposant de demander une permission que le système refusera de
+demander ne produit rien quand on l'active et se lit comme une application
+cassée.
+
+## `decline` requis partout, et c'est le brise-boucle
+
+Deux conséquences : l'utilisateur a toujours une sortie, et le parent reçoit
+**toujours** le refus — le seul signal qu'une application obtienne indiquant
+que l'utilisateur a dit non *au fait d'être sollicité*.
+
+Un motif dépourvu d'un tel signal ne peut que harceler, parce que l'appelant
+n'a rien à enregistrer. Ce n'est donc pas un conseil, c'est une structure.
+
+Redemander est permis, une fois, là où l'utilisateur est revenu. L'interdire
+pousserait hors du motif toute application ayant besoin de
+`shouldShowRequestPermissionRationale`, là où plus rien ne la contraint. La
+limite est dite franchement, dans le code et dans la doc : **un parent qui
+reconstruit ce bloc à chaque entrée d'écran harcèlera, et aucun widget ne peut
+l'en empêcher.**
+
+## Pourquoi le focus ne bouge pas, et pourquoi le danger est pire qu'ailleurs
+
+Le focus arme la prochaine touche Entrée — et le contrôle armé ouvre **l'invite
+de permission du système**. Un refus que l'utilisateur n'a jamais voulu donner
+peut fermer cette invite **définitivement**.
+
+C'est le quatrième motif à trancher la question du focus, et le premier où le
+coût est irréversible.
+
+Le refus vient en premier dans l'ordre de lecture, donc la sortie n'est jamais
+après la demande et le contrôle qui ouvre l'invite n'est jamais sous le
+premier Entrée. Les deux réponses sont de vrais `IuxButton` : aucun paramètre
+ne permet de dessiner le refus en lien gris, parce que **c'est cette
+asymétrie, pas la formulation, qui est la manipulation.**
+
+## Deux honnêtetés qui méritent d'être notées
+
+Il a vérifié la frontière plateforme **en parsant ses propres fichiers**, pas
+en les relisant : tout import doit être `package:flutter/…` ou relatif, et le
+code hors commentaires ne doit contenir aucun `MethodChannel`, `Platform.`,
+`dart:io`, ni aucun nom de l'API de permissions.
+
+Et il a tagué *(à vérifier)* les sources qu'il citait de mémoire au lieu de
+les faire passer pour lues.
+
+Il dit aussi que **SC 3.3.1 ne s'applique pas** — rien de ce que
+l'utilisateur a saisi n'a été rejeté — plutôt que de le revendiquer.
+
+45 tests.
