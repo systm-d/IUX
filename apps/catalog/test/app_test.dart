@@ -78,6 +78,7 @@ void main() {
       'Touch targets',
       'Motion roles',
       'Feedback roles',
+      'Layout',
       'Announcements',
       'Typography',
     ]) {
@@ -174,6 +175,24 @@ void main() {
         reason: 'travel must become a fade rather than a faster movement');
     expect(find.textContaining('remove'), findsWidgets,
         reason: 'decoration must be dropped');
+  });
+
+  testWidgets('reading width grows with the text scale', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await reveal(tester, 'Layout');
+    final String before = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((Text t) => t.data ?? '')
+        .firstWhere((String s) => s.startsWith('Layout class'));
+
+    await chooseOption(tester, 'Text scale', '2.0x');
+    await reveal(tester, 'Layout');
+
+    expect(before, startsWith('Layout class'));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('large text does not overflow the layout', (

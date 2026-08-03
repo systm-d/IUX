@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.0-dev.7 — IUX-007
+
+Layout primitives. Additive.
+
+### Added
+
+- `IuxPage`, which composes with `Scaffold` rather than replacing it. Scrolls
+  by default, because a screen that does not scroll breaks the moment text is
+  enlarged or a keyboard appears.
+- `IuxPageInsets`, four explicit safe-area modes. A boolean cannot express
+  which edges a nested element already consumed, which is how double padding
+  happens.
+- `IuxSurface`, `IuxSection`, `IuxSectionHeader` — a section title is exposed
+  as a screen-reader landmark, so the grouping exists for someone who cannot
+  see the spacing that expresses it.
+- `IuxTargetSpacing` and `kIuxMinimumTargetSpacing`, closing the gap IUX-005
+  deferred: two touching 48-pixel targets still produce mis-taps.
+- `IuxContentWidth` / `IuxReadableWidth`, with caps measured in characters and
+  converted at the text size in force. A fixed pixel cap halves the characters
+  per line when a user doubles their text.
+- `IuxGap`, `IuxInsets`, `IuxLayoutClass`, `IuxBreakpoints`,
+  `IuxResponsiveValue`.
+
+### Notes
+
+Control groups use `Wrap`, not `Row`: at a large text scale a row stops
+fitting, and wrapping beats clipping a label the user cannot then read. A full
+composition is tested at 320×480 with a 2x text scale.
+
+
 ## 0.1.0-dev.6 — IUX-006
 
 Motion and feedback engine. **Breaking** for the minimal motion policy

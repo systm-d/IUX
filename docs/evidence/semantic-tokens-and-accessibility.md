@@ -358,11 +358,71 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: shipping English defaults would make the omission invisible in
   every other language.
 
+### IUX-LAYOUT-001 — Adjacent interactive elements keep a minimum separation
+
+- **Level**: standard
+- **Scope**: IUX-007 onward
+- **Sources**: WCAG 2.2 SC 2.5.8, which allows smaller targets when spacing
+  compensates
+- **Status**: implemented as `IuxTargetSpacing`, which raises any smaller
+  request to the floor; tested
+- **Limits**: closes the gap IUX-005 deferred. 8 logical pixels is a chosen
+  default, not a measured optimum. Target size alone does not prevent
+  mis-taps: two touching 48-pixel targets still produce them.
+
+### IUX-LAYOUT-002 — Reading width is measured in characters, not pixels
+
+- **Level**: hypothesis for the counts, strong guidance for the principle
+- **Scope**: IUX-007 onward
+- **Sources**: long-standing typographic guidance on 60–75 characters per line
+- **Status**: implemented — caps convert at the text size in force
+- **Limits**: a fixed pixel cap halves the characters per line when text
+  doubles. The character-to-pixel conversion assumes a proportional Latin face
+  and is deliberately generous; it will be wrong for CJK and monospace.
+
+### IUX-LAYOUT-003 — Control groups wrap rather than clip
+
+- **Level**: standard
+- **Scope**: IUX-007 onward
+- **Sources**: WCAG 2.2 SC 1.4.4 Resize Text, SC 1.4.10 Reflow
+- **Status**: implemented — `IuxTargetSpacing` and `IuxSectionHeader` use
+  `Wrap`; tested at 320×480 with a 2x text scale
+- **Limits**: `Wrap` cannot express "these two must stay on one line", which
+  some designs will want.
+
+### IUX-LAYOUT-004 — Safe areas are consumed per edge, never blanket-applied
+
+- **Level**: context_dependent
+- **Scope**: IUX-007 onward
+- **Sources**: ADR-0007
+- **Status**: implemented as four explicit modes
+- **Limits**: prevents double padding, where a page and a nested sheet both
+  inset from a notch that exists once. Nesting is documented but not detected.
+
+### IUX-LAYOUT-005 — Layout classes are measured from available width
+
+- **Level**: standard
+- **Scope**: IUX-007 onward
+- **Sources**: Android window size classes
+- **Status**: implemented — three classes at 600 and 840
+- **Limits**: a split-screen window on a tablet is compact. Measuring from the
+  physical screen instead is the classic way to ship an unusable multi-window
+  experience.
+
+### IUX-LAYOUT-006 — No universal thumb-zone rule
+
+- **Level**: context_dependent
+- **Scope**: IUX-007 onward
+- **Sources**: none prescriptive; reach varies by hand size, grip and device
+- **Status**: deliberately not implemented. `IuxPage.footer` lets a screen
+  keep a primary action reachable without scrolling; whether to use it is the
+  screen's decision.
+- **Limits**: a framework-level reach rule would be wrong for most users.
+
 ## Deferred to later missions
 
 | Subject | Mission |
 | --- | --- |
-| Spacing between interactive targets | IUX-007 |
 | Visual feedback components (snackbar, alerts, loaders) | IUX-013 to IUX-015 |
 | A lint enforcing that components read the runtime | Phase 5 |
 

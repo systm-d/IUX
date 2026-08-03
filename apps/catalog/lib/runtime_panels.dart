@@ -204,6 +204,75 @@ class RuntimePanels extends StatelessWidget {
           ),
         ),
         panelBuilder(
+          title: 'Layout',
+          description: 'Width caps are measured in characters and converted at '
+              'the text size in force, so a larger text keeps the same line '
+              'length instead of a narrower column.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Layout class: ${IuxBreakpoints.of(context).name}',
+                style: type.label.copyWith(color: colors.content.primary),
+              ),
+              SizedBox(height: geometry.spacingXxs),
+              for (final IuxContentWidth width in IuxContentWidth.values)
+                Padding(
+                  padding: EdgeInsets.only(bottom: geometry.spacingXxs),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          width.name,
+                          style: type.supporting
+                              .copyWith(color: colors.content.secondary),
+                        ),
+                      ),
+                      Text(
+                        IuxContentWidthResolver.maxWidthFor(context, width)
+                                ?.toStringAsFixed(0) ??
+                            'no cap',
+                        style:
+                            type.label.copyWith(color: colors.content.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: geometry.spacingXs),
+              Text(
+                'Adjacent targets keep at least '
+                '${kIuxMinimumTargetSpacing.toStringAsFixed(0)} between them:',
+                style:
+                    type.supporting.copyWith(color: colors.content.secondary),
+              ),
+              SizedBox(height: geometry.spacingXxs),
+              IuxTargetSpacing(
+                axis: Axis.horizontal,
+                children: <Widget>[
+                  for (final String label in <String>['Cancel', 'Confirm'])
+                    IuxSurface(
+                      role: IuxSurfaceRole.subtle,
+                      bordered: true,
+                      padding: IuxInsets.compact(context),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: geometry.minimumTouchTarget,
+                        ),
+                        child: Align(
+                          child: Text(
+                            label,
+                            style: type.label
+                                .copyWith(color: colors.content.primary),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        panelBuilder(
           title: 'Announcements',
           description: 'A live region is preferred to an announcement. Android '
               'deprecated announcements because they cut off whatever TalkBack '

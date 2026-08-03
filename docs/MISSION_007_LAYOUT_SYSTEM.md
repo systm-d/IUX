@@ -2,7 +2,12 @@
 mission_id: IUX-007
 title: Système de layout et primitives de composition
 priority: critical
-status: ready
+status: completed
+started_at: 2026-08-03
+started_by: Claude
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.1.0-dev.7
 compatibility: additive
 depends_on:
@@ -1184,3 +1189,78 @@ Ne crée pas encore le système de boutons.
 Ne crée aucun composant métier.
 
 Ne commence pas la mission suivante.
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+Primitives de mise en page composables : page, surface, section, espacement,
+largeur lisible et classes de layout. Elles consomment le thème (IUX-004) et
+le runtime (IUX-005), et n'introduisent aucune valeur graphique en dur.
+
+## Audit initial
+
+Les fondations d'espacement (IUX-002) et la géométrie résolue (IUX-004)
+existaient déjà ; les primitives les consomment plutôt que de redéfinir une
+échelle. `IuxSurface` et `IuxSection`, retirés en IUX-003.1 comme hors
+périmètre, sont ici recréés par la mission qui les possède.
+
+## Architecture retenue
+
+Structure aplatie par rapport au §8 : six fichiers sous `lib/src/layout/`
+plutôt que six sous-dossiers, la fragmentation proposée n'étant pas justifiée
+à ce volume.
+
+## API publiques
+
+`IuxPage` / `IuxPageInsets`, `IuxSurface` / `IuxSurfaceRole` /
+`IuxSurfaceShape`, `IuxSection` / `IuxSectionHeader`, `IuxGap` /
+`IuxTargetSpacing` / `IuxInsets` / `kIuxMinimumTargetSpacing`,
+`IuxContentWidth` / `IuxContentWidthResolver` / `IuxReadableWidth`,
+`IuxLayoutClass` / `IuxBreakpoints` / `IuxResponsiveValue`.
+
+## Décisions importantes
+
+1. **`IuxPage` compose avec `Scaffold`**, ne le remplace pas.
+2. **Le défilement est actif par défaut** : un écran qui ne défile pas casse
+   dès qu'on agrandit le texte ou qu'un clavier apparaît.
+3. **Les zones sûres se consomment par bord**, en quatre modes explicites —
+   un booléen ne peut pas exprimer quels bords un élément imbriqué a déjà
+   consommés.
+4. **La largeur de lecture se mesure en caractères**, convertis à la taille de
+   texte en vigueur. Un plafond en pixels divise par deux le nombre de
+   caractères par ligne quand l'utilisateur double son texte.
+5. **L'espacement entre cibles est une primitive**, pas une consigne : il ferme
+   l'écart laissé ouvert par IUX-005 et ne peut pas être configuré sous le
+   plancher.
+6. **`Wrap` plutôt que `Row`** pour les groupes de contrôles.
+7. **Aucune règle universelle de thumb zone.** La portée dépend de la main, de
+   la prise et de l'appareil.
+
+## Tests
+
+184 dans le package, 10 dans le catalogue. Une composition complète est
+vérifiée à 320×480 avec un facteur de texte 2, sans overflow.
+
+## Documentation
+
+`docs/layout/overview.md`, ADR-0007, six entrées `IUX-LAYOUT-*` dans
+l'evidence registry dont deux marquées `hypothesis` ou `context_dependent`.
+
+## Limites
+
+- La conversion caractères→pixels suppose une police proportionnelle latine et
+  sera fausse pour le CJK et le monospace.
+- L'imbrication de deux `IuxPage` produit un double padding : documenté, non
+  détecté.
+- `Wrap` ne peut pas exprimer « ces deux éléments doivent rester sur une
+  ligne ».
+- Le défilement imbriqué n'est pas modélisé.
+- Aucune validation manuelle sur appareil, ni en RTL.
+
+## Prochaine mission recommandée
+
+IUX-008.1 — Component Standard. Non commencée.
