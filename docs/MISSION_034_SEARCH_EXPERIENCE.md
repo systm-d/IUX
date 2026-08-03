@@ -2,12 +2,12 @@
 mission_id: IUX-034
 title: Search Experience
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: IUX-034 implementation agent
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,58 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Une recherche *est* un chargement
+
+`IuxSearchResults.results` est un `IuxLoadState<List<T>>`, et le widget
+**compose** `IuxLoadingRetry` au lieu d'aiguiller une seconde fois. Il n'y a
+pas d'`IuxSearchState`.
+
+`List<T>` plutôt que `T` est délibéré : cela permet au widget de voir le vide
+et donc de nommer lui-même la situation en `IuxNoMatches`, ce qui rend `reset`
+structurellement requis. Une impasse « aucun résultat » devient
+inconstructible au lieu d'être relue.
+
+## Exactement une annonce par recherche stabilisée
+
+Résultats non vides → une ligne d'état **visible** qui est aussi la région
+vivante. Résultats vides → la région vivante de l'état vide, et **pas** de
+ligne d'état, car les deux ensemble diraient deux fois la même phrase.
+
+Le résumé est une **fonction du résultat**, pas une chaîne posée à côté : il ne
+peut donc pas devenir périmé. Et il est visible autant que prononcé, donc rien
+d'essentiel ne repose sur une région vivante que la plateforme peut refuser de
+lire.
+
+Mesuré : une requête de cinq caractères sans anti-rebond produit **dix**
+régions vivantes. Avec une pause : deux.
+
+## L'anti-rebond refusé, et l'argument qui vaut d'être gardé
+
+Aucune minuterie, comme IUX-030. Mais surtout : **un anti-rebond réglé pour un
+frappeur rapide se déclenche après chaque caractère pour un frappeur lent** —
+et les frappeurs lents sont, de façon disproportionnée, la population des
+lecteurs d'écran et des contacteurs. Régler sur le bas de la fourchette, et
+préférer « l'utilisateur s'est arrêté » à un intervalle fixe.
+
+## Pas de suggestions, et c'est mesuré
+
+`SemanticsRole.comboBox` **lève une exception** en Flutter 3.44.8 :
+`Missing checks for role SemanticsRole.comboBox`, le framework l'envoyant vers
+`_unimplemented`. Inutilisable et pas seulement silencieux. Une liste de
+suggestions ne pourrait donc partir qu'avec aucun rôle — §19 l'interdit. Un
+test l'épingle, pour que le jour où Flutter l'implémente soit visible.
+
+## Un écart assumé à la lettre de la mission
+
+Deux widgets, pas un `IuxSearchExperience` unique. Sur Android le champ vit
+très souvent dans la barre d'application et les résultats dans le corps ; un
+widget unique les forcerait adjacents et serait inutilisable pour la
+disposition la plus courante. Écart annoncé en tête de la page de doc.
+
+41 tests.

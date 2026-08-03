@@ -1555,6 +1555,61 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   labels, so the spacing test measures whichever axis they land on — behaviour
   documented rather than hidden.
 
+### IUX-SEARCH-001 — Exactly one announcement per settled search
+
+- **Level**: standard
+- **Scope**: IUX-034 onward
+- **Sources**: WCAG 2.2 SC 4.1.3; measured on the real semantics tree
+- **Status**: implemented. Non-empty results get a **visible** status line
+  that is also the live region; empty results get `IuxEmptyState`'s own live
+  region and no status line, because the two together would say the same
+  sentence twice. `arrival` is hardcoded and not configurable: a search result
+  region is only ever reached by asking. The summary is a **function of the
+  result**, not a string beside it, so it cannot go stale — and it is visible
+  as well as spoken, so nothing essential rides on a live region the platform
+  may decline to speak.
+- **Measured**: a five-character undebounced query produces **ten** live
+  regions — five "Searching…" and five counts. With one pause, two.
+
+### IUX-SEARCH-002 — No debounce, and the reason a fixed interval is wrong
+
+- **Level**: context_dependent
+- **Scope**: IUX-034 onward
+- **Sources**: WCAG 2.2 SC 2.2.1
+- **Status**: no timer in either widget, consistent with IUX-030. SC 2.2.1 is
+  satisfied by imposing no limit; a trailing-edge debounce sets none either,
+  since it restarts per keystroke, whereas a fixed polling interval would.
+- **The argument worth keeping**: a debounce tuned to a fast typist fires
+  after **every character** for a slow one — and slow typists are
+  disproportionately the screen-reader and switch-access population. Tune to
+  the slow end, and prefer "the user stopped" to a fixed interval.
+
+### IUX-SEARCH-003 — `SemanticsRole.comboBox` throws, so no suggestions ship
+
+- **Level**: standard
+- **Scope**: IUX-034 onward
+- **Status**: measured, not assumed. On Flutter 3.44.8 `SemanticsRole.comboBox`
+  **throws** `Missing checks for role SemanticsRole.comboBox` — the framework
+  routes it to `_unimplemented` in `_DebugSemanticsRoleChecks`. It is unusable
+  rather than merely silent, so a suggestion list could only ship with no role
+  at all, and §19 forbids public API whose only effect is an unverified
+  announcement. Pinned by a test, so the day Flutter implements it is visible.
+
+### IUX-TEXTFIELD-GAPS-001 — Three additive gaps in the text field (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxTextField`
+- **Status**: open, found by IUX-034 and not fixed across an ownership
+  boundary. All three are additive.
+  - No `textInputAction` and no `onSubmitted`, so a search that runs when the
+    user presses the keyboard's action key **cannot be built** on it.
+  - `IuxTextContent` has no `search` member, so `SemanticsInputType.search` is
+    unreachable from any IUX field — the private resolution extension already
+    maps every other member.
+  - No trailing-control slot. Not a defect on its own, since IUX-034 argues a
+    control *beside* the box is better than one inside it, but it is why the
+    choice was not available to weigh.
+
 ## Deferred to later missions
 
 | Subject | Mission |
