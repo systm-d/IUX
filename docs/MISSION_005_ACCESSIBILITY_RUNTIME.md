@@ -192,9 +192,6 @@ Commencer par auditer le résultat réel des missions IUX-001 à IUX-004.
 
 Ne créer aucun composant final.
 
-Ne commencer aucune autre mission.
-
-
 ---
 
 # Rapport final

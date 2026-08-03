@@ -31,11 +31,10 @@ Avant toute action :
 2. Lire intégralement les missions IUX-001 à IUX-006.
 3. Vérifier que les missions précédentes ont été terminées et validées.
 4. Lire intégralement ce document.
-5. Considérer ce document comme la seule mission active.
-6. Ne pas modifier le dépôt `d4-dark-ds`.
-7. Réutiliser les fondations, thèmes, profils, runtime d’accessibilité et moteur de mouvement existants.
-8. Ne pas commencer encore le système de boutons.
-9. Ne pas créer de composants métier.
+5. Ne pas modifier le dépôt `d4-dark-ds`.
+6. Réutiliser les fondations, thèmes, profils, runtime d’accessibilité et moteur de mouvement existants.
+7. Ne pas commencer encore le système de boutons.
+8. Ne pas créer de composants métier.
 
 En cas de conflit, `PROJECT_PROMPT.md` prévaut.
 
@@ -1172,7 +1171,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est le système de boutons et d’actions, sans la commencer.
+Indiquer que la prochaine étape logique est le système de boutons et d’actions.
 
 ---
 
@@ -1187,9 +1186,6 @@ Puis implémente le système de layout.
 Ne crée pas encore le système de boutons.
 
 Ne crée aucun composant métier.
-
-Ne commence pas la mission suivante.
-
 
 ---
 

@@ -696,7 +696,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est la mission consacrée aux fondations, sans la commencer.
+Indiquer que la prochaine étape logique est la mission consacrée aux fondations.
 
 ---
 
@@ -707,7 +707,5 @@ Commence par l’audit du dépôt.
 Présente ensuite un plan d’implémentation court et concret.
 
 Puis réalise cette mission dans son intégralité.
-
-Ne commence pas la mission suivante.
 
 Ne crée encore aucun composant final IUX.

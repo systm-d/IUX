@@ -26,9 +26,8 @@ Avant toute action :
 2. Lire intégralement `MISSION_001_REPOSITORY_FOUNDATION.md`.
 3. Vérifier que la mission IUX-001 a été terminée et validée.
 4. Lire intégralement ce document.
-5. Considérer ce document comme la seule mission active.
-6. Ne pas modifier le dépôt `d4-dark-ds`.
-7. Ne pas commencer les composants finaux de la bibliothèque.
+5. Ne pas modifier le dépôt `d4-dark-ds`.
+6. Ne pas commencer les composants finaux de la bibliothèque.
 
 En cas de conflit, `PROJECT_PROMPT.md` prévaut.
 
@@ -941,7 +940,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est la création des tokens sémantiques, sans la commencer.
+Indiquer que la prochaine étape logique est la création des tokens sémantiques.
 
 ---
 
@@ -955,4 +954,3 @@ Puis implémente les fondations de cette mission.
 
 Ne crée aucun composant final.
 
-Ne commence pas la mission suivante.

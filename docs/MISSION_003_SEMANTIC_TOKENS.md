@@ -28,10 +28,9 @@ Avant toute action :
 3. Lire intégralement `MISSION_002_DESIGN_FOUNDATIONS.md`.
 4. Vérifier que les missions IUX-001 et IUX-002 ont été terminées et validées.
 5. Lire intégralement ce document.
-6. Considérer ce document comme la seule mission active.
-7. Ne pas modifier le dépôt `d4-dark-ds`.
-8. Ne pas créer encore de composants finaux.
-9. Ne pas créer encore les thèmes accessibles complets.
+6. Ne pas modifier le dépôt `d4-dark-ds`.
+7. Ne pas créer encore de composants finaux.
+8. Ne pas créer encore les thèmes accessibles complets.
 
 En cas de conflit, `PROJECT_PROMPT.md` prévaut.
 
@@ -986,7 +985,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est la création des thèmes accessibles, sans la commencer.
+Indiquer que la prochaine étape logique est la création des thèmes accessibles.
 
 ---
 
@@ -1002,4 +1001,3 @@ Ne crée aucun composant final.
 
 Ne finalise pas encore les thèmes accessibles.
 
-Ne commence pas la mission suivante.

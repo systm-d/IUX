@@ -152,4 +152,3 @@ Implémenter uniquement le moteur de thème des boutons.
 
 Ne créer aucun bouton.
 
-Ne commencer aucune autre mission.

@@ -30,9 +30,8 @@ Avant toute action :
 4. Lire intégralement `MISSION_003_SEMANTIC_TOKENS.md`.
 5. Vérifier que les missions IUX-001, IUX-002 et IUX-003 ont été terminées et validées.
 6. Lire intégralement ce document.
-7. Considérer ce document comme la seule mission active.
-8. Ne pas modifier le dépôt `d4-dark-ds`.
-9. Ne pas créer encore les composants finaux de la bibliothèque.
+7. Ne pas modifier le dépôt `d4-dark-ds`.
+8. Ne pas créer encore les composants finaux de la bibliothèque.
 
 En cas de conflit, `PROJECT_PROMPT.md` prévaut.
 
@@ -1288,7 +1287,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est l’infrastructure d’accessibilité opérationnelle, sans la commencer.
+Indiquer que la prochaine étape logique est l’infrastructure d’accessibilité opérationnelle.
 
 ---
 
@@ -1303,9 +1302,6 @@ Puis implémente le moteur de thèmes accessibles.
 Ne crée aucun composant final.
 
 Ne crée aucun thème de marque.
-
-Ne commence pas la mission suivante.
-
 
 ---
 

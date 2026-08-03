@@ -30,11 +30,10 @@ Avant toute action :
 3. Lire les missions IUX-001 à IUX-007.
 4. Lire intégralement IUX-008.1.
 5. Vérifier que toutes les missions précédentes ont été terminées et validées.
-6. Considérer ce document comme la seule mission active.
-7. Ne pas modifier `d4-dark-ds`.
-8. Ne créer aucun widget dans cette mission.
-9. Ne créer aucun rendu visuel.
-10. Ne commencer ni le thème des boutons ni le bouton lui-même.
+6. Ne pas modifier `d4-dark-ds`.
+7. Ne créer aucun widget dans cette mission.
+8. Ne créer aucun rendu visuel.
+9. Ne commencer ni le thème des boutons ni le bouton lui-même.
 
 En cas de conflit, `PROJECT_PROMPT.md` puis `COMPONENT_STANDARD.md` prévalent.
 
@@ -1330,7 +1329,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est IUX-008.3 — Button Theme, sans la commencer.
+Indiquer que la prochaine étape logique est IUX-008.3 — Button Theme.
 
 ---
 
@@ -1346,4 +1345,3 @@ Ne crée aucun widget.
 
 Ne crée aucun thème de bouton.
 
-Ne commence pas la mission suivante.

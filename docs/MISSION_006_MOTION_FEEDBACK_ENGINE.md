@@ -30,11 +30,10 @@ Avant toute action :
 2. Lire intégralement les missions IUX-001 à IUX-005.
 3. Vérifier que les missions précédentes ont été terminées et validées.
 4. Lire intégralement ce document.
-5. Considérer ce document comme la seule mission active.
-6. Ne pas modifier le dépôt `d4-dark-ds`.
-7. Ne pas commencer les composants finaux.
-8. Réutiliser l’infrastructure d’accessibilité créée en IUX-005.
-9. Réutiliser le moteur de thèmes et les préférences de mouvement créés en IUX-004.
+5. Ne pas modifier le dépôt `d4-dark-ds`.
+6. Ne pas commencer les composants finaux.
+7. Réutiliser l’infrastructure d’accessibilité créée en IUX-005.
+8. Réutiliser le moteur de thèmes et les préférences de mouvement créés en IUX-004.
 
 En cas de conflit, `PROJECT_PROMPT.md` prévaut.
 
@@ -1080,7 +1079,7 @@ Signaler notamment :
 
 ### Prochaine mission recommandée
 
-Indiquer que la prochaine étape logique est la création du système de layout, sans la commencer.
+Indiquer que la prochaine étape logique est la création du système de layout.
 
 ---
 
@@ -1093,9 +1092,6 @@ Présente ensuite un plan court et concret.
 Puis implémente le moteur de mouvement et de feedback.
 
 Ne crée aucun composant final.
-
-Ne commence pas la mission suivante.
-
 
 ---
 
