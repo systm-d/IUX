@@ -1317,6 +1317,14 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   that idiom at `iux_destructive_action.dart:217`. The second is not: the
   policy must survive to the button, and `IuxButton` cannot know whether
   anything above it will honour it.
+- **A second reachable path, found by IUX-032**:
+  `IuxDestructiveActionController.action` is a **public getter** returning a
+  descriptor that still carries `IuxConfirmBeforeExecution`. Handing it to a
+  plain `IuxButton` reproduces the defect from inside the very pattern that
+  exists to prevent it. IUX-032 closed the trap *locally* — its own descriptor
+  is derived and never published, so a caller of `IuxDestructiveFlow` never
+  holds a confirming descriptor — and said plainly that this is a local
+  closure and not a fix.
 - **What this means**: the rule "whoever honours the policy strips it before
   delegating" is sound and half-adopted already, but making it enforceable
   needs a decision about *where* a policy is evaluated, not an assertion. That
@@ -1444,6 +1452,55 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   revealed form section is all three, and every guarantee specific to the
   pattern falls out of that one difference. `IuxContextualHelp`'s `help` being
   a `String` is what stops a help panel becoming a destination.
+
+### IUX-DESTRUCTIVE-FLOW-001 — Proportionality asks one question a caller cannot get wrong
+
+- **Level**: hypothesis (graded as such deliberately, not as a finding)
+- **Scope**: IUX-032 onward
+- **Status**: implemented. The test is **"could the user list what they are
+  about to lose?"** — not "how bad is it", which nobody answers consistently.
+  `IuxDestructiveScope.items` covers a draft, forty-one selected photos, one
+  person's access; `.everything` covers an account, a workspace, a folder and
+  its contents.
+- **Why the distinction decides the safeguard**: an undo offer only protects
+  somebody who can *tell that they need it*. A user who deleted the wrong
+  draft knows at once; a user who deleted an account cannot inspect what went
+  and is usually already leaving the screen that carries the offer. So
+  `everything` plus an undo offer is refused.
+- **Two values, not four, and argued rather than hidden**: there are exactly
+  two safeguards to allocate, so a four-rung ladder would have two rungs that
+  changed nothing — dead public API under §19.
+
+### IUX-DESTRUCTIVE-FLOW-002 — The way back is required, so its absence is a claim
+
+- **Level**: standard
+- **Scope**: IUX-032 onward
+- **Sources**: WCAG 2.2 SC 2.2.1, SC 3.3.4
+- **Status**: implemented. `IuxWayBack` is sealed and **required**:
+  `IuxUndoOffer` or `IuxNoWayBack`, borrowing the `IuxUnrecoverable` idiom from
+  the error pattern so that having no way back is something somebody stated.
+  `IuxNoWayBack` means *no control this pattern can put in front of the user*,
+  not "destroyed forever" — a trash folder is a consequence to state before the
+  answer, not an offer to make after.
+- **Refused in both directions**: an undo offer with a prompt asserts (it
+  interrupts everyone *and* still leaves a control up), and no way back
+  without a prompt asserts (the deletion nobody was protected from).
+- **The framework imposes no undo window, so SC 2.2.1 is not engaged** — no
+  time limit is set by the content. If the application commits on its own
+  clock then the application created the time limit and inherits the
+  obligation; at minimum it must dismiss the notice the instant the window
+  closes, so the control never outlives the promise. No default ships, because
+  five seconds means three different things to a sighted user, a screen-reader
+  user three sentences behind, and a switch user.
+- **Reused rather than invented**: IUX-021 had already decided that a
+  transient message carrying an action gets no dwell at all, and again when a
+  screen reader is expected. Verified from the timing and then behaviourally,
+  by pumping sixty seconds with the undo control still present.
+- **Limits, measured not assumed**: a second deletion destroys the first way
+  back — there is one transient slot. This is the one place IUX-021's
+  replacement rule costs the user something they needed, and where several
+  destructions must each be reversible the way back belongs in a durable
+  trash.
 
 ## Deferred to later missions
 

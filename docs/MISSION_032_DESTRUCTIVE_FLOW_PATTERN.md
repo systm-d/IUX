@@ -2,12 +2,12 @@
 mission_id: IUX-032
 title: Destructive Flow Pattern
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: IUX-032 implementation agent
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,88 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'audit d'abord, et il a trouvé exactement deux manques
+
+IUX-008.7 livrait le contrôle, la politique et le dialogue. Manquaient :
+
+**La proportionnalité n'existait nulle part.** `IuxActionReversibility` décrit
+*si ça revient*, jamais *combien part*. Rien ne distinguait un brouillon d'un
+compte, et 008.7 prenait le `confirmation:` de l'appelant pour argent comptant.
+
+**Le retour en arrière n'existait pas en code.** La doc de 008.7 le disait
+elle-même dans ses limites : « aucun undo n'est modélisé… documente la
+recette, ne l'implémente pas ». La recette était de la prose. Rien ne
+vérifiait qu'un flux se déclarant réversible avec `confirmation: none` offrait
+effectivement quelque chose — le piège symétrique de IUX-BUTTON-CONFIRM-001 :
+**la suppression part au premier tap, personne n'est consulté, et rien n'est
+offert.**
+
+## Une question que l'appelant ne peut pas rater
+
+Pas « à quel point est-ce grave » — personne n'y répond de façon cohérente.
+Mais : **« l'utilisateur pourrait-il énumérer ce qu'il s'apprête à perdre ? »**
+
+Un brouillon, quarante-et-une photos sélectionnées, l'accès d'une personne →
+`items`. Un compte, un espace de travail, un dossier et son contenu →
+`everything`.
+
+Ce qui rend la distinction décisive : une offre d'annulation ne protège que
+quelqu'un capable de **s'apercevoir qu'il en a besoin**. Qui a supprimé le
+mauvais brouillon le sait immédiatement ; qui a supprimé un compte ne peut pas
+inspecter ce qui est parti et quitte généralement déjà l'écran qui porte
+l'offre. Donc `everything` + annulation est refusé.
+
+Deux valeurs et non quatre, argumenté au lieu d'être caché : il n'y a que deux
+sauvegardes à répartir, donc une échelle à quatre barreaux en aurait deux qui
+ne changent rien — API publique morte au sens du §19.
+
+## Le retour est requis, donc son absence est une affirmation
+
+`IuxWayBack` est scellé et **requis**. `IuxNoWayBack` signifie « aucun contrôle
+que ce motif puisse mettre devant l'utilisateur », pas « détruit à jamais » :
+une corbeille est une conséquence à énoncer *avant* la réponse, pas une offre
+à faire après.
+
+Refusé dans les deux sens : offrir *et* demander (interrompt tout le monde et
+laisse quand même un contrôle), ni l'un ni l'autre (la suppression dont
+personne n'a été protégé).
+
+## Aucune fenêtre imposée, et pourquoi
+
+SC 2.2.1 n'est donc pas engagé : aucune limite de temps n'est posée par le
+contenu. Si l'application valide sur sa propre horloge, **c'est elle** qui a
+créé la limite et qui en hérite l'obligation.
+
+Aucun défaut n'est livré, parce que cinq secondes veulent dire trois choses
+différentes selon qu'on voit l'écran, qu'on est trois phrases derrière avec un
+lecteur d'écran, ou qu'on utilise un contacteur.
+
+Et l'absence de délai n'est pas une invention : IUX-021 avait déjà décidé
+qu'un message transitoire portant une action n'a aucune durée. Réutilisé,
+vérifié depuis le calcul puis **comportementalement**, en pompant soixante
+secondes avec le contrôle d'annulation toujours présent.
+
+## Sur IUX-BUTTON-CONFIRM-001
+
+L'agent n'a **pas** retenté ma correction — il a lu l'entrée d'abord. Sa
+conception rend le piège inatteignable *dans ce motif*, par une autre voie :
+le descripteur est dérivé et jamais publié. Il a dit lui-même que c'est une
+fermeture locale et pas une correction, et il a trouvé **une voie d'accès
+supplémentaire** que je n'avais pas : `IuxDestructiveActionController.action`
+est un getter public qui rend un descripteur portant encore la confirmation.
+Le défaut est donc reproductible depuis l'intérieur du motif censé l'empêcher.
+
+## Tests prouvés non creux
+
+Trois cassages distincts, chacun annulé et le fichier rediffé identique :
+retirer l'assertion de portée → 2 échecs ; retirer l'action de la notice
+dérivée → **11** échecs, dont celui du « pas de délai » ; forcer
+`confirmation: none` → 12 échecs.
+
+50 tests.

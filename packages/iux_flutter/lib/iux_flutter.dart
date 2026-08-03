@@ -76,6 +76,8 @@ export 'src/motion/iux_motion_policy.dart';
 export 'src/motion/iux_motion_role.dart';
 export 'src/patterns/destructive/iux_confirmation_prompt.dart';
 export 'src/patterns/destructive/iux_destructive_action.dart';
+export 'src/patterns/destructive/iux_destructive_flow.dart';
+export 'src/patterns/destructive/iux_destructive_flow_model.dart';
 export 'src/patterns/disclosure/iux_disclosure_state.dart';
 export 'src/patterns/disclosure/iux_progressive_disclosure.dart';
 export 'src/patterns/empty/iux_empty_state.dart';
