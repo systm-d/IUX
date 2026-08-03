@@ -190,12 +190,12 @@ final class IuxGeometryTheme extends ThemeExtension<IuxGeometryTheme> {
   ) {
     if (other is! IuxGeometryTheme) return this;
     return IuxGeometryTheme(
-      spacingXxs: lerpDouble(spacingXxs, other.spacingXxs, t),
-      spacingXs: lerpDouble(spacingXs, other.spacingXs, t),
-      spacingSm: lerpDouble(spacingSm, other.spacingSm, t),
-      spacingMd: lerpDouble(spacingMd, other.spacingMd, t),
-      spacingLg: lerpDouble(spacingLg, other.spacingLg, t),
-      spacingXl: lerpDouble(spacingXl, other.spacingXl, t),
+      spacingXxs: IuxInterpolation.lerp(spacingXxs, other.spacingXxs, t),
+      spacingXs: IuxInterpolation.lerp(spacingXs, other.spacingXs, t),
+      spacingSm: IuxInterpolation.lerp(spacingSm, other.spacingSm, t),
+      spacingMd: IuxInterpolation.lerp(spacingMd, other.spacingMd, t),
+      spacingLg: IuxInterpolation.lerp(spacingLg, other.spacingLg, t),
+      spacingXl: IuxInterpolation.lerp(spacingXl, other.spacingXl, t),
       // Held at the larger endpoint mid-transition rather than ramped: a
       // target that is briefly smaller than both themes intended is a target
       // the user can miss for the duration of the animation. The bounds stay
@@ -206,14 +206,17 @@ final class IuxGeometryTheme extends ThemeExtension<IuxGeometryTheme> {
         _ => math.max(minimumTouchTarget, other.minimumTouchTarget),
       },
       focus: IuxFocusStyle.lerp(focus, other.focus, t),
-      borderWidth: lerpDouble(borderWidth, other.borderWidth, t),
+      borderWidth: IuxInterpolation.lerp(borderWidth, other.borderWidth, t),
       strongBorderWidth:
-          lerpDouble(strongBorderWidth, other.strongBorderWidth, t),
-      radiusSubtle: lerpDouble(radiusSubtle, other.radiusSubtle, t),
-      radiusMedium: lerpDouble(radiusMedium, other.radiusMedium, t),
-      radiusProminent: lerpDouble(radiusProminent, other.radiusProminent, t),
-      elevationRaised: lerpDouble(elevationRaised, other.elevationRaised, t),
-      elevationModal: lerpDouble(elevationModal, other.elevationModal, t),
+          IuxInterpolation.lerp(strongBorderWidth, other.strongBorderWidth, t),
+      radiusSubtle: IuxInterpolation.lerp(radiusSubtle, other.radiusSubtle, t),
+      radiusMedium: IuxInterpolation.lerp(radiusMedium, other.radiusMedium, t),
+      radiusProminent:
+          IuxInterpolation.lerp(radiusProminent, other.radiusProminent, t),
+      elevationRaised:
+          IuxInterpolation.lerp(elevationRaised, other.elevationRaised, t),
+      elevationModal:
+          IuxInterpolation.lerp(elevationModal, other.elevationModal, t),
     );
   }
 

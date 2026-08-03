@@ -84,8 +84,8 @@ final class IuxFocusStyle {
   /// Linearly interpolates between two focus geometries.
   static IuxFocusStyle lerp(IuxFocusStyle a, IuxFocusStyle b, double t) =>
       IuxFocusStyle(
-        width: lerpDouble(a.width, b.width, t),
-        gap: lerpDouble(a.gap, b.gap, t),
+        width: IuxInterpolation.lerp(a.width, b.width, t),
+        gap: IuxInterpolation.lerp(a.gap, b.gap, t),
       );
 
   @override
@@ -97,11 +97,16 @@ final class IuxFocusStyle {
   int get hashCode => Object.hash(width, gap);
 }
 
-/// Interpolates between two doubles without a nullable result.
-///
-/// `dart:ui`'s `lerpDouble` returns a nullable value even for non-null inputs,
-/// which forces a null assertion at every call site.
-double lerpDouble(double a, double b, double t) => a + (b - a) * t;
+/// Interpolation helpers used by IUX theme extensions.
+abstract final class IuxInterpolation {
+  /// Interpolates between two doubles without a nullable result.
+  ///
+  /// `dart:ui` exposes a top-level `lerpDouble` that returns a nullable value
+  /// even for non-null inputs. Namespacing here avoids both the null
+  /// assertions and an ambiguous import for anyone using `material.dart` and
+  /// `iux_flutter.dart` together.
+  static double lerp(double a, double b, double t) => a + (b - a) * t;
+}
 
 /// Independent preferences that influence accessible IUX resolution.
 ///

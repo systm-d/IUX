@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.1.0-dev.5 — IUX-005
+
+Accessibility runtime. Additive.
+
+### Added
+
+- `IuxAccessibility.of(context)` — the single place where the application's
+  requested profile is reconciled with the platform's reported preferences.
+  Closes the gap IUX-004 left explicit via `respectsPlatformPreference`.
+- `IuxMotionPolicy` — a component states what an animation is *for*
+  (`essential` or `decorative`) and is told whether it runs.
+- `IuxTapTarget` — guarantees the interactive floor without enlarging the
+  visual element; `minimumSize` can only raise it.
+- `IuxFocusRing`, `IuxFocusable`, `IuxFocus` — visible focus that reserves its
+  space, keyboard activation, and focus restoration for future overlays.
+- `IuxSemantics`, `IuxAnnouncement`, `IuxReadableText`.
+- `IuxInterpolation`, extracted from the foundations.
+
+### Changed
+
+- `IuxSemantics.action` takes a nullable `selected`. Passing `false` would
+  advertise a selected state on a control that does not toggle.
+- The catalog labels each preference chip by dimension *and* value: several
+  dimensions share a value, so a chip labelled only "comfortable" was
+  ambiguous to a screen reader.
+
+### Notes
+
+`IuxAnnouncement` prefers `IuxSemantics.liveRegion` and says so. Android has
+deprecated `announceForAccessibility` because it clears TalkBack's speech
+queue, cutting off the user.
+
+
+## 0.1.0-dev.4 — IUX-004
+
+Accessible theme engine. Additive.
+
+### Added
+
+- `IuxTheme.light()` / `IuxTheme.dark()` returning `ThemeData` directly, with
+  an optional `IuxAccessibilityProfile`.
+- `IuxThemeConfiguration` (the request) and `IuxResolvedTheme` (the result),
+  deliberately separate.
+- Four `const` colour mappings: light and dark, each in standard and high
+  contrast. **High contrast is now reachable in dark conditions** — the
+  previous theme forced `Brightness.light`, leaving users who need both
+  without an option.
+- Theme extensions `IuxTypographyTheme`, `IuxGeometryTheme`, `IuxMotionTheme`,
+  `IuxAccessibilityTheme`.
+- `IuxVisualStimulation` and `IuxMotionPreference.standard` in the
+  foundations; `IuxAccessibilityProfile` gains `visualStimulation`, equality
+  and three named constructors.
+- A theme explorer in the catalog covering every profile, text scale and long
+  labels.
+
+### Changed
+
+- `ColorScheme` is derived from IUX roles (ADR-0002), and `surfaceTint` is
+  disabled: Material 3's elevation tint would move surfaces away from the
+  measured values.
+- High contrast thickens outlines and the focus ring rather than only
+  recolouring them.
+
+### Notes
+
+Two invariants worth knowing: density never reduces the minimum touch target,
+and the target never dips below the floor mid-transition. Reduced motion
+shortens durations while `none` removes them.
+
 ## 0.1.0-dev.3.1 — IUX-003.1
 
 Remediation of the semantic layer. This release is **breaking** for the API

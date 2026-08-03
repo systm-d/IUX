@@ -6,18 +6,27 @@ import 'package:iux_flutter/iux_flutter.dart';
 void main() {
   /// Scrolls the lazily built catalog until [label] is mounted and visible.
   ///
-  /// Written by hand rather than with `scrollUntilVisible`, which cannot serve
-  /// this list: a bare text finder matches several widgets once "reduced" is
-  /// mounted for both motion and visual stimulation, while narrowing it with
-  /// `.first` throws before the target exists at all.
+  /// Always returns to the top first, so a step that scrolled far down does
+  /// not hide a control that lives above it. Written by hand rather than with
+  /// `scrollUntilVisible`, which cannot serve this list: a bare text finder
+  /// matches several widgets once "reduced" is mounted for both motion and
+  /// visual stimulation, while narrowing it with `.first` throws before the
+  /// target exists at all.
   Future<void> reveal(WidgetTester tester, String label) async {
+    final Finder scrollable = find.byType(Scrollable).first;
+
+    for (int i = 0; i < 40; i++) {
+      await tester.drag(scrollable, const Offset(0, 600));
+      await tester.pumpAndSettle();
+    }
+
     for (int attempt = 0; attempt < 40; attempt++) {
       if (find.text(label).evaluate().isNotEmpty) {
         await tester.ensureVisible(find.text(label).first);
         await tester.pumpAndSettle();
         return;
       }
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.drag(scrollable, const Offset(0, -300));
       await tester.pumpAndSettle();
     }
     fail('"$label" never became reachable in the catalog');
@@ -27,6 +36,21 @@ void main() {
   Future<void> choose(WidgetTester tester, String label) async {
     await reveal(tester, label);
     await tester.tap(find.text(label).first);
+    await tester.pumpAndSettle();
+  }
+
+  /// Selects an option by dimension *and* value, which is what the chips now
+  /// expose: several dimensions share a value.
+  Future<void> chooseOption(
+    WidgetTester tester,
+    String dimension,
+    String value,
+  ) async {
+    await reveal(tester, dimension);
+    final Finder target = find.bySemanticsLabel('$dimension: $value');
+    await tester.ensureVisible(target.first);
+    await tester.pumpAndSettle();
+    await tester.tap(target.first);
     await tester.pumpAndSettle();
   }
 
@@ -50,6 +74,9 @@ void main() {
       'Actions',
       'Feedback',
       'Focus',
+      'Runtime state',
+      'Touch targets',
+      'Announcements',
       'Typography',
     ]) {
       await reveal(tester, panel);
@@ -101,6 +128,34 @@ void main() {
     expect(motionOf(tester).allowsNonEssentialMotion, isTrue);
     await choose(tester, 'reduced');
     expect(motionOf(tester).allowsNonEssentialMotion, isFalse);
+  });
+
+  testWidgets('the runtime reacts to a preference change', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await reveal(tester, 'Minimum touch target');
+    expect(find.text('48'), findsWidgets);
+
+    await chooseOption(tester, 'Touch target', 'comfortable');
+    await reveal(tester, 'Minimum touch target');
+    expect(find.text('56'), findsWidgets,
+        reason: 'the runtime must follow the requested preference');
+  });
+
+  testWidgets('runtime touch targets meet the floor', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+    await reveal(tester, 'Touch targets');
+
+    for (final Element element
+        in find.byType(IuxTapTarget).evaluate().toList()) {
+      final Size size = tester.getSize(find.byWidget(element.widget));
+      expect(size.width, greaterThanOrEqualTo(IuxTouchTarget.minimum));
+      expect(size.height, greaterThanOrEqualTo(IuxTouchTarget.minimum));
+    }
   });
 
   testWidgets('large text does not overflow the layout', (

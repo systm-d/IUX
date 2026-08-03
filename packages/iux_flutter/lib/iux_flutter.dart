@@ -6,6 +6,11 @@
 /// guarantees a theme is responsible for.
 library;
 
+export 'src/accessibility/iux_accessibility.dart';
+export 'src/accessibility/iux_focus.dart';
+export 'src/accessibility/iux_motion_policy.dart';
+export 'src/accessibility/iux_semantics.dart';
+export 'src/accessibility/iux_touch_target.dart';
 export 'src/foundations/iux_foundations.dart';
 export 'src/semantics/colors/iux_action_colors.dart';
 export 'src/semantics/colors/iux_border_colors.dart';

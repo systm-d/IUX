@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
+import 'runtime_panels.dart';
+
 void main() {
   runApp(const IuxCatalogApp());
 }
@@ -213,6 +215,18 @@ class _ThemeExplorer extends StatelessWidget {
               colors: colors,
               geometry: geometry,
               type: type,
+            ),
+          ),
+          RuntimePanels(
+            panelBuilder: ({
+              required String title,
+              required String description,
+              required Widget child,
+            }) =>
+                _Panel(
+              title: title,
+              description: description,
+              child: child,
             ),
           ),
           _Panel(
@@ -577,8 +591,15 @@ class _Choice<T> extends StatelessWidget {
             children: <Widget>[
               for (final T option in values)
                 Semantics(
+                  // Named by dimension and value together. Several dimensions
+                  // share a value — "comfortable" belongs to both density and
+                  // touch target — so a chip labelled only "comfortable" is
+                  // ambiguous to a screen reader, which hears the same word
+                  // twice with nothing to distinguish them.
+                  label: '$label: ${naming(option)}',
                   selected: option == value,
                   button: true,
+                  excludeSemantics: true,
                   child: GestureDetector(
                     onTap: () => onChanged(option),
                     child: Container(

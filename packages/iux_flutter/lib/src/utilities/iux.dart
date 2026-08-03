@@ -6,5 +6,5 @@ abstract final class Iux {
   /// The development version represented by this source tree.
   ///
   /// Keep this value aligned with the version in `pubspec.yaml`.
-  static const String version = '0.1.0-dev.4';
+  static const String version = '0.1.0-dev.5';
 }

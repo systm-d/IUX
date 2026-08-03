@@ -201,13 +201,86 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   diagnosis would assert that a population shares one interface need, and
   would invite an application to infer a diagnosis from a settings choice.
 
+### IUX-RUNTIME-001 — The platform may strengthen an accommodation; the application may not weaken one
+
+- **Level**: context_dependent
+- **Scope**: IUX-005 onward
+- **Sources**: ADR-0005; no external standard prescribes the precedence
+- **Status**: implemented and tested
+  (`test/accessibility/iux_accessibility_test.dart`)
+- **Limits**: an IUX decision. Its consequence is that an application which
+  genuinely needs less contrast than the platform reports has no way to ask
+  for it. That is intended, but it is a real constraint.
+
+### IUX-RUNTIME-002 — Components read the runtime, never `MediaQuery`
+
+- **Level**: context_dependent
+- **Scope**: IUX-005 onward
+- **Sources**: ADR-0005
+- **Status**: implemented; no lint enforces it yet
+- **Limits**: structural convention only. A component can still bypass it; a
+  lint rule is a candidate for Phase 5.
+
+### IUX-RUNTIME-003 — Live regions are preferred to announcements
+
+- **Level**: standard
+- **Scope**: IUX-005 onward
+- **Sources**: Android deprecation of `View.announceForAccessibility`, cited in
+  Flutter's own `SemanticsService` documentation
+- **Status**: implemented — `IuxAnnouncement` checks platform support, reports
+  whether delivery happened, and its documentation directs callers to
+  `IuxSemantics.liveRegion` first
+- **Limits**: announcements interrupt TalkBack by clearing its speech queue.
+  Support varies by platform, so essential information must never depend on
+  one.
+
+### IUX-RUNTIME-004 — The focus ring reserves its space whether or not it is drawn
+
+- **Level**: strong_guidance
+- **Scope**: IUX-005 onward
+- **Sources**: WCAG 2.2 SC 2.4.7, SC 2.4.11 Focus Not Obscured
+- **Status**: implemented and tested — the element does not move on focus
+- **Limits**: costs padding around every focusable element even when unfocused.
+  The alternative shifts the layout on every focus change, which is worse under
+  magnification.
+
+### IUX-RUNTIME-005 — The touch-target floor cannot be opted out of
+
+- **Level**: standard
+- **Scope**: IUX-005 onward
+- **Sources**: Android 48dp; WCAG 2.2 SC 2.5.8
+- **Status**: implemented — `IuxTapTarget.minimumSize` combines with the
+  resolved floor using the larger value
+- **Limits**: covers target size only. Spacing between adjacent targets is a
+  separate cause of mis-taps and belongs to IUX-007.
+
+### IUX-RUNTIME-006 — Enlarged text is reflowed, never truncated
+
+- **Level**: hypothesis for the threshold, standard for the principle
+- **Scope**: IUX-005 onward
+- **Sources**: WCAG 2.2 SC 1.4.4 Resize Text
+- **Status**: implemented — above roughly 1.3x, `IuxReadableText` drops the
+  line limit and switches overflow to visible
+- **Limits**: the 1.3x threshold is a heuristic chosen from common phone
+  widths, not a measured value. Truncating enlarged text defeats the reason
+  the user enlarged it, but where exactly to switch has not been tested.
+
+### IUX-RUNTIME-007 — A non-toggling control does not advertise a selected state
+
+- **Level**: standard
+- **Scope**: IUX-005 onward
+- **Sources**: WCAG 2.2 SC 4.1.2 Name, Role, Value
+- **Status**: implemented — `IuxSemantics.action` takes a nullable `selected`
+- **Limits**: passing `false` would announce a plain button as "not selected",
+  inviting the user to look for a selection that does not exist.
+
 ## Deferred to later missions
 
 | Subject | Mission |
 | --- | --- |
-| Reconciling platform preferences at runtime | IUX-005 |
-| Motion policy applied to real components | IUX-006 |
+| Motion and feedback applied to real components | IUX-006 |
 | Spacing between interactive targets | IUX-007 |
+| A lint enforcing that components read the runtime | Phase 5 |
 
 ## Manual validation register
 
