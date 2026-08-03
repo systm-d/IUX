@@ -808,6 +808,54 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   Adding the full inset on top lifts the sheet twice and leaves a
   keyboard-sized band of scrim beneath it.
 
+### IUX-DESTRUCTIVE-001 — A reversible action may not ask for confirmation
+
+- **Level**: strong_guidance
+- **Scope**: IUX-008.7 onward
+- **Sources**: Nielsen Norman Group on confirmation fatigue; PROJECT_PROMPT §18
+- **Status**: implemented — `IuxDestructiveAction` asserts on
+  `reversible` + any confirmation policy, with the argument in the message
+- **Limits**: a confirmation charges every user a step against a mistake most
+  will not make; an undo costs nothing until someone errs, and it is the only
+  one that helps the user who *meant* to press the button and was wrong about
+  what it did. `difficultToReverse` is the escape hatch and confirms without
+  complaint.
+
+### IUX-DESTRUCTIVE-002 — A prompt without a policy, and a policy without a prompt, are both refused
+
+- **Level**: context_dependent
+- **Scope**: IUX-008.7 onward
+- **Sources**: none external; an IUX judgement
+- **Status**: implemented as two assertions
+- **Limits**: the dangerous direction is a prompt attached to an action
+  declaring no confirmation — the call site *reads* as though the user is
+  being asked, and the action runs on the first tap.
+
+### IUX-DESTRUCTIVE-003 — Hold and double-activation are refused, not approximated
+
+- **Level**: context_dependent
+- **Scope**: IUX-008.7 onward
+- **Sources**: the action model already documents hold as unusable with
+  tremor and invisible to a screen reader
+- **Status**: both assert, pointing at the supported policies
+- **Limits**: hold must never be the only route to an action, and one control
+  cannot offer a second route to itself. A hold threshold is also a duration
+  IUX has no token for — inventing one would put an untunable delay in front
+  of the users least able to beat it.
+
+### IUX-DESTRUCTIVE-004 — The shortest destructive descriptor still confirms
+
+- **Level**: context_dependent
+- **Scope**: open observation, IUX-008.2
+- **Sources**: found during IUX-008.7
+- **Status**: **open, deliberately unchanged.**
+  `IuxActionDescriptor.destructive` defaults to `IuxConfirmBeforeExecution`,
+  which is the safe reading when a caller says nothing — but it means the
+  briefest destructive descriptor is a confirming one, pulling against the
+  pattern's thesis that undo beats confirmation.
+- **Limits**: changing a default is a breaking behaviour change. The pattern's
+  assertions steer callers toward the reversible-plus-undo path instead.
+
 ## Deferred to later missions
 
 | Subject | Mission |

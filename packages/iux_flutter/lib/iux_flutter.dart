@@ -61,6 +61,8 @@ export 'src/layout/iux_spacing_primitives.dart';
 export 'src/layout/iux_surface.dart';
 export 'src/motion/iux_motion_policy.dart';
 export 'src/motion/iux_motion_role.dart';
+export 'src/patterns/destructive/iux_confirmation_prompt.dart';
+export 'src/patterns/destructive/iux_destructive_action.dart';
 export 'src/semantics/colors/iux_action_colors.dart';
 export 'src/semantics/colors/iux_border_colors.dart';
 export 'src/semantics/colors/iux_content_colors.dart';

@@ -3,12 +3,12 @@ mission_id: IUX-008.7
 epic: IUX-008
 title: Destructive and Confirmation Actions
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -106,3 +106,63 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Le mode d'échec traité n'est pas le laxisme
+
+Confirmer tout revient à ne rien confirmer. Le pattern ne **choisit** donc
+jamais de politique : il lit `action.confirmation` et la présente.
+`IuxConfirmationPolicy.none` ne produit ni dialogue, ni argument
+supplémentaire — **le site d'appel le plus court est celui qui ne confirme
+pas**.
+
+## Une action réversible ne peut pas demander confirmation
+
+Assertion au constructeur, avec l'argument dans le message : une confirmation
+facture une étape à *tous* les utilisateurs contre une erreur que la plupart
+ne feront pas ; une annulation ne coûte rien tant que personne ne se trompe.
+Et c'est la seule des deux qui aide l'utilisateur qui **voulait** appuyer et
+s'est trompé sur ce que ça faisait.
+
+`difficultToReverse` est l'échappatoire, et confirme sans broncher.
+
+## Deux directions refusées
+
+Une invite sans politique, et une politique sans invite. La dangereuse est la
+première : le site d'appel **se lit** comme si l'utilisateur était consulté,
+et l'action part au premier tap.
+
+## Hold et double activation : refusés, pas approximés
+
+Le maintien ne doit jamais être la seule route vers une action, et un contrôle
+unique ne peut pas s'offrir une seconde route à lui-même. De plus un seuil de
+maintien est une durée dont IUX n'a aucun token — en inventer une placerait un
+délai non réglable devant les utilisateurs les moins capables de le battre.
+
+## La conséquence est obligatoire
+
+`IuxConfirmationPrompt.consequence` n'a pas de défaut et assert non vide. La
+documentation dit d'écrire ce qui est perdu, pas « Cette action est
+irréversible ».
+
+## Écart à la mission, argumenté
+
+Pas de classe `IuxConfirmationAction` (nommée au §9) : ce serait une
+distinction sans différence. `IuxDestructiveAction` accepte déjà tout
+descripteur à conséquence sérieuse, y compris non destructif mais
+irréversible, et la confirmation *est* `IuxDialog` plus des mots.
+
+## Tests
+
+39 nouveaux tests.
+
+## Limite principale
+
+Le parent doit placer le dialogue. Sans `IuxModalLayer` qui le lise, la
+confirmation est calculée et jamais montrée, et le déclencheur paraît inerte.
+L'agent a envisagé une assertion post-frame et l'a rejetée : faux positifs sur
+un usage headless et sur tout parent rendant la couche une frame plus tard.
