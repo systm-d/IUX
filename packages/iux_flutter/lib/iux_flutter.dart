@@ -52,6 +52,8 @@ export 'src/components/status/iux_chip.dart';
 export 'src/components/status/iux_status_indicator.dart';
 export 'src/components/status/iux_status_model.dart';
 export 'src/components/status/iux_status_tokens.dart';
+export 'src/components/tabs/iux_tabs.dart';
+export 'src/components/tabs/iux_tabs_tokens.dart';
 export 'src/components/transient/iux_transient_layer.dart';
 export 'src/components/transient/iux_transient_message.dart';
 export 'src/components/transient/iux_transient_timing.dart';

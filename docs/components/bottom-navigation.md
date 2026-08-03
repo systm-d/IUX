@@ -499,3 +499,30 @@ both. It keeps `radioGroup`, because the landmark helps a user find the bar
 they were already going to reach with two swipes, while the group role is what
 makes "where am I" audible at all. The cost is real and is recorded here
 rather than left to be discovered.
+
+## Correction: why `checked` and not `selected`
+
+This page originally argued for `checked` on the grounds that `selected` is
+announced only when true. **That premise no longer holds**, and it was caught
+by the tabs mission rather than by this one. Measured on Flutter 3.44:
+
+| | `selected` | `checked` |
+| --- | --- | --- |
+| `true` | `Tristate.isTrue` | `CheckedState.isTrue` |
+| `false` | `Tristate.isFalse` | `CheckedState.isFalse` |
+| unset | `Tristate.none` | `CheckedState.none` |
+
+The flags are tri-state, so `selected: false` is explicitly present, not
+absent. Framework-side the two are indistinguishable, and the original
+argument was measuring a Flutter that has since changed.
+
+What survives is narrower and is now stated as such. `checked` combined with
+`inMutuallyExclusiveGroup` is the pairing that says *one of these, and only
+one* — a claim `selected` does not make, since a set of selected items may
+have any number selected. That is a semantic distinction, not an announcement
+one. **Whether a given screen reader speaks the unselected state is a device
+question that has not been tested on hardware**, and no claim about it is made
+here.
+
+The choice stands. The reason it stood on has been replaced with one that is
+true.

@@ -2,12 +2,12 @@
 mission_id: IUX-026
 title: Tabs
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,65 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Flutter fait respecter le contrat — sauf quand un detector le désarme
+
+Chaque onglet porte `SemanticsRole.tab`, la bande porte `tabBar`. Flutter
+refuse lui-même un onglet sans état sélectionné, sans action de tap, et refuse
+un enfant de `tabBar` qui n'est pas un onglet. Les trois messages d'erreur ont
+été sondés directement, pas supposés.
+
+**La trouvaille porteuse** : un `GestureDetector` qui se décrit crée un
+*second* nœud sémantique par onglet — 6 arrêts mesurés pour 3 onglets — et
+pousse le rôle d'onglet sur un parent dont l'enfant, du coup, n'est pas un
+onglet. `MergeSemantics` fusionne bien les arrêts, mais déplace le rôle hors du
+nœud coché : son propre rôle devient `none`, et **la vérification d'onglet de
+Flutter ne s'exécute plus jamais, en silence**. Construire le detector avec
+`excludeFromSemantics: true` obtient les deux : un arrêt par onglet, et le rôle
+sur le nœud que le framework contrôle.
+
+`SemanticsRole.tabPanel` est `_noCheckRequired` — Flutter n'en fait rien, et il
+n'existe pas d'équivalent à `aria-controls`. L'association onglet↔panneau est
+donc inexprimable, et aucun widget de panneau n'est livré : §19 interdit une
+API publique dont le seul effet est un rôle invérifiable.
+
+## Focus itinérant refusé, et l'asymétrie qui a tranché
+
+Contre la pratique WAI-ARIA, et pour une raison vérifiée dans les sources de
+Flutter : `FocusScopeNode.traversalDescendants` filtre `skipTraversal`, donc
+le changement qui retire quatre onglets de Tab les retire **aussi** des
+flèches, imposant une gestion manuelle des flèches.
+
+Le risque est asymétrique. Un appareil n'émettant que Tab et Entrée rendrait
+quatre vues sur cinq **inatteignables** — un échec net de SC 2.1.1 — là où la
+tabulation complète coûte quatre pressions de plus.
+
+## Ce qui a été refusé
+
+Pas de mode défilant : un onglet caché n'a rien à l'écran qui dise qu'il
+existe, et le geste de révélation entre en collision avec le défilement du
+panneau. Payé autrement : 2 à 5 onglets (asserté) et un `Wrap` qui ajoute des
+rangées.
+
+Pas de marque en soulignement — un soulignement revendique une adjacence au
+panneau, ce qui est faux pour les rangées supérieures d'une bande enroulée.
+
+## Une propriété prouvée plutôt qu'affirmée
+
+Les onglets d'une même rangée ont toujours la même hauteur : une étiquette n'a
+besoin d'une seconde ligne que si elle est plus large que la bande entière, et
+un onglet aussi large ne peut pas partager sa rangée. Donc aucune bande morte.
+
+## Ce que cette mission a corrigé ailleurs
+
+Elle a signalé que le raisonnement de la navigation basse reposait sur une
+prémisse périmée — `selected` serait annoncé seulement à vrai. Vérifié :
+`selected: false` donne `Tristate.isFalse`, explicitement présent. Le document
+est corrigé.
+
+40 tests.

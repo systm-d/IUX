@@ -964,6 +964,13 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   a preference; and a node holds one role, so keeping `radioGroup` costs the
   `navigation` landmark. The group role wins because it is what makes "where
   am I" audible, while the landmark only shortens a journey of two swipes.
+- **Corrected at IUX-026**: the original rationale said `selected` is announced
+  only when true. Measured on Flutter 3.44, `selected: false` yields
+  `Tristate.isFalse` — explicitly present. The flags are tri-state and the two
+  are indistinguishable framework-side. What survives is that `checked` plus
+  `inMutuallyExclusiveGroup` says *one of these and only one*, which
+  `selected` does not claim. Whether a screen reader speaks the unselected
+  state is untested on hardware and is no longer asserted.
 
 ### IUX-NAV-003 — Destinations tile the bar, with no spacing between them
 
@@ -1122,6 +1129,45 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
      stood on it. The documented workaround was worse than the bug, since it
      also dropped the *top* inset and put content under the status bar.
      `MediaQuery.removePadding` now hands off only the consumed edge.
+
+### IUX-TABS-001 — Flutter enforces the tab contract, and one detector breaks it silently
+
+- **Level**: standard
+- **Scope**: IUX-026 onward
+- **Sources**: WCAG 2.2 SC 4.1.2; probed against the real semantics tree and
+  Flutter's own assertions
+- **Status**: implemented. `SemanticsRole.tab` on each tab, `tabBar` on the
+  strip. Flutter itself refuses a tab without a selected state ("A tab needs
+  selected states"), without a tap action ("A tab must have a tap action"),
+  and refuses a `tabBar` child that is not a tab — all three error strings
+  probed directly rather than assumed.
+- **The load-bearing finding**: a `GestureDetector` that describes itself
+  creates a *second* semantics node per tab — measured 6 stops for 3 tabs —
+  and pushes the tab role onto a parent whose child is then not a tab.
+  `MergeSemantics` collapses the stops but moves the role off the checked
+  node, so its own role becomes `none` and **Flutter's tab check silently
+  never runs**. Building the detector with `excludeFromSemantics: true` gets
+  both: one stop per tab, and the role on the node the framework checks.
+- **Limits**: `SemanticsRole.tabPanel` is `_noCheckRequired` — Flutter does
+  nothing with it, and there is no `aria-controls` equivalent, so a tab-panel
+  association is inexpressible. No panel wrapper ships, because §19 forbids a
+  public widget whose only effect is an unverified role.
+
+### IUX-TABS-002 — Roving focus declined, and the asymmetry that decided it
+
+- **Level**: context_dependent
+- **Scope**: IUX-026 onward
+- **Sources**: WAI-ARIA authoring practices (not followed); WCAG 2.2 SC 2.1.1
+- **Status**: deliberate deviation from the ARIA practice. Tab visits every
+  tab and then leaves into the panel; arrows move within and across wrapped
+  rows through Flutter's own directional traversal.
+- **Reasoning**: verified in Flutter source that
+  `FocusScopeNode.traversalDescendants` filters `skipTraversal`, so the change
+  that removes four tabs from Tab removes them from the arrow keys too, and
+  arrow handling would have to be hand-rolled. The risk is asymmetric: a
+  device emitting only Tab and Enter would leave four of five views
+  **unreachable** — an outright SC 2.1.1 failure — where Tab-through costs
+  four extra presses.
 
 ## Deferred to later missions
 
