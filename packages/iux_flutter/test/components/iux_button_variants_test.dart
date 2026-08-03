@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
@@ -162,8 +163,25 @@ void main() {
         (WidgetTester tester) async {
       // Two nodes for one control makes a screen-reader user swipe twice to
       // pass a single button, and the second stop says nothing useful.
+      //
+      // Strengthened in IUX-008.9. `findsOneWidget` on the *label* cannot
+      // detect a second node, because a second node would be unlabelled and
+      // therefore not matched: the test passed unchanged with
+      // `excludeSemantics: false` forced into `IuxSemantics.action`, which is
+      // exactly the change that produces the extra stop. Counting the node's
+      // children is what actually answers the question — measured at 1 under
+      // that break and 0 as shipped.
       await pumpIconButton(tester);
       expect(find.bySemanticsLabel('Close'), findsOneWidget);
+
+      final SemanticsNode node =
+          tester.getSemantics(find.byType(IuxIconButton));
+      expect(node.label, 'Close');
+      expect(
+        node.childrenCount,
+        0,
+        reason: 'the control is one stop; anything below it is a second one',
+      );
     });
 
     testWidgets('an unavailable icon button explains itself',

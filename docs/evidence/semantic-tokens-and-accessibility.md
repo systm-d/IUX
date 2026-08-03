@@ -1288,6 +1288,77 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   defect, and IUX-008.9's audit is strengthening the button tests right now —
   those tests are the safety net the fix should land against.
 
+### IUX-BUTTON-CONFIRM-001 — A confirmation policy is honoured by one widget in four (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxButton`, `IuxIconButton`, `IuxAsyncActionButton`
+- **Sources**: PROJECT_PROMPT §5 (user safety first), §22 (components prevent
+  incoherent states)
+- **Status**: **open defect, the most serious found so far.**
+  `IuxButton(action: IuxActionDescriptor.destructive(semantics: ...))`
+  compiles, asserts nothing, and runs `onActivate` on the **first tap** —
+  measured, `runs == 1`, no exception. The destructive factory *defaults* to
+  `IuxConfirmBeforeExecution`, so the trap sits on the shortest path a caller
+  can write for a deletion. `IuxAsyncActionController.activate()` behaves
+  identically. Only `IuxDestructiveActionController` evaluates the policy.
+- **Why it is a defect and not a division of labour**: the destructive
+  pattern's own docstring calls it "a quiet trap" and accepts it. A caller who
+  reaches for the factory named `destructive` has stated an intention the type
+  system then discards in silence.
+
+### IUX-BUTTON-BUSY-002 — The focus loss is a conflation, proven
+
+- **Level**: standard
+- **Scope**: every `IuxButton`
+- **Sources**: WCAG 2.2 SC 2.4.3, SC 3.2.2
+- **Status**: open, and now demonstrated rather than inferred. The *same*
+  running action keeps focus under `repeatPolicy: allow` and loses it under
+  `ignoreWhileInProgress`. Nothing about focus changed between the two — only
+  whether a second tap would be accepted.
+- **Measured reproduction**: three buttons, the middle one async. Tab, Tab →
+  focus on "Pay". Enter → **focus jumps backwards to "Before"**. One Tab →
+  lands on "After", skipping the running control. The operation completes and
+  **focus is never restored**. The user resumes two controls away from where
+  they were, having asked for none of it.
+- **Not platform behaviour**: `ElevatedButton` drops focus on *disable* the
+  same way, so the disabled case is Flutter's and is not the defect. Flutter
+  has no equivalent for the busy case — a Flutter button never stops being
+  focusable merely because work is in flight.
+
+### IUX-BUTTON-DEAD-001 — Three public switches with nothing behind them (OPEN)
+
+- **Level**: standard (PROJECT_PROMPT §19)
+- **Status**: open, all three measured.
+  - `IuxButtonTheme.elevateFilled` — `IuxButtonTokens.elevation` has zero
+    consumers in the library. `true` and `false` produce byte-identical
+    decorations while the resolver still reports `elevation > 0`. The theme
+    asked for a shadow, got nothing, and was told nothing.
+  - `IuxButtonTokens.focused` — neither call site of the resolver passes it,
+    so it is false for every button ever built. The focus ring is real, but it
+    comes from `IuxFocusable`; this field carries nothing.
+  - `IuxButtonState.success` / `.error` — published with a documented
+    precedence, but `_resolveColors` branches only on pressed/hovered. The
+    decorations for idle, succeeded and failed compare **equal**, and the
+    semantics node is identical.
+
+### IUX-QA-VACUOUS-001 — Two tests that had never tested anything
+
+- **Level**: standard
+- **Status**: fixed, and each proven both ways by breaking the code.
+  - *"a disabled button is skipped by focus traversal"* read
+    `find.byType(Focus).first.canRequestFocus`. A `MaterialApp` puts **nine**
+    `Focus` widgets in the tree; the button's own is the **last**, and the
+    first is false regardless. The test passed with `canRequestFocus: true`
+    hardcoded into `IuxButton` — **and so did every other test in the
+    package**. The behaviour was entirely unguarded.
+  - *"the glyph adds no second announcement"* asserted that a semantics label
+    is found once. A second node would be *unlabelled* and therefore
+    unmatched, so the assertion could not fail for the reason it named. It
+    passed with `excludeSemantics: false` forced into `IuxSemantics.action` —
+    exactly the change that creates the extra stop.
+- **Both now fail under the same break.** A test that has only ever passed has
+  not been shown to work.
+
 ## Deferred to later missions
 
 | Subject | Mission |

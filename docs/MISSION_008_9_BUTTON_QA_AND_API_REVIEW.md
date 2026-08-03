@@ -3,12 +3,12 @@ mission_id: IUX-008.9
 epic: IUX-008
 title: Button QA and API Review
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -106,3 +106,57 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+Audit sans droit d'écriture sur `lib/` — un audit qui édite ce qu'il audite
+n'est pas crédible. `git diff` sur `packages/iux_flutter/lib` est vide.
+
+## Huit constats, dont un de sûreté
+
+Le plus grave : `IuxButton(action: IuxActionDescriptor.destructive(...))`
+compile, n'asserte rien, et exécute `onActivate` **au premier tap**. La
+fabrique `destructive` a pourtant `IuxConfirmBeforeExecution` par défaut — le
+piège est donc sur le chemin le plus court qu'un appelant puisse écrire pour
+une suppression. Seul `IuxDestructiveActionController` évalue la politique.
+
+La perte de focus est une **confusion démontrée**, pas une inférence : la
+*même* action en cours garde le focus avec `repeatPolicy: allow` et le perd
+avec `ignoreWhileInProgress`. Rien du focus n'a changé entre les deux — seule
+l'acceptation d'un second tap.
+
+Trois interrupteurs publics ne commandent rien : `elevateFilled` (zéro
+consommateur, décorations identiques au bit près), `IuxButtonTokens.focused`
+(jamais transmis par aucun site d'appel), et `IuxButtonState.success`/`.error`
+(publiés avec une précédence documentée, jamais peints).
+
+## Deux tests creux, prouvés dans les deux sens
+
+« un bouton désactivé est sauté par la traversée du focus » lisait
+`find.byType(Focus).first` — or un `MaterialApp` place **neuf** `Focus` dans
+l'arbre, celui du bouton est le **dernier**, et le premier est faux quoi qu'il
+arrive. Le test passait avec `canRequestFocus: true` codé en dur dans
+`IuxButton` — **et toute la suite aussi**. Le comportement n'était gardé par
+rien.
+
+« le glyphe n'ajoute pas de seconde annonce » affirmait qu'un label est trouvé
+une fois. Un second nœud serait *sans label*, donc non apparié : l'assertion
+ne pouvait pas échouer pour la raison qu'elle nommait.
+
+Les deux échouent désormais sous la même casse.
+
+## Ce qui est propre, dit sans padding
+
+Contraste : aucun échec sur variante × intention × 4 profils, y compris les
+appariements désactivé/survolé que `test/themes/` n'avait jamais couverts.
+192 configurations à 200 % sur 320 px sans exception. Échelle jusqu'à 300 % :
+hauteur croissante de 56 à 316, jamais de rognage. Le focus revient bien au
+déclencheur après une confirmation destructive, sur les deux réponses — le
+contrôleur le documentait, rien ne le testait.
+
+29 tests ajoutés, groupés `open defect —` ou `verified —` ; les tests de
+défaut **assertent le comportement actuel**, pour qu'une correction échoue
+bruyamment au lieu d'atterrir en silence.

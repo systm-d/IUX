@@ -201,6 +201,36 @@ void main() {
       expect(controller.dialog!.actions.single.action.isActivatable, isFalse);
     });
 
+    test(
+        'OPEN DEFECT (IUX-008.9): confirm() runs an action that became '
+        'unavailable while the question was open', () {
+      // The test above proves the *dialog* refuses it: the choice it builds is
+      // not activatable, so no user can reach this through the interface. The
+      // controller method itself has no such guard. `activate()` asks
+      // IuxActionPolicy; `confirm()` asks nothing and calls onConfirmed, and
+      // `update()` explicitly invites an availability that follows the
+      // selection to change under an open confirmation.
+      //
+      // Asserted as it behaves today because an audit does not edit what it
+      // audits. Whoever adds the guard will see this test fail, which is the
+      // intended way for it to change.
+      final IuxDestructiveActionController controller =
+          controllerFor(_confirming, prompt: _prompt)..activate();
+
+      controller.update(
+        action:
+            _confirming.copyWith(availability: IuxActionAvailability.disabled),
+        prompt: _prompt,
+      );
+      controller.confirm();
+
+      expect(
+        runs,
+        1,
+        reason: 'the action ran after it had been declared unavailable',
+      );
+    });
+
     test('the confirmation is offered exactly one way out and one way on', () {
       final IuxDestructiveActionController controller =
           controllerFor(_confirming, prompt: _prompt)..activate();
@@ -498,13 +528,21 @@ void main() {
       expect(find.byType(IuxDialog), findsOneWidget);
     });
 
-    testWidgets('both choices are reachable by keyboard',
-        (WidgetTester tester) async {
+    testWidgets(
+        'both choices are reachable by keyboard, and nothing behind '
+        'the confirmation is', (WidgetTester tester) async {
+      // Strengthened in IUX-008.9. The page behind carries a control labelled
+      // "Delete" of its own — the trigger — so collecting labels alone cannot
+      // tell a reachable confirming choice from an escaped traversal that
+      // landed back on the trigger. Every stop is now recorded with whether it
+      // was inside the dialog, which also pins the focus trap: measured, six
+      // presses cycle "Keep the files", "Delete", the panel, and never leave.
       final _Host host = await pump(tester);
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      final Set<String> reached = <String>{};
+      final Set<String> reachedInDialog = <String>{};
+      final Set<String> escaped = <String>{};
       for (int press = 0; press < 6; press++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
@@ -512,11 +550,93 @@ void main() {
             FocusManager.instance.primaryFocus!.context!;
         final IuxButton? button =
             focused.findAncestorWidgetOfExactType<IuxButton>();
-        if (button != null) reached.add(button.label);
+        if (button == null) continue;
+        if (focused.findAncestorWidgetOfExactType<IuxDialog>() != null) {
+          reachedInDialog.add(button.label);
+        } else {
+          escaped.add(button.label);
+        }
       }
 
-      expect(reached, containsAll(<String>['Keep the files', 'Delete']));
+      expect(
+        reachedInDialog,
+        containsAll(<String>['Keep the files', 'Delete']),
+      );
+      expect(
+        escaped,
+        isEmpty,
+        reason: 'a confirmation the user can tab out of is a question they can '
+            'answer by acting on the page it was asked about',
+      );
       expect(host.runs, 0);
+    });
+
+    testWidgets('focus returns to the trigger when the question closes',
+        (WidgetTester tester) async {
+      // The controller documents that it closes the confirmation before
+      // running the action, "so focus is already on its way back to whatever
+      // held it". Nothing measured that. It does come back — to the trigger,
+      // on both answers — which is what stops a keyboard user landing at the
+      // top of the page after every confirmation.
+      final _Host host = await pump(tester);
+      final FocusNode trigger = FocusNode(debugLabel: 'trigger');
+      addTearDown(trigger.dispose);
+
+      // Rebuilt with a node this test owns, so the assertion is about the
+      // trigger rather than about whatever happens to hold focus.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.light(),
+          home: ListenableBuilder(
+            listenable: host.controller,
+            builder: (BuildContext context, Widget? child) => IuxModalLayer(
+              dialog: host.controller.dialog,
+              child: IuxPage(
+                child: IuxDestructiveAction(
+                  label: 'Delete',
+                  controller: host.controller,
+                  focusNode: trigger,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      trigger.requestFocus();
+      await tester.pumpAndSettle();
+      expect(trigger.hasFocus, isTrue);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(
+        trigger.hasFocus,
+        isFalse,
+        reason: 'the confirmation takes focus; its own test covers where',
+      );
+
+      await tester.tap(find.text(_prompt.keepLabel));
+      await tester.pumpAndSettle();
+      expect(
+        trigger.hasFocus,
+        isTrue,
+        reason: 'leaving the question puts the user back where they asked it',
+      );
+      expect(host.runs, 0);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byType(IuxDialog),
+        matching: find.text('Delete'),
+      ));
+      await tester.pumpAndSettle();
+      expect(host.runs, 1);
+      expect(
+        trigger.hasFocus,
+        isTrue,
+        reason: 'and going ahead does too',
+      );
     });
 
     testWidgets('the trigger announces the action, not the word on it',

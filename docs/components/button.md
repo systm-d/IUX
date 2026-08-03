@@ -37,9 +37,11 @@ The user activates something and it has a text label.
 | `label` | yes | the visible text, already localised |
 | `action` | yes | what it is and whether it may run |
 | `onActivate` | yes | called once per accepted gesture |
+| `icon` | no | `IconData`, leading in reading order, redundant with `label` |
 | `variant` | no | defaults to the theme's |
 | `autofocus`, `focusNode` | no | focus handling |
 | `expand` | no | fill the width; off by default |
+| `busyHint` | no | announced after the name while the action runs |
 
 There is no colour, radius, elevation or duration parameter, and there will not
 be one. An API that accepts a colour has already lost the contrast guarantee:
@@ -66,16 +68,30 @@ they are on, because they have no column.
 
 ## States
 
-| State | Source |
-| --- | --- |
-| enabled, disabled | `action.availability` |
-| loading, success, error | `action.operation` — the parent's |
-| hovered, pressed | internal to the widget |
-| focused | internal, drawn additively |
+| State | Source | Expressed |
+| --- | --- | --- |
+| enabled, disabled | `action.availability` | yes |
+| loading | `action.operation` — the parent's | through `busyHint` only |
+| success, error | `action.operation` — the parent's | **no** |
+| hovered, pressed | internal to the widget | yes |
+| focused | internal, drawn additively | yes |
 
 Availability, interaction and operation are three separate things. Focus,
 press and hover stay inside the widget because they belong to this instance and
 to nothing else.
+
+**`IuxButton` cannot show a result.** Component standard §6 asks a component
+that cannot express one of its states to say so rather than leave the caller to
+discover it, so: an `IuxActionDescriptor` carrying
+`IuxActionOperation.succeeded` or `IuxActionOperation.failed` renders a button
+byte-identical to one that has not run, and announces the same node. The
+resolver has `IuxButtonState.success` and `IuxButtonState.error` and a
+documented precedence between them; neither reaches the screen. Measured in
+IUX-008.9 and pinned in `test/components/iux_button_qa_test.dart`.
+
+A failure the user can see is `IuxAsyncActionButton`, which renders the message
+the operation supplied beneath the control — never a colour alone, and never a
+message the framework invented.
 
 ## Accessibility
 
@@ -84,17 +100,64 @@ to nothing else.
   `unavailabilityReason`. A greyed control with no explanation leaves the user
   unable to tell whether they did something wrong or the feature does not
   apply.
-- A running button announces "In progress" — silence is indistinguishable from
-  a control that did nothing.
+- A running button announces the wording you passed as `busyHint`, and nothing
+  at all when you pass none. The framework composes no user-facing text, so it
+  cannot supply this for you — but silence is indistinguishable from a control
+  that did nothing, so supply it for anything asynchronous. (An earlier version
+  of this document said the button announces "In progress". It did until
+  IUX-008.6, in English, in every locale — see IUX-A11Y-008.)
 - Enter and Space activate it; a disabled button is skipped by focus
-  traversal.
+  traversal. So is a *running* one, under the default repeat policy — see
+  Limits.
 - At least the resolved touch target floor, at every density.
 - The label wraps and is never truncated. A truncated action label is an
   action the user cannot identify, and truncation gets worse exactly when
   someone has enlarged their text.
 
-**Verified in widget tests.** Still requires manual checking on device:
-TalkBack reading order, Voice Access naming, D-pad traversal.
+**Verified in widget tests**, including every combination of the five
+accessibility preferences on both brightnesses at 200% on a 320-pixel screen,
+and label wrapping to 300%. Still requires manual checking on device: TalkBack
+reading order, Voice Access naming, D-pad traversal.
+
+**Not yet correct.** Two measured defects live here rather than in a claim of
+completeness: a running button announces itself as *disabled* — its node is
+indistinguishable from an unavailable one apart from `busyHint` — and it leaves
+focus traversal for the duration of the run. Both are pinned in
+`test/components/iux_button_qa_test.dart` and belong to the accessibility
+audit. `IuxSemantics.action` also yields `isFocused: Tristate.none` and no
+`SemanticsAction.focus`; see IUX-A11Y-FOCUS-001.
+
+## Catalog
+
+`apps/catalog`, **Buttons** section — the button system under the conditions it
+is most likely to fail in, not a gallery of it.
+
+```bash
+cd apps/catalog && flutter run
+```
+
+Three conditions are owned above every panel and apply to all of them at once:
+the accessibility profile, a text scale reaching 300%, and a long-label switch
+that replaces every sample label with one of the length a German or Finnish
+translation produces. **Worst case** sets all of them in one tap.
+
+| Panel | What it is checking |
+| --- | --- |
+| Emphasis and meaning | every intent × variant pair, and the one the resolver refuses |
+| Icon actions | the interactive region, measured and printed against the resolved floor |
+| Unavailable, with and without a reason | two controls that look identical and announce differently |
+| Focus | the ring in every profile; the unavailable control skipped |
+| Where the operation is | the four lifecycle values side by side — see Limits |
+| Room to wrap | natural, expanded, squeezed to 140px, sharing a row, inside a `Center` |
+| An action that takes time | the busy state with no spinner; outcome, cancellation and repeat policy switchable |
+| An action worth being careful about | confirmation versus undo, and the plain button that runs a confirming action anyway |
+| What the API refuses | the assertions, and the fact that a release build has none of them |
+
+Three of those panels print the semantics node the framework actually
+published — name, hint, role, enabled state, whether anything is there to
+activate. It is not TalkBack: it reports the properties Flutter set, not the
+sentence Android composes from them. It is enough to see the defects above
+without a device, and `apps/catalog/README.md` records the ones it surfaced.
 
 ## Anti-patterns
 
@@ -113,7 +176,8 @@ Row(children: [IuxButton(action: primaryA), IuxButton(action: primaryB)])
 
 ```dart
 // Wrong: relying on colour alone to mark a destructive action.
-// Right: destructive wording, plus a confirmation policy (IUX-008.7).
+// Right: destructive wording, plus IuxDestructiveAction to present the
+// confirmation the descriptor asks for. An IuxButton will not present it.
 ```
 
 ## Limits
@@ -121,8 +185,50 @@ Row(children: [IuxButton(action: primaryA), IuxButton(action: primaryB)])
 - A leading icon is available via `icon`; an icon-only action uses
   `IuxIconButton`. There is no trailing icon position — see
   [button-variants.md](button-variants.md).
-- No asynchronous handling of its own: IUX-008.6.
-- No confirmation flow: IUX-008.7.
+- No asynchronous handling of its own. `IuxAsyncActionButton` is that widget;
+  see [async-actions.md](async-actions.md).
+- **A confirmation policy on the descriptor is ignored here.** `IuxButton`
+  evaluates the action with `confirmed: true`, because obtaining an answer is a
+  pattern's job. That is the correct division of labour and it is also a trap
+  worth stating plainly: `IuxActionDescriptor.destructive` defaults to
+  `IuxConfirmBeforeExecution`, so
+
+  ```dart
+  // Compiles, asserts nothing, and deletes on the first tap.
+  IuxButton(label: l10n.delete, action: IuxActionDescriptor.destructive(...))
+  ```
+
+  reads at the call site as though the user will be asked, and they will not.
+  Use `IuxDestructiveAction`, which routes activation through a policy asked
+  with `confirmed: false`. See
+  [destructive-action.md](../patterns/destructive-action.md).
+- **`IuxActionCancellation` is ignored here too.** `IuxAsyncActionButton`
+  asserts that `IuxActionCancellation.required` comes with a `cancelLabel`;
+  `IuxButton` draws no exit and says nothing. An operation long enough to need
+  one belongs on `IuxAsyncActionButton`.
+- **A running button leaves focus traversal.** `canRequestFocus` follows
+  `action.isActivatable`, which is false for the whole run under the default
+  `IuxActionRepeatPolicy.ignoreWhileInProgress`. A keyboard user who presses
+  Enter is moved off the control and is not brought back when it finishes.
+  Measured in IUX-008.9; the fix belongs to `lib/` and is not this document's.
+- **The lifecycle is not drawn.** `IuxButtonStateResolver` computes `loading`,
+  `success` and `error`; `IuxButtonResolver` gives all three the resting
+  palette, so the four values of `IuxActionOperation` resolve to identical
+  background, foreground, border and border width. A button carrying
+  `operation: failed` is pixel-identical to one that never ran, and a running
+  one is identical to an available one while announcing itself as disabled.
+  Compare them in the catalog's **Where the operation is** panel. A failure
+  worth showing belongs on `IuxAsyncActionButton`, which puts the wording
+  beneath the control — and even that shows nothing for
+  `IuxAsyncFailure.raised`, which has no wording to show.
+- **`IuxButtonTokens.focused` is never set and never read.**
+  `IuxButtonResolver.resolve` accepts a `focused` argument and stores it; no
+  button widget passes one, and nothing consumes the field. The ring comes from
+  `IuxFocusable`. The equivalent token on the text field *is* consumed, so the
+  shape reads as intentional and is not — anyone building a control from the
+  resolver gets a token that silently means nothing.
+- **`IuxActionSemantics.unavailabilityReason` is read only while the action is
+  unavailable.** Setting it on an enabled action discards it silently.
 - `expand` fills the width but does not cap it; use `IuxReadableWidth` when
   that matters.
 

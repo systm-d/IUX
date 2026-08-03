@@ -149,15 +149,52 @@ void main() {
       expect(calls, hasLength(2));
     });
 
-    testWidgets('a disabled button is skipped by focus traversal',
+    testWidgets('a disabled button refuses focus, and an enabled one takes it',
         (WidgetTester tester) async {
-      await pump(
-        tester,
-        action: idle.copyWith(availability: IuxActionAvailability.disabled),
-        autofocus: true,
+      // Rewritten in IUX-008.9. The previous version read
+      // `find.byType(Focus).first.canRequestFocus` and asserted it was false.
+      // Measured: a MaterialApp puts nine `Focus` widgets in the tree and the
+      // button's own is the *last*; the first belongs to the route and is
+      // false whatever the button does. The test passed unchanged with
+      // `canRequestFocus: true` hardcoded into `IuxButton`, and so did every
+      // other test in the package — the behaviour was entirely unguarded.
+      //
+      // This asks the question behaviourally instead: give the button a node,
+      // ask that node for focus, and see whether it gets it. Both directions
+      // are asserted, because a test that only ever sees `false` cannot tell
+      // the difference between a rule and a constant.
+      final FocusNode node = FocusNode(debugLabel: 'button');
+      addTearDown(node.dispose);
+
+      Future<bool> takesFocusWhen(IuxActionAvailability availability) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.light(),
+            home: Scaffold(
+              body: Center(
+                child: IuxButton(
+                  label: 'Save',
+                  focusNode: node,
+                  action: idle.copyWith(availability: availability),
+                  onActivate: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        node.requestFocus();
+        await tester.pumpAndSettle();
+        return node.hasFocus;
+      }
+
+      expect(await takesFocusWhen(IuxActionAvailability.enabled), isTrue);
+      expect(
+        await takesFocusWhen(IuxActionAvailability.disabled),
+        isFalse,
+        reason: 'a control a keyboard user can land on and cannot use is a '
+            'stop in the traversal that leads nowhere',
       );
-      final Focus focus = tester.widget<Focus>(find.byType(Focus).first);
-      expect(focus.canRequestFocus, isFalse);
     });
   });
 
@@ -235,10 +272,14 @@ void main() {
         tester,
         action: idle.copyWith(operation: IuxActionOperation.inProgress),
       );
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Save')).hint,
-        isNot(contains('In progress')),
-      );
+      final SemanticsNode node =
+          tester.getSemantics(find.bySemanticsLabel('Save'));
+      expect(node.hint, isNot(contains('In progress')));
+      // Strengthened in IUX-008.9: `isNot(contains(...))` alone holds for any
+      // hint the widget might have grown, including one in the wrong language.
+      // Silence is the actual contract, so silence is what is asserted — and
+      // the sibling test above proves a supplied hint still arrives.
+      expect(node.hint, isEmpty);
     });
 
     testWidgets('the announced name can differ from the visible label',

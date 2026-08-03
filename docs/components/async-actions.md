@@ -226,7 +226,17 @@ be one.
 ## Accessibility
 
 - Announced as a button, with its name and enabled state.
-- A running button announces "In progress", and shows `busyLabel`.
+- A running button shows `busyLabel` and announces it as a hint after its name.
+  The wording is yours: the framework composes none, so it announces nothing it
+  was not given. (An earlier version of this document said the button announces
+  "In progress". That literal was removed in IUX-008.6 — see IUX-A11Y-008.)
+- **A running button is announced as *disabled*.** Its semantics node carries
+  `hasEnabledState` without `isEnabled` and offers no tap action, exactly like
+  an unavailable control; `busyLabel` in the hint is the whole of the
+  difference, and a plain `IuxButton` may omit its `busyHint` and have none.
+  Measured in IUX-008.9 against Flutter's own disabled button, which produces
+  the same flags. WCAG 2.2 SC 4.1.2 asks for the state the control is actually
+  in, and busy is not unavailable.
 - The failure message is a live region, so it reaches a screen reader without
   the user having to go looking for it.
 - Enter and Space activate it; a disabled or running button is not activated by
@@ -295,7 +305,20 @@ plus the busy label, the cancel affordance and the feedback relay.
 - **`expand` and `cancelLabel` are mutually exclusive**, asserted. A full-width
   button leaves no room beside it; place the cancel affordance in your own
   layout and drive it with `requestCancellation()`.
-- **No confirmation flow.** IUX-008.7.
+- **No confirmation flow.** `IuxAsyncActionController.activate()` evaluates the
+  action with `confirmed: true`, so a descriptor carrying
+  `IuxConfirmBeforeExecution` — the default of
+  `IuxActionDescriptor.destructive` — starts the operation on the first
+  activation with nothing asked and nothing asserted. Obtain the answer with
+  `IuxDestructiveActionController` and drive this controller from its
+  `onConfirmed`.
+- **Activating with the keyboard costs the user their place.** The button stops
+  being focusable while the operation runs, because `canRequestFocus` follows
+  `action.isActivatable`. Measured: pressing Enter moves focus to the control
+  *above*, one Tab then skips past the running button, and when the operation
+  finishes focus is never restored. A keyboard user resumes two controls away
+  from where they were. Pinned in `test/components/iux_button_qa_test.dart`;
+  the fix belongs to `lib/`.
 - **No progress *amount*.** This is a busy state, not a determinate bar. A
   percentage belongs to a progress component.
 - **`IuxActionRepeatPolicy.allow` reports one run.** If you need per-run

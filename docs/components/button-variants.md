@@ -132,6 +132,7 @@ loudly rather than quietly ignoring what the caller asked for.
 | `variant` | both | no | labelled: the theme's. Icon: `icon` |
 | `autofocus`, `focusNode` | both | no | focus handling |
 | `expand` | `IuxButton` | no | width only |
+| `busyHint` | both | no | announced while running; silent if omitted |
 
 `IuxIconButton` defaults to `IuxButtonVariant.icon` rather than to the theme's
 variant, which describes labelled buttons and is normally `filled`. Icon
@@ -144,8 +145,12 @@ competes with the content it sits above.
 // Wrong: an icon nobody has to recognise, on the action that loses data.
 IuxIconButton(icon: Icons.delete, action: destructive, onActivate: erase)
 
-// Right: a label, and a confirmation policy (IUX-008.7).
+// Also wrong: a label, but an IuxButton will not present the confirmation the
+// descriptor asks for. It evaluates the action with confirmed: true.
 IuxButton(label: l10n.delete, action: destructive, onActivate: erase)
+
+// Right: the pattern that asks.
+IuxDestructiveAction(label: l10n.delete, controller: controller)
 ```
 
 ```dart
@@ -167,7 +172,8 @@ IuxButton(label: 'Close', variant: IuxButtonVariant.icon)   // asserts
   whether or not it has visible text.
 - A disabled control explains itself when the caller supplied
   `unavailabilityReason`.
-- Enter and Space activate; a disabled control is skipped by focus traversal.
+- Enter and Space activate; a disabled control is skipped by focus traversal,
+  and so is a running one — see Limits.
 - The target meets the floor at every density and under a comfortable
   preference; the glyph does not have to grow to match it.
 - The glyph scales with text.
@@ -182,12 +188,26 @@ D-pad traversal.
 - **No tooltip.** A sighted user still has to recognise the glyph, and nothing
   here helps them. Contextual help is IUX-018; until then, an icon action whose
   meaning is not obvious should keep its label.
-- **No loading or result state in the glyph.** The container recolours through
-  the resolved tokens, but nothing replaces the icon while an operation runs.
-  IUX-008.6.
-- **Elevation is resolved and not painted.** `IuxButtonTokens.elevation` exists;
-  no shipped configuration turns it on, and the semantic layer models no shadow
-  colour, so painting one would mean inventing a colour nobody measured.
+- **No loading or result state in the glyph.** Nothing replaces the icon while
+  an operation runs, and the container does not recolour for a result either:
+  `succeeded` and `failed` resolve to the same palette as `idle`. Measured in
+  IUX-008.9 — see [button.md](button.md) *States*.
+- **Elevation is resolved and not painted.** `IuxButtonTokens.elevation` is
+  computed and no widget in the library reads it, so `IuxButtonTheme(
+  elevateFilled: true)` is a public switch with nothing behind it: the button's
+  decoration is identical either way, and no assertion tells the caller their
+  theme was ignored. The semantic layer models no shadow colour, so painting
+  one would mean inventing a colour nobody measured — but the switch should
+  either work or not exist (§19). Pinned in
+  `test/components/iux_button_qa_test.dart`.
+- **`IuxButtonTokens.focused` is never set by a button.** No button passes
+  `focused:` to `IuxButtonResolver.resolve`, so the field is false for every
+  button ever built. The indicator itself is real and comes from `IuxFocusable`
+  drawing an `IuxFocusRing` outside the container. IUX-BUTTON-002 describes the
+  token as the carrier; only the runtime half is wired.
+- **A running control leaves focus traversal**, under the default
+  `IuxActionRepeatPolicy.ignoreWhileInProgress`, and is not brought back when
+  the run ends. Measured in IUX-008.9.
 - **`IuxButtonShape.full` rounds against the target floor**, not against the
   button's actual height, so a button enlarged by text scaling is rounded
   rather than fully stadium-shaped. Inherited from IUX-008.4.
