@@ -273,6 +273,15 @@ class RuntimePanels extends StatelessWidget {
           ),
         ),
         panelBuilder(
+          title: 'Progress',
+          description: 'Determinate keeps its bar when motion is reduced — '
+              '45% is already a static statement. Indeterminate removes its '
+              'bar entirely and falls back to its label: a frozen segment is '
+              'parked at a position that means nothing, which reads as a hung '
+              'operation. Switch motion to "none" above to see both.',
+          child: const _ProgressDemo(),
+        ),
+        panelBuilder(
           title: 'Announcements',
           description: 'A live region is preferred to an announcement. Android '
               'deprecated announcements because they cut off whatever TalkBack '
@@ -349,4 +358,67 @@ class _AnnouncementDemoState extends State<_AnnouncementDemo> {
   }
 
   void _refresh() => setState(() => _count += 3);
+}
+
+class _ProgressDemo extends StatefulWidget {
+  const _ProgressDemo();
+
+  @override
+  State<_ProgressDemo> createState() => _ProgressDemoState();
+}
+
+class _ProgressDemoState extends State<_ProgressDemo> {
+  double _value = 0.45;
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        IuxProgressIndicator(
+          label: 'Uploading invoices',
+          value: _value,
+          // Supplied by the caller: the framework composes no percentage,
+          // because '%', '٪' and '45 %' are locale decisions.
+          valueLabel: '${(_value * 100).round()}%',
+        ),
+        SizedBox(height: geometry.spacingXs),
+        Row(
+          children: <Widget>[
+            for (final (String label, double delta) in <(String, double)>[
+              ('-25%', -0.25),
+              ('+25%', 0.25),
+            ])
+              Padding(
+                padding: EdgeInsets.only(right: geometry.spacingXs),
+                child: IuxButton(
+                  label: label,
+                  variant: IuxButtonVariant.outlined,
+                  action: IuxActionDescriptor(
+                    semantics: IuxActionSemantics(
+                      label: 'Change progress by $label',
+                    ),
+                  ),
+                  onActivate: () => setState(
+                    () => _value = (_value + delta).clamp(0.0, 1.0),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        SizedBox(height: geometry.spacingMd),
+        const IuxLoadingIndicator(label: 'Checking availability'),
+        SizedBox(height: geometry.spacingXs),
+        Text(
+          'Both stay announced to a screen reader; only the announcement is '
+          'throttled to milestones, never the eye.',
+          style: type.supporting.copyWith(color: colors.content.secondary),
+        ),
+      ],
+    );
+  }
 }

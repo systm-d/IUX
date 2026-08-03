@@ -210,6 +210,25 @@ valueLabel: '${(value * 100).round()}%'
 valueLabel: l10n.percentComplete((value * 100).round())
 ```
 
+
+## Testing against an indeterminate indicator
+
+`pumpAndSettle` never returns while `IuxLoadingIndicator` is mounted. It
+animates for as long as it is on screen, by design — a spinner that stopped
+would be saying the operation had.
+
+Pump a fixed number of frames instead:
+
+```dart
+for (int i = 0; i < 6; i++) {
+  await tester.pump(const Duration(milliseconds: 100));
+}
+```
+
+Any application showing an indeterminate indicator inherits this constraint in
+its own widget tests. It is a real cost of the component, and it is the reason
+to prefer the determinate indicator whenever a value can be supplied at all.
+
 ## Limits
 
 - **Linear only.** There is no circular variant. A circular indicator has no

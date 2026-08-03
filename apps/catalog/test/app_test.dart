@@ -4,6 +4,18 @@ import 'package:iux_catalog/main.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 void main() {
+  /// Pumps a fixed number of frames instead of settling.
+  ///
+  /// `pumpAndSettle` never returns once an indeterminate progress indicator is
+  /// on screen: it animates for as long as it is mounted, by design — a
+  /// spinner that stopped would say the operation had. Any application showing
+  /// one inherits this constraint in its own widget tests.
+  Future<void> settle(WidgetTester tester) async {
+    for (int i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
   /// Scrolls the lazily built catalog until [label] is mounted and visible.
   ///
   /// Always returns to the top first, so a step that scrolled far down does
@@ -17,17 +29,17 @@ void main() {
 
     for (int i = 0; i < 40; i++) {
       await tester.drag(scrollable, const Offset(0, 600));
-      await tester.pumpAndSettle();
+      await settle(tester);
     }
 
     for (int attempt = 0; attempt < 40; attempt++) {
       if (find.text(label).evaluate().isNotEmpty) {
         await tester.ensureVisible(find.text(label).first);
-        await tester.pumpAndSettle();
+        await settle(tester);
         return;
       }
       await tester.drag(scrollable, const Offset(0, -300));
-      await tester.pumpAndSettle();
+      await settle(tester);
     }
     fail('"$label" never became reachable in the catalog');
   }
@@ -36,7 +48,7 @@ void main() {
   Future<void> choose(WidgetTester tester, String label) async {
     await reveal(tester, label);
     await tester.tap(find.text(label).first);
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   /// Selects an option by dimension *and* value, which is what the chips now
@@ -49,9 +61,9 @@ void main() {
     await reveal(tester, dimension);
     final Finder target = find.bySemanticsLabel('$dimension: $value');
     await tester.ensureVisible(target.first);
-    await tester.pumpAndSettle();
+    await settle(tester);
     await tester.tap(target.first);
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   IuxSemanticColors colorsOf(WidgetTester tester) =>
@@ -79,6 +91,7 @@ void main() {
       'Motion roles',
       'Feedback roles',
       'Layout',
+      'Progress',
       'Announcements',
       'Typography',
     ]) {
@@ -195,6 +208,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the indeterminate bar goes away when motion is off', (
+    WidgetTester tester,
+  ) async {
+    // A frozen indeterminate segment is parked at a position that means
+    // nothing, which reads as a hung operation. Its label carries the status
+    // instead.
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await reveal(tester, 'Progress');
+    expect(find.text('Checking availability'), findsOneWidget);
+
+    await chooseOption(tester, 'Motion', 'none');
+    await reveal(tester, 'Progress');
+
+    expect(find.text('Checking availability'), findsOneWidget,
+        reason: 'the label must survive as the static alternative');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('determinate progress keeps its value visible', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+    await reveal(tester, 'Progress');
+    expect(find.text('45%'), findsOneWidget);
+  });
+
   testWidgets('large text does not overflow the layout', (
     WidgetTester tester,
   ) async {
@@ -211,9 +251,9 @@ void main() {
 
     await reveal(tester, 'Long labels');
     await tester.ensureVisible(find.byType(Switch));
-    await tester.pumpAndSettle();
+    await settle(tester);
     await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     expect(tester.takeException(), isNull);
   });
