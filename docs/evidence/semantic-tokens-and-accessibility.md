@@ -856,6 +856,44 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: changing a default is a breaking behaviour change. The pattern's
   assertions steer callers toward the reversible-plus-undo path instead.
 
+### IUX-FORM-001 — Validation happens on blur, and only for edited fields
+
+- **Level**: strong_guidance
+- **Scope**: IUX-012 onward
+- **Sources**: Nielsen Norman Group, "reward early, punish late"
+- **Status**: implemented — `IuxValidationTiming.onBlur` by default, gated by
+  `IuxFormField.edited`
+- **Limits**: per-keystroke validation reports an error about a value that was
+  never wrong, only unfinished. Submit-only hands the user every problem at the
+  moment they believed they were done. The `edited` gate is what stops tabbing
+  toward Submit from producing a column of "required" errors about fields
+  nobody touched. `edited` is taken on trust; nothing can verify it.
+
+### IUX-FORM-002 — A failed submit moves focus to the summary, not the first field
+
+- **Level**: context_dependent
+- **Scope**: IUX-012 onward
+- **Sources**: WCAG 2.2 SC 3.3.1; PROJECT_PROMPT §5
+- **Status**: implemented — the summary is focusable, announces on arrival,
+  and each entry focuses and scrolls to its field
+- **Limits**: the summary states how many problems exist and preserves the
+  user's choice of repair order, and it is the same destination every time —
+  which a first-field rule is not. The cost, stated: for a single error it is
+  one extra hop. With no summary, focus falls back to the first invalid field.
+
+### IUX-FORM-003 — A blocked submit is never silent
+
+- **Level**: standard
+- **Scope**: IUX-012 onward
+- **Sources**: WCAG 2.2 SC 3.3.1 Error Identification
+- **Status**: implemented — `IuxFormSubmit` refuses at construction a disabled
+  action with no `unavailabilityReason`, and a blocked submit calls
+  `onBlocked` rather than nothing
+- **Limits**: a disabled submit button that never says why is the canonical
+  silent refusal. Blocking while a check is still `validating` was rejected
+  for the same reason: blocking on something the framework cannot explain is
+  itself a silent refusal.
+
 ## Deferred to later missions
 
 | Subject | Mission |

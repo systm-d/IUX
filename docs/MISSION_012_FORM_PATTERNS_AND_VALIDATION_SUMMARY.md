@@ -2,12 +2,12 @@
 mission_id: IUX-012
 title: Form Patterns and Validation Summary
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,58 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Quand valider
+
+**`onBlur` par défaut** : un champ est vérifié quand l'utilisateur le quitte
+*après l'avoir édité*, et tous les champs à la soumission.
+
+La défense : valider à chaque frappe signale une erreur sur une valeur qui
+n'était pas fausse, seulement inachevée. Valider seulement à la soumission
+rend tous les problèmes d'un coup, au moment précis où l'utilisateur se croyait
+arrivé. Le blur signale un champ à la fois, après la tentative et avant qu'il
+soit allé assez loin pour devoir revenir.
+
+Deux garde-fous rendent ça sûr :
+
+- **`IuxFormField.edited` (faux par défaut)** conditionne la vérification au
+  blur. Sans lui, tabuler jusqu'au bouton d'envoi produirait une colonne
+  d'erreurs « obligatoire » sur des champs que personne n'a touchés. Le défaut
+  prudent : un formulaire qui ne vérifie rien au blur est moins utile ; un qui
+  vérifie des champs intouchés est activement faux.
+- **Pas de valeur `onChange`** : le formulaire ne voit pas les frappes. Un
+  réglage qu'il ne pourrait pas honorer serait un mensonge.
+
+## Envoi refusé
+
+Le focus va au **récapitulatif**, pas au premier champ invalide. Il énonce
+combien de problèmes existent, préserve le choix de l'ordre de réparation, et
+c'est **la même destination à chaque fois** — ce qu'une règle « premier champ »
+n'est pas. Coût énoncé : pour une erreur unique, c'est un saut de plus.
+
+Le récapitulatif n'est délibérément **pas** une région live : le focus l'annonce
+déjà, les deux le feraient prononcer deux fois.
+
+`IuxFormSubmit` **refuse à la construction** une action désactivée sans
+`unavailabilityReason` — le bouton d'envoi grisé qui ne dit jamais pourquoi est
+le refus silencieux canonique.
+
+## Un refus cohérent
+
+Bloquer l'envoi pendant qu'une vérification est en `validating` a été rejeté
+pour la même raison : bloquer sur quelque chose que le framework ne peut pas
+expliquer *est* un refus silencieux.
+
+## Nom
+
+`IuxForm`, pas `IuxGuidedForm` — la mission 033 possède ce nom pour la variante
+par étapes.
+
+## Tests
+
+49 nouveaux tests.
