@@ -554,6 +554,51 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   an asynchronous action should always supply one. `IuxAsyncActionButton`
   routes its `busyLabel` there automatically.
 
+### IUX-FEEDBACK-007 — An error message with a dismiss and no recovery is refused
+
+- **Level**: context_dependent
+- **Scope**: IUX-014 onward
+- **Sources**: WCAG 2.2 SC 3.3.3 Error Suggestion
+- **Status**: implemented as an assertion
+- **Limits**: dismissing an error asks the user to erase the only account of
+  why their screen is broken while the failure is still there. Requiring a
+  recovery action makes closing a choice rather than amnesia.
+
+### IUX-FEEDBACK-008 — Inline controls are not IuxButtons
+
+- **Level**: context_dependent
+- **Scope**: IUX-014 onward
+- **Sources**: measurement; `IuxButtonResolver` resolves against
+  `colors.surface.base`
+- **Status**: implemented — the dismiss and recovery controls are built from
+  the runtime primitives with colours from the same `IuxFeedbackRoleColors` as
+  the message
+- **Limits**: an `IuxButton` inside a tinted alert would paint a patch of
+  *page* colour into the message and carry a label colour measured against the
+  page, never against this surface.
+
+### IUX-INPUT-004 — Read-only is carried by five non-colour signals
+
+- **Level**: standard
+- **Scope**: IUX-010 onward
+- **Sources**: WCAG 2.2 SC 1.4.1; forced by open issue IUX-SURFACE-001
+- **Status**: implemented — no caret, no software keyboard, a lock *shape* at
+  the reading end, no placeholder, and `SemanticsFlag.isReadOnly`
+- **Limits**: `surface.subtle == surface.interactive` on all four palettes and
+  `border.standard == border.interactive` on three of four, so neither fill
+  nor outline separates read-only from editable. The widget carries it
+  entirely.
+
+### IUX-INPUT-005 — A text field takes a controller, not a value
+
+- **Level**: strong_guidance
+- **Scope**: IUX-010 onward
+- **Sources**: Flutter text editing semantics
+- **Status**: implemented, with a regression test
+- **Limits**: a `value: String` API is purer but re-seats the caret on every
+  rebuild, so a user correcting the middle of a word ends up typing at the
+  end.
+
 ## Deferred to later missions
 
 | Subject | Mission |
@@ -562,6 +607,8 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 | A lint enforcing that components read the runtime | Phase 5 |
 | Per-intent action container roles, so tonal can express intent | unscheduled |
 | Distinct `surface.interactive`, so a read-only field differs by fill | unscheduled |
+| `IuxSemantics.field`, so a text field need not compose `Semantics` directly | unscheduled |
+| A semantic role for text selection, currently inherited from Material | unscheduled |
 
 ## Manual validation register
 

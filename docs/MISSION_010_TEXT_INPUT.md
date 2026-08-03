@@ -2,12 +2,12 @@
 mission_id: IUX-010
 title: Text Input
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,58 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Lecture seule sans couleur
+
+L'agent a **vérifié** l'écart `IUX-SURFACE-001` plutôt que de me croire :
+`surface.subtle == surface.interactive` sur les quatre palettes, et
+`border.standard == border.interactive` sur trois des quatre. Ni le fond ni le
+contour ne séparent quoi que ce soit.
+
+Cinq signaux non colorés portent donc la distinction : pas de caret, pas de
+clavier logiciel, un **cadenas** au bout de la ligne de lecture (une *forme*,
+qui survit au niveau de gris et au daltonisme, et le seul signal présent
+*avant* que l'utilisateur essaie quoi que ce soit), pas de placeholder, et
+`SemanticsFlag.isReadOnly` prononcé par la plateforme dans la langue de
+l'utilisateur.
+
+Lecture seule reste focalisable et copiable ; désactivé sort du parcours.
+
+## Autres décisions
+
+- **`controller` + `onChanged`, tous deux requis.** Une API `value: String`
+  serait plus pure mais replace le caret à chaque reconstruction : un
+  utilisateur corrigeant le milieu d'un mot finit par taper à la fin. Test de
+  régression dédié.
+- **Aucun `validator`** : le parent possède la validation.
+- **Le placeholder est masqué à la technologie d'assistance**, sinon chaque
+  champ vide annonce deux noms.
+- **L'erreur épaissit le contour en puisant dans le budget de padding**, donc
+  la hauteur de la boîte est identique valide ou non ; seul le message
+  apparaît.
+- **Obligation exprimée par `Semantics.isRequired`**, pas par un astérisque
+  composé.
+
+## Écart au standard, signalé
+
+`_IuxFieldSemantics` compose `Semantics` directement : tous les helpers
+`IuxSemantics` posent `excludeSemantics: true`, ce qui supprimerait les
+actions set-text, set-selection et move-cursor dont un lecteur d'écran a
+besoin pour éditer. Un `IuxSemantics.field` manque dans le runtime — consigné
+comme différé.
+
+## Tests
+
+50 nouveaux tests.
+
+## Limites
+
+- L'aide et l'erreur sont des nœuds sémantiques *adjacents*, pas une
+  association de type `aria-describedby` — Flutter n'a pas d'équivalent.
+- La surbrillance de sélection n'est pas un token IUX et vient du thème
+  Material dérivé : son contraste n'est pas mesuré par IUX. Consigné.

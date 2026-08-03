@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
-import 'package:iux_flutter/src/actions/iux_async_action.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

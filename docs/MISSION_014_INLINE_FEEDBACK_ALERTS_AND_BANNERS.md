@@ -2,12 +2,12 @@
 mission_id: IUX-014
 title: Inline Feedback, Alerts and Banners
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,44 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Décisions notables
+
+- **Un message d'erreur avec un bouton de fermeture et aucune action de
+  récupération est refusé par assertion.** Le fermer demanderait à
+  l'utilisateur d'effacer le seul récit de ce qui ne va pas, alors que la
+  panne, elle, est toujours là. Exiger une action fait de la fermeture un
+  choix plutôt qu'une amnésie.
+- **Les contrôles ne sont pas des `IuxButton`.** `IuxButtonResolver` résout
+  contre `colors.surface.base` : posé dans une alerte teintée, un `IuxButton`
+  peindrait une tache de couleur *de page* à l'intérieur du message et
+  porterait un libellé mesuré contre la page, jamais contre cette surface.
+  Ils sont donc bâtis sur les primitives du runtime, avec les couleurs du même
+  `IuxFeedbackRoleColors` que le message.
+- **Quatre formes, pas quatre couleurs** : cercle-i, cercle-coche, triangle,
+  cercle-!. La catégorie survit au daltonisme et à une capture en niveaux de
+  gris.
+- **Région live, aucune annonce.** Le message est à l'écran ; l'annoncer en
+  plus le ferait entendre deux fois. Prouvé par un test rendant sans
+  `IuxFeedbackScope` et vérifiant qu'aucun canal haptique n'est sollicité.
+- **Le nom du contrôle de fermeture est empaqueté avec son rappel**, donc un
+  message fermable sans nom accessible est irreprésentable.
+
+## Limite honnête, non contournée
+
+Le contrôle de fermeture précède l'action de récupération dans l'ordre de
+lecture : il occupe le coin haut, et TalkBack comme le parcours de focus
+trient géométriquement. L'agent a écrit un test exigeant l'inverse, l'a vu
+échouer, et a **refusé** de forcer l'ordre avec `OrderedTraversalPolicy` —
+cela donnerait à un utilisateur combinant switch et lecteur d'écran deux
+séquences différentes pour un même message. Corriger proprement demande une
+clé de tri sur `IuxSemantics`, consignée comme différée.
+
+## Tests
+
+42 nouveaux tests.
