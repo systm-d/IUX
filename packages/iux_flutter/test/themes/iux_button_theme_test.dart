@@ -1,0 +1,391 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:iux_flutter/iux_flutter.dart';
+
+import '../support/contrast.dart';
+
+void main() {
+  const IuxActionSemantics label = IuxActionSemantics(label: 'Save');
+
+  Future<IuxButtonTokens> resolve(
+    WidgetTester tester, {
+    required IuxActionDescriptor action,
+    IuxButtonVariant variant = IuxButtonVariant.filled,
+    bool hovered = false,
+    bool pressed = false,
+    bool focused = false,
+    IuxThemeConfiguration configuration = const IuxThemeConfiguration(),
+  }) async {
+    late IuxButtonTokens tokens;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: IuxTheme.fromConfiguration(configuration),
+        home: Builder(
+          builder: (BuildContext context) {
+            tokens = IuxButtonResolver.resolve(
+              context,
+              action,
+              variant: variant,
+              hovered: hovered,
+              pressed: pressed,
+              focused: focused,
+            );
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return tokens;
+  }
+
+  group('state precedence is decided once', () {
+    const IuxActionDescriptor idle = IuxActionDescriptor(semantics: label);
+
+    test('disabled outranks everything', () {
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(availability: IuxActionAvailability.disabled),
+          hovered: true,
+          pressed: true,
+        ),
+        IuxButtonState.disabled,
+      );
+    });
+
+    test('loading outranks pressed', () {
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(operation: IuxActionOperation.inProgress),
+          pressed: true,
+        ),
+        IuxButtonState.loading,
+      );
+    });
+
+    test('pressed outranks a result, so a tap always registers', () {
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(operation: IuxActionOperation.failed),
+          pressed: true,
+        ),
+        IuxButtonState.pressed,
+      );
+    });
+
+    test('a result outranks a pointer position', () {
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(operation: IuxActionOperation.failed),
+          hovered: true,
+        ),
+        IuxButtonState.error,
+      );
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(operation: IuxActionOperation.succeeded),
+          hovered: true,
+        ),
+        IuxButtonState.success,
+      );
+    });
+
+    test('every state is reachable', () {
+      final Set<IuxButtonState> reached = <IuxButtonState>{
+        IuxButtonStateResolver.resolve(idle),
+        IuxButtonStateResolver.resolve(idle, hovered: true),
+        IuxButtonStateResolver.resolve(idle, pressed: true),
+        IuxButtonStateResolver.resolve(
+            idle.copyWith(availability: IuxActionAvailability.disabled)),
+        IuxButtonStateResolver.resolve(
+            idle.copyWith(operation: IuxActionOperation.inProgress)),
+        IuxButtonStateResolver.resolve(
+            idle.copyWith(operation: IuxActionOperation.succeeded)),
+        IuxButtonStateResolver.resolve(
+            idle.copyWith(operation: IuxActionOperation.failed)),
+      };
+      expect(reached, hasLength(IuxButtonState.values.length));
+    });
+  });
+
+  group('focus survives every other state', () {
+    testWidgets('the ring is requested even while pressed or loading',
+        (WidgetTester tester) async {
+      // A design where pressing hides the focus ring is one a keyboard user
+      // loses their place in.
+      for (final IuxActionDescriptor action in <IuxActionDescriptor>[
+        const IuxActionDescriptor(semantics: label),
+        const IuxActionDescriptor(
+          semantics: label,
+          operation: IuxActionOperation.inProgress,
+        ),
+        const IuxActionDescriptor(
+          semantics: label,
+          operation: IuxActionOperation.failed,
+        ),
+      ]) {
+        final IuxButtonTokens tokens = await resolve(
+          tester,
+          action: action,
+          focused: true,
+          pressed: true,
+        );
+        expect(tokens.focused, isTrue, reason: '${tokens.state} lost focus');
+      }
+    });
+  });
+
+  group('colour resolution never hardcodes and always contrasts', () {
+    testWidgets('every variant and intent stays readable on every profile',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in <IuxThemeConfiguration>[
+        const IuxThemeConfiguration(),
+        const IuxThemeConfiguration(
+          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+        ),
+        const IuxThemeConfiguration(brightness: Brightness.dark),
+        const IuxThemeConfiguration(
+          brightness: Brightness.dark,
+          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+        ),
+      ]) {
+        for (final IuxButtonVariant variant in IuxButtonVariant.values) {
+          for (final IuxActionIntent intent in IuxActionIntent.values) {
+            // Tonal refuses destructive by design; covered separately.
+            if (variant == IuxButtonVariant.tonal &&
+                intent == IuxActionIntent.destructive) {
+              continue;
+            }
+            for (final bool pressed in <bool>[false, true]) {
+              final IuxButtonTokens tokens = await resolve(
+                tester,
+                action: IuxActionDescriptor(semantics: label, intent: intent),
+                variant: variant,
+                pressed: pressed,
+                configuration: configuration,
+              );
+              final double ratio = ContrastMetric.ratio(
+                tokens.foreground,
+                tokens.background,
+              );
+              expect(
+                ratio,
+                greaterThanOrEqualTo(ContrastMetric.normalText),
+                reason: '${variant.name}/${intent.name}/'
+                    '${pressed ? "pressed" : "resting"} on '
+                    '$configuration measured ${ratio.toStringAsFixed(2)}:1',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    testWidgets('disabled stays legible above the WCAG exemption',
+        (WidgetTester tester) async {
+      final IuxButtonTokens tokens = await resolve(
+        tester,
+        action: const IuxActionDescriptor(
+          semantics: label,
+          availability: IuxActionAvailability.disabled,
+        ),
+      );
+      expect(
+        ContrastMetric.ratio(tokens.foreground, tokens.background),
+        greaterThanOrEqualTo(ContrastMetric.nonText),
+      );
+    });
+
+    testWidgets('a disabled filled button keeps an outline',
+        (WidgetTester tester) async {
+      // Its fill sits close to the surface behind it, so without an outline
+      // the control stops being identifiable as a control.
+      final IuxButtonTokens tokens = await resolve(
+        tester,
+        action: const IuxActionDescriptor(
+          semantics: label,
+          availability: IuxActionAvailability.disabled,
+        ),
+      );
+      expect(tokens.borderWidth, greaterThan(0));
+    });
+  });
+
+  group('variants differ where it matters', () {
+    testWidgets('outlined and text carry no fill of their own',
+        (WidgetTester tester) async {
+      const IuxActionDescriptor action = IuxActionDescriptor(
+        semantics: label,
+        intent: IuxActionIntent.primary,
+      );
+      final IuxButtonTokens filled = await resolve(
+        tester,
+        action: action,
+        variant: IuxButtonVariant.filled,
+      );
+      final IuxButtonTokens outlined = await resolve(
+        tester,
+        action: action,
+        variant: IuxButtonVariant.outlined,
+      );
+      final IuxButtonTokens text = await resolve(
+        tester,
+        action: action,
+        variant: IuxButtonVariant.text,
+      );
+
+      expect(outlined.background, isNot(equals(filled.background)));
+      expect(outlined.borderWidth, greaterThan(0));
+      expect(text.borderWidth, 0);
+    });
+
+    testWidgets('an icon button is padded squarely',
+        (WidgetTester tester) async {
+      final IuxButtonTokens tokens = await resolve(
+        tester,
+        action: const IuxActionDescriptor(semantics: label),
+        variant: IuxButtonVariant.icon,
+      );
+      expect(tokens.padding.left, tokens.padding.top);
+      expect(tokens.minimumSize, greaterThanOrEqualTo(IuxTouchTarget.minimum));
+    });
+
+    testWidgets('a destructive tonal button is refused',
+        (WidgetTester tester) async {
+      // Tonal carries intent through its border rather than its fill, which
+      // is not enough separation for an action that destroys data.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.light(),
+          home: Builder(
+            builder: (BuildContext context) {
+              IuxButtonResolver.resolve(
+                context,
+                const IuxActionDescriptor.destructive(
+                  semantics: IuxActionSemantics(label: 'Delete'),
+                ),
+                variant: IuxButtonVariant.tonal,
+              );
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(tester.takeException(), isA<AssertionError>());
+    });
+  });
+
+  group('geometry follows the theme, never a literal', () {
+    testWidgets('the target floor is always respected',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in <IuxThemeConfiguration>[
+        const IuxThemeConfiguration(),
+        const IuxThemeConfiguration(
+          profile: IuxAccessibilityProfile(density: IuxDensity.compact),
+        ),
+        const IuxThemeConfiguration(
+          profile: IuxAccessibilityProfile(
+            touchTarget: IuxTouchTargetPreference.comfortable,
+          ),
+        ),
+      ]) {
+        final IuxButtonTokens tokens = await resolve(
+          tester,
+          action: const IuxActionDescriptor(semantics: label),
+          configuration: configuration,
+        );
+        expect(
+          tokens.minimumSize,
+          greaterThanOrEqualTo(IuxTouchTarget.minimum),
+        );
+      }
+    });
+
+    testWidgets('high contrast thickens the outline',
+        (WidgetTester tester) async {
+      final IuxButtonTokens standard = await resolve(
+        tester,
+        action: const IuxActionDescriptor(semantics: label),
+        variant: IuxButtonVariant.outlined,
+      );
+      final IuxButtonTokens high = await resolve(
+        tester,
+        action: const IuxActionDescriptor(semantics: label),
+        variant: IuxButtonVariant.outlined,
+        configuration: const IuxThemeConfiguration(
+          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+        ),
+      );
+      expect(high.borderWidth, greaterThan(standard.borderWidth));
+    });
+
+    testWidgets('no shadow by default', (WidgetTester tester) async {
+      final IuxButtonTokens defaults = await resolve(
+        tester,
+        action: const IuxActionDescriptor(semantics: label),
+      );
+      expect(defaults.elevation, 0,
+          reason: 'a filled button is already separated by colour');
+    });
+  });
+
+  group('the theme extension behaves as a value', () {
+    test('defaults are the cautious ones', () {
+      const IuxButtonTheme theme = IuxButtonTheme();
+      expect(theme.variant, IuxButtonVariant.filled);
+      expect(theme.elevateFilled, isFalse);
+    });
+
+    test('copyWith and equality cover every field', () {
+      const IuxButtonTheme base = IuxButtonTheme();
+      expect(base.copyWith(), equals(base));
+      expect(base.copyWith(iconSize: 24).iconSize, 24);
+      expect(
+        base.copyWith(variant: IuxButtonVariant.text),
+        isNot(equals(base)),
+      );
+      expect(base.hashCode, equals(const IuxButtonTheme().hashCode));
+    });
+
+    test('categorical fields never land between two values', () {
+      const IuxButtonTheme a = IuxButtonTheme();
+      const IuxButtonTheme b = IuxButtonTheme(variant: IuxButtonVariant.text);
+      for (final double t in <double>[0, 0.25, 0.5, 0.75, 1]) {
+        expect(
+          a.lerp(b, t).variant,
+          anyOf(IuxButtonVariant.filled, IuxButtonVariant.text),
+        );
+      }
+    });
+
+    test('it is installed on every resolved theme', () {
+      expect(IuxTheme.light().extension<IuxButtonTheme>(), isNotNull);
+    });
+
+    testWidgets('a button without an explicit theme still resolves',
+        (WidgetTester tester) async {
+      late IuxButtonTheme resolved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (BuildContext context) {
+              resolved = IuxButtonTheme.of(context);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(resolved, const IuxButtonTheme());
+    });
+  });
+
+  group('tokens are a value type', () {
+    testWidgets('identical inputs resolve equal', (WidgetTester tester) async {
+      const IuxActionDescriptor action = IuxActionDescriptor(semantics: label);
+      final IuxButtonTokens a = await resolve(tester, action: action);
+      final IuxButtonTokens b = await resolve(tester, action: action);
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+  });
+}

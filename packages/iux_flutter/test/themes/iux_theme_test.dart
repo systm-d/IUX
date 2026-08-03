@@ -35,7 +35,7 @@ void main() {
                   final IuxResolvedTheme resolved =
                       IuxTheme.resolve(configuration);
                   expect(resolved.material, isA<ThemeData>());
-                  expect(resolved.extensions, hasLength(6));
+                  expect(resolved.extensions, hasLength(7));
                 }
               }
             }

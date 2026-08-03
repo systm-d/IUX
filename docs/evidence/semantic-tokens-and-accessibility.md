@@ -419,12 +419,45 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   screen's decision.
 - **Limits**: a framework-level reach rule would be wrong for most users.
 
+### IUX-BUTTON-001 — An intent's accent is not always in the same role
+
+- **Level**: context_dependent
+- **Scope**: IUX-008.3 onward
+- **Sources**: none external; found by measurement
+- **Status**: implemented — primary and destructive carry their accent in
+  `background`, secondary and tertiary in `foreground`
+- **Limits**: assuming one universally produced a white label on a white
+  surface (1.00:1), caught by the contrast test rather than by review. This is
+  an explicit assumption about the shipped palettes; a brand theme that fills
+  secondary must revisit it. Guarded by 152 measured combinations.
+
+### IUX-BUTTON-002 — Focus is not a button state
+
+- **Level**: standard
+- **Scope**: IUX-008.3 onward
+- **Sources**: WCAG 2.2 SC 2.4.7 Focus Visible
+- **Status**: implemented — carried separately from the state enum and drawn
+  additively
+- **Limits**: focus must stay visible while pressed, loading and showing a
+  result, so it cannot be a value in a list where one wins.
+
+### IUX-BUTTON-003 — The tonal variant refuses a destructive intent
+
+- **Level**: context_dependent
+- **Scope**: IUX-008.3 onward
+- **Sources**: none external; an IUX judgement
+- **Status**: implemented as an assertion
+- **Limits**: tonal carries intent through its border rather than its fill,
+  because the semantic layer has no per-intent container role. Adding one
+  would remove the restriction; deferred.
+
 ## Deferred to later missions
 
 | Subject | Mission |
 | --- | --- |
 | Visual feedback components (snackbar, alerts, loaders) | IUX-013 to IUX-015 |
 | A lint enforcing that components read the runtime | Phase 5 |
+| Per-intent action container roles, so tonal can express intent | unscheduled |
 
 ## Manual validation register
 

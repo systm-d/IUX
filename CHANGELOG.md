@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.0-dev.8 — IUX-008.1 to IUX-008.3
+
+Component standard, action model, button theme. Additive.
+
+### Added
+
+- The operative Component Standard, with nine of its prohibitions enforced by
+  `test/components/component_standard_test.dart` rather than only written
+  down.
+- `IuxActionDescriptor` and its ten orthogonal dimensions;
+  `IuxActionPolicy.evaluate`, which decides activation once and returns *why*
+  a refusal happened.
+- `IuxButtonTheme`, `IuxButtonTokens`, `IuxButtonResolver`,
+  `IuxButtonStateResolver` — a seventh theme extension.
+
+### Notes
+
+The button contrast test caught `outlined` + `secondary` resolving to a white
+label on a white surface (1.00:1). An intent's accent is not always in the
+same role: primary and destructive carry it in `background`, secondary and
+tertiary in `foreground`, because the semantic layer already models the latter
+as unfilled. 152 variant × intent × state × profile combinations are now
+measured.
+
+Focus is deliberately not a button state: it must stay visible while pressed,
+loading and showing a result.
+
+
 ## 0.1.0-dev.7 — IUX-007
 
 Layout primitives. Additive.
