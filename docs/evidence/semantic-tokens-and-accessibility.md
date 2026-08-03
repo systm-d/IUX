@@ -1377,6 +1377,74 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Both now fail under the same break.** A test that has only ever passed has
   not been shown to work.
 
+### IUX-DISCLOSURE-001 — One rule enforced by a type, three by prose, and the docs say which
+
+- **Level**: standard
+- **Scope**: IUX-035 onward
+- **Sources**: WCAG 2.2 SC 4.1.2, SC 2.4.3
+- **Status**: implemented. Four rules are stated for what may never be
+  disclosed — required input, an error or its cause, the way out, and
+  cost or consent — and **exactly one is enforced by a type**. No widget can
+  read a subtree and decide whether it holds a required field, and a guarantee
+  that is a guess is worse than none, so the documentation says which is
+  which rather than implying four.
+- **What is enforced**: `IuxDisclosureState` is sealed as `collapsed` /
+  `expanded` / `heldOpen`, so "collapsed while the content must be dealt with"
+  is not constructible. Two booleans would have four combinations and one of
+  them is the defect.
+- **`heldOpen` removes the toggle and makes the summary a heading.** Three
+  alternatives are refused in the docs: an ignored toggle announces "expanded,
+  button" and does nothing; a disabled one leaves the Android focus order and
+  says nothing about why; and letting the parent refuse reads as a stuck
+  screen when the user asks for *less*.
+- **Measured**: `expanded` lands on the same node as the name, checked in one
+  call across label, button flag and expanded flag. Collapsed is
+  `Tristate.isFalse`, not absent. `heldOpen` is `Tristate.none` with
+  `isHeader: true` and no tap action. Hidden means **absent**, probed three
+  ways — no `Offstage`/`Visibility`/`Opacity`, absent from the semantics tree,
+  absent from the focus manager's descendants.
+
+### IUX-DISCLOSURE-002 — No animation, and the absence is proved
+
+- **Level**: standard
+- **Scope**: IUX-035 onward
+- **Sources**: WCAG 2.2 SC 2.3.3
+- **Status**: implemented — the file imports the motion policy nowhere, and
+  there is no parameter that could add one. Verified by asserting the content
+  is complete after a single `pump()` with `transientCallbackCount == 0`, then
+  again under `IuxMotionPreference.none`.
+- **Reasoning beyond IUX-018's**: the child may contain **controls**, so
+  animating means a hit box travelling while the user reaches for it; and a
+  reveal interrupted by a second press leaves the semantics tree mid-flight.
+
+### IUX-DISCLOSURE-003 — Accordion exclusivity refused, and with it the group widget
+
+- **Level**: context_dependent
+- **Scope**: IUX-035 onward
+- **Status**: refused. Exclusivity closes content the user just found. Once it
+  is gone a group has nothing left to coordinate — `Column`, `IuxSection` and
+  `IuxContentGroup` already stack — so a group widget would be dead API (§19),
+  and with the parent owning the state, exclusivity is one line for anyone who
+  genuinely wants it.
+
+### IUX-DISCLOSURE-004 — The disclosure control exists twice (OPEN)
+
+- **Level**: standard (PROJECT_PROMPT §19)
+- **Status**: open, reported by IUX-035 and not fixed, since it does not own
+  `lib/src/components/help/`. `_IuxHelpDisclosureControl` is
+  `_IuxDisclosureControl` plus a leading help glyph — same
+  `IuxSemantics.action(expanded:)`, same `IuxFocusable`, same opaque detector,
+  same floor, same chevron, same decision to exclude the glyphs.
+- **The right end state**: `IuxContextualHelp` composes the pattern and adds
+  its glyph, which is about one leading-glyph parameter on the shared control.
+  That parameter was **deliberately not pre-added**: a parameter with no caller
+  is dead public API.
+- **Why two widgets remain justified even after the refactor**: prose has no
+  focus order, cannot be tabbed into, and cannot be left half-filled. A
+  revealed form section is all three, and every guarantee specific to the
+  pattern falls out of that one difference. `IuxContextualHelp`'s `help` being
+  a `String` is what stops a help panel becoming a destination.
+
 ## Deferred to later missions
 
 | Subject | Mission |

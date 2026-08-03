@@ -2,12 +2,12 @@
 mission_id: IUX-035
 title: Progressive Disclosure
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: IUX-035 implementation agent
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,59 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La question IUX-018, et la réponse honnête
+
+*Faut-il généraliser le contrôle de divulgation d'IUX-018 plutôt qu'en livrer
+un second ?* **Oui pour le contrôle, non pour le composant.**
+
+`IuxContextualHelp` doit continuer d'exister : sa contrainte *est* sa valeur.
+Son `help` est une `String` et ne peut contenir aucun contrôle — c'est ce qui
+empêche un panneau d'aide de devenir une destination avec un ordre de focus et
+un chemin de retour. Le supprimer au profit de la forme générale supprimerait
+ce refus.
+
+**Mais le contrôle lui-même existe deux fois.** Consigné ouvert
+(IUX-DISCLOSURE-004). L'agent n'a délibérément **pas** pré-ajouté le paramètre
+de glyphe qui permettrait la fusion : un paramètre sans appelant est une API
+publique morte.
+
+## Une règle tenue par un type, trois par la prose — et la doc le dit
+
+Quatre règles sur ce qui ne doit jamais être divulgué. **Une seule est tenue
+par un type.** Aucun widget ne peut lire un sous-arbre et décider s'il
+contient un champ requis, et une garantie qui est une supposition vaut moins
+que pas de garantie du tout. La documentation dit donc laquelle est laquelle,
+au lieu de laisser croire qu'il y en a quatre.
+
+Ce qui est tenu : `IuxDisclosureState` est scellé en `collapsed` / `expanded`
+/ `heldOpen`, donc « replié alors que le contenu doit être traité » n'est pas
+constructible. Deux booléens auraient quatre combinaisons, et l'une d'elles
+est le défaut.
+
+## Pas d'animation, et l'absence est *prouvée*
+
+Le fichier n'importe la politique de mouvement nulle part, et aucun paramètre
+ne pourrait en ajouter une. Vérifié en exigeant le contenu complet après un
+seul `pump()` avec `transientCallbackCount == 0`.
+
+Deux arguments s'ajoutent à ceux d'IUX-018 : l'enfant peut contenir des
+**contrôles**, donc animer, c'est faire voyager une zone de frappe pendant que
+l'utilisateur tend la main vers elle ; et une révélation interrompue par une
+seconde pression laisse l'arbre sémantique en plein vol.
+
+## Deux défauts trouvés dans ses propres sondes
+
+`FocusNode.context` continue de pointer vers un élément **défunt** après
+démontage, et répond donc silencieusement à une autre question que « est-ce
+dans l'ordre de focus » — le test interroge désormais le `FocusManager`. Et
+quand la bascule détient le focus au moment du passage en `heldOpen`, Flutter
+le rend à la portée englobante — le même comportement qu'IUX-030 avait mesuré
+pour un réessai démonté. Épinglé et documenté comme un coût réel, pas maquillé.
+
+38 tests.
