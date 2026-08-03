@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.1.0-dev.11 — IUX-025, 026, 027, 028
+
+Navigation completed across three arrangements, plus the first of the
+recovery patterns — and four corrections to work that was already committed.
+
+### Added
+
+- `IuxNavigationRail` and `IuxAdaptiveNavigation` (IUX-025). No breakpoint is
+  adopted; the arrangement is decided by what each option leaves the content,
+  with text scale as a term in the decision. Android's 600dp was considered
+  and not taken, and the residual disagreement is logged as a hypothesis.
+- `IuxNavigationDrawer` (IUX-027), and an `IuxModalLayer.drawer` slot to go
+  with it. The three modals are now mutually exclusive by assertion.
+- `IuxTabs` (IUX-026). Each tab carries `SemanticsRole.tab`, the strip carries
+  `tabBar`, and Flutter enforces the rest itself.
+- `IuxEmptyState` (IUX-028). Four situations, not one — nothing yet created, a
+  filter that matched nothing, a search that matched nothing, and a permission
+  that hides everything. The wrong situation/action pairing cannot be
+  constructed.
+- Two mechanical checks under `test/accessibility/`, each pinning a rule that
+  had already failed once: a `Semantics` node declaring `button: true` must
+  offer something to activate, and the framework may compose no string
+  containing letters into a spoken property.
+
+### Fixed
+
+- **The drawer's own documented usage example broke accessibility silently.**
+  `Stack(children: [page, if (open) drawer])` leaves the page element alive,
+  so its semantics node is never recompiled and `BlockSemantics` does not
+  remove the covered page — a screen reader goes on reading, and offering to
+  activate, controls the user cannot touch. Touch is identical in both shapes,
+  which is why nothing short of a screen reader catches it. The
+  `IuxModalLayer.drawer` slot makes the working shape the only expressible
+  one.
+- **The rail's widest name always wrapped**, which is exactly what its
+  documentation promised to prevent. `widthFor` measured the label style
+  alone, while the rendered `Text` merges it over the ambient
+  `DefaultTextStyle` and inherits a `letterSpacing` the typography theme never
+  sets — 0.25px per character, and "Messages" needed 114px against 112.
+- **The adaptive rule returned the worse arrangement on a landscape window**:
+  at 640x320 at 300%, the rail leaves 286x320 and the bar leaves 640x0.
+- **The display inset was applied twice**, and the documented workaround was
+  worse than the bug, dropping the top inset and putting content under the
+  status bar.
+
+### Corrected
+
+- `docs/components/bottom-navigation.md` argued for `checked` over `selected`
+  on the grounds that `selected` is announced only when true. Measured on
+  Flutter 3.44, `selected: false` yields `Tristate.isFalse` — explicitly
+  present. The flags are tri-state and the two are indistinguishable
+  framework-side. The choice stands on a narrower claim that is true:
+  `checked` with `inMutuallyExclusiveGroup` says *one of these and only one*.
+  What a screen reader speaks is a device question, untested on hardware, and
+  is no longer asserted.
+
+### Known open
+
+- **IUX-A11Y-FOCUS-001.** `IuxSemantics.action` yields nodes with
+  `isFocused: Tristate.none` and actions `[tap]`, where Flutter's own button
+  yields `Tristate.isFalse` and `[tap, focus]`. Assistive technology cannot
+  move accessibility focus onto an IUX control programmatically. This is the
+  third thing `excludeSemantics` has silently deleted — it took `onTap` first.
+  Deferred to IUX-038 rather than fixed mid-wave, because the fix lives in a
+  helper every component depends on.
+
 ## 0.1.0-dev.10 — IUX-008.7, 012, 018, 023, 024
 
 Two patterns, three components, and one runtime gap closed.
