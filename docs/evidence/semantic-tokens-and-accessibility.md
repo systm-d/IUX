@@ -1015,6 +1015,37 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: `expanded` is null rather than false by default, so an ordinary
   button is never announced as "collapsed" — a state it does not have.
 
+### IUX-A11Y-FOCUS-001 — Every IUX control is missing its focus semantics (OPEN)
+
+- **Level**: standard
+- **Scope**: every component built on `IuxSemantics.action`, since IUX-005
+- **Sources**: WCAG 2.2 SC 4.1.2; measured against Flutter's own button
+- **Status**: **open defect, confirmed by probe.** Flagged by the IUX-028
+  agent, verified independently rather than taken on the report — and it is
+  worse than reported.
+
+  | | `isFocused` | actions |
+  | --- | --- | --- |
+  | `IuxButton` | `Tristate.none` | `[tap]` |
+  | `ElevatedButton` | `Tristate.isFalse` | `[tap, focus]` |
+
+  `Tristate.none` means the node declares no focusable state at all, and the
+  missing `SemanticsAction.focus` means assistive technology cannot move
+  accessibility focus onto an IUX control programmatically.
+
+- **Cause**: the third instance of one mechanism. `IuxSemantics.action` sets
+  `excludeSemantics: true` to control the announced name, which deletes
+  everything the `IuxFocusable` subtree contributed. It deleted `onTap` first
+  (fixed at IUX-011, after every IUX button had been unusable with a screen
+  reader since IUX-005); it deletes the focus state too.
+- **Not a regression**: `IuxBottomNavigation` destinations do carry
+  `[tap, focus]`, because they do not route through the helper.
+- **Deferred deliberately**: the fix belongs in `IuxSemantics.action`, which
+  every component depends on, and it was found while two missions were live in
+  the same tree. Changing the shared foundation mid-wave trades a known defect
+  for an unknown one. Scheduled as the first item of IUX-038, which is the
+  accessibility audit.
+
 ## Deferred to later missions
 
 | Subject | Mission |
