@@ -77,12 +77,31 @@ abstract final class IuxSemantics {
   /// screen reader's double-tap invokes; a gesture detector inside the child
   /// cannot supply it, because this helper excludes the child's semantics in
   /// order to control the announced name.
+  /// Attaches a short elaboration to [child] without adding a stop.
+  ///
+  /// The platform tooltip property lands on the *same* node as whatever
+  /// [child] already announces, because a wrapper would be a second stop
+  /// carrying a fragment with no control attached — or, more often, no stop at
+  /// all, since a node with nothing but a tooltip is not always announced.
+  ///
+  /// [message] is user-facing text and therefore the caller's, already
+  /// localised. The framework composes none of it.
+  ///
+  /// This is not [action]: the elaboration is added to a control that names
+  /// itself, so nothing here is excluded or replaced.
+  static Widget elaboration({
+    required Widget child,
+    required String message,
+  }) =>
+      Semantics(tooltip: message, child: child);
+
   static Widget action({
     required Widget child,
     required String label,
     String? hint,
     bool enabled = true,
     bool? selected,
+    bool? expanded,
     String? busyHint,
     VoidCallback? onTap,
   }) =>
@@ -91,6 +110,11 @@ abstract final class IuxSemantics {
         button: true,
         enabled: enabled,
         selected: selected,
+        // A disclosure control has to announce whether the thing it controls
+        // is open, on the same node as its name. Left null it is absent
+        // rather than false, so an ordinary button is not announced as
+        // "collapsed" — a state it does not have.
+        expanded: expanded,
         label: label,
         // Carried here because [excludeSemantics] removes the child's own tap
         // action along with its label. Without it the node announces a button

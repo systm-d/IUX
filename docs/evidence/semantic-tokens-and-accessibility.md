@@ -969,6 +969,45 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   clears the 48 floor outright. Below 320 px the floor is arithmetically
   impossible for five destinations.
 
+### IUX-HELP-001 — A tooltip is never the only carrier of a meaning
+
+- **Level**: standard
+- **Scope**: IUX-018 onward
+- **Sources**: WCAG 2.2 SC 1.4.13, SC 2.1.1
+- **Status**: implemented — reachable by long press (touch), focus (keyboard),
+  hover (pointer); dismissable by `Escape`, by a press outside, by a press on
+  the control or on the tooltip; hoverable through a transparent bridge across
+  the gap; persistent with no clock in the implementation at all.
+- **Limits**: long press is undiscoverable and unannounced to sighted users,
+  which is exactly why a tooltip may never carry something essential. The
+  outline's 3:1 is measured against the theme's page surface, not against a
+  photograph the tooltip happens to float over. Nothing can check that a
+  message is genuinely redundant.
+
+### IUX-HELP-002 — 80 characters is the enforced boundary between float and flow
+
+- **Level**: context_dependent
+- **Scope**: IUX-018 onward
+- **Sources**: measured at 200% on a 320 px viewport
+- **Status**: implemented — `kIuxTooltipMaximumCharacters = 80`, asserted, not
+  advised
+- **Limits**: 80 is about two lines at default text and four to five at 200%
+  on 320 px — the edge of what may float. A floating box cannot scroll, cannot
+  be kept open and covers the page it explains; `IuxContextualHelp` sits in the
+  flow and has none of those problems, at the cost of moving content below it.
+
+### IUX-A11Y-EXPANDED — Disclosure state rides the control's own node
+
+- **Level**: standard
+- **Scope**: IUX-018 onward
+- **Sources**: WCAG 2.2 SC 4.1.2
+- **Status**: implemented — `IuxSemantics.action` gained `expanded`, and
+  `IuxSemantics.elaboration` carries the platform tooltip property. Both close
+  documented deviations from component standard §2: two components had been
+  composing bare `Semantics` because the runtime had nowhere to put these.
+- **Limits**: `expanded` is null rather than false by default, so an ordinary
+  button is never announced as "collapsed" — a state it does not have.
+
 ## Deferred to later missions
 
 | Subject | Mission |

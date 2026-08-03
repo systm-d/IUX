@@ -2,12 +2,12 @@
 mission_id: IUX-018
 title: Tooltip and Contextual Help
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,65 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Un tooltip n'est jamais le seul porteur d'un sens
+
+Atteignable par appui long (tactile), focus (clavier/D-pad) et survol
+(pointeur). L'appui long partage l'arène de gestes avec le tap du contrôle et
+ne gagne qu'après le délai de pression : un tap rapide active donc toujours le
+contrôle et n'ouvre jamais de tooltip.
+
+Pour un lecteur d'écran, le message atteint **le même nœud sémantique que le
+nom du contrôle**. Non fusionné, Flutter place `tooltip` sur un wrapper au-dessus
+du contrôle et l'action d'appui long sur un autre encore au-dessus, alors que
+le lecteur atterrit sur le contrôle — vérifié contre l'arbre sémantique réel,
+puis corrigé avec `MergeSemantics`.
+
+SC 1.4.13 en trois points :
+- **Dismissable** — `Escape`, une pression à l'extérieur via `TapRegion` (qui
+  *signale* au lieu de consommer, la pression atteint donc quand même sa
+  cible), une pression sur le contrôle, une pression sur le tooltip.
+- **Hoverable** — un pont transparent enjambe l'espace jusqu'à l'ancre, donc
+  pas de zone morte ; et la décision de fermeture est différée à une
+  microtâche, parce qu'un déplacement ancre→tooltip émet sortie-puis-entrée
+  dans la même passe et agir sur la sortie fermerait le tooltip sur le chemin
+  de sa lecture.
+- **Persistent** — il n'y a **aucune horloge**. Pas de `showDuration`, pas de
+  masquage automatique, pas de paramètre qui pourrait en ajouter un. Testé en
+  pompant cinq minutes.
+
+## La frontière est appliquée, pas conseillée
+
+`IuxTooltip` refuse un message de plus de 80 runes ou contenant un saut de
+ligne. 80 ≈ deux lignes au texte par défaut, quatre à cinq à 200 % sur 320 px —
+la limite de ce qui peut flotter. Une boîte flottante ne défile pas, ne se
+laisse pas garder ouverte, et couvre la page qu'elle explique.
+
+La règle à trois branches contre `IuxInputDescriptor.helpText` est clé sur
+*ce qui arrive à l'utilisateur qui ne la voit jamais* : toujours visible = il
+lui faut ça pour répondre ; divulgué = il peut en avoir besoin et peut le
+demander ; tooltip = il le sait déjà, seul le glyphe est ambigu.
+
+## Ce que cette mission a corrigé dans le runtime
+
+L'agent a signalé — sans y toucher, ce n'était pas son périmètre — que
+`IuxSemantics` n'avait nulle part où mettre `expanded` ni la propriété
+`tooltip` de la plateforme, et que les deux doivent atterrir sur le *même*
+`SemanticsConfiguration` que le nom et le rôle. Il a donc composé des
+`Semantics` nus à deux endroits, chacun avec un commentaire nommant la règle du
+standard §2 qu'il quittait et la priorité PROJECT_PROMPT §5 qui la surclasse.
+
+J'ai fermé les deux : `IuxSemantics.action` gagne `expanded` (nul par défaut,
+pour qu'un bouton ordinaire ne soit jamais annoncé « replié »), et
+`IuxSemantics.elaboration` porte la propriété tooltip. Les 55 tests de la
+mission — y compris les sondes sur l'arbre sémantique réel — passent inchangés
+après le remplacement, ce qui est la preuve que la composition est équivalente.
+
+## Tests
+
+55 nouveaux tests. Suite complète : 1181, tous verts.
