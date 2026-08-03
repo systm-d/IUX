@@ -2,12 +2,12 @@
 mission_id: IUX-009
 title: Input Foundations
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,57 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+Modèle et thème de saisie, sans widget. Implémentée par un sous-agent, revue
+et intégrée par le chef d'équipe.
+
+## Décisions notables
+
+- **`readOnly` existe ici, et c'est le gain du modèle d'action.**
+  `IuxActionAvailability` l'avait explicitement refusé au motif que « read-only
+  décrit un champ ». `IuxInputAvailability` en a trois, et la conséquence est
+  concrète : un champ en lecture seule reste dans le parcours de focus, un
+  champ désactivé non — donc sa valeur n'est pas « annoncée comme figée »,
+  elle n'est jamais annoncée du tout.
+- **Le message d'erreur est structurellement impossible à omettre** :
+  `IuxInputValidation.invalid(String message)` exige un message non vide. On
+  ne peut pas dire « faux » sans dire en quoi.
+- **Le remplissage ne devient pas rouge** : cela mettrait l'erreur dans le seul
+  canal qu'un daltonien ne lit pas, et dégraderait le contraste de la valeur
+  à corriger. C'est la bordure qui épaissit.
+- **Le texte d'aide survit à l'erreur.** Remplacer l'instruction par l'erreur
+  supprime la phrase qui explique comment écrire une valeur correcte au moment
+  précis où l'utilisateur a prouvé qu'il en avait besoin.
+- **`copyWith` volontairement absent de `IuxInputValidation`** — seule
+  dérogation à la règle « tout type valeur a un copyWith ». Une copie changeant
+  seulement le statut produirait un champ invalide portant son ancien message
+  de succès.
+
+## Deux constats mesurés
+
+- Le placeholder utilise `content.secondary` : `content.tertiary` mesure
+  **4,45:1** sur la surface remplie en clair, sous le minimum.
+- `surface.subtle` et `surface.interactive` sont **identiques sur les quatre
+  palettes** — un champ en lecture seule n'est donc pas distingué par son fond.
+  Vérifié par mes soins. Consigné comme écart ouvert `IUX-SURFACE-001`.
+
+## Tests
+
+63 nouveaux tests. Un test de contrat dédié applique les interdits mécaniques
+à `lib/src/inputs/`, que `component_standard_test` ne couvre pas (il ne glob
+que `/components/` et `/patterns/`).
+
+## Limites
+
+- Aucun widget : sémantiques, ordre de focus, clavier, texte 200 %, RTL et
+  retour à la ligne ne sont ici qu'approchés. IUX-010.
+- Invariants en assertions, donc debug uniquement.
+- Les couleurs se résolvent contre `surface.base` ; un champ sur une surface
+  élevée hérite de cette hypothèse.

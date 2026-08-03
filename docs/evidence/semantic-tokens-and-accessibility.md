@@ -451,6 +451,72 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   because the semantic layer has no per-intent container role. Adding one
   would remove the restriction; deferred.
 
+### IUX-INPUT-001 — A placeholder uses secondary content, not tertiary
+
+- **Level**: standard
+- **Scope**: IUX-009 onward
+- **Sources**: WCAG 2.2 SC 1.4.3; found by measurement
+- **Status**: implemented
+- **Limits**: `content.tertiary` measures **4.45:1** on the filled input
+  surface in light conditions — below the 4.5 minimum. A placeholder nobody
+  can read is an instruction nobody gets.
+
+### IUX-INPUT-002 — An invalid field cannot omit its message
+
+- **Level**: standard
+- **Scope**: IUX-009 onward
+- **Sources**: WCAG 2.2 SC 3.3.1 Error Identification, SC 3.3.3 Error
+  Suggestion
+- **Status**: implemented — `IuxInputValidation.invalid` requires a non-empty
+  message, so "wrong" cannot be expressed without saying what is wrong. The
+  invalid outline also thickens, so the error is not only a colour change.
+- **Limits**: the message's usefulness is not something a test can judge.
+
+### IUX-INPUT-003 — Validation is a lifecycle, not a boolean
+
+- **Level**: strong_guidance
+- **Scope**: IUX-009 onward
+- **Sources**: Nielsen Norman Group on premature validation
+- **Status**: implemented — four statuses
+- **Limits**: `notValidated` is not `valid` (a tick on every untouched field
+  trains users to ignore ticks) and `validating` is not `invalid` (an error
+  while the answer is unknown makes users correct something that was never
+  wrong).
+
+### IUX-PROGRESS-001 — An indeterminate indicator is removed when motion is off
+
+- **Level**: context_dependent
+- **Scope**: IUX-013 onward
+- **Sources**: derived from WCAG 2.2 SC 2.3.3 and the IUX motion policy
+- **Status**: implemented — determinate keeps its bar and snaps the fill,
+  indeterminate removes the bar and falls back to its label as a status line
+- **Limits**: a frozen indeterminate segment is parked at a position that
+  means nothing, which reads as a hung operation. The label is therefore
+  required and always visible, so the fallback is always available.
+
+### IUX-PROGRESS-002 — Progress announcements are throttled to milestones
+
+- **Level**: hypothesis
+- **Scope**: IUX-013 onward
+- **Sources**: none; the step is a chosen default
+- **Status**: implemented — roughly every 10 points, plus every phase change
+  and reaching completion. The eye is never throttled, only the announcement.
+- **Limits**: 10 points is not a measured optimum and has not been validated
+  with screen-reader users.
+
+### IUX-SURFACE-001 — Interactive and subtle surfaces are not distinct today
+
+- **Level**: context_dependent
+- **Scope**: found in IUX-009, affects IUX-003.1 palettes
+- **Sources**: measurement of the four shipped palettes
+- **Status**: **open**. `surface.subtle` and `surface.interactive` resolve to
+  the same primitive on all four profiles, so a read-only field is not
+  separated from an editable one by fill alone.
+- **Limits**: the resolver asks for the correct distinct roles and a test pins
+  the roles rather than the colours, so the intent stays honest. Separating
+  them means re-measuring every affected pair. Until then the distinction is
+  the widget's — no caret, no keyboard, announced read-only — in IUX-010.
+
 ## Deferred to later missions
 
 | Subject | Mission |
@@ -458,6 +524,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 | Visual feedback components (snackbar, alerts, loaders) | IUX-013 to IUX-015 |
 | A lint enforcing that components read the runtime | Phase 5 |
 | Per-intent action container roles, so tonal can express intent | unscheduled |
+| Distinct `surface.interactive`, so a read-only field differs by fill | unscheduled |
 
 ## Manual validation register
 

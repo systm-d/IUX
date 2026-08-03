@@ -2,12 +2,12 @@
 mission_id: IUX-013
 title: Progress and Loading Indicators
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,55 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+`IuxProgressIndicator` (déterminé) et `IuxLoadingIndicator` (indéterminé).
+Implémentée par un sous-agent, revue et intégrée par le chef d'équipe.
+
+## Décisions notables
+
+- **Deux composants, pas un drapeau.** Un `indeterminate: bool` laisserait un
+  développeur choisir l'option la plus faible sans s'en rendre compte. Le
+  déterminé est le chemin par défaut par construction.
+- **`requiresStaticAlternative` répondu différemment par chacun.** Le déterminé
+  garde sa barre et fige le remplissage — « 45 % » *est* un énoncé statique.
+  L'indéterminé **retire la barre** et se rabat sur son libellé : un segment
+  indéterminé figé est garé à une position qui ne veut rien dire, ce qui se lit
+  comme une opération plantée. Le libellé est donc requis et toujours visible.
+- **Annonces limitées aux jalons** (~10 points), plus tout changement de phase
+  et l'achèvement. L'œil n'est jamais bridé, seulement l'annonce.
+- **Une boucle n'est pas une transition.** Le mouvement réduit divise les
+  durées par deux, ce qui *doublerait* la fréquence de balayage d'un segment
+  indéterminé. La traversée est donc plancherée à la durée standard, et le
+  segment fait l'aller-retour au lieu de se réinitialiser — une
+  réinitialisation est un saut instantané de toute la largeur.
+- **Aucune composition de chaîne** : `valueLabel` est fourni par l'appelant.
+  `%`, `٪`, `45 %` sont des décisions de locale.
+
+## Bug trouvé par les tests
+
+`late double _announcedValue = widget._fraction` s'initialise paresseusement,
+et sa première lecture avait lieu dans `didUpdateWidget` — moment où `widget`
+est déjà le *nouveau*. La référence enregistrait donc la valeur à laquelle elle
+devait être comparée, et le premier jalon n'était jamais annoncé. Déplacé en
+`initState`.
+
+## Tests
+
+41 nouveaux tests.
+
+## Limites
+
+- Le pas d'annonce de 10 points est une **hypothèse**, non validée auprès
+  d'utilisateurs de lecteur d'écran.
+- Le bord extérieur de la piste n'est pas garanti à 3:1 sur les profils
+  standard ; la valeur visible porte l'information dans tous les cas.
+- Pas de variante circulaire : aucune place pour un libellé, et un état de
+  chargement plein écran est un pattern de Phase 3 qui composera ceci.
+- TalkBack, Voice Access et D-pad restent à valider sur appareil.

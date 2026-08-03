@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../feedback/iux_feedback_theme.dart';
+import '../inputs/iux_input_theme.dart';
 import '../semantics/iux_semantic_colors.dart';
 import 'extensions/iux_accessibility_theme.dart';
 import 'extensions/iux_button_theme.dart';
@@ -31,6 +32,7 @@ final class IuxResolvedTheme {
     required this.accessibility,
     required this.feedback,
     required this.button,
+    required this.input,
   });
 
   /// Resolves a configuration into concrete values.
@@ -47,6 +49,7 @@ final class IuxResolvedTheme {
       accessibility: IuxAccessibilityTheme.resolve(configuration),
       feedback: const IuxFeedbackTheme(),
       button: const IuxButtonTheme(),
+      input: const IuxInputTheme(),
     );
   }
 
@@ -74,6 +77,9 @@ final class IuxResolvedTheme {
   /// Button appearance defaults.
   final IuxButtonTheme button;
 
+  /// Input field appearance defaults.
+  final IuxInputTheme input;
+
   /// Every IUX extension, ready to install on a `ThemeData`.
   List<ThemeExtension<dynamic>> get extensions => <ThemeExtension<dynamic>>[
         colors,
@@ -83,6 +89,7 @@ final class IuxResolvedTheme {
         accessibility,
         feedback,
         button,
+        input,
       ];
 
   /// The Material theme carrying these values.
@@ -179,6 +186,7 @@ final class IuxResolvedTheme {
     IuxAccessibilityTheme? accessibility,
     IuxFeedbackTheme? feedback,
     IuxButtonTheme? button,
+    IuxInputTheme? input,
   }) =>
       IuxResolvedTheme(
         configuration: configuration ?? this.configuration,
@@ -189,6 +197,7 @@ final class IuxResolvedTheme {
         accessibility: accessibility ?? this.accessibility,
         feedback: feedback ?? this.feedback,
         button: button ?? this.button,
+        input: input ?? this.input,
       );
 
   @override
@@ -202,7 +211,8 @@ final class IuxResolvedTheme {
           other.motion == motion &&
           other.accessibility == accessibility &&
           other.feedback == feedback &&
-          other.button == button;
+          other.button == button &&
+          other.input == input;
 
   @override
   int get hashCode => Object.hash(
@@ -214,5 +224,6 @@ final class IuxResolvedTheme {
         accessibility,
         feedback,
         button,
+        input,
       );
 }
