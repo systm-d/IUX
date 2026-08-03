@@ -87,6 +87,8 @@ export 'src/patterns/error/iux_recovery_route.dart';
 export 'src/patterns/form/iux_form.dart';
 export 'src/patterns/form/iux_form_model.dart';
 export 'src/patterns/form/iux_form_section.dart';
+export 'src/patterns/form/iux_guided_form.dart';
+export 'src/patterns/form/iux_guided_form_model.dart';
 export 'src/patterns/form/iux_validation_summary.dart';
 export 'src/patterns/loading/iux_load_state.dart';
 export 'src/patterns/loading/iux_loading_retry.dart';

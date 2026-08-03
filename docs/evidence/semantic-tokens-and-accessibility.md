@@ -1610,6 +1610,58 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
     control *beside* the box is better than one inside it, but it is why the
     choice was not available to weigh.
 
+### IUX-STEPPED-FORM-001 — Forward progress is never blocked, and no step can be locked
+
+- **Level**: strong_guidance
+- **Scope**: IUX-033 onward
+- **Sources**: WCAG 2.2 SC 3.3.1, SC 3.3.3
+- **Status**: implemented. This is IUX-012's disabled-submit rule one level up:
+  a **step** that refuses is worse than a button that does, because the
+  question at fault is not on screen. The guarantee moves to submit, where the
+  summary makes every problem navigable.
+- **`summary` is required here** where `IuxForm` allows null. `IuxForm`'s
+  fallback — focus the first rejected field — is impossible when that field is
+  unmounted, so without a summary a refusal would be invisible *and*
+  unreachable.
+- **The summary sits below the heading**, one position lower than in
+  `IuxForm`, because focus lands on the heading at every step change and the
+  summary must be the *next* stop. Above it, a user going back to fix one
+  problem walks away from the list of the others.
+
+### IUX-STEPPED-FORM-002 — Focus moves on a step change, and the exception proves the rule
+
+- **Level**: standard
+- **Scope**: IUX-033 onward
+- **Sources**: WCAG 2.2 SC 2.4.3, SC 4.1.3
+- **Status**: implemented. Focus lands on the step heading — one node carrying
+  position, title and description together.
+- **Reconciled against all four prior focus decisions with one test**: *did
+  the user ask for this?* IUX-028, IUX-029 and IUX-030 do not move focus
+  because the event happened *to* the user; IUX-012 moves it because the user
+  pressed submit and is waiting. A step change is IUX-012's shape.
+- **The exception**: arriving from a summary entry lands on the **field**, not
+  the heading. The user asked for a box, not a lecture about a step.
+- **No progress bar.** `IuxProgressIndicator` is a live region, so drawing one
+  would put a second utterance in the same frame as the focus move — the exact
+  failure `IuxValidationSummary` avoids by *not* being a live region. Position
+  is one required function of step and count, so the two cannot drift.
+
+### IUX-QA-VACUOUS-002 — A second test that proves nothing (OPEN)
+
+- **Level**: standard
+- **Scope**: `test/patterns/iux_form_test.dart`
+- **Status**: open, found by IUX-033 in a file it does not own. *"An entry
+  brings its field on screen"* still passes with `Scrollable.ensureVisible`
+  removed from `IuxForm._navigateTo`, because **every field in that harness is
+  an `IuxTextField`, which scrolls itself into view on focus**. `IuxForm`'s
+  behaviour is correct; the test does not demonstrate it and would not catch
+  its removal.
+- **Measured**: a text field scrolls itself; a checkbox does not — 512 px down
+  a 200 px viewport. The fix is to make one field in that harness a
+  non-self-scrolling control, which is what IUX-033's own harness does.
+- This is the third vacuous test found in this project, and the second found
+  by an agent auditing somebody else's file.
+
 ## Deferred to later missions
 
 | Subject | Mission |

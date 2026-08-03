@@ -2,12 +2,12 @@
 mission_id: IUX-033
 title: Guided Form
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,64 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'audit, et pourquoi la mission n'était pas déjà satisfaite
+
+IUX-012 le dit lui-même, dans son propre rapport : « `IuxForm`, pas
+`IuxGuidedForm` — la mission 033 possède ce nom pour la variante par étapes. »
+Sa page de doc renvoie explicitement « un flux multi-étapes avec progression
+et retour » vers IUX-033.
+
+Manquaient réellement : les étapes, une position perceptible, le focus et
+l'annonce au changement d'étape, un résumé qui traverse les étapes, et une
+entrée de résumé capable de voyager vers un champ **non monté**.
+
+Déjà satisfait, donc non reconstruit : le calendrier de validation, le gating
+par `edited`, le widget de résumé et sa règle de focus, l'assertion sur l'envoi
+désactivé, l'espacement entre champs.
+
+## La progression n'est jamais bloquée, et aucune étape n'est verrouillable
+
+C'est la règle de l'envoi désactivé d'IUX-012, un niveau plus haut : une
+**étape** qui refuse est pire qu'un bouton qui refuse, parce que la question
+fautive n'est pas à l'écran. La garantie se déplace vers l'envoi, là où le
+résumé rend chaque problème atteignable.
+
+Le `summary` est donc **requis** ici alors qu'`IuxForm` l'autorise nul : le
+repli d'`IuxForm` — focaliser le premier champ rejeté — est impossible quand
+ce champ n'est pas monté. Sans résumé, un refus serait invisible **et**
+inatteignable.
+
+## Le focus bouge, et l'exception confirme la règle
+
+Réconcilié avec les quatre décisions antérieures par un seul test : *est-ce
+que l'utilisateur l'a demandé ?* 028, 029 et 030 ne bougent pas le focus parce
+que l'événement est arrivé **à** l'utilisateur ; 012 le bouge parce qu'il vient
+d'appuyer sur envoyer et attend. Un changement d'étape a la forme de 012.
+
+L'exception : arriver depuis une entrée de résumé atterrit sur le **champ**,
+pas sur l'en-tête. L'utilisateur a demandé une case, pas un exposé sur une
+étape.
+
+Pas de barre de progression : `IuxProgressIndicator` est une région vivante, et
+en dessiner une mettrait une seconde énonciation dans la même frame que le
+déplacement du focus — exactement l'échec qu'`IuxValidationSummary` évite en
+n'étant *pas* une région vivante.
+
+## Un défaut dans son propre code, trouvé en sondant
+
+Un voyage vers un champ d'une autre étape restait **armé** quand le parent
+déclinait en ne se reconstruisant pas du tout — `didUpdateWidget` ne s'exécute
+alors jamais. Il détournait ensuite le changement d'étape suivant :
+l'utilisateur appuyait sur Retour et se retrouvait déposé dans un champ.
+
+Et il avait écrit qu'un `FocusNode` détaché notifie ses auditeurs. Après
+mesure, il ne le fait pas. Le commentaire est corrigé et le test requalifié en
+épingle.
+
+54 tests.
