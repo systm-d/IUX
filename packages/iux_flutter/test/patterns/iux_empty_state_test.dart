@@ -4,8 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 // Not yet in the barrel: the team lead owns that file. Imported from source so
 // the pattern can be tested before the export lands.
-import 'package:iux_flutter/src/patterns/empty/iux_empty_state.dart';
-import 'package:iux_flutter/src/patterns/empty/iux_empty_state_model.dart';
 
 /// What is missing. Names the thing, not the state — see [IuxEmptyState.title].
 const String _kTitle = 'No invoices match these filters';

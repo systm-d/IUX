@@ -11,8 +11,6 @@ import 'package:iux_flutter/iux_flutter.dart';
 // Imported by path because the barrel does not export the drawer yet. The
 // barrel is owned elsewhere; when the two export lines land this import becomes
 // redundant rather than wrong.
-import 'package:iux_flutter/src/components/navigation/iux_navigation_drawer.dart';
-import 'package:iux_flutter/src/components/navigation/iux_navigation_drawer_tokens.dart';
 
 import '../support/contrast.dart';
 

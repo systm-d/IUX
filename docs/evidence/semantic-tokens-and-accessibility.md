@@ -1085,6 +1085,44 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   the action stays a node of its own, since merged in it would be announced
   and unreachable.
 
+### IUX-RAIL-001 — The arrangement is chosen by what is left for the content
+
+- **Level**: context_dependent
+- **Scope**: IUX-025 onward
+- **Sources**: measured on real windows, at 100–300% text
+- **Status**: implemented — no adopted breakpoint. Android's 600 dp was
+  considered and not taken; the disagreement is confined to wide-portrait
+  windows and is logged as a **hypothesis**, not a finding.
+- **Measured**: on 412x915 the bar costs 10% of height; a rail would cost 31%
+  and leave 282 px, under the floor, so it is refused twice over. Turned to
+  915x412 at 200% the bar costs 87% of the height and the rail 26%. Five
+  destinations begin to scroll from about 125% text on a 412-tall window
+  (415 px needed against 412).
+- **Limits**: on 320x640 at 300% neither arrangement fits and the content is
+  laid out at zero height. That is IUX-024's documented bar degradation and is
+  not fixed here.
+
+### IUX-RAIL-002 — Three defects the measurement itself was causing
+
+- **Level**: standard
+- **Scope**: IUX-025
+- **Status**: fixed, each found by measuring rather than reading.
+  1. The rail's widest name always wrapped to two lines — exactly the failure
+     its own documentation promised to prevent. `widthFor` measured the label
+     style alone, while the rendered `Text` merges it over the ambient
+     `DefaultTextStyle` and picks up a `letterSpacing` the typography theme
+     never sets. 0.25 px per character: `Messages` needed 114 px and was given
+     112. Cell heights measured `[72, 92, 72, 72, 72]`; the 92 was the defect.
+  2. The arrangement rule handed the user the worse option on a landscape
+     window. At 640x320 at 300%, the rail leaves 286x320 and the bar leaves
+     **640x0** — content at zero height. The content budget now applies only
+     while the bar is still a compact strip.
+  3. The display inset was applied twice: with a 48 px cutout the child's
+     `MediaQuery.padding` still read `left: 48` after the rail had already
+     stood on it. The documented workaround was worse than the bug, since it
+     also dropped the *top* inset and put content under the status bar.
+     `MediaQuery.removePadding` now hands off only the consumed edge.
+
 ## Deferred to later missions
 
 | Subject | Mission |

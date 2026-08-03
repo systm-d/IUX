@@ -2,12 +2,12 @@
 mission_id: IUX-025
 title: Navigation Rail and Adaptive Navigation
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,44 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'arrangement se choisit sur ce qui reste au contenu
+
+Aucun point de rupture adopté. Les 600 dp d'Android ont été examinés et non
+retenus ; le désaccord se limite aux fenêtres larges en portrait et il est
+consigné comme **hypothèse**, pas comme constat.
+
+Sur 412×915 la barre coûte 10 % de la hauteur ; un rail coûterait 31 % et
+laisserait 282 px, sous le plancher — refusé deux fois plutôt qu'une. Tournée
+en 915×412 à 200 %, la barre coûte 87 % de la hauteur, le rail 26 %.
+
+## Trois défauts que la mesure elle-même provoquait
+
+**Le nom le plus large du rail passait toujours à la ligne** — exactement la
+panne que sa propre documentation promettait d'éviter. `widthFor` mesurait le
+style d'étiquette seul, alors que le `Text` rendu le fusionne par-dessus le
+`DefaultTextStyle` ambiant et hérite d'un `letterSpacing` que le thème
+typographique ne pose jamais. 0,25 px par caractère : « Messages » réclamait
+114 px et en recevait 112. Hauteurs de cellules mesurées `[72, 92, 72, 72,
+72]` — le 92 était le défaut.
+
+**La règle d'arrangement donnait le pire des deux** sur une fenêtre paysage. À
+640×320 en 300 %, le rail laisse 286×320 ; la barre laisse **640×0**, contenu
+disposé à hauteur nulle. Le budget de contenu ne s'applique désormais que tant
+que la barre est encore une bande compacte.
+
+**L'encoche était appliquée deux fois** : avec un évidement de 48 px, le
+`MediaQuery.padding` de l'enfant lisait encore `left: 48` alors que le rail
+s'était déjà tenu dessus. Le contournement documenté était pire que le bug — il
+supprimait aussi l'inset du *haut*, mettant le contenu sous la barre d'état.
+`MediaQuery.removePadding` ne cède maintenant que le bord consommé.
+
+Toutes les valeurs chiffrées des commentaires des deux fichiers ont été
+recalculées : elles précédaient ces corrections.
+
+46 tests.
