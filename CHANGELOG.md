@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.1.0-dev.10 — IUX-008.7, 012, 018, 023, 024
+
+Two patterns, three components, and one runtime gap closed.
+
+### Added
+
+- **Destructive action pattern** (IUX-008.7) and **guided form pattern**
+  (IUX-012) — the first two entries under `src/patterns/`.
+- `IuxAppBar` (IUX-023): a title that is never abbreviated.
+- `IuxBottomNavigation`, `IuxNavigationDestination` (IUX-024): every
+  destination always named. No `labelBehavior`, no icon-only form. Above
+  roughly 130% text the destinations stop sharing a row and stack as
+  full-width glyph-beside-name, so a name gets 320px instead of 56.
+- `IuxTooltip`, `IuxContextualHelp` (IUX-018): reachable by long press, focus
+  and hover; dismissable, hoverable and persistent per SC 1.4.13, with no
+  clock anywhere in the implementation. The 80-character boundary between a
+  floating tooltip and in-flow help is asserted, not advised.
+- `IuxSemantics.action` gains `expanded`, and `IuxSemantics.elaboration`
+  carries the platform tooltip property. Both close deviations from component
+  standard §2 that IUX-018 had to declare because the runtime had nowhere to
+  put them — a disclosure whose state a screen reader never hears, and a
+  tooltip message that reached no node at all.
+
+### Fixed
+
+- `test/iux_flutter_test.dart` asserted that only patterns remained
+  unexported — an assertion invalidated by exporting patterns in IUX-008.7 and
+  012. It has now narrowed twice, so it is replaced by the invariant that
+  actually holds: every export belongs to a layer the component standard
+  names.
+
+### Deliberate deviations, argued
+
+- Bottom navigation destinations tile the bar with no spacing between them,
+  against `kIuxMinimumTargetSpacing`. A gap would be four dead strips in the
+  thumb zone, and SC 2.5.8 treats spacing as an alternative to size — which
+  64 x 112 clears outright.
+
 ## 0.1.0-dev.9 — IUX-010, 011, 014, 015, 016, 017, 019, 020, 021, 022
 
 Ten components, plus the runtime helpers four of them needed.
