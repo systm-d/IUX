@@ -27,16 +27,37 @@ void main() {
       );
     });
 
-    test('only patterns remain unexported', () {
-      // Components arrived with IUX-008.4, so the blanket ban this test
-      // carried since IUX-003.1 no longer holds. Patterns are still ahead of
-      // their missions, and the Component Standard test now enforces what a
-      // component may contain.
-      expect(
-        exports.where((String line) => line.contains('patterns/')),
-        isEmpty,
-        reason: 'patterns belong to IUX-028 onward',
-      );
+    test('nothing is exported from outside the public layers', () {
+      // This assertion has narrowed twice as the framework grew: it once
+      // banned components, then everything but patterns. Patterns shipped
+      // with IUX-008.7, so what remains is the real invariant — every export
+      // belongs to a layer the standard names, and a stray directory would
+      // have to be added here deliberately.
+      const Set<String> layers = <String>{
+        'accessibility',
+        'actions',
+        'components',
+        'feedback',
+        'foundations',
+        'inputs',
+        'layout',
+        'motion',
+        'patterns',
+        'semantics',
+        'themes',
+        'utilities',
+      };
+      for (final String line in exports) {
+        final RegExpMatch? match =
+            RegExp(r"export 'src/([^/]+)/").firstMatch(line);
+        expect(match, isNotNull, reason: 'unparseable export: $line');
+        expect(
+          layers,
+          contains(match!.group(1)),
+          reason: '${match.group(1)} is not one of the layers the component '
+              'standard names',
+        );
+      }
     });
 
     test('primitive names describe a hue and a level, not an identity', () {

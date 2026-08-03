@@ -2,12 +2,12 @@
 mission_id: IUX-024
 title: Bottom Navigation
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,54 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Les libellés : toujours, et le coût est payé en reflux
+
+Aucun `labelBehavior`, aucun `showLabel`, aucune forme icône seule. Une
+navigation en icônes est un jeu de devinettes ; n'étiqueter que la destination
+courante nomme le seul endroit que l'utilisateur sait déjà, et déplace la mise
+en page à chaque choix.
+
+Le coût d'espace est payé **en reflux, pas en masquage** : au-delà d'environ
+130 % de texte, les destinations cessent de partager une rangée et s'empilent
+en pleine largeur, glyphe à côté du nom — un nom dispose alors de 320 px au
+lieu de 56.
+
+Mesuré sur 320 px : cinq destinations à 200 % coûtent 360 px d'un écran de
+640 px, chaque nom entier et sur une ligne. Les alternatives : masquer les
+libellés économise ~130 px et laisse cinq glyphes anonymes à l'utilisateur le
+plus susceptible de lire à la loupe ; garder la rangée rend « Notifications »
+en `Noti / fica / tion / s` dans une colonne de 56 px — le même espace dépensé
+en quelque chose d'illisible.
+
+Au-delà d'environ 250 % avec cinq destinations, la barre défile au lieu de
+faire disparaître une destination. Documenté comme une dégradation, pas comme
+une fonctionnalité.
+
+## `checked`, pas `selected`
+
+Un nœud coché est annoncé **dans les deux états**, donc l'utilisateur apprend
+où il se trouve depuis la destination sur laquelle il atterrit, au lieu de
+balayer la barre pour trouver celle qui a parlé.
+
+## Un écart assumé au plancher d'espacement
+
+Les destinations pavent la barre bord à bord. Un espacement créerait quatre
+bandes mortes dans la zone du pouce, et SC 2.5.8 traite justement l'espacement
+comme une *alternative* à la taille — or 64 × 112 dépasse 48 largement.
+
+## Tests
+
+41 nouveaux tests.
+
+## Ce que cette mission a trouvé chez moi
+
+L'agent a signalé un échec dans `test/iux_flutter_test.dart` : mon assertion
+« seuls les patterns restent non exportés » était devenue fausse quand j'ai
+exporté les patterns en 008.7 et 012. Elle a été remplacée par l'invariant
+réel — tout export appartient à une couche que le standard nomme.

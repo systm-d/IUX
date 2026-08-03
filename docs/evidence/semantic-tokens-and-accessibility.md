@@ -932,6 +932,43 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   widget owning both would make the double-padding hazard unrepresentable;
   that belongs in `patterns/`.
 
+### IUX-NAV-001 — Every destination is named, always
+
+- **Level**: strong_guidance
+- **Scope**: IUX-024 onward
+- **Sources**: WCAG 2.2 SC 2.4.6; measured on a 320 px viewport
+- **Status**: implemented — no `labelBehavior`, no `showLabel`, no icon-only
+  form. Above ~130% text the destinations stop sharing a row and stack as
+  full-width glyph-beside-name, so a name gets 320 px instead of 56.
+- **Limits**: five destinations at 200% cost 360 px of a 640 px screen, every
+  name whole. Hiding labels saves ~130 px and leaves five unlabelled glyphs
+  for the user most likely reading with a magnifier; wrapping in a 56 px
+  column renders "Notifications" as four fragments. Above ~250% with five
+  destinations the bar scrolls rather than dropping one — documented as a
+  degradation, not a feature.
+
+### IUX-NAV-002 — The current destination is `checked`, not `selected`
+
+- **Level**: context_dependent
+- **Scope**: IUX-024 onward
+- **Sources**: WCAG 2.2 SC 4.1.2
+- **Status**: implemented — `checked` + `inMutuallyExclusiveGroup`, inside a
+  `SemanticsRole.radioGroup`
+- **Limits**: a checked node is announced in *both* states, so the user learns
+  where they are from the destination they land on rather than sweeping the
+  bar for the one that spoke.
+
+### IUX-NAV-003 — Destinations tile the bar, with no spacing between them
+
+- **Level**: context_dependent
+- **Scope**: IUX-024 onward
+- **Sources**: WCAG 2.2 SC 2.5.8, which treats spacing as an alternative to
+  size
+- **Status**: deliberate deviation from `kIuxMinimumTargetSpacing`
+- **Limits**: a gap would be four dead strips in the thumb zone, and 64 × 112
+  clears the 48 floor outright. Below 320 px the floor is arithmetically
+  impossible for five destinations.
+
 ## Deferred to later missions
 
 | Subject | Mission |
