@@ -78,6 +78,8 @@ export 'src/patterns/destructive/iux_confirmation_prompt.dart';
 export 'src/patterns/destructive/iux_destructive_action.dart';
 export 'src/patterns/empty/iux_empty_state.dart';
 export 'src/patterns/empty/iux_empty_state_model.dart';
+export 'src/patterns/error/iux_error_recovery.dart';
+export 'src/patterns/error/iux_recovery_route.dart';
 export 'src/patterns/form/iux_form.dart';
 export 'src/patterns/form/iux_form_model.dart';
 export 'src/patterns/form/iux_form_section.dart';

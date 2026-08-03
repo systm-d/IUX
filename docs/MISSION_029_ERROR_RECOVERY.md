@@ -2,12 +2,12 @@
 mission_id: IUX-029
 title: Error Recovery
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,65 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La sortie fait partie de l'erreur
+
+Un type scellé : une erreur sans issue doit être **déclarée** comme telle.
+
+`IuxRetryRoute` n'accepte aucun `IuxActionDescriptor`. Rôle, politique de
+répétition, importance et confirmation sont fixés parce qu'aucun n'est une
+décision qu'il faut offrir à l'appelant. Et il n'y a pas de `availability` non
+plus : le fichier argumentait déjà qu'un parent à court de budget de réessai
+doit **changer de route**, pas griser le contrôle — retirer le paramètre est
+ce qui rend cette règle applicable plutôt que consultative.
+
+## Honnête sur ce qui n'est pas garanti
+
+Inconstructible : `IuxEmptyStateAction` refuse `IuxActionRole.retry`, et
+`IuxAlternativeRoute` dérive `navigate` sans moyen de devenir un réessai — les
+deux motifs ne peuvent pas se confondre, d'aucun côté.
+
+Pas applicable : savoir si *une* panne donnée est réessayable demande un code
+de statut que le framework n'a pas. Aucune garantie n'a été simulée ; le
+système de types réduit la revendication à un mot relisible dans le diff.
+
+## Rien ne réessaie tout seul
+
+Aucune minuterie, aucun compteur, aucun repli exponentiel. Testé en pompant
+trente secondes et en exigeant zéro tentative. Conséquence assumée : le motif
+n'impose aucune limite de temps, donc SC 2.2.1 n'a rien à ajuster.
+
+## Le focus n'est pas déplacé, et il n'y a pas de crochet pour le déplacer
+
+L'inverse d'`IuxForm`, délibérément : le formulaire déplace le focus parce
+qu'il **sait** que l'utilisateur vient d'appuyer sur envoyer. Ici rien ne le
+sait — une opération peut échouer pendant qu'il tape ailleurs.
+
+L'argument décisif est propre à ce motif : un focus qui atterrit sur un
+réessai **arme une activation** sous le prochain Entrée ou double-tap de
+lecteur d'écran. Le seul contrôle de la bibliothèque qui ne doit jamais partir
+deux fois serait celui qui se serait armé lui-même. Mesuré, pas affirmé.
+
+## Ce que l'audit a trouvé dans le code préservé
+
+**Un champ public que rien ne pouvait lire** — `IuxRetryRoute.alternative`,
+une « seconde issue ». Il se contredisait lui-même : la doc
+d'`IuxAlternativeRoute`, douze lignes plus bas, argumente qu'une seule action
+est une limite délibérée. Et il rendait l'exhaustivité du type scellé à moitié
+fausse. Supprimé.
+
+**Une doc promettant une capacité absente.** La prose disait que le contrôle
+« refuse l'activation pendant que l'opération est en vol, via le même
+`IuxActionRepeatPolicy` qui empêche un "Payer" double-tapé de débiter deux
+fois ». Le type n'avait ni politique de répétition, ni descripteur, et
+n'importait même pas le modèle d'action. La promesse faisait un vrai travail
+de sûreté dans le texte tout en étant fausse dans le code. **Rendue vraie** :
+les deux routes exposent désormais un descripteur dérivé, et le widget délègue
+à `IuxButton`, donc `IuxActionPolicy` est l'unique implémentation de la règle.
+
+36 tests.

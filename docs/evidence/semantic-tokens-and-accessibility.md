@@ -1169,6 +1169,46 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   **unreachable** — an outright SC 2.1.1 failure — where Tab-through costs
   four extra presses.
 
+### IUX-ERROR-001 — The way out is part of the error, not a decoration
+
+- **Level**: strong_guidance
+- **Scope**: IUX-029 onward
+- **Sources**: WCAG 2.2 SC 3.3.3; SC 2.2.1
+- **Status**: implemented — a sealed route type, so an error with no way
+  forward has to be declared as one. `IuxRetryRoute` accepts **no**
+  `IuxActionDescriptor`: role, repeat policy, importance and confirmation are
+  fixed because none is a decision the caller should be offered, and there is
+  no `availability` either — a parent out of retry budget must *swap the
+  route*, not grey the control, and removing the parameter is what makes that
+  enforceable rather than advisory.
+- **Honest about the limit**: the two patterns cannot blur from either side —
+  `IuxEmptyStateAction` refuses `IuxActionRole.retry` and `IuxAlternativeRoute`
+  derives `navigate` with no way to become a retry. But whether a *given*
+  failure is retryable needs a status code the framework does not have. No
+  guarantee is faked; the type system reduces the claim to one reviewable word
+  in the diff.
+- **Nothing retries on its own**: no timer, no counter, no backoff. Tested by
+  pumping thirty seconds and asserting zero attempts. The consequence is that
+  the pattern imposes no time limit, so SC 2.2.1 has nothing to adjust.
+
+### IUX-ERROR-002 — Focus is not moved, and there is no hook to move it
+
+- **Level**: context_dependent
+- **Scope**: IUX-029 onward
+- **Sources**: WCAG 2.2 SC 3.3.1, SC 4.1.3
+- **Status**: implemented, and deliberately opposite to `IuxForm`, which moves
+  focus because it *knows* the user just pressed submit. Nothing here knows
+  that: an operation can fail while the user is typing elsewhere.
+- **The decisive argument is specific to this pattern**: focus landing on a
+  retry arms an activation under the next Enter or screen-reader double-tap,
+  so the one control in the library that must never fire twice would be the
+  one that armed itself. Measured rather than argued in prose — focus is put
+  on a control elsewhere, the failure is inserted, and `primaryFocus` is
+  required unchanged with the retry on screen.
+- **Divergence from IUX-028**: the live region is unconditional, with no
+  `arrival` enum. A region that is empty may always have been; a region that
+  *failed* is an event by definition.
+
 ## Deferred to later missions
 
 | Subject | Mission |
