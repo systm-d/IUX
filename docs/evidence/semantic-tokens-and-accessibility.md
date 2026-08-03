@@ -1305,6 +1305,24 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   pattern's own docstring calls it "a quiet trap" and accepts it. A caller who
   reaches for the factory named `destructive` has stated an intention the type
   system then discards in silence.
+- **An attempted fix was written, tested and reverted.** Making `IuxButton`
+  refuse a descriptor carrying an unhonourable policy is the obvious shape and
+  it is unsound. It has to be a debug check at `build`, not an initialiser
+  assertion, because the constructors are `const` and Dart forbids reading a
+  parameter's field there — the same constraint IUX-028 hit. Past that it
+  broke two legitimate callers. `IuxDialog` hands `choice.action` to a button
+  whose tap *is* the answer, and `IuxDestructiveAction`'s trigger holds the
+  policy precisely because its tap is what opens the question. The first was
+  fixable by stripping the policy on the way in — the codebase already has
+  that idiom at `iux_destructive_action.dart:217`. The second is not: the
+  policy must survive to the button, and `IuxButton` cannot know whether
+  anything above it will honour it.
+- **What this means**: the rule "whoever honours the policy strips it before
+  delegating" is sound and half-adopted already, but making it enforceable
+  needs a decision about *where* a policy is evaluated, not an assertion. That
+  is design work, and it is recorded here rather than half-applied. The
+  reverted attempt is on record so the next person does not spend the same
+  hour discovering the same two callers.
 
 ### IUX-BUTTON-BUSY-002 — The focus loss is a conflation, proven
 
