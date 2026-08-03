@@ -76,6 +76,8 @@ void main() {
       'Focus',
       'Runtime state',
       'Touch targets',
+      'Motion roles',
+      'Feedback roles',
       'Announcements',
       'Typography',
     ]) {
@@ -156,6 +158,22 @@ void main() {
       expect(size.width, greaterThanOrEqualTo(IuxTouchTarget.minimum));
       expect(size.height, greaterThanOrEqualTo(IuxTouchTarget.minimum));
     }
+  });
+
+  testWidgets('motion roles adapt to the requested preference', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await reveal(tester, 'Motion roles');
+    expect(find.textContaining('preserve'), findsWidgets);
+
+    await chooseOption(tester, 'Motion', 'reduced');
+    await reveal(tester, 'Motion roles');
+    expect(find.textContaining('simplify'), findsWidgets,
+        reason: 'travel must become a fade rather than a faster movement');
+    expect(find.textContaining('remove'), findsWidgets,
+        reason: 'decoration must be dropped');
   });
 
   testWidgets('large text does not overflow the layout', (

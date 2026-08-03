@@ -139,6 +139,71 @@ class RuntimePanels extends StatelessWidget {
           ),
         ),
         panelBuilder(
+          title: 'Motion roles',
+          description: 'Each role declares how it adapts. Change the motion '
+              'preference above and watch the decisions change.',
+          child: Column(
+            children: <Widget>[
+              for (final IuxMotionRole role in IuxMotionRole.values)
+                Builder(
+                  builder: (BuildContext context) {
+                    final IuxResolvedMotion m =
+                        IuxMotionPolicy.resolve(context, role: role);
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: geometry.spacingXxs),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              role.name,
+                              style: type.supporting
+                                  .copyWith(color: colors.content.secondary),
+                            ),
+                          ),
+                          Text(
+                            '${m.behavior.name} · ${m.duration.inMilliseconds}ms',
+                            style: type.label
+                                .copyWith(color: colors.content.primary),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+        panelBuilder(
+          title: 'Feedback roles',
+          description: 'Intensity is proportionate to consequence. Only '
+              'failures and irreversible actions interrupt a screen reader.',
+          child: Column(
+            children: <Widget>[
+              for (final IuxFeedbackRole role in IuxFeedbackRole.values)
+                Padding(
+                  padding: EdgeInsets.only(bottom: geometry.spacingXxs),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          role.name,
+                          style: type.supporting
+                              .copyWith(color: colors.content.secondary),
+                        ),
+                      ),
+                      Text(
+                        '${IuxHapticPolicy.patternFor(role).name}'
+                        '${role.interrupts ? ' · interrupts' : ''}',
+                        style:
+                            type.label.copyWith(color: colors.content.primary),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        panelBuilder(
           title: 'Announcements',
           description: 'A live region is preferred to an announcement. Android '
               'deprecated announcements because they cut off whatever TalkBack '

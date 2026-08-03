@@ -274,12 +274,96 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: passing `false` would announce a plain button as "not selected",
   inviting the user to look for a selection that does not exist.
 
+### IUX-MOTION-001 — Travel is simplified to a fade, not shortened
+
+- **Level**: hypothesis
+- **Scope**: IUX-006 onward
+- **Sources**: none external; derived from vestibular-discomfort guidance that
+  large movement is the trigger
+- **Status**: implemented — `reposition`, `reveal` and `conceal` resolve to
+  `simplify`; only in-place roles shorten
+- **Limits**: a faster large movement is plausibly worse than a slow one, but
+  IUX has not tested this with affected users. The taxonomy is an IUX
+  judgement.
+
+### IUX-MOTION-002 — Progress motion is preserved under reduced motion
+
+- **Level**: context_dependent
+- **Scope**: IUX-006 onward
+- **Sources**: WCAG 2.2 SC 2.3.3 exempts motion essential to functionality
+- **Status**: implemented; removed only under `none`, where
+  `requiresStaticAlternative` obliges the component to substitute a static
+  indicator
+- **Limits**: removing a progress indicator hides that work is happening,
+  which is worse than the motion. Under `none` the burden moves to the
+  component, and nothing yet enforces that it complies.
+
+### IUX-FEEDBACK-001 — The parent owns feedback truth
+
+- **Level**: context_dependent
+- **Scope**: IUX-006 onward
+- **Sources**: ADR-0006; PROJECT_PROMPT §52 (never mask a critical error)
+- **Status**: implemented — no inference, no `onSuccess` hook anywhere
+- **Limits**: an IUX decision. It makes callers do more work, deliberately: a
+  framework that guesses will eventually announce a success that did not
+  happen.
+
+### IUX-FEEDBACK-002 — Intensity is proportionate, and only failures interrupt
+
+- **Level**: strong_guidance
+- **Scope**: IUX-006 onward
+- **Sources**: Nielsen Norman Group on notification fatigue; Android
+  announcement deprecation
+- **Status**: implemented and tested — only `error` and `destructive` use an
+  assertive announcement
+- **Limits**: the role-to-intensity mapping is an IUX judgement, not a
+  measured one. Interrupting for a success trains users to disable
+  announcements, at which point failures stop being heard too.
+
+### IUX-FEEDBACK-003 — Progress never produces haptics
+
+- **Level**: standard
+- **Scope**: IUX-006 onward
+- **Sources**: derived from the prohibition on continuous vibration
+- **Status**: implemented and tested
+- **Limits**: an ongoing operation would mean repeated vibration.
+
+### IUX-FEEDBACK-004 — No channel is guaranteed, so none may be the only signal
+
+- **Level**: standard
+- **Scope**: IUX-006 onward
+- **Sources**: WCAG 2.2 SC 1.4.1; Flutter reports no platform haptic setting
+- **Status**: implemented — `emit` returns per-channel outcomes and
+  `anyChannelResponded` may legitimately be false
+- **Limits**: a performed haptic may be felt by nobody, and announcements are
+  unsupported on some platforms. The visual state must always carry the
+  information alone.
+
+### IUX-FEEDBACK-005 — Identical events within a short window are deduplicated
+
+- **Level**: hypothesis
+- **Scope**: IUX-006 onward
+- **Sources**: none; the window is a chosen default
+- **Status**: implemented as a single last-event check, configurable through
+  `IuxFeedbackTheme`
+- **Limits**: 600 ms is a guess — long enough to absorb a double emission,
+  short enough that a genuine retry registers. Not validated.
+
+### IUX-FEEDBACK-006 — The engine holds no user-facing strings
+
+- **Level**: standard
+- **Scope**: IUX-006 onward
+- **Sources**: PROJECT_PROMPT §23; internationalisation practice
+- **Status**: implemented — `semanticMessage` arrives already localised
+- **Limits**: shipping English defaults would make the omission invisible in
+  every other language.
+
 ## Deferred to later missions
 
 | Subject | Mission |
 | --- | --- |
-| Motion and feedback applied to real components | IUX-006 |
 | Spacing between interactive targets | IUX-007 |
+| Visual feedback components (snackbar, alerts, loaders) | IUX-013 to IUX-015 |
 | A lint enforcing that components read the runtime | Phase 5 |
 
 ## Manual validation register

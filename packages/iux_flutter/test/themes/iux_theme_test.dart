@@ -35,7 +35,7 @@ void main() {
                   final IuxResolvedTheme resolved =
                       IuxTheme.resolve(configuration);
                   expect(resolved.material, isA<ThemeData>());
-                  expect(resolved.extensions, hasLength(5));
+                  expect(resolved.extensions, hasLength(6));
                 }
               }
             }
@@ -67,6 +67,7 @@ void main() {
       expect(theme.extension<IuxGeometryTheme>(), isNotNull);
       expect(theme.extension<IuxMotionTheme>(), isNotNull);
       expect(theme.extension<IuxAccessibilityTheme>(), isNotNull);
+      expect(theme.extension<IuxFeedbackTheme>(), isNotNull);
     });
 
     test('the ColorScheme is derived from IUX roles', () {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../feedback/iux_feedback_theme.dart';
 import '../semantics/iux_semantic_colors.dart';
 import 'extensions/iux_accessibility_theme.dart';
 import 'extensions/iux_geometry_theme.dart';
@@ -27,6 +28,7 @@ final class IuxResolvedTheme {
     required this.geometry,
     required this.motion,
     required this.accessibility,
+    required this.feedback,
   });
 
   /// Resolves a configuration into concrete values.
@@ -41,6 +43,7 @@ final class IuxResolvedTheme {
       geometry: IuxGeometryTheme.resolve(configuration),
       motion: IuxMotionTheme.resolve(configuration),
       accessibility: IuxAccessibilityTheme.resolve(configuration),
+      feedback: const IuxFeedbackTheme(),
     );
   }
 
@@ -62,6 +65,9 @@ final class IuxResolvedTheme {
   /// The conditions this theme was resolved for.
   final IuxAccessibilityTheme accessibility;
 
+  /// Which feedback channels are permitted.
+  final IuxFeedbackTheme feedback;
+
   /// Every IUX extension, ready to install on a `ThemeData`.
   List<ThemeExtension<dynamic>> get extensions => <ThemeExtension<dynamic>>[
         colors,
@@ -69,6 +75,7 @@ final class IuxResolvedTheme {
         geometry,
         motion,
         accessibility,
+        feedback,
       ];
 
   /// The Material theme carrying these values.
@@ -163,6 +170,7 @@ final class IuxResolvedTheme {
     IuxGeometryTheme? geometry,
     IuxMotionTheme? motion,
     IuxAccessibilityTheme? accessibility,
+    IuxFeedbackTheme? feedback,
   }) =>
       IuxResolvedTheme(
         configuration: configuration ?? this.configuration,
@@ -171,6 +179,7 @@ final class IuxResolvedTheme {
         geometry: geometry ?? this.geometry,
         motion: motion ?? this.motion,
         accessibility: accessibility ?? this.accessibility,
+        feedback: feedback ?? this.feedback,
       );
 
   @override
@@ -182,7 +191,8 @@ final class IuxResolvedTheme {
           other.typography == typography &&
           other.geometry == geometry &&
           other.motion == motion &&
-          other.accessibility == accessibility;
+          other.accessibility == accessibility &&
+          other.feedback == feedback;
 
   @override
   int get hashCode => Object.hash(
@@ -192,5 +202,6 @@ final class IuxResolvedTheme {
         geometry,
         motion,
         accessibility,
+        feedback,
       );
 }

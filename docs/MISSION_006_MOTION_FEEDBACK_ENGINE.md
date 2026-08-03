@@ -2,7 +2,12 @@
 mission_id: IUX-006
 title: Moteur de mouvement et de feedback
 priority: critical
-status: ready
+status: completed
+started_at: 2026-08-03
+started_by: Claude
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.1.0-dev.6
 compatibility: additive
 depends_on:
@@ -1090,3 +1095,78 @@ Puis implémente le moteur de mouvement et de feedback.
 Ne crée aucun composant final.
 
 Ne commence pas la mission suivante.
+
+
+---
+
+# Rapport final
+
+## Audit initial
+
+IUX-005 avait posé un `IuxMotionPolicy` minimal à deux rôles
+(`essential` / `decorative`). Ce découpage répond à « est-ce que ça tourne »
+mais pas à « comment ça s'adapte », et les deux questions ont des réponses
+différentes selon le rôle. Le feedback n'avait aucun point d'ancrage.
+
+Le mouvement a donc été **déplacé et étendu** plutôt que dupliqué (§25) :
+`lib/src/accessibility/iux_motion_policy.dart` disparaît au profit de
+`lib/src/motion/`.
+
+## Architecture retenue
+
+```text
+lib/src/motion/     iux_motion_role.dart · iux_motion_policy.dart
+lib/src/feedback/   iux_feedback_event.dart · iux_feedback_theme.dart
+                    iux_haptic_policy.dart · iux_feedback_controller.dart
+```
+
+Le moteur consomme le runtime d'IUX-005 et le thème d'IUX-004. Il ne duplique
+ni les préférences, ni les annonces, ni le focus.
+
+## API publiques
+
+`IuxMotionRole` (8 rôles), `IuxReducedMotionBehavior`, `IuxMotionScale`,
+`IuxResolvedMotion`, `IuxMotionPolicy` ; `IuxFeedbackRole`,
+`IuxFeedbackIntensity`, `IuxFeedbackEvent`, `IuxFeedbackTheme`,
+`IuxHapticPattern`, `IuxHapticPolicy`, `IuxFeedbackController`,
+`IuxFeedbackScope`, `IuxFeedbackOutcome`.
+
+## Décisions importantes
+
+1. **Simplifier plutôt que raccourcir** pour `reposition`, `reveal` et
+   `conceal`. Un grand mouvement rapide est pire qu'un lent pour un
+   utilisateur sujet à l'inconfort vestibulaire.
+2. **Le parent détient la vérité.** Aucune inférence de succès ou d'échec,
+   aucun hook `onSuccess`.
+3. **Contrôleur porté par un scope, pas un singleton.**
+4. **Déduplication = un dernier événement, une fenêtre.** Pas de bus.
+5. **Aucune chaîne utilisateur dans le moteur.**
+6. **`emit` rapporte ce qui s'est réellement passé** par canal.
+
+## Tests
+
+161 dans le package, 9 dans le catalogue. Couvrent les 8 rôles dans les 4
+préférences de mouvement, la préséance plateforme, le mapping haptique, la
+déduplication avec horloge injectée, l'absence de scope et le repli sans thème.
+
+## Documentation
+
+`docs/motion/roles.md`, `docs/feedback/overview.md`, ADR-0006, huit entrées
+`IUX-MOTION-*` / `IUX-FEEDBACK-*` dans l'evidence registry — dont trois
+marquées `hypothesis`.
+
+## Limites
+
+- Le facteur 0,5 sur les durées réduites et la fenêtre de 600 ms sont des
+  heuristiques non validées.
+- Flutter n'expose pas le réglage haptique de la plateforme : une vibration
+  déclenchée peut n'être ressentie par personne.
+- Sous `none`, la charge de fournir un indicateur statique passe au composant,
+  et rien ne l'y contraint encore.
+- Parallaxe, médias en lecture automatique et effets liés au défilement ne
+  sont pas modélisés.
+- Aucune validation manuelle sur appareil.
+
+## Prochaine mission recommandée
+
+IUX-007 — Layout System. Non commencée.

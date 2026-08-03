@@ -28,22 +28,24 @@ class _IuxCatalogAppState extends State<IuxCatalogApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IUX catalog',
-      theme: IuxTheme.fromConfiguration(_configuration),
-      home: MediaQuery.withClampedTextScaling(
-        minScaleFactor: _textScale,
-        maxScaleFactor: _textScale,
-        child: _ThemeExplorer(
-          configuration: _configuration,
-          textScale: _textScale,
-          longLabels: _longLabels,
-          onConfigurationChanged: (IuxThemeConfiguration value) =>
-              setState(() => _configuration = value),
-          onTextScaleChanged: (double value) =>
-              setState(() => _textScale = value),
-          onLongLabelsChanged: (bool value) =>
-              setState(() => _longLabels = value),
+    return IuxFeedbackScope(
+      child: MaterialApp(
+        title: 'IUX catalog',
+        theme: IuxTheme.fromConfiguration(_configuration),
+        home: MediaQuery.withClampedTextScaling(
+          minScaleFactor: _textScale,
+          maxScaleFactor: _textScale,
+          child: _ThemeExplorer(
+            configuration: _configuration,
+            textScale: _textScale,
+            longLabels: _longLabels,
+            onConfigurationChanged: (IuxThemeConfiguration value) =>
+                setState(() => _configuration = value),
+            onTextScaleChanged: (double value) =>
+                setState(() => _textScale = value),
+            onLongLabelsChanged: (bool value) =>
+                setState(() => _longLabels = value),
+          ),
         ),
       ),
     );

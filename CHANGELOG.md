@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.0-dev.6 — IUX-006
+
+Motion and feedback engine. **Breaking** for the minimal motion policy
+introduced in IUX-005.
+
+### Changed
+
+- `IuxMotionRole` replaces `{essential, decorative}` with eight intent roles,
+  each declaring how it adapts: shorten, simplify, preserve or remove.
+  `reposition`, `reveal` and `conceal` become a fade rather than a faster
+  movement — a fast large movement is worse than a slow one for a user prone
+  to motion discomfort, not better.
+- `IuxMotionPolicy.resolve` returns `IuxResolvedMotion` (was
+  `IuxMotionDecision`), adding `behavior`, `prefersFade` and
+  `requiresStaticAlternative`.
+- Motion moved from `src/accessibility/` to `src/motion/`.
+
+### Added
+
+- `IuxFeedbackEvent` with named constructors, emitted explicitly by the
+  parent. The runtime never infers that something succeeded or failed.
+- `IuxFeedbackScope` / `IuxFeedbackController`, scoped rather than a global
+  singleton, returning an `IuxFeedbackOutcome` per emission.
+- `IuxHapticPolicy` mapping roles to patterns; `progress` never vibrates.
+- `IuxFeedbackTheme`, a sixth theme extension, controlling channel
+  permissions and the deduplication window.
+
+### Notes
+
+Only `error` and `destructive` interrupt a screen reader. Interrupting for a
+success trains users to turn announcements off, at which point failures stop
+being heard too.
+
+
 ## 0.1.0-dev.5 — IUX-005
 
 Accessibility runtime. Additive.
