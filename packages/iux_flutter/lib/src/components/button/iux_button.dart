@@ -55,6 +55,7 @@ class IuxButton extends StatelessWidget {
     this.autofocus = false,
     this.focusNode,
     this.expand = false,
+    this.busyHint,
   })  : assert(
           label.length > 0,
           'A button must show something. An empty label leaves a container '
@@ -119,6 +120,13 @@ class IuxButton extends StatelessWidget {
   /// An externally owned focus node.
   final FocusNode? focusNode;
 
+  /// Announced after the label while the action is running.
+  ///
+  /// Already localised, like every other string this API takes. Leave it null
+  /// and a screen reader hears nothing extra — silence is indistinguishable
+  /// from a control that did nothing, so supply it for anything asynchronous.
+  final String? busyHint;
+
   /// Whether to fill the available width.
   ///
   /// Off by default: a button as wide as the screen reads as a banner, and its
@@ -138,6 +146,7 @@ class IuxButton extends StatelessWidget {
       autofocus: autofocus,
       focusNode: focusNode,
       expand: expand,
+      busyHint: busyHint,
       builder: (BuildContext context, IuxButtonTokens tokens) {
         final Widget text = Text(
           label,
@@ -217,6 +226,7 @@ class IuxIconButton extends StatelessWidget {
     this.variant = IuxButtonVariant.icon,
     this.autofocus = false,
     this.focusNode,
+    this.busyHint,
   });
 
   /// The glyph identifying the action.
@@ -232,6 +242,12 @@ class IuxIconButton extends StatelessWidget {
 
   /// Called once per accepted activation.
   final VoidCallback onActivate;
+
+  /// Announced after the name while the action is running.
+  ///
+  /// Already localised. Leave it null and a screen reader hears nothing
+  /// extra — silence is indistinguishable from a control that did nothing.
+  final String? busyHint;
 
   /// How much visual weight to carry.
   ///
@@ -260,6 +276,7 @@ class IuxIconButton extends StatelessWidget {
       autofocus: autofocus,
       focusNode: focusNode,
       expand: false,
+      busyHint: busyHint,
       builder: (BuildContext context, IuxButtonTokens tokens) =>
           _IuxButtonGlyph(icon: icon, tokens: tokens),
     );
@@ -283,6 +300,7 @@ class _IuxActionSurface extends StatefulWidget {
     required this.autofocus,
     required this.focusNode,
     required this.expand,
+    required this.busyHint,
     required this.builder,
   });
 
@@ -293,6 +311,9 @@ class _IuxActionSurface extends StatefulWidget {
   final bool autofocus;
   final FocusNode? focusNode;
   final bool expand;
+
+  /// Announced while the action runs. Caller-localised, or null for silence.
+  final String? busyHint;
 
   /// Builds the content, given the appearance resolved for the current state.
   ///
@@ -385,7 +406,7 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
       label: widget.action.semantics.label,
       hint: _hint,
       enabled: activatable,
-      busy: widget.action.isBusy,
+      busyHint: widget.action.isBusy ? widget.busyHint : null,
       child: IuxFocusable(
         autofocus: widget.autofocus,
         focusNode: widget.focusNode,

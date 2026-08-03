@@ -3,12 +3,12 @@ mission_id: IUX-008.6
 epic: IUX-008
 title: Async Actions
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -106,3 +106,75 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La tension centrale, et sa résolution
+
+Tout le framework repose sur « le parent possède l'état ». Le design tentant
+pour l'asynchrone est l'inverse : un bouton qui prend une `Future<void>` et
+gère lui-même son cycle de vie.
+
+**Le helper ne possède pas le résultat. Il possède la comptabilité.**
+
+Le point porteur : le type de l'opération est
+`Future<IuxAsyncOutcome> Function(IuxAsyncActionSignal)`, **jamais**
+`Future<void>`. Aucune surcharge, aucun adaptateur acceptant une future nue.
+Confier une future à IUX et en obtenir un succès est donc **irreprésentable**,
+pas seulement déconseillé par la documentation.
+
+La raison est concrète : une `Future<void>` qui se termine dit seulement qu'une
+fonction Dart a rendu la main. Une sauvegarde peut rendre sans avoir écrit ; un
+appel HTTP peut revenir en 500 sans lever. L'opération doit regarder ce qui est
+revenu et dire `succeeded` ou `failed(message:)`.
+
+Le seul résultat que le framework dérive est une exception — et c'est
+*observé*, pas inféré. Même là il ne fournit aucun texte : transformer une
+trace de pile en phrase pour un utilisateur est exactement le genre de
+supposition que ce framework refuse.
+
+Ce que le contrôleur possède légitimement, ce sont les trois choses que toute
+version artisanale rate, et dont aucune n'exige de savoir ce qui s'est passé :
+basculer en `inProgress` avant le premier `await`, ignorer une réactivation
+pendant l'exécution, et jeter le résultat d'un run supplanté ou d'un
+contrôleur disposé.
+
+## Autres décisions
+
+- **Perceptible sans mouvement** : aucun spinner, à aucune préférence. Sous
+  `IuxMotionPreference.none` un spinner ne laisserait qu'un changement de
+  couleur. L'état occupé est donc un **mot** — `busyLabel`, fourni localisé.
+- **L'annulation est une demande, pas une garantie.** Si l'opération se termine
+  malgré tout, cette terminaison est rapportée. Prétendre qu'un paiement a été
+  annulé alors qu'il est passé est le seul mensonge qu'un framework ne doit
+  jamais faire.
+- **`cancellation: required` sans `cancelLabel` assert.**
+
+## Défaut préexistant corrigé à l'intégration
+
+L'agent a signalé que `IuxSemantics.action` composait le littéral anglais
+`'In progress'` — violation de ma propre règle, introduite en IUX-005. Toute
+application non anglophone l'aurait embarqué non traduit.
+
+Remplacé par un `busyHint` fourni par l'appelant, silencieux si absent.
+`IuxAsyncActionButton` y route son `busyLabel` automatiquement, donc le cas
+asynchrone reste couvert sans que personne ait à y penser.
+
+## Tests
+
+54 nouveaux tests (32 modèle, 22 widget). 139 sur la zone actions + bouton.
+
+## Limites
+
+- Le succès n'a pas de texte visible propre : il est porté par l'événement de
+  feedback de l'appelant. Le bouton n'inventera pas un « Terminé » qu'il ne
+  sait pas localiser.
+- **Aucun timeout.** Une opération qui pend laisse le contrôle occupé
+  indéfiniment. Délibéré : un timeout imposé par le framework est un framework
+  qui décide d'un résultat.
+- Risque de double annonce si l'événement de feedback porte aussi un
+  `semanticMessage` : documenté, non contraignable sans composer du texte.
+- `IuxActionRepeatPolicy.allow` ne rapporte qu'un run, le plus récent.

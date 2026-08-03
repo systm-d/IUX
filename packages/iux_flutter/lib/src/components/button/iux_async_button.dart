@@ -254,6 +254,11 @@ class _IuxAsyncActionButtonState extends State<IuxAsyncActionButton> {
 
     final Widget primary = IuxButton(
       label: state.isRunning ? widget.busyLabel : widget.label,
+      // Also announced, because the accessible name comes from the descriptor
+      // and does not change when the visible label does. Without this a
+      // screen-reader user hears the resting name while the operation runs,
+      // and silence is indistinguishable from a control that did nothing.
+      busyHint: state.isRunning ? widget.busyLabel : null,
       action: descriptor,
       icon: widget.icon,
       variant: widget.variant,

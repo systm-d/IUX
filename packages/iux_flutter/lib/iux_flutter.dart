@@ -12,6 +12,8 @@ export 'src/accessibility/iux_semantics.dart';
 export 'src/accessibility/iux_touch_target.dart';
 export 'src/actions/iux_action_descriptor.dart';
 export 'src/actions/iux_action_model.dart';
+export 'src/actions/iux_async_action.dart';
+export 'src/components/button/iux_async_button.dart';
 export 'src/components/button/iux_button.dart';
 export 'src/components/progress/iux_progress.dart';
 export 'src/components/progress/iux_progress_tokens.dart';

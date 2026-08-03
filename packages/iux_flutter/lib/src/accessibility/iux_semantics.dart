@@ -16,13 +16,16 @@ abstract final class IuxSemantics {
   /// advertises a selected *state* to assistive technology, so a plain button
   /// gets announced as "not selected", which invites the user to look for a
   /// selection that does not exist.
+  ///
+  /// [busyHint] is appended when the action is running. Supply it already
+  /// localised, or leave it null: the framework will not invent one.
   static Widget action({
     required Widget child,
     required String label,
     String? hint,
     bool enabled = true,
     bool? selected,
-    bool busy = false,
+    String? busyHint,
   }) =>
       Semantics(
         container: true,
@@ -30,10 +33,17 @@ abstract final class IuxSemantics {
         enabled: enabled,
         selected: selected,
         label: label,
-        // Busy is announced through the label rather than a flag, because a
-        // screen reader gives no standard indication for it and silence is
+        // A running action is announced through the hint, because a screen
+        // reader gives no standard indication for it and silence is
         // indistinguishable from a control that simply did nothing.
-        hint: busy ? _joinHint(hint, 'In progress') : hint,
+        //
+        // The wording is the caller's. An earlier version composed the
+        // English literal 'In progress' here, which every non-English
+        // application would have shipped untranslated — the framework holds
+        // roles, never user-facing text.
+        hint: busyHint == null || busyHint.isEmpty
+            ? hint
+            : _joinHint(hint, busyHint),
         excludeSemantics: true,
         child: child,
       );

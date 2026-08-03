@@ -536,7 +536,7 @@ void main() {
     test('a state that is not failed must not carry a failure', () {
       expect(
         () => IuxAsyncActionState(
-          failure: IuxAsyncFailure(message: 'stale'),
+          failure: const IuxAsyncFailure(message: 'stale'),
         ),
         throwsA(isA<AssertionError>()),
       );

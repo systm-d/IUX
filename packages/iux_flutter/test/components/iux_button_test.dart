@@ -20,6 +20,7 @@ void main() {
     double textScale = 1,
     Size size = const Size(400, 800),
     bool autofocus = false,
+    String? busyHint,
     void Function()? onActivate,
     List<int>? counter,
   }) async {
@@ -45,6 +46,7 @@ void main() {
                   action: action,
                   variant: variant,
                   autofocus: autofocus,
+                  busyHint: busyHint,
                   onActivate: onActivate ?? () => calls.add(calls.length),
                 ),
               ),
@@ -211,15 +213,29 @@ void main() {
       );
     });
 
-    testWidgets('a running button says so, since silence is ambiguous',
+    testWidgets('a running button announces the wording the caller supplied',
         (WidgetTester tester) async {
+      await pump(
+        tester,
+        action: idle.copyWith(operation: IuxActionOperation.inProgress),
+        busyHint: 'Enregistrement en cours',
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Save')).hint,
+        contains('Enregistrement en cours'),
+      );
+    });
+
+    testWidgets(
+        'a running button with no hint stays silent rather than '
+        'inventing English', (WidgetTester tester) async {
       await pump(
         tester,
         action: idle.copyWith(operation: IuxActionOperation.inProgress),
       );
       expect(
         tester.getSemantics(find.bySemanticsLabel('Save')).hint,
-        contains('In progress'),
+        isNot(contains('In progress')),
       );
     });
 

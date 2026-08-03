@@ -200,19 +200,22 @@ void main() {
       );
     });
 
-    testWidgets('a busy action says so, since silence is ambiguous',
+    testWidgets('a busy action says so, in the wording the caller supplied',
         (WidgetTester tester) async {
       await pump(
         tester,
         IuxSemantics.action(
           label: 'Save',
-          busy: true,
+          busyHint: 'Enregistrement en cours',
           child: const SizedBox(width: 40, height: 40),
         ),
       );
+      // The framework composes no wording of its own: an earlier version
+      // appended the English literal 'In progress', which every non-English
+      // application would have shipped untranslated.
       final SemanticsNode node =
           tester.getSemantics(find.bySemanticsLabel('Save'));
-      expect(node.hint, contains('In progress'));
+      expect(node.hint, contains('Enregistrement en cours'));
     });
 
     testWidgets('a decorative image is hidden rather than described',

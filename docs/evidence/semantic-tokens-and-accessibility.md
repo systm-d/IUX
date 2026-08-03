@@ -517,6 +517,43 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   them means re-measuring every affected pair. Until then the distinction is
   the widget's — no caret, no keyboard, announced read-only — in IUX-010.
 
+### IUX-ASYNC-001 — An async operation must report its own outcome
+
+- **Level**: context_dependent
+- **Scope**: IUX-008.6 onward
+- **Sources**: ADR-0006 (the parent owns feedback truth)
+- **Status**: implemented — the operation type is
+  `Future<IuxAsyncOutcome> Function(...)`, never `Future<void>`. There is no
+  overload or adapter accepting a bare future, so handing IUX a future and
+  getting a success out of it is **unrepresentable**, not merely discouraged.
+- **Limits**: a `Future<void>` completing says only that a Dart function
+  returned. A save can return having written nothing; an HTTP call can come
+  back 500 without throwing. The only outcome the framework derives is a
+  throw, and that is observed rather than inferred.
+
+### IUX-ASYNC-002 — Cancellation is a request, not a guarantee
+
+- **Level**: standard
+- **Scope**: IUX-008.6 onward
+- **Sources**: derived from PROJECT_PROMPT §52 (never mask a critical error)
+- **Status**: implemented — if an operation completes after cancellation was
+  requested, the completion is reported
+- **Limits**: claiming a payment was cancelled when it went through is the one
+  lie a framework must never tell.
+
+### IUX-A11Y-008 — The framework composes no busy wording
+
+- **Level**: standard
+- **Scope**: IUX-005 (corrected in IUX-008.6)
+- **Sources**: PROJECT_PROMPT §23; internationalisation practice
+- **Status**: **fixed**. `IuxSemantics.action` appended the English literal
+  `'In progress'`, which every non-English application would have shipped
+  untranslated. It now takes a caller-supplied `busyHint` and stays silent
+  when none is given.
+- **Limits**: silence is indistinguishable from a control that did nothing, so
+  an asynchronous action should always supply one. `IuxAsyncActionButton`
+  routes its `busyLabel` there automatically.
+
 ## Deferred to later missions
 
 | Subject | Mission |

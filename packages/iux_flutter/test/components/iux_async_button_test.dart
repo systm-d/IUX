@@ -176,9 +176,12 @@ void main() {
       await tester.tap(find.text('Pay'));
       await tester.pump();
 
+      // In the caller's own words. The framework composes no wording: the
+      // accessible name still comes from the descriptor, so the busy state
+      // has to be announced through the hint the caller supplied.
       expect(
         tester.getSemantics(find.bySemanticsLabel('Pay')).hint,
-        contains('In progress'),
+        contains('Paying...'),
       );
 
       completers.single.complete(const IuxAsyncOutcome.succeeded());
