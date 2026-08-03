@@ -3,7 +3,12 @@ mission_id: IUX-008.2
 epic: IUX-008
 title: Action Model
 priority: critical
-status: ready
+status: completed
+started_at: 2026-08-03
+started_by: Claude
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev.2
 compatibility: additive
 depends_on:
@@ -1345,3 +1350,48 @@ Ne crée aucun widget.
 
 Ne crée aucun thème de bouton.
 
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+Modèle d'action en dimensions orthogonales, avec invariants assertés et une
+règle d'activation unique. Aucun rendu.
+
+## Décisions et écarts assumés
+
+- **`neutral` retiré** (§9 demandait de l'évaluer) : il ne se résoudrait en
+  rien de distinguable de `tertiary`.
+- **`readOnly` retiré** (§12) : décrit un champ, pas une action.
+- **`debounce` / `throttle` retirés** (§17) : ils exigent une durée, que le
+  §17 interdit lui-même de placer dans un enum, et relèvent de la mécanique de
+  timing, pas de l'intention.
+- **Refus motivés** : `IuxActionPolicy.evaluate` renvoie *pourquoi*. Un
+  contrôle qui ne fait rien au tap est indiscernable d'un contrôle cassé.
+- **`ignoreWhileInProgress` par défaut** : c'est ce qui empêche un « Payer »
+  double-tapé de débiter deux fois.
+- **Destructif n'implique pas confirmation** : confirmer chaque suppression
+  entraîne les utilisateurs à écarter les confirmations.
+
+## Invariants testés
+
+disabled + inProgress ; hold-to-confirm + disabled ; rôle `undo` +
+irréversible ; libellé sémantique vide. Chaque message dit quoi corriger.
+
+## Tests
+
+23 tests sur le modèle, 221 au total dans le package.
+
+## Limites
+
+- Les invariants sont des assertions, donc absents en release.
+- Le modèle décrit une politique et n'exécute rien.
+- `role: custom` n'apporte rien à la couche sémantique ; rien n'empêche son
+  usage par défaut hors revue.
+
+## Prochaine mission
+
+IUX-008.3 — Button Theme.
