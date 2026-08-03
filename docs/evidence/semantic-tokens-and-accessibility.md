@@ -956,7 +956,14 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `SemanticsRole.radioGroup`
 - **Limits**: a checked node is announced in *both* states, so the user learns
   where they are from the destination they land on rather than sweeping the
-  bar for the one that spoke.
+  bar for the one that spoke. Verified by probing the real semantics tree:
+  destinations carry label + checked + inMutuallyExclusiveGroup + tap + focus,
+  and the parent carries `SemanticsRole.radioGroup` with the bar's own name.
+  Two findings from that probe: Flutter has **no `SemanticsRole.radio`**, so
+  `checked` + `inMutuallyExclusiveGroup` is the only available expression, not
+  a preference; and a node holds one role, so keeping `radioGroup` costs the
+  `navigation` landmark. The group role wins because it is what makes "where
+  am I" audible, while the landmark only shortens a journey of two swipes.
 
 ### IUX-NAV-003 — Destinations tile the bar, with no spacing between them
 

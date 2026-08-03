@@ -477,3 +477,25 @@ and applied with a `ConstrainedBox` outside the focus ring.
   above.
 - `docs/components/badges-and-chips.md` — why a badge announces its subject.
 - `PROJECT_PROMPT.md` §16, §19–23, §31, §35–36.
+
+## One role, and why it is `radioGroup` rather than `navigation`
+
+Verified against the real semantics tree, not assumed. A destination node ends
+up carrying `label`, `checked` (true or false — never absent),
+`inMutuallyExclusiveGroup`, and the `tap` and `focus` actions. Its parent
+carries `SemanticsRole.radioGroup` and the bar's own `label`.
+
+Two things follow from that measurement.
+
+The first is that there is **no `SemanticsRole.radio`** in Flutter — the enum
+offers `radioGroup` and `menuItemRadio`, and nothing for a plain radio child.
+So `checked` plus `inMutuallyExclusiveGroup` is not a stylistic preference
+here, it is the only available way to say what a destination is.
+
+The second is a genuine trade-off. `SemanticsRole.navigation` exists and is the
+landmark role a navigation bar would otherwise claim, letting a screen-reader
+user jump to it by landmark. A node holds **one** role, so the bar cannot have
+both. It keeps `radioGroup`, because the landmark helps a user find the bar
+they were already going to reach with two swipes, while the group role is what
+makes "where am I" audible at all. The cost is real and is recorded here
+rather than left to be discovered.
