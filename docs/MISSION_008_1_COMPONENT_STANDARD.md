@@ -3,7 +3,12 @@ mission_id: IUX-008.1
 epic: IUX-008
 title: Component Standard — Part 1 — Vision, Architecture & Design Principles
 priority: critical
-status: ready
+status: completed
+started_at: 2026-08-03
+started_by: Claude
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev.1
 compatibility: additive
 depends_on:
@@ -2888,3 +2893,57 @@ Ne créer aucune implémentation visuelle.
 Produire uniquement le **Component Standard IUX**.
 
 Toutes les missions suivantes devront s'y conformer intégralement.
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+Le Component Standard opérant est livré, aligné sur les API réellement
+construites par IUX-002 à IUX-007 — et sa moitié mécanique est **exécutée**,
+pas seulement écrite.
+
+## Livrables
+
+- `docs/components/component-standard.md` — la référence opérante
+- `docs/components/review-checklist.md` — ce qu'une machine ne peut pas juger
+- `docs/decisions/ADR-0008-component-standard.md`
+- `packages/iux_flutter/test/components/component_standard_test.dart`
+- `COMPONENT_STANDARD.md` racine annoté comme brouillon d'origine
+
+Aucun composant créé, conformément au §150.
+
+## Décision principale
+
+Un standard écrit est respecté jusqu'à ce que quelqu'un soit pressé. Neuf
+interdits du §146 sont donc vérifiés par test : littéral de couleur, constante
+`Colors.*`, lecture de `MediaQuery`, appel haptique direct, annonce directe,
+durée d'animation codée en dur, `Navigator`, `ScaffoldMessenger`, accès
+réseau. Plus la forme du barrel : trié, exports résolvables, primitives non
+exportées.
+
+La revue humaine garde ce qui relève du jugement — un libellé est-il
+compréhensible, le composant résout-il un vrai problème, TalkBack le lit-il
+correctement.
+
+## Vérification de la garantie
+
+Les règles passent actuellement à vide, aucun composant n'existant. Une
+garantie vide est une fausse garantie : le test a donc été confronté à un
+fichier sonde contenant `Colors.red`, qu'il a bien rejeté, avant d'être
+considéré comme fiable.
+
+## Limites
+
+- La correspondance sur le texte source ne suit ni alias ni helper masquant un
+  appel interdit.
+- La portée est fixée par répertoire : un composant placé ailleurs échappe au
+  contrôle.
+- Un plugin analyzer serait plus robuste ; prématuré tant qu'aucun composant
+  n'existe. Candidat Phase 5.
+
+## Prochaine mission
+
+IUX-008.2 — Action Model.

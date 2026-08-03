@@ -4,6 +4,13 @@
 
 **Version :** 1.0 (Draft)
 
+> **Statut.** Ce document est le brouillon d'origine, conservé pour référence.
+> La version opérante, alignée sur les API réellement livrées par IUX-002 à
+> IUX-007, est [`docs/components/component-standard.md`](docs/components/component-standard.md).
+> Sa moitié mécanique est vérifiée par
+> `packages/iux_flutter/test/components/component_standard_test.dart`.
+> En cas de divergence, la version opérante prévaut.
+
 ---
 
 # 1. Objectif
