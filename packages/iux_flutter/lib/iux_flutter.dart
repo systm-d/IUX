@@ -12,6 +12,7 @@ export 'src/accessibility/iux_semantics.dart';
 export 'src/accessibility/iux_touch_target.dart';
 export 'src/actions/iux_action_descriptor.dart';
 export 'src/actions/iux_action_model.dart';
+export 'src/components/button/iux_button.dart';
 export 'src/feedback/iux_feedback_controller.dart';
 export 'src/feedback/iux_feedback_event.dart';
 export 'src/feedback/iux_feedback_theme.dart';

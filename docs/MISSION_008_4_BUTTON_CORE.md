@@ -3,12 +3,12 @@ mission_id: IUX-008.4
 epic: IUX-008
 title: Button Core
 priority: critical
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev.4
 compatibility: additive
 depends_on:
@@ -108,3 +108,67 @@ Présenter résumé, audit, API, résolution, états, accessibilité, thèmes, t
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement le bouton textuel de base; ne pas commencer IUX-008.5.
 
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+`IuxButton`, premier composant réel du framework. Il consomme le descripteur
+(008.2), le thème (008.3) et le runtime (005-007), et ne porte aucune logique
+métier.
+
+## API
+
+`label`, `action`, `onActivate` requis. `variant`, `autofocus`, `focusNode`,
+`expand` optionnels. **Aucun paramètre de couleur, forme, ombre, rayon ou
+durée** — et le test du Component Standard l'empêche désormais mécaniquement.
+
+## Décision : deux libellés
+
+`label` est ce qui se voit, `action.semantics.label` ce qui s'entend. Ils
+peuvent différer : un utilisateur voyant lit la colonne où il se trouve, un
+utilisateur de lecteur d'écran entend la ligne — il n'a pas de colonne.
+
+## Séparation des trois axes
+
+Disponibilité et opération viennent du parent via le descripteur. Focus,
+pression et survol restent internes : ils appartiennent à cette instance et à
+rien d'autre.
+
+L'activation passe par `IuxActionPolicy.evaluate`, pas par une règle réécrite
+ici — le widget ne peut donc pas diverger d'un autre composant sur la question
+« un bouton occupé accepte-t-il un second tap ».
+
+## Le standard mord pour de bon
+
+`component_standard_test` passait à vide depuis 008.1. Il s'applique désormais
+à `lib/src/components/button/` : pas de littéral de couleur, pas de
+`MediaQuery`, pas de durée codée en dur, pas de `Navigator`, pas d'haptique
+directe. Vérifié, et un test dédié confirme que le bouton n'émet **aucun**
+feedback de lui-même.
+
+## Tests
+
+22 tests widget : activation unique par geste, refus en disabled, second tap
+ignoré pendant l'opération, politique `allow` respectée, activation clavier
+Enter/Space, exclusion du parcours de focus en disabled, sémantiques
+(nom, état, raison d'indisponibilité, « In progress »), plancher tactile à
+toutes les densités, libellé long non tronqué, texte 200 % sur 320×480, RTL,
+quatre profils de thème, mouvement réduit et nul.
+
+264 tests au total.
+
+## Limites
+
+- Texte uniquement ; icônes en 008.5.
+- Aucun asynchrone interne ; 008.6.
+- Aucun flux de confirmation ; 008.7.
+- `expand` remplit la largeur sans la plafonner.
+- **Validation manuelle non réalisée** : TalkBack, Voice Access, D-pad.
+
+## Prochaine mission
+
+IUX-008.5 — Button variants and icon actions.
