@@ -1046,6 +1046,45 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   for an unknown one. Scheduled as the first item of IUX-038, which is the
   accessibility audit.
 
+### IUX-DRAWER-001 — The working stack shape is the only one a caller can express
+
+- **Level**: standard
+- **Scope**: IUX-027 onward
+- **Sources**: WCAG 2.2 SC 4.1.2, SC 2.1.2; measured against the real
+  semantics tree
+- **Status**: implemented — `IuxModalLayer` gains a `drawer` slot, and the
+  three modals are mutually exclusive by assertion.
+- **Finding**: `Stack(children: [page, if (open) drawer])` looks correct and
+  is not. The page element survives the transition, its semantics node is
+  never recompiled, and `BlockSemantics` therefore does **not** remove the
+  covered page — a screen reader goes on reading, and offering to activate,
+  controls the user cannot touch. Touch behaves identically in both shapes,
+  which is why nothing but a screen reader catches it. Verified from both
+  sides: the page leaves the tree through `IuxModalLayer`, and demonstrably
+  does not in the hand-rolled shape.
+- **Limits**: the second test is not a test of IUX. It pins Flutter's
+  behaviour, and the day it fails is the day this entry and IUX-OVERLAY-001
+  both need rereading.
+
+### IUX-EMPTY-001 — Four situations, not one empty state
+
+- **Level**: strong_guidance
+- **Scope**: IUX-028 onward
+- **Sources**: WCAG 2.2 SC 3.3.3; WCAG 2.2 SC 4.1.3 for the announcement
+- **Status**: implemented — nothing yet created, a filter that matched
+  nothing, a search that matched nothing and a permission that hides
+  everything are distinct, and the wrong situation/action pairing cannot be
+  constructed. An unavailable action must carry its `unavailabilityReason`:
+  on an empty state the greyed control *is* the whole interface, and a
+  disabled control leaves the focus order on Android, so a screen-reader user
+  cannot even reach it to wonder why.
+- **Limits**: focus is deliberately **not** moved — the opposite of
+  `IuxValidationSummary`, because a refused submission happens while the user
+  waits for an answer, whereas a list empties under a filter while their hands
+  are in the search field. The live region is on the message, not the block:
+  the action stays a node of its own, since merged in it would be announced
+  and unreachable.
+
 ## Deferred to later missions
 
 | Subject | Mission |

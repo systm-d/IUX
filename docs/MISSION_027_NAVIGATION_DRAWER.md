@@ -2,12 +2,12 @@
 mission_id: IUX-027
 title: Navigation Drawer
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,60 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Un tiroir est une couche, jamais une route
+
+Le parent possède un drapeau, et le tiroir existe exactement tant que le
+drapeau est vrai. Aucun `Navigator`, rien n'est empilé ni dépilé.
+
+## Ce que le sondage a trouvé — et pourquoi la doc mentait sans le savoir
+
+L'exemple d'usage montrait `Stack(children: [page, if (open) drawer])`. L'agent
+a sondé l'arbre sémantique réel : dans cette forme, l'élément de la page
+survit, son nœud sémantique n'est jamais recompilé, et `BlockSemantics` **ne
+retire pas** la page couverte. Un lecteur d'écran continue de lire — et de
+proposer d'activer — des contrôles que l'utilisateur ne peut pas toucher.
+
+Le tactile se comporte **identiquement** dans les deux formes. C'est
+précisément pour ça que rien d'autre qu'un lecteur d'écran ne l'attrape.
+
+`IuxModalLayer` gagne donc un emplacement `drawer`, et les trois modaux
+deviennent mutuellement exclusifs par assertion. La bonne forme n'est plus un
+idiome à connaître : c'est la seule que l'appelant peut exprimer. Trois tests
+la fixent, dont un qui **échouera le jour où Flutter corrigera le
+comportement** — ce jour-là, la justification de l'emplacement et
+IUX-OVERLAY-001 seront à relire.
+
+## Ce qui a été mesuré, pas supposé
+
+Cinq arrêts sémantiques exactement : titre (en-tête), Fermer (bouton), puis un
+nœud fusionné par destination. Les glyphes ne sont pas des arrêts, le voile non
+plus. Cycle de tabulation mesuré `Fermer → dest1 → dest2 → dest3 → panneau →
+Fermer` ; douze pressions n'atteignent jamais la page. Le focus revient sur ce
+qui le tenait **à l'ouverture**, pas sur où il a dérivé.
+
+Sorties : voile, Échap (y compris après déplacement du focus), retour système
+(`handlePopRoute` → `onDismiss`, rien empilé ni dépilé), bouton d'en-tête. Un
+appui sur le vide du panneau ne ferme pas.
+
+Géométrie : panneau = min(80 % de l'écran, largeur de contenu étroite). Sur
+320×480 → 256 px, laissant exactement les 64 px annoncés.
+
+## Écarts assumés
+
+`PopScope` vit dans le tiroir, contrairement au dialogue et à la feuille qui le
+délèguent : le retour est la **première** chose qu'un utilisateur Android
+essaie sur un tiroir, et « documenté » n'est pas « fonctionne » (SC 2.1.2). Un
+test vérifie qu'il est inerte sans `Navigator` au-dessus, puisque le code le
+prétend.
+
+`Semantics` nu plutôt que `IuxSemantics.selection` : `selection` pose
+`excludeSemantics`, ce qui supprimerait le badge de l'annonce de tout
+utilisateur de lecteur d'écran.
+
+61 tests.

@@ -273,9 +273,6 @@ through its descriptor.
   is nothing to lift above a keyboard; that is IUX-017's problem for sheets.
 - **The scrim colour is derived, not declared.** See "Themes and motion".
 - ~~Route scoping uses a bare `Semantics`~~ — **Fermé.** Le runtime expose désormais les helpers manquants (`IuxSemantics.selection`, `.radioGroup`, `.field`, `.route`, `.contentAction`, `.contentContainer`) et le composant les utilise. Voir `docs/accessibility/semantics.md`.
-- **Route scoping**, because `IuxSemantics` has no
-  route helper yet. Adding one belongs to the accessibility layer.
-
 ## Evidence level
 
 | Rule | Level | Source |

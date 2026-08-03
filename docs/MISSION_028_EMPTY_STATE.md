@@ -2,12 +2,12 @@
 mission_id: IUX-028
 title: Empty State
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,55 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## « Vide » n'est pas un état, c'en est quatre
+
+Rien n'a encore été créé ; un filtre n'a rien trouvé ; une recherche n'a rien
+trouvé ; une permission cache tout. Quatre situations, quatre sorties
+différentes. Un `EmptyState(title, message)` unique les rend indistinguables,
+et un « Réessayer » quand rien n'a jamais été créé est un mensonge. Le mauvais
+appariement situation/action ne peut pas être construit.
+
+Une troisième interdiction s'est ajoutée à l'audit : une action indisponible
+**doit** porter sa raison. Sur un état vide, le contrôle grisé *est* toute
+l'interface, et un contrôle désactivé quitte l'ordre de focus sur Android —
+l'utilisateur de lecteur d'écran ne peut donc même pas l'atteindre pour se
+demander pourquoi.
+
+## La correction de compilation, et pourquoi elle est double
+
+L'agent précédent est mort en laissant `Invalid constant value`. Le tranchage
+n'applique pas une règle unique aux deux objets :
+
+`IuxEmptyStateAction` n'est plus `const` — deux de ses assertions lisent un
+champ de `action`, ce que Dart interdit dans un constructeur `const`. Comme
+`onActivate` est une fermeture, aucun site d'appel n'aurait jamais pu écrire
+`const` : la constance était inatteignable, et y renoncer achète un échec à la
+ligne fautive. `IuxFormSubmit` fait exactement ça, pour la même raison.
+
+`IuxEmptyState` reste `const` — sa vérification d'impasse lit un getter, donc
+elle passe en contrôle de debug appelé depuis `build`. Un widget `const` est un
+vrai bénéfice ; un objet `const` tenant une fermeture n'en est pas un.
+
+## L'audit du travail préservé
+
+Le modèle déclarait une capacité qu'il ne livrait pas : la doc de classe
+promettait qu'une opération pilotée par `IuxAsyncActionController` « fonctionne
+ici exactement comme sur un bouton », sans aucun `busyHint`. Une sortie en
+cours aurait donc été silencieuse — sur un motif dont le contrôle est souvent
+seul à l'écran. Capacité ajoutée plutôt que promesse retirée.
+
+## Décisions
+
+Région vivante sur le message, pas sur le bloc : l'action reste un nœud à part,
+car fusionnée dedans elle serait annoncée et inatteignable. Le focus **n'est
+pas** déplacé — l'inverse de `IuxValidationSummary`, délibérément : un envoi
+refusé arrive pendant que l'utilisateur attend une réponse, une liste se vide
+sous un filtre pendant que ses mains sont dans le champ de recherche.
+
+36 tests.

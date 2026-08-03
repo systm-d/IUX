@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../navigation/iux_navigation_drawer.dart';
 import 'iux_bottom_sheet.dart';
 import 'iux_dialog.dart';
 
@@ -51,11 +52,15 @@ class IuxModalLayer extends StatelessWidget {
     required this.child,
     this.dialog,
     this.sheet,
+    this.drawer,
   }) : assert(
-          dialog == null || sheet == null,
-          'A dialog and a bottom sheet cannot be open at once. Close one '
-          'before opening the other, or model the second step inside the '
-          'first.',
+          (dialog == null ? 0 : 1) +
+                  (sheet == null ? 0 : 1) +
+                  (drawer == null ? 0 : 1) <=
+              1,
+          'A dialog, a bottom sheet and a navigation drawer cannot be open at '
+          'once. Close one before opening the other, or model the second step '
+          'inside the first.',
         );
 
   /// The page the dialog interrupts.
@@ -76,9 +81,23 @@ class IuxModalLayer extends StatelessWidget {
   /// none of them while reading identically at the call site.
   final IuxBottomSheet? sheet;
 
+  /// The navigation drawer currently open, or null when none is.
+  ///
+  /// This slot exists because getting the shape wrong is silent. IUX-027
+  /// probed the obvious alternative — `Stack(children: [page, if (open)
+  /// drawer])` — and found that the page element survives, its semantics node
+  /// is never recompiled, and `BlockSemantics` therefore does **not** remove
+  /// the covered page: a screen reader still reads and offers to activate
+  /// controls the user cannot touch. Touch behaves identically in both
+  /// shapes, which is exactly why nobody catches it without a screen reader.
+  ///
+  /// Routing the drawer through here makes the working shape the only shape a
+  /// caller can express, rather than an idiom they have to know.
+  final IuxNavigationDrawer? drawer;
+
   @override
   Widget build(BuildContext context) {
-    final Widget? modal = dialog ?? sheet;
+    final Widget? modal = dialog ?? sheet ?? drawer;
     // No Stack at all while nothing is open.
     //
     // This has a measured cost: the page changes depth in the element tree
