@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
+import 'catalog_chrome.dart';
+
 /// Demonstrates the accessibility runtime delivered by IUX-005.
 ///
 /// Everything here reads the runtime rather than `MediaQuery`, which is the
@@ -8,14 +10,7 @@ import 'package:iux_flutter/iux_flutter.dart';
 /// and these react without any of them knowing why.
 class RuntimePanels extends StatelessWidget {
   /// Creates the runtime demonstration.
-  const RuntimePanels({super.key, required this.panelBuilder});
-
-  /// Wraps each section in the catalog's panel chrome.
-  final Widget Function({
-    required String title,
-    required String description,
-    required Widget child,
-  }) panelBuilder;
+  const RuntimePanels({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +21,7 @@ class RuntimePanels extends StatelessWidget {
 
     return Column(
       children: <Widget>[
-        panelBuilder(
+        CatalogPanel(
           title: 'Runtime state',
           description: 'What the application asked for, reconciled with what '
               'the platform reports. The platform can strengthen an '
@@ -80,7 +75,7 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Touch targets',
           description: 'The icons stay small. The regions that respond do not. '
               'Switch the touch target preference above and watch the '
@@ -107,7 +102,7 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Focus',
           description: 'Tab between these. The ring reserves its space whether '
               'or not it is drawn, so focus never shifts the layout.',
@@ -138,7 +133,7 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Motion roles',
           description: 'Each role declares how it adapts. Change the motion '
               'preference above and watch the decisions change.',
@@ -173,7 +168,7 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Feedback roles',
           description: 'Intensity is proportionate to consequence. Only '
               'failures and irreversible actions interrupt a screen reader.',
@@ -203,7 +198,7 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Layout',
           description: 'Width caps are measured in characters and converted at '
               'the text size in force, so a larger text keeps the same line '
@@ -272,16 +267,16 @@ class RuntimePanels extends StatelessWidget {
             ],
           ),
         ),
-        panelBuilder(
+        const CatalogPanel(
           title: 'Progress',
           description: 'Determinate keeps its bar when motion is reduced — '
               '45% is already a static statement. Indeterminate removes its '
               'bar entirely and falls back to its label: a frozen segment is '
               'parked at a position that means nothing, which reads as a hung '
               'operation. Switch motion to "none" above to see both.',
-          child: const _ProgressDemo(),
+          child: _ProgressDemo(),
         ),
-        panelBuilder(
+        CatalogPanel(
           title: 'Announcements',
           description: 'A live region is preferred to an announcement. Android '
               'deprecated announcements because they cut off whatever TalkBack '

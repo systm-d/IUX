@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
+import 'button_panels.dart';
+import 'button_scenarios.dart';
+import 'catalog_chrome.dart';
 import 'runtime_panels.dart';
+import 'theme_panels.dart';
 
 void main() {
   runApp(const IuxCatalogApp());
 }
 
-/// Local integration surface for the experimental IUX package.
+/// A harness for the IUX package, not a showroom for it.
 ///
-/// The catalog explains what each profile changes, rather than showing a
-/// finished look. Nothing here is an IUX component: components arrive from
-/// IUX-008 onward, and these are plain Flutter widgets painted with resolved
-/// theme values so the theme itself can be inspected.
+/// The catalog exists so a maintainer can put a component under the conditions
+/// it is most likely to fail in and watch it fail: an accessibility profile
+/// nobody designs for, a text scale of 300%, a label of the length translation
+/// actually produces. Every panel says what it is trying to prove before it
+/// shows anything.
+///
+/// The three conditions are owned here, above everything, because they have to
+/// apply to every section at once. Anything that changed only one panel would
+/// prove only that the panel was written to survive it.
 class IuxCatalogApp extends StatefulWidget {
   /// Creates the catalog application.
   const IuxCatalogApp({super.key});
@@ -35,7 +44,7 @@ class _IuxCatalogAppState extends State<IuxCatalogApp> {
         home: MediaQuery.withClampedTextScaling(
           minScaleFactor: _textScale,
           maxScaleFactor: _textScale,
-          child: _ThemeExplorer(
+          child: _CatalogHome(
             configuration: _configuration,
             textScale: _textScale,
             longLabels: _longLabels,
@@ -52,8 +61,24 @@ class _IuxCatalogAppState extends State<IuxCatalogApp> {
   }
 }
 
-class _ThemeExplorer extends StatelessWidget {
-  const _ThemeExplorer({
+/// Which part of the library is on screen.
+enum _Section {
+  /// Buttons and the action model behind them.
+  buttons('Buttons'),
+
+  /// What a theme profile resolves to, before any component is involved.
+  theme('Theme'),
+
+  /// The accessibility, motion, feedback and layout runtimes.
+  runtime('Runtime');
+
+  const _Section(this.title);
+
+  final String title;
+}
+
+class _CatalogHome extends StatefulWidget {
+  const _CatalogHome({
     required this.configuration,
     required this.textScale,
     required this.longLabels,
@@ -69,630 +94,246 @@ class _ThemeExplorer extends StatelessWidget {
   final ValueChanged<double> onTextScaleChanged;
   final ValueChanged<bool> onLongLabelsChanged;
 
+  @override
+  State<_CatalogHome> createState() => _CatalogHomeState();
+}
+
+class _CatalogHomeState extends State<_CatalogHome> {
+  /// Owned here rather than inside the button panels.
+  ///
+  /// The confirmation a destructive action opens has to be handed to an
+  /// `IuxModalLayer` at page level: a pattern that opened its own overlay from
+  /// wherever the button happened to sit would be deciding layering, which is
+  /// how two modals end up open at once with the way out of neither visible.
+  /// So the page owns the state, exactly as an application would.
+  final ButtonScenarios _scenarios = ButtonScenarios();
+
+  _Section _section = _Section.buttons;
+
+  @override
+  void dispose() {
+    _scenarios.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('IUX catalog')),
+      body: ListenableBuilder(
+        listenable: _scenarios,
+        builder: (BuildContext context, Widget? child) => IuxModalLayer(
+          dialog: _scenarios.dialog,
+          child: ListView(
+            padding: EdgeInsets.all(geometry.spacingMd),
+            children: <Widget>[
+              CatalogPanel(
+                title: 'Section',
+                description: 'The conditions below apply to whichever section '
+                    'is showing, so a profile chosen here follows you into the '
+                    'next one.',
+                child: CatalogChoice<_Section>(
+                  label: 'Section',
+                  value: _section,
+                  values: _Section.values,
+                  naming: (_Section value) => value.title,
+                  onChanged: (_Section value) =>
+                      setState(() => _section = value),
+                ),
+              ),
+              _ConditionsPanel(
+                configuration: widget.configuration,
+                textScale: widget.textScale,
+                longLabels: widget.longLabels,
+                onConfigurationChanged: widget.onConfigurationChanged,
+                onTextScaleChanged: widget.onTextScaleChanged,
+                onLongLabelsChanged: widget.onLongLabelsChanged,
+              ),
+              switch (_section) {
+                _Section.buttons => ButtonPanels(
+                    scenarios: _scenarios,
+                    longLabels: widget.longLabels,
+                  ),
+                _Section.theme => ThemePanels(longLabels: widget.longLabels),
+                _Section.runtime => const RuntimePanels(),
+              },
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The three axes every panel is stressed along.
+class _ConditionsPanel extends StatelessWidget {
+  const _ConditionsPanel({
+    required this.configuration,
+    required this.textScale,
+    required this.longLabels,
+    required this.onConfigurationChanged,
+    required this.onTextScaleChanged,
+    required this.onLongLabelsChanged,
+  });
+
+  /// The text scales the harness offers.
+  ///
+  /// Up to 300%, which Android reaches on its largest font setting with
+  /// display size enlarged as well. A component checked at 200% and shipped is
+  /// a component that has not met its largest users.
+  static const List<double> _scales = <double>[1, 1.5, 2, 3];
+
+  final IuxThemeConfiguration configuration;
+  final double textScale;
+  final bool longLabels;
+  final ValueChanged<IuxThemeConfiguration> onConfigurationChanged;
+  final ValueChanged<double> onTextScaleChanged;
+  final ValueChanged<bool> onLongLabelsChanged;
+
   IuxAccessibilityProfile get _profile => configuration.profile;
 
   void _updateProfile(IuxAccessibilityProfile profile) =>
       onConfigurationChanged(configuration.copyWith(profile: profile));
 
-  @override
-  Widget build(BuildContext context) {
-    final IuxSemanticColors colors = IuxSemanticColors.of(context);
-    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
-    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
-    final IuxMotionTheme motion = IuxMotionTheme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('IUX theme explorer')),
-      body: ListView(
-        padding: EdgeInsets.all(geometry.spacingMd),
-        children: <Widget>[
-          _Panel(
-            title: 'Conditions',
-            description: 'Every preference is independent. Any combination is '
-                'valid, and high contrast exists for dark as well as light.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _Choice<Brightness>(
-                  label: 'Brightness',
-                  value: configuration.brightness,
-                  values: Brightness.values,
-                  naming: (Brightness value) => value.name,
-                  onChanged: (Brightness value) => onConfigurationChanged(
-                    configuration.copyWith(brightness: value),
-                  ),
-                ),
-                _Choice<IuxContrast>(
-                  label: 'Contrast',
-                  value: _profile.contrast,
-                  values: IuxContrast.values,
-                  naming: (IuxContrast value) => value.name,
-                  onChanged: (IuxContrast value) =>
-                      _updateProfile(_profile.copyWith(contrast: value)),
-                ),
-                _Choice<IuxDensity>(
-                  label: 'Density',
-                  value: _profile.density,
-                  values: IuxDensity.values,
-                  naming: (IuxDensity value) => value.name,
-                  onChanged: (IuxDensity value) =>
-                      _updateProfile(_profile.copyWith(density: value)),
-                ),
-                _Choice<IuxMotionPreference>(
-                  label: 'Motion',
-                  value: _profile.motion,
-                  values: IuxMotionPreference.values,
-                  naming: (IuxMotionPreference value) => value.name,
-                  onChanged: (IuxMotionPreference value) =>
-                      _updateProfile(_profile.copyWith(motion: value)),
-                ),
-                _Choice<IuxTouchTargetPreference>(
-                  label: 'Touch target',
-                  value: _profile.touchTarget,
-                  values: IuxTouchTargetPreference.values,
-                  naming: (IuxTouchTargetPreference value) => value.name,
-                  onChanged: (IuxTouchTargetPreference value) =>
-                      _updateProfile(_profile.copyWith(touchTarget: value)),
-                ),
-                _Choice<IuxVisualStimulation>(
-                  label: 'Visual stimulation',
-                  value: _profile.visualStimulation,
-                  values: IuxVisualStimulation.values,
-                  naming: (IuxVisualStimulation value) => value.name,
-                  onChanged: (IuxVisualStimulation value) => _updateProfile(
-                    _profile.copyWith(visualStimulation: value),
-                  ),
-                ),
-                _Choice<double>(
-                  label: 'Text scale',
-                  value: textScale,
-                  values: const <double>[1, 1.5, 2],
-                  naming: (double value) => '${value}x',
-                  onChanged: onTextScaleChanged,
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('Long labels', style: type.label),
-                          Text(
-                            'Checks that a longer language does not clip or '
-                            'overflow.',
-                            style: type.supporting,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(value: longLabels, onChanged: onLongLabelsChanged),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          _Panel(
-            title: 'What this profile changed',
-            description: 'Resolved values, not requested ones.',
-            child: _ResolvedValues(
-              geometry: geometry,
-              motion: motion,
-              type: type,
-            ),
-          ),
-          _Panel(
-            title: 'Surfaces and content',
-            description: 'Levels separate through colour, so hierarchy '
-                'survives without a shadow.',
-            child: _SurfaceSamples(colors: colors, geometry: geometry),
-          ),
-          _Panel(
-            title: 'Actions',
-            description: 'Each intent carries its own state contract. '
-                'Painted rectangles — the IUX button arrives in IUX-008.',
-            child: _ActionSamples(
-              colors: colors,
-              geometry: geometry,
-              type: type,
-              longLabels: longLabels,
-            ),
-          ),
-          _Panel(
-            title: 'Feedback',
-            description: 'Colour is paired with an icon, so the category '
-                'survives a reader who cannot distinguish the hues.',
-            child: _FeedbackSamples(
-              colors: colors,
-              geometry: geometry,
-              type: type,
-              longLabels: longLabels,
-            ),
-          ),
-          _Panel(
-            title: 'Focus',
-            description: 'Focus stays distinct from selection: one says where '
-                'the keyboard is, the other what the user chose.',
-            child: _FocusSamples(
-              colors: colors,
-              geometry: geometry,
-              type: type,
-            ),
-          ),
-          RuntimePanels(
-            panelBuilder: ({
-              required String title,
-              required String description,
-              required Widget child,
-            }) =>
-                _Panel(
-              title: title,
-              description: description,
-              child: child,
-            ),
-          ),
-          _Panel(
-            title: 'Typography',
-            description: 'Roles, not sizes. Nothing falls below 14.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                for (final IuxTypographyRole role in IuxTypographyRole.values)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: geometry.spacingXs),
-                    child: Text(
-                      role.name,
-                      style: type
-                          .forRole(role)
-                          .copyWith(color: colors.content.primary),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResolvedValues extends StatelessWidget {
-  const _ResolvedValues({
-    required this.geometry,
-    required this.motion,
-    required this.type,
-  });
-
-  final IuxGeometryTheme geometry;
-  final IuxMotionTheme motion;
-  final IuxTypographyTheme type;
-
-  @override
-  Widget build(BuildContext context) {
-    final IuxSemanticColors colors = IuxSemanticColors.of(context);
-    final List<(String, String)> rows = <(String, String)>[
-      ('Default spacing', geometry.spacingMd.toStringAsFixed(1)),
-      ('Minimum touch target', geometry.minimumTouchTarget.toStringAsFixed(0)),
-      ('Border width', geometry.borderWidth.toStringAsFixed(0)),
-      ('Focus ring width', geometry.focus.width.toStringAsFixed(0)),
-      ('Raised elevation', geometry.elevationRaised.toStringAsFixed(0)),
-      ('Standard transition', '${motion.standard.inMilliseconds} ms'),
-      (
-        'Decorative motion',
-        motion.allowsNonEssentialMotion ? 'allowed' : 'suppressed'
-      ),
-      (
-        'Platform preference',
-        motion.respectsPlatformPreference ? 'still to consult' : 'overridden'
-      ),
-    ];
-
-    return Column(
-      children: <Widget>[
-        for (final (String label, String value) in rows)
-          Padding(
-            padding: EdgeInsets.only(bottom: geometry.spacingXxs),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    label,
-                    style: type.supporting
-                        .copyWith(color: colors.content.secondary),
-                  ),
-                ),
-                Text(
-                  value,
-                  style: type.label.copyWith(color: colors.content.primary),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _SurfaceSamples extends StatelessWidget {
-  const _SurfaceSamples({required this.colors, required this.geometry});
-
-  final IuxSemanticColors colors;
-  final IuxGeometryTheme geometry;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<(String, Color)> surfaces = <(String, Color)>[
-      ('surface.base', colors.surface.base),
-      ('surface.subtle', colors.surface.subtle),
-      ('surface.raised', colors.surface.raised),
-      ('surface.selected', colors.surface.selected),
-      ('surface.disabled', colors.surface.disabled),
-      ('surface.inverse', colors.surface.inverse),
-    ];
-    return Column(
-      children: <Widget>[
-        for (final (String label, Color surface) in surfaces)
-          Container(
-            width: double.infinity,
-            margin: EdgeInsets.only(bottom: geometry.spacingXxs),
-            padding: EdgeInsets.all(geometry.spacingSm),
-            decoration: BoxDecoration(
-              color: surface,
-              border: Border.all(
-                color: colors.border.subtle,
-                width: geometry.borderWidth,
-              ),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: label == 'surface.inverse'
-                    ? colors.content.inverse
-                    : colors.content.primary,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ActionSamples extends StatelessWidget {
-  const _ActionSamples({
-    required this.colors,
-    required this.geometry,
-    required this.type,
-    required this.longLabels,
-  });
-
-  final IuxSemanticColors colors;
-  final IuxGeometryTheme geometry;
-  final IuxTypographyTheme type;
-  final bool longLabels;
-
-  @override
-  Widget build(BuildContext context) {
-    final Map<String, IuxActionColors> intents = <String, IuxActionColors>{
-      'primary': colors.action.primary,
-      'secondary': colors.action.secondary,
-      'tertiary': colors.action.tertiary,
-      'destructive': colors.action.destructive,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        for (final MapEntry<String, IuxActionColors> entry in intents.entries)
-          Padding(
-            padding: EdgeInsets.only(bottom: geometry.spacingSm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'action.${entry.key}',
-                  style: type.label.copyWith(color: colors.content.secondary),
-                ),
-                SizedBox(height: geometry.spacingXxs),
-                Wrap(
-                  spacing: geometry.spacingXs,
-                  runSpacing: geometry.spacingXs,
-                  children: <Widget>[
-                    for (final (String state, Color background, Color fg)
-                        in <(String, Color, Color)>[
-                      ('rest', entry.value.background, entry.value.foreground),
-                      (
-                        'hover',
-                        entry.value.hoveredBackground,
-                        entry.value.foreground
-                      ),
-                      (
-                        'press',
-                        entry.value.pressedBackground,
-                        entry.value.foreground
-                      ),
-                      (
-                        'off',
-                        entry.value.disabledBackground,
-                        entry.value.disabledForeground
-                      ),
-                    ])
-                      Container(
-                        constraints: BoxConstraints(
-                          minHeight: geometry.minimumTouchTarget,
-                          minWidth: geometry.minimumTouchTarget,
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: geometry.spacingSm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: background,
-                          border: Border.all(
-                            color: entry.value.border,
-                            width: geometry.borderWidth,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          longLabels ? '$state — Bestätigungsvorgang' : state,
-                          style: type.label.copyWith(color: fg),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _FeedbackSamples extends StatelessWidget {
-  const _FeedbackSamples({
-    required this.colors,
-    required this.geometry,
-    required this.type,
-    required this.longLabels,
-  });
-
-  final IuxSemanticColors colors;
-  final IuxGeometryTheme geometry;
-  final IuxTypographyTheme type;
-  final bool longLabels;
-
-  @override
-  Widget build(BuildContext context) {
-    final Map<String, (IuxFeedbackRoleColors, IconData)> roles =
-        <String, (IuxFeedbackRoleColors, IconData)>{
-      'info': (colors.feedback.info, Icons.info_outline),
-      'success': (colors.feedback.success, Icons.check_circle_outline),
-      'warning': (colors.feedback.warning, Icons.warning_amber_outlined),
-      'error': (colors.feedback.error, Icons.error_outline),
-    };
-    return Column(
-      children: <Widget>[
-        for (final MapEntry<String, (IuxFeedbackRoleColors, IconData)> entry
-            in roles.entries)
-          Container(
-            width: double.infinity,
-            margin: EdgeInsets.only(bottom: geometry.spacingXs),
-            padding: EdgeInsets.all(geometry.spacingSm),
-            decoration: BoxDecoration(
-              color: entry.value.$1.surface,
-              border: Border.all(
-                color: entry.value.$1.border,
-                width: geometry.borderWidth,
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Icon(entry.value.$2, color: entry.value.$1.icon),
-                SizedBox(width: geometry.spacingXs),
-                Expanded(
-                  child: Text(
-                    longLabels
-                        ? 'feedback.${entry.key} — Die Zahlungsbestätigung '
-                            'konnte nicht abgeschlossen werden.'
-                        : 'feedback.${entry.key}',
-                    style: type.body.copyWith(color: entry.value.$1.content),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _FocusSamples extends StatelessWidget {
-  const _FocusSamples({
-    required this.colors,
-    required this.geometry,
-    required this.type,
-  });
-
-  final IuxSemanticColors colors;
-  final IuxGeometryTheme geometry;
-  final IuxTypographyTheme type;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget sample(String label, Color border, double width, Widget? mark) =>
-        Container(
-          constraints: BoxConstraints(minHeight: geometry.minimumTouchTarget),
-          margin: EdgeInsets.only(bottom: geometry.spacingXs),
-          padding: EdgeInsets.all(geometry.spacingSm),
-          decoration: BoxDecoration(
-            color: colors.surface.base,
-            border: Border.all(color: border, width: width),
-          ),
-          child: Row(
-            children: <Widget>[
-              if (mark != null) ...<Widget>[
-                mark,
-                SizedBox(width: geometry.spacingXs),
-              ],
-              Text(
-                label,
-                style: type.body.copyWith(color: colors.content.primary),
-              ),
-            ],
-          ),
-        );
-
-    return Column(
-      children: <Widget>[
-        sample('Focused', colors.border.focus, geometry.focus.width, null),
-        sample(
-          'Selected',
-          colors.border.selected,
-          geometry.borderWidth,
-          Icon(Icons.check, color: colors.content.primary),
+  void _applyStress() {
+    onConfigurationChanged(
+      configuration.copyWith(
+        brightness: Brightness.dark,
+        profile: _profile.copyWith(
+          contrast: IuxContrast.high,
+          density: IuxDensity.compact,
         ),
-        sample('Resting', colors.border.standard, geometry.borderWidth, null),
-      ],
+      ),
     );
+    onTextScaleChanged(3);
+    onLongLabelsChanged(true);
   }
-}
 
-class _Choice<T> extends StatelessWidget {
-  const _Choice({
-    required this.label,
-    required this.value,
-    required this.values,
-    required this.naming,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<T> values;
-  final String Function(T) naming;
-  final ValueChanged<T> onChanged;
+  void _applyDefaults() {
+    onConfigurationChanged(const IuxThemeConfiguration());
+    onTextScaleChanged(1);
+    onLongLabelsChanged(false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxTypographyTheme type = IuxTypographyTheme.of(context);
-    final IuxSemanticColors colors = IuxSemanticColors.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: geometry.spacingSm),
+    return CatalogPanel(
+      title: 'Conditions',
+      description: 'Every preference is independent. Any combination is valid, '
+          'and high contrast exists for dark as well as light. The two presets '
+          'are shortcuts, not modes: at 300% the chips below are large enough '
+          'that setting six of them by hand is its own obstacle.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            label,
-            style: type.label.copyWith(color: colors.content.secondary),
-          ),
-          SizedBox(height: geometry.spacingXxs),
-          Wrap(
-            spacing: geometry.spacingXs,
-            runSpacing: geometry.spacingXs,
+          IuxTargetSpacing(
+            axis: Axis.horizontal,
             children: <Widget>[
-              for (final T option in values)
-                Semantics(
-                  // Named by dimension and value together. Several dimensions
-                  // share a value — "comfortable" belongs to both density and
-                  // touch target — so a chip labelled only "comfortable" is
-                  // ambiguous to a screen reader, which hears the same word
-                  // twice with nothing to distinguish them.
-                  label: '$label: ${naming(option)}',
-                  selected: option == value,
-                  button: true,
-                  excludeSemantics: true,
-                  child: GestureDetector(
-                    onTap: () => onChanged(option),
-                    child: Container(
-                      constraints: BoxConstraints(
-                        minHeight: geometry.minimumTouchTarget,
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: geometry.spacingSm,
-                      ),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: option == value
-                            ? colors.surface.selected
-                            : colors.surface.base,
-                        border: Border.all(
-                          color: option == value
-                              ? colors.border.selected
-                              : colors.border.standard,
-                          width: option == value
-                              ? geometry.strongBorderWidth
-                              : geometry.borderWidth,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          if (option == value) ...<Widget>[
-                            Icon(
-                              Icons.check,
-                              size: 16,
-                              color: colors.content.primary,
-                            ),
-                            SizedBox(width: geometry.spacingXxs),
-                          ],
-                          Text(
-                            naming(option),
-                            style: type.label
-                                .copyWith(color: colors.content.primary),
-                          ),
-                        ],
-                      ),
-                    ),
+              IuxButton(
+                label: 'Worst case',
+                action: const IuxActionDescriptor(
+                  semantics: IuxActionSemantics(
+                    label: 'Apply the worst-case conditions',
+                    hint: 'Dark, high contrast, compact, 300% text, long '
+                        'labels',
                   ),
                 ),
+                onActivate: _applyStress,
+              ),
+              IuxButton(
+                label: 'Defaults',
+                variant: IuxButtonVariant.outlined,
+                action: const IuxActionDescriptor(
+                  role: IuxActionRole.undo,
+                  semantics: IuxActionSemantics(
+                      label: 'Return to the default '
+                          'conditions'),
+                ),
+                onActivate: _applyDefaults,
+              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  const _Panel({
-    required this.title,
-    required this.description,
-    required this.child,
-  });
-
-  final String title;
-  final String description;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final IuxSemanticColors colors = IuxSemanticColors.of(context);
-    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
-    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
-
-    return Container(
-      margin: EdgeInsets.only(bottom: geometry.spacingMd),
-      padding: EdgeInsets.all(geometry.spacingMd),
-      decoration: BoxDecoration(
-        color: colors.surface.raised,
-        border: Border.all(
-          color: colors.border.standard,
-          width: geometry.borderWidth,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(title,
-              style: type.title.copyWith(color: colors.content.primary)),
-          SizedBox(height: geometry.spacingXxs),
-          Text(
-            description,
-            style: type.supporting.copyWith(color: colors.content.secondary),
           ),
           SizedBox(height: geometry.spacingSm),
-          child,
+          CatalogChoice<Brightness>(
+            label: 'Brightness',
+            value: configuration.brightness,
+            values: Brightness.values,
+            naming: (Brightness value) => value.name,
+            onChanged: (Brightness value) => onConfigurationChanged(
+              configuration.copyWith(brightness: value),
+            ),
+          ),
+          CatalogChoice<IuxContrast>(
+            label: 'Contrast',
+            value: _profile.contrast,
+            values: IuxContrast.values,
+            naming: (IuxContrast value) => value.name,
+            onChanged: (IuxContrast value) =>
+                _updateProfile(_profile.copyWith(contrast: value)),
+          ),
+          CatalogChoice<IuxDensity>(
+            label: 'Density',
+            value: _profile.density,
+            values: IuxDensity.values,
+            naming: (IuxDensity value) => value.name,
+            onChanged: (IuxDensity value) =>
+                _updateProfile(_profile.copyWith(density: value)),
+          ),
+          CatalogChoice<IuxMotionPreference>(
+            label: 'Motion',
+            value: _profile.motion,
+            values: IuxMotionPreference.values,
+            naming: (IuxMotionPreference value) => value.name,
+            onChanged: (IuxMotionPreference value) =>
+                _updateProfile(_profile.copyWith(motion: value)),
+          ),
+          CatalogChoice<IuxTouchTargetPreference>(
+            label: 'Touch target',
+            value: _profile.touchTarget,
+            values: IuxTouchTargetPreference.values,
+            naming: (IuxTouchTargetPreference value) => value.name,
+            onChanged: (IuxTouchTargetPreference value) =>
+                _updateProfile(_profile.copyWith(touchTarget: value)),
+          ),
+          CatalogChoice<IuxVisualStimulation>(
+            label: 'Visual stimulation',
+            value: _profile.visualStimulation,
+            values: IuxVisualStimulation.values,
+            naming: (IuxVisualStimulation value) => value.name,
+            onChanged: (IuxVisualStimulation value) =>
+                _updateProfile(_profile.copyWith(visualStimulation: value)),
+          ),
+          CatalogChoice<double>(
+            label: 'Text scale',
+            value: textScale,
+            values: _scales,
+            naming: (double value) => '${value}x',
+            onChanged: onTextScaleChanged,
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Long labels', style: type.label),
+                    Text(
+                      'Replaces every sample label with one of the length a '
+                      'German or Finnish translation produces.',
+                      style: type.supporting,
+                    ),
+                  ],
+                ),
+              ),
+              Switch(value: longLabels, onChanged: onLongLabelsChanged),
+            ],
+          ),
         ],
       ),
     );

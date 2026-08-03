@@ -3,12 +3,12 @@ mission_id: IUX-008.8
 epic: IUX-008
 title: Button Catalog and Documentation
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -106,3 +106,50 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Un banc d'essai, pas une vitrine
+
+L'échelle de texte monte désormais à **300 %** (contre 200 %), et un préréglage
+« pire cas » pose sombre + contraste élevé + compact + 300 % + étiquettes
+longues en un seul appui — parce qu'à 300 %, régler six puces à la main est
+un obstacle en soi.
+
+Trois panneaux forcent l'arbre sémantique et impriment nom, indice, rôle, état
+d'activation et présence d'une action de tap. C'est ce qui rend deux des
+défauts visibles **sans appareil**.
+
+Le câblage destructif est fait honnêtement : la confirmation est confiée à un
+`IuxModalLayer` au niveau de la page, donc la partie ingrate est exposée
+plutôt que contournée.
+
+## Ce que le banc a montré
+
+Les quatre valeurs d'`IuxActionOperation` résolvent vers des jetons de peinture
+**identiques au bit près** : un bouton en échec est pixel pour pixel celui qui
+n'a jamais tourné.
+
+Un échec « levé » est complètement muet — `IuxAsyncFailure.raised` n'a pas de
+message, donc rien ne s'affiche et le bouton se dessine au repos. Refuser
+d'inventer une phrase est juste ; le silence reste un contrôle qui a échoué
+sans rien dire.
+
+Toutes les refus sont des `assert` : **une version release n'en a aucun**.
+
+## Le défaut que le banc a attrapé chez lui-même
+
+La rangée de puces du catalogue débordait de 634 px à 300 % — le contrôle
+nécessaire pour *quitter* 300 % était celui qui cassait à cet endroit.
+
+## Vérifié et sain, consigné pour que personne ne recommence
+
+`IuxTargetSpacing` est un `Wrap`, donc les rangées passent à la ligne au lieu
+de déborder. Le dialogue de confirmation et la rangée asynchrone + annulation
+survivent tous deux à 300 % sur 360×800. Une action icône mesure 84×84 à
+300 %, bien au-dessus du plancher de 48.
+
+23 tests, APK de debug construit.
