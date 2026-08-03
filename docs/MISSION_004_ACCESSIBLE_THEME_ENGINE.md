@@ -2,7 +2,12 @@
 mission_id: IUX-004
 title: Moteur de thèmes accessibles et profils combinables
 priority: critical
-status: ready
+status: completed
+started_at: 2026-08-03
+started_by: Claude
+last_updated_at: 2026-08-03
+completion_status: accepted
+validation_status: passed
 target_version: 0.1.0-dev.4
 compatibility: additive
 depends_on:
@@ -1300,3 +1305,110 @@ Ne crée aucun composant final.
 Ne crée aucun thème de marque.
 
 Ne commence pas la mission suivante.
+
+
+---
+
+# Rapport final
+
+## Résumé
+
+Moteur de thèmes accessibles séparant configuration et résolution. Six
+préférences orthogonales produisent 192 combinaisons, toutes valides, toutes
+résolues sans erreur. Le contraste renforcé est désormais combinable avec le
+clair **et** le sombre.
+
+## Audit initial
+
+État avant la mission, après IUX-003.1 : fondations et couche sémantique
+complètes, aucun thème. `IuxVisualStimulation` et
+`IuxMotionPreference.standard` manquaient dans les fondations d'IUX-002 ;
+ajoutés de façon additive.
+
+## Architecture retenue
+
+```text
+IuxThemeConfiguration  → ce qui est demandé
+        ↓
+IuxResolvedTheme       → ce qui en sort (inspectable sans ThemeData)
+        ↓
+ThemeData              → ce que Flutter consomme
+```
+
+## API publique
+
+- `IuxTheme.light()`, `IuxTheme.dark()` → `ThemeData` directement utilisable
+- `IuxTheme.fromConfiguration()`, `IuxTheme.resolve()`,
+  `IuxTheme.withSemanticColors()`
+- `IuxThemeConfiguration`, `IuxTypographyConfiguration`, `IuxResolvedTheme`
+- Extensions : `IuxTypographyTheme`, `IuxGeometryTheme`, `IuxMotionTheme`,
+  `IuxAccessibilityTheme` (+ `IuxSemanticColors` d'IUX-003.1)
+- Fondations étendues : `IuxVisualStimulation`,
+  `IuxMotionPreference.standard`, profil enrichi et comparable
+
+Aucun constructeur nommé par combinaison : le cas courant reste une ligne, et
+aucune combinaison n'est inatteignable.
+
+## Profils combinables
+
+6 axes orthogonaux — brightness, contrast, density, motion, touchTarget,
+visualStimulation. Aucun n'en implique un autre. Trois constructeurs nommés
+(`standard`, `comfortable`, `reducedMotion`) décrivent ce qu'ils règlent,
+jamais à qui ils s'adressent (ADR-0004).
+
+## Thèmes accessibles
+
+4 mappings `const` : clair et sombre, chacun en contraste standard et renforcé.
+Le contraste renforcé épaissit aussi les traits (bordure 1→2, focus 2→3) au
+lieu de seulement recolorer.
+
+## Intégration Material
+
+`ColorScheme` dérivé des rôles IUX (ADR-0002), jamais l'inverse. `surfaceTint`
+neutralisé : la teinte Material liée à l'élévation déplacerait les surfaces
+hors des valeurs mesurées. Les thèmes de composants Material ne sont
+configurés que là où un manque serait visible — boutons, chips, cards et
+navigation appartiennent aux missions suivantes.
+
+## Accessibilité
+
+Garanties : 4 profils mesurés, plancher de cible tactile tenu à toutes les
+densités et pendant les transitions, focus opaque et distinct de la sélection,
+mouvement réduit qui raccourcit sans supprimer le sens.
+
+Limites : un thème statique ne peut pas lire `MediaQuery`.
+`IuxMotionPreference.system` est explicitement non résolu et
+`respectsPlatformPreference` le signale, plutôt que de deviner. IUX-005 ferme
+l'écart.
+
+## Documentation et evidence
+
+`docs/themes/` : overview, light-and-dark, contrast, density, motion,
+touch-targets, visual-stimulation, customization, brand-theme-guidelines.
+`docs/accessibility/theme-preferences.md`. ADR-0003 et ADR-0004. Dix entrées
+`IUX-THEME-*` ajoutées à l'evidence registry, dont deux marquées `hypothesis`.
+
+## Commandes exécutées
+
+| Commande | Résultat réel |
+| --- | --- |
+| `dart format .` | 30 fichiers, 0 modifié |
+| `flutter analyze` (package) | No issues found |
+| `flutter test` (package) | 97 tests, tous passés |
+| `flutter analyze` (catalogue) | No issues found |
+| `flutter test` (catalogue) | 6 tests, tous passés |
+| `flutter build apk --debug` | `app-debug.apk` construit |
+
+## Limites et décisions différées
+
+- La préférence plateforme de mouvement reste à réconcilier (IUX-005).
+- `MediaQuery.highContrast` n'est pas fiable sur toutes les versions Android.
+- `IuxVisualStimulation` est une hypothèse non validée auprès d'utilisateurs.
+- Les 4 mappings sont maintenus à la main : ajouter un rôle impose 4 éditions.
+- Aucune validation manuelle (TalkBack, Voice Access, clavier) : aucun
+  composant n'existe encore.
+
+## Prochaine mission
+
+IUX-005 — infrastructure d'accessibilité opérationnelle, qui réconciliera les
+préférences plateforme avec le profil IUX. Non commencée.

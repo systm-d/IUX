@@ -26,11 +26,18 @@ surface.
 
 ## Verified pairs
 
-`packages/iux_flutter/test/semantics/contrast_contracts_test.dart` measures
-every pair below against both demonstration role mappings. Ratios were
-measured with the WCAG relative luminance formula.
+`packages/iux_flutter/test/themes/theme_contrast_test.dart` measures every
+pair below against all four shipped role mappings, reached through the public
+theme engine. Ratios use the WCAG relative luminance formula.
+
+The two standard mappings are tabulated below. The two high contrast mappings
+exceed every figure shown — the lowest ratio observed anywhere in them is
+4.28:1, for disabled content on a disabled surface in dark conditions, against
+a 3:1 contract.
 
 ### Content
+
+Light and Dark below are the standard contrast mappings.
 
 | Pair | Light | Dark | Required |
 | --- | --- | --- | --- |
@@ -101,8 +108,9 @@ no contrast of its own, only one relative to whatever happens to be behind it.
 
 ## Limits
 
-- These measurements cover the two demonstration mappings only. A theme written
-  by an application is not covered.
+- These measurements cover the four mappings IUX ships. A theme written by an
+  application is not covered; see
+  [../themes/brand-theme-guidelines.md](../themes/brand-theme-guidelines.md).
 - Contrast is necessary, not sufficient. It says nothing about reading order,
   screen-reader output, target size or motion.
 - Ratios apply to opaque, fully composited colors. Overlapping translucency,

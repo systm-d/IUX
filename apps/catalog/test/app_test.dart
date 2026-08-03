@@ -4,67 +4,125 @@ import 'package:iux_catalog/main.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 void main() {
-  /// Scrolls the lazily built catalog list until [label] is reachable.
-  Future<void> reveal(WidgetTester tester, String label) =>
-      tester.scrollUntilVisible(find.text(label), 200,
-          scrollable: find
-              .byType(
-                Scrollable,
-              )
-              .first);
+  /// Scrolls the lazily built catalog until [label] is mounted and visible.
+  ///
+  /// Written by hand rather than with `scrollUntilVisible`, which cannot serve
+  /// this list: a bare text finder matches several widgets once "reduced" is
+  /// mounted for both motion and visual stimulation, while narrowing it with
+  /// `.first` throws before the target exists at all.
+  Future<void> reveal(WidgetTester tester, String label) async {
+    for (int attempt = 0; attempt < 40; attempt++) {
+      if (find.text(label).evaluate().isNotEmpty) {
+        await tester.ensureVisible(find.text(label).first);
+        await tester.pumpAndSettle();
+        return;
+      }
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    fail('"$label" never became reachable in the catalog');
+  }
 
-  testWidgets('presents the semantic role groups', (WidgetTester tester) async {
+  /// Selects [label], taking the first match — the one earlier in panel order.
+  Future<void> choose(WidgetTester tester, String label) async {
+    await reveal(tester, label);
+    await tester.tap(find.text(label).first);
+    await tester.pumpAndSettle();
+  }
+
+  IuxSemanticColors colorsOf(WidgetTester tester) =>
+      IuxSemanticColors.of(tester.element(find.byType(Scaffold)));
+
+  IuxGeometryTheme geometryOf(WidgetTester tester) =>
+      IuxGeometryTheme.of(tester.element(find.byType(Scaffold)));
+
+  IuxMotionTheme motionOf(WidgetTester tester) =>
+      IuxMotionTheme.of(tester.element(find.byType(Scaffold)));
+
+  testWidgets('presents every theme dimension', (WidgetTester tester) async {
     await tester.pumpWidget(const IuxCatalogApp());
 
-    expect(find.text('IUX semantic roles'), findsOneWidget);
-    for (final String group in <String>[
-      'Content',
-      'Surface',
-      'Border',
-      'Action',
+    expect(find.text('IUX theme explorer'), findsOneWidget);
+    for (final String panel in <String>[
+      'Conditions',
+      'What this profile changed',
+      'Surfaces and content',
+      'Actions',
       'Feedback',
-      'State',
-      'Without color alone',
+      'Focus',
+      'Typography',
     ]) {
-      await reveal(tester, group);
-      expect(find.text(group), findsOneWidget, reason: '$group is missing');
+      await reveal(tester, panel);
     }
   });
 
-  testWidgets('labels every swatch with the role it represents', (
+  testWidgets('high contrast is reachable in dark conditions', (
+    WidgetTester tester,
+  ) async {
+    // The defect IUX-004 had to fix: high contrast used to force light, so a
+    // user needing both a dark interface and reinforced contrast had no
+    // option at all.
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await choose(tester, 'dark');
+    final IuxSemanticColors darkStandard = colorsOf(tester);
+
+    await choose(tester, 'high');
+    final IuxSemanticColors darkHigh = colorsOf(tester);
+
+    expect(darkHigh.surface.base, isNot(equals(darkStandard.surface.base)));
+    expect(
+      darkHigh.content.primary,
+      isNot(equals(darkStandard.content.primary)),
+    );
+  });
+
+  testWidgets('density changes spacing without shrinking touch targets', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const IuxCatalogApp());
 
-    for (final String role in <String>[
-      'content.primary',
-      'surface.base',
-      'border.focus',
-      'action.destructive',
-      'feedback.error',
-      'state.focus',
-    ]) {
-      await reveal(tester, role);
-      expect(find.text(role), findsOneWidget, reason: '$role is missing');
-    }
+    final IuxGeometryTheme standard = geometryOf(tester);
+    await choose(tester, 'compact');
+    final IuxGeometryTheme compact = geometryOf(tester);
+
+    expect(compact.spacingMd, lessThan(standard.spacingMd));
+    expect(
+      compact.minimumTouchTarget,
+      greaterThanOrEqualTo(IuxTouchTarget.minimum),
+    );
   });
 
-  testWidgets('switches between light and dark role mappings', (
+  testWidgets('requesting less motion suppresses decorative motion', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const IuxCatalogApp());
 
-    IuxSemanticColors resolve() => IuxSemanticColors.of(
-          tester.element(find.byType(Scaffold)),
-        );
+    expect(motionOf(tester).allowsNonEssentialMotion, isTrue);
+    await choose(tester, 'reduced');
+    expect(motionOf(tester).allowsNonEssentialMotion, isFalse);
+  });
 
-    final IuxSemanticColors before = resolve();
+  testWidgets('large text does not overflow the layout', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
 
+    await choose(tester, '2.0x');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long labels do not overflow the layout', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const IuxCatalogApp());
+
+    await reveal(tester, 'Long labels');
+    await tester.ensureVisible(find.byType(Switch));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
-    final IuxSemanticColors after = resolve();
-    expect(after.surface.base, isNot(equals(before.surface.base)));
-    expect(after.content.primary, isNot(equals(before.content.primary)));
+    expect(tester.takeException(), isNull);
   });
 }

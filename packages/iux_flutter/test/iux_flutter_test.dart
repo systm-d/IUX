@@ -27,13 +27,13 @@ void main() {
       );
     });
 
-    test('no component, pattern or theme is exported yet', () {
+    test('no component or pattern is exported yet', () {
       // These layers belong to later missions. Exporting a placeholder now
       // would pre-empt the API design those missions are meant to produce.
+      // Themes are legitimately exported since IUX-004.
       for (final String forbidden in <String>[
         'components/',
         'patterns/',
-        'themes/',
       ]) {
         expect(
           exports.where((String line) => line.contains(forbidden)),

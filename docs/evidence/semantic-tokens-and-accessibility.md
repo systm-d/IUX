@@ -23,7 +23,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Level**: context_dependent
 - **Scope**: IUX-003.1 onward
 - **Sources**: ADR-0002
-- **Status**: implemented; the `ColorScheme` mapping is deferred to IUX-004
+- **Status**: implemented; the `ColorScheme` mapping landed with IUX-004
 - **Limits**: an IUX design decision, not an external standard. Its cost is
   that IUX must maintain the mapping.
 
@@ -43,8 +43,8 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Level**: standard
 - **Scope**: IUX-003.1 onward
 - **Sources**: WCAG 2.2 SC 1.4.3 (AA); SC 1.4.11 (AA)
-- **Status**: verified for both demonstration mappings
-  (`test/semantics/contrast_contracts_test.dart`)
+- **Status**: verified for all four shipped mappings
+  (`test/themes/theme_contrast_test.dart`)
 - **Limits**: verified for the shipped mappings only; not a conformance claim
   for any application. WCAG 2.x contrast correlates imperfectly with perceived
   contrast, particularly in dark conditions. APCA is a candidate successor that
@@ -99,13 +99,115 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   content; it does not identify a control. Anything requiring identification
   needs a border.
 
+### IUX-THEME-001 — High contrast combines with both brightnesses
+
+- **Level**: standard
+- **Scope**: IUX-004 onward
+- **Sources**: WCAG 2.2 SC 1.4.3, SC 1.4.11
+- **Status**: implemented; four mappings measured through the public API
+  (`test/themes/theme_contrast_test.dart`)
+- **Limits**: fixes a real defect — the previous engine forced light
+  conditions under high contrast, leaving users who need both without an
+  option. Verified for the shipped mappings only.
+
+### IUX-THEME-002 — High contrast reinforces selectively, not uniformly
+
+- **Level**: context_dependent
+- **Scope**: IUX-004 onward
+- **Sources**: none external; an IUX judgement
+- **Status**: implemented — content, identifying borders, focus and engagement
+  states are reinforced; decorative separators are not
+- **Limits**: raising every value would flatten emphasis, since emphasis is
+  relative. Which aspects deserve reinforcement has not been user-tested.
+
+### IUX-THEME-003 — Outlines and focus gain thickness under high contrast
+
+- **Level**: strong_guidance
+- **Scope**: IUX-004 onward
+- **Sources**: WCAG 2.2 SC 2.4.7 Focus Visible
+- **Status**: implemented — border 1→2, strong border 2→3, focus ring 2→3
+- **Limits**: the specific widths are an IUX choice, not a standard.
+
+### IUX-THEME-004 — Density never reduces the minimum touch target
+
+- **Level**: standard
+- **Scope**: IUX-004 onward
+- **Sources**: Android accessibility (48dp); WCAG 2.2 SC 2.5.8
+- **Status**: implemented and asserted at every density
+- **Limits**: the floor is a minimum, not a recommendation. Spacing between
+  targets is a separate concern, deferred to IUX-007.
+
+### IUX-THEME-005 — The touch target never dips below the floor mid-transition
+
+- **Level**: context_dependent
+- **Scope**: IUX-004 onward
+- **Sources**: derived from SC 2.5.8
+- **Status**: implemented — `IuxGeometryTheme.lerp` holds the larger endpoint
+  and lands exactly at the bounds
+- **Limits**: an IUX decision. A linearly interpolated target is briefly
+  smaller than either theme intended, and an animation is exactly when a user
+  is likely to be reaching for something.
+
+### IUX-THEME-006 — Reduced motion shortens; no motion removes
+
+- **Level**: standard for honouring the preference, hypothesis for the factor
+- **Scope**: IUX-004 onward
+- **Sources**: WCAG 2.2 SC 2.3.3; Android "remove animations"
+- **Status**: implemented — durations halved under `reduced`, zeroed under
+  `none`, easing simplified to linear
+- **Limits**: the 0.5 factor is a heuristic, not a measured threshold. The two
+  levels are separate because for a user with a vestibular disorder an
+  essential animation is still an animation.
+
+### IUX-THEME-007 — The platform motion preference is deferred, not guessed
+
+- **Level**: context_dependent
+- **Scope**: IUX-004 onward
+- **Sources**: Flutter `MediaQueryData.disableAnimations`
+- **Status**: implemented — `respectsPlatformPreference` records that a widget
+  must still consult the platform
+- **Limits**: a static theme cannot read `MediaQuery`. The gap is explicit
+  rather than silent, and IUX-005 closes it. Until then an application that
+  must honour the setting reads it itself.
+
+### IUX-THEME-008 — The Material surface tint is disabled
+
+- **Level**: context_dependent
+- **Scope**: IUX-004 onward
+- **Sources**: Material Design 3 surface tint behaviour
+- **Status**: implemented — `surfaceTint` is fully transparent
+- **Limits**: Material 3 tints a surface as elevation rises, which would move
+  surfaces away from the measured values. The cost is that IUX diverges from
+  default Material appearance.
+
+### IUX-THEME-009 — Reduced visual stimulation never reduces legibility
+
+- **Level**: hypothesis
+- **Scope**: IUX-004 onward
+- **Sources**: none; no standard defines this preference
+- **Status**: implemented — elevation flattened and decorative motion
+  suppressed; colours, contrast and type sizes asserted identical to standard
+- **Limits**: a comfort setting, explicitly not an accommodation for any
+  condition. Not validated with users. Treat as a hypothesis.
+
+### IUX-THEME-010 — No preference is named after a population or diagnosis
+
+- **Level**: context_dependent
+- **Scope**: IUX-004 onward
+- **Sources**: ADR-0004
+- **Status**: implemented — named constructors describe what they set
+  (`comfortable`, `reducedMotion`), never who they are for
+- **Limits**: an IUX governance decision. Naming a preference after a
+  diagnosis would assert that a population shares one interface need, and
+  would invite an application to infer a diagnosis from a settings choice.
+
 ## Deferred to later missions
 
 | Subject | Mission |
 | --- | --- |
-| Theme engine, `ColorScheme` mapping, high contrast | IUX-004 |
-| Runtime accessibility preferences | IUX-005 |
-| Motion and reduced-motion policy | IUX-006 |
+| Reconciling platform preferences at runtime | IUX-005 |
+| Motion policy applied to real components | IUX-006 |
+| Spacing between interactive targets | IUX-007 |
 
 ## Manual validation register
 

@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
-import 'demonstration_palettes.dart';
-
 void main() {
   runApp(const IuxCatalogApp());
 }
 
 /// Local integration surface for the experimental IUX package.
 ///
-/// The catalog explains roles rather than promoting a palette. Every swatch is
-/// labelled with the role it represents, because the point is to make the
-/// semantic layer inspectable, not to present a finished look.
+/// The catalog explains what each profile changes, rather than showing a
+/// finished look. Nothing here is an IUX component: components arrive from
+/// IUX-008 onward, and these are plain Flutter widgets painted with resolved
+/// theme values so the theme itself can be inspected.
 class IuxCatalogApp extends StatefulWidget {
   /// Creates the catalog application.
   const IuxCatalogApp({super.key});
@@ -21,198 +20,339 @@ class IuxCatalogApp extends StatefulWidget {
 }
 
 class _IuxCatalogAppState extends State<IuxCatalogApp> {
-  Brightness _brightness = Brightness.light;
-
-  IuxSemanticColors get _colors => _brightness == Brightness.light
-      ? CatalogPalettes.light
-      : CatalogPalettes.dark;
+  IuxThemeConfiguration _configuration = const IuxThemeConfiguration();
+  double _textScale = 1;
+  bool _longLabels = false;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'IUX catalog',
-      theme: ThemeData(
-        brightness: _brightness,
-        scaffoldBackgroundColor: _colors.surface.base,
-        extensions: <ThemeExtension<dynamic>>[_colors],
-      ),
-      home: _SemanticRolesScreen(
-        brightness: _brightness,
-        onBrightnessChanged: (Brightness value) =>
-            setState(() => _brightness = value),
+      theme: IuxTheme.fromConfiguration(_configuration),
+      home: MediaQuery.withClampedTextScaling(
+        minScaleFactor: _textScale,
+        maxScaleFactor: _textScale,
+        child: _ThemeExplorer(
+          configuration: _configuration,
+          textScale: _textScale,
+          longLabels: _longLabels,
+          onConfigurationChanged: (IuxThemeConfiguration value) =>
+              setState(() => _configuration = value),
+          onTextScaleChanged: (double value) =>
+              setState(() => _textScale = value),
+          onLongLabelsChanged: (bool value) =>
+              setState(() => _longLabels = value),
+        ),
       ),
     );
   }
 }
 
-class _SemanticRolesScreen extends StatelessWidget {
-  const _SemanticRolesScreen({
-    required this.brightness,
-    required this.onBrightnessChanged,
+class _ThemeExplorer extends StatelessWidget {
+  const _ThemeExplorer({
+    required this.configuration,
+    required this.textScale,
+    required this.longLabels,
+    required this.onConfigurationChanged,
+    required this.onTextScaleChanged,
+    required this.onLongLabelsChanged,
   });
 
-  final Brightness brightness;
-  final ValueChanged<Brightness> onBrightnessChanged;
+  final IuxThemeConfiguration configuration;
+  final double textScale;
+  final bool longLabels;
+  final ValueChanged<IuxThemeConfiguration> onConfigurationChanged;
+  final ValueChanged<double> onTextScaleChanged;
+  final ValueChanged<bool> onLongLabelsChanged;
+
+  IuxAccessibilityProfile get _profile => configuration.profile;
+
+  void _updateProfile(IuxAccessibilityProfile profile) =>
+      onConfigurationChanged(configuration.copyWith(profile: profile));
 
   @override
   Widget build(BuildContext context) {
     final IuxSemanticColors colors = IuxSemanticColors.of(context);
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
+    final IuxMotionTheme motion = IuxMotionTheme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: colors.surface.subtle,
-        foregroundColor: colors.content.primary,
-        title: const Text('IUX semantic roles'),
-        actions: <Widget>[
-          Semantics(
-            label: 'Dark condition',
-            child: Switch(
-              value: brightness == Brightness.dark,
-              onChanged: (bool value) => onBrightnessChanged(
-                value ? Brightness.dark : Brightness.light,
-              ),
+      appBar: AppBar(title: const Text('IUX theme explorer')),
+      body: ListView(
+        padding: EdgeInsets.all(geometry.spacingMd),
+        children: <Widget>[
+          _Panel(
+            title: 'Conditions',
+            description: 'Every preference is independent. Any combination is '
+                'valid, and high contrast exists for dark as well as light.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _Choice<Brightness>(
+                  label: 'Brightness',
+                  value: configuration.brightness,
+                  values: Brightness.values,
+                  naming: (Brightness value) => value.name,
+                  onChanged: (Brightness value) => onConfigurationChanged(
+                    configuration.copyWith(brightness: value),
+                  ),
+                ),
+                _Choice<IuxContrast>(
+                  label: 'Contrast',
+                  value: _profile.contrast,
+                  values: IuxContrast.values,
+                  naming: (IuxContrast value) => value.name,
+                  onChanged: (IuxContrast value) =>
+                      _updateProfile(_profile.copyWith(contrast: value)),
+                ),
+                _Choice<IuxDensity>(
+                  label: 'Density',
+                  value: _profile.density,
+                  values: IuxDensity.values,
+                  naming: (IuxDensity value) => value.name,
+                  onChanged: (IuxDensity value) =>
+                      _updateProfile(_profile.copyWith(density: value)),
+                ),
+                _Choice<IuxMotionPreference>(
+                  label: 'Motion',
+                  value: _profile.motion,
+                  values: IuxMotionPreference.values,
+                  naming: (IuxMotionPreference value) => value.name,
+                  onChanged: (IuxMotionPreference value) =>
+                      _updateProfile(_profile.copyWith(motion: value)),
+                ),
+                _Choice<IuxTouchTargetPreference>(
+                  label: 'Touch target',
+                  value: _profile.touchTarget,
+                  values: IuxTouchTargetPreference.values,
+                  naming: (IuxTouchTargetPreference value) => value.name,
+                  onChanged: (IuxTouchTargetPreference value) =>
+                      _updateProfile(_profile.copyWith(touchTarget: value)),
+                ),
+                _Choice<IuxVisualStimulation>(
+                  label: 'Visual stimulation',
+                  value: _profile.visualStimulation,
+                  values: IuxVisualStimulation.values,
+                  naming: (IuxVisualStimulation value) => value.name,
+                  onChanged: (IuxVisualStimulation value) => _updateProfile(
+                    _profile.copyWith(visualStimulation: value),
+                  ),
+                ),
+                _Choice<double>(
+                  label: 'Text scale',
+                  value: textScale,
+                  values: const <double>[1, 1.5, 2],
+                  naming: (double value) => '${value}x',
+                  onChanged: onTextScaleChanged,
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('Long labels', style: type.label),
+                          Text(
+                            'Checks that a longer language does not clip or '
+                            'overflow.',
+                            style: type.supporting,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(value: longLabels, onChanged: onLongLabelsChanged),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(IuxSpacing.md),
-        children: <Widget>[
-          _Note(
-            'These mappings demonstrate the roles of ${Iux.packageName} '
-            '${Iux.version}. They are not themes, and not a brand palette. '
-            'IUX-004 replaces them with a real theme engine.',
-            colors: colors,
+          _Panel(
+            title: 'What this profile changed',
+            description: 'Resolved values, not requested ones.',
+            child: _ResolvedValues(
+              geometry: geometry,
+              motion: motion,
+              type: type,
+            ),
           ),
-          _Section(
-            title: 'Content',
-            description: 'Emphasis decreases from primary to tertiary. '
-                'Every level stays readable.',
-            colors: colors,
-            swatches: <_Swatch>[
-              _Swatch('content.primary', colors.content.primary),
-              _Swatch('content.secondary', colors.content.secondary),
-              _Swatch('content.tertiary', colors.content.tertiary),
-              _Swatch('content.disabled', colors.content.disabled),
-              _Swatch('content.link', colors.content.link),
-              _Swatch('content.onAction', colors.content.onAction),
-              _Swatch('content.inverse', colors.content.inverse),
-            ],
-          ),
-          _Section(
-            title: 'Surface',
-            description: 'Levels separate through color, so hierarchy '
+          _Panel(
+            title: 'Surfaces and content',
+            description: 'Levels separate through colour, so hierarchy '
                 'survives without a shadow.',
-            colors: colors,
-            swatches: <_Swatch>[
-              _Swatch('surface.base', colors.surface.base),
-              _Swatch('surface.subtle', colors.surface.subtle),
-              _Swatch('surface.raised', colors.surface.raised),
-              _Swatch('surface.overlay', colors.surface.overlay),
-              _Swatch('surface.interactive', colors.surface.interactive),
-              _Swatch('surface.selected', colors.surface.selected),
-              _Swatch('surface.disabled', colors.surface.disabled),
-              _Swatch('surface.inverse', colors.surface.inverse),
-            ],
+            child: _SurfaceSamples(colors: colors, geometry: geometry),
           ),
-          _Section(
-            title: 'Border',
-            description: 'Roles carry no thickness. Focus stays distinct from '
-                'selection.',
-            colors: colors,
-            swatches: <_Swatch>[
-              _Swatch('border.standard', colors.border.standard),
-              _Swatch('border.subtle', colors.border.subtle),
-              _Swatch('border.strong', colors.border.strong),
-              _Swatch('border.interactive', colors.border.interactive),
-              _Swatch('border.focus', colors.border.focus),
-              _Swatch('border.selected', colors.border.selected),
-              _Swatch('border.disabled', colors.border.disabled),
-              _Swatch('border.error', colors.border.error),
-            ],
+          _Panel(
+            title: 'Actions',
+            description: 'Each intent carries its own state contract. '
+                'Painted rectangles — the IUX button arrives in IUX-008.',
+            child: _ActionSamples(
+              colors: colors,
+              geometry: geometry,
+              type: type,
+              longLabels: longLabels,
+            ),
           ),
-          _ActionSection(colors: colors),
-          _FeedbackSection(colors: colors),
-          _Section(
-            title: 'State',
-            description: 'Transverse states. Disabled uses dedicated roles '
-                'rather than an opacity, so contrast stays predictable.',
-            colors: colors,
-            swatches: <_Swatch>[
-              _Swatch('state.focus', colors.state.focus),
-              _Swatch('state.selected', colors.state.selected),
-              _Swatch('state.hovered', colors.state.hovered),
-              _Swatch('state.pressed', colors.state.pressed),
-              _Swatch('state.dragged', colors.state.dragged),
-            ],
+          _Panel(
+            title: 'Feedback',
+            description: 'Colour is paired with an icon, so the category '
+                'survives a reader who cannot distinguish the hues.',
+            child: _FeedbackSamples(
+              colors: colors,
+              geometry: geometry,
+              type: type,
+              longLabels: longLabels,
+            ),
           ),
-          _NonColorSection(colors: colors),
+          _Panel(
+            title: 'Focus',
+            description: 'Focus stays distinct from selection: one says where '
+                'the keyboard is, the other what the user chose.',
+            child: _FocusSamples(
+              colors: colors,
+              geometry: geometry,
+              type: type,
+            ),
+          ),
+          _Panel(
+            title: 'Typography',
+            description: 'Roles, not sizes. Nothing falls below 14.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final IuxTypographyRole role in IuxTypographyRole.values)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: geometry.spacingXs),
+                    child: Text(
+                      role.name,
+                      style: type
+                          .forRole(role)
+                          .copyWith(color: colors.content.primary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Swatch {
-  const _Swatch(this.label, this.color);
-
-  final String label;
-  final Color color;
-}
-
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.description,
-    required this.colors,
-    required this.swatches,
+class _ResolvedValues extends StatelessWidget {
+  const _ResolvedValues({
+    required this.geometry,
+    required this.motion,
+    required this.type,
   });
 
-  final String title;
-  final String description;
-  final IuxSemanticColors colors;
-  final List<_Swatch> swatches;
+  final IuxGeometryTheme geometry;
+  final IuxMotionTheme motion;
+  final IuxTypographyTheme type;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      colors: colors,
-      title: title,
-      description: description,
-      child: Column(
-        children: <Widget>[
-          for (final _Swatch swatch in swatches)
-            Padding(
-              padding: const EdgeInsets.only(bottom: IuxSpacing.xs),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: IuxTouchTarget.minimum,
-                    height: IuxSpacing.lg,
-                    decoration: BoxDecoration(
-                      color: swatch.color,
-                      border: Border.all(color: colors.border.subtle),
-                    ),
-                  ),
-                  const SizedBox(width: IuxSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      swatch.label,
-                      style: TextStyle(color: colors.content.secondary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+    final List<(String, String)> rows = <(String, String)>[
+      ('Default spacing', geometry.spacingMd.toStringAsFixed(1)),
+      ('Minimum touch target', geometry.minimumTouchTarget.toStringAsFixed(0)),
+      ('Border width', geometry.borderWidth.toStringAsFixed(0)),
+      ('Focus ring width', geometry.focus.width.toStringAsFixed(0)),
+      ('Raised elevation', geometry.elevationRaised.toStringAsFixed(0)),
+      ('Standard transition', '${motion.standard.inMilliseconds} ms'),
+      (
+        'Decorative motion',
+        motion.allowsNonEssentialMotion ? 'allowed' : 'suppressed'
       ),
+      (
+        'Platform preference',
+        motion.respectsPlatformPreference ? 'still to consult' : 'overridden'
+      ),
+    ];
+
+    return Column(
+      children: <Widget>[
+        for (final (String label, String value) in rows)
+          Padding(
+            padding: EdgeInsets.only(bottom: geometry.spacingXxs),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    label,
+                    style: type.supporting
+                        .copyWith(color: colors.content.secondary),
+                  ),
+                ),
+                Text(
+                  value,
+                  style: type.label.copyWith(color: colors.content.primary),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _ActionSection extends StatelessWidget {
-  const _ActionSection({required this.colors});
+class _SurfaceSamples extends StatelessWidget {
+  const _SurfaceSamples({required this.colors, required this.geometry});
 
   final IuxSemanticColors colors;
+  final IuxGeometryTheme geometry;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<(String, Color)> surfaces = <(String, Color)>[
+      ('surface.base', colors.surface.base),
+      ('surface.subtle', colors.surface.subtle),
+      ('surface.raised', colors.surface.raised),
+      ('surface.selected', colors.surface.selected),
+      ('surface.disabled', colors.surface.disabled),
+      ('surface.inverse', colors.surface.inverse),
+    ];
+    return Column(
+      children: <Widget>[
+        for (final (String label, Color surface) in surfaces)
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(bottom: geometry.spacingXxs),
+            padding: EdgeInsets.all(geometry.spacingSm),
+            decoration: BoxDecoration(
+              color: surface,
+              border: Border.all(
+                color: colors.border.subtle,
+                width: geometry.borderWidth,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: label == 'surface.inverse'
+                    ? colors.content.inverse
+                    : colors.content.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ActionSamples extends StatelessWidget {
+  const _ActionSamples({
+    required this.colors,
+    required this.geometry,
+    required this.type,
+    required this.longLabels,
+  });
+
+  final IuxSemanticColors colors;
+  final IuxGeometryTheme geometry;
+  final IuxTypographyTheme type;
+  final bool longLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -222,85 +362,86 @@ class _ActionSection extends StatelessWidget {
       'tertiary': colors.action.tertiary,
       'destructive': colors.action.destructive,
     };
-    return _Card(
-      colors: colors,
-      title: 'Action',
-      description: 'Each intent owns its full state contract, so an action '
-          'cannot look primary while behaving destructively. These are '
-          'painted rectangles, not IUX buttons: the button arrives in '
-          'IUX-008.',
-      child: Column(
-        children: <Widget>[
-          for (final MapEntry<String, IuxActionColors> entry in intents.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: IuxSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'action.${entry.key}',
-                    style: TextStyle(color: colors.content.secondary),
-                  ),
-                  const SizedBox(height: IuxSpacing.xxs),
-                  Row(
-                    children: <Widget>[
-                      _ActionSample('rest', entry.value.foreground,
-                          entry.value.background, entry.value.border),
-                      _ActionSample('hover', entry.value.foreground,
-                          entry.value.hoveredBackground, entry.value.border),
-                      _ActionSample('press', entry.value.foreground,
-                          entry.value.pressedBackground, entry.value.border),
-                      _ActionSample(
-                        'off',
-                        entry.value.disabledForeground,
-                        entry.value.disabledBackground,
-                        colors.border.disabled,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final MapEntry<String, IuxActionColors> entry in intents.entries)
+          Padding(
+            padding: EdgeInsets.only(bottom: geometry.spacingSm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'action.${entry.key}',
+                  style: type.label.copyWith(color: colors.content.secondary),
+                ),
+                SizedBox(height: geometry.spacingXxs),
+                Wrap(
+                  spacing: geometry.spacingXs,
+                  runSpacing: geometry.spacingXs,
+                  children: <Widget>[
+                    for (final (String state, Color background, Color fg)
+                        in <(String, Color, Color)>[
+                      ('rest', entry.value.background, entry.value.foreground),
+                      (
+                        'hover',
+                        entry.value.hoveredBackground,
+                        entry.value.foreground
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                      (
+                        'press',
+                        entry.value.pressedBackground,
+                        entry.value.foreground
+                      ),
+                      (
+                        'off',
+                        entry.value.disabledBackground,
+                        entry.value.disabledForeground
+                      ),
+                    ])
+                      Container(
+                        constraints: BoxConstraints(
+                          minHeight: geometry.minimumTouchTarget,
+                          minWidth: geometry.minimumTouchTarget,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: geometry.spacingSm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: background,
+                          border: Border.all(
+                            color: entry.value.border,
+                            width: geometry.borderWidth,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          longLabels ? '$state — Bestätigungsvorgang' : state,
+                          style: type.label.copyWith(color: fg),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
 
-class _ActionSample extends StatelessWidget {
-  const _ActionSample(
-      this.label, this.foreground, this.background, this.borderColor);
-
-  final String label;
-  final Color foreground;
-  final Color background;
-  final Color borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: IuxSpacing.xs),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: IuxTouchTarget.minimum),
-        padding: const EdgeInsets.symmetric(
-          horizontal: IuxSpacing.sm,
-          vertical: IuxSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: background,
-          border: Border.all(color: borderColor),
-        ),
-        alignment: Alignment.center,
-        child: Text(label, style: TextStyle(color: foreground)),
-      ),
-    );
-  }
-}
-
-class _FeedbackSection extends StatelessWidget {
-  const _FeedbackSection({required this.colors});
+class _FeedbackSamples extends StatelessWidget {
+  const _FeedbackSamples({
+    required this.colors,
+    required this.geometry,
+    required this.type,
+    required this.longLabels,
+  });
 
   final IuxSemanticColors colors;
+  final IuxGeometryTheme geometry;
+  final IuxTypographyTheme type;
+  final bool longLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -311,139 +452,226 @@ class _FeedbackSection extends StatelessWidget {
       'warning': (colors.feedback.warning, Icons.warning_amber_outlined),
       'error': (colors.feedback.error, Icons.error_outline),
     };
-    return _Card(
-      colors: colors,
-      title: 'Feedback',
-      description: 'Each role pairs a color with an icon and wording. The '
-          'category must survive a reader who cannot distinguish the hues.',
-      child: Column(
-        children: <Widget>[
-          for (final MapEntry<String, (IuxFeedbackRoleColors, IconData)> entry
-              in roles.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: IuxSpacing.xs),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(IuxSpacing.sm),
-                decoration: BoxDecoration(
-                  color: entry.value.$1.surface,
-                  border: Border.all(color: entry.value.$1.border),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(entry.value.$2, color: entry.value.$1.icon),
-                    const SizedBox(width: IuxSpacing.xs),
-                    Expanded(
-                      child: Text(
-                        'feedback.${entry.key}',
-                        style: TextStyle(color: entry.value.$1.content),
-                      ),
-                    ),
-                  ],
-                ),
+    return Column(
+      children: <Widget>[
+        for (final MapEntry<String, (IuxFeedbackRoleColors, IconData)> entry
+            in roles.entries)
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(bottom: geometry.spacingXs),
+            padding: EdgeInsets.all(geometry.spacingSm),
+            decoration: BoxDecoration(
+              color: entry.value.$1.surface,
+              border: Border.all(
+                color: entry.value.$1.border,
+                width: geometry.borderWidth,
               ),
             ),
-        ],
-      ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(entry.value.$2, color: entry.value.$1.icon),
+                SizedBox(width: geometry.spacingXs),
+                Expanded(
+                  child: Text(
+                    longLabels
+                        ? 'feedback.${entry.key} — Die Zahlungsbestätigung '
+                            'konnte nicht abgeschlossen werden.'
+                        : 'feedback.${entry.key}',
+                    style: type.body.copyWith(color: entry.value.$1.content),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _NonColorSection extends StatelessWidget {
-  const _NonColorSection({required this.colors});
+class _FocusSamples extends StatelessWidget {
+  const _FocusSamples({
+    required this.colors,
+    required this.geometry,
+    required this.type,
+  });
 
   final IuxSemanticColors colors;
+  final IuxGeometryTheme geometry;
+  final IuxTypographyTheme type;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      colors: colors,
-      title: 'Without color alone',
-      description: 'The same four states, rendered in a single hue. If a '
-          'meaning disappears here, the role was carrying it through color '
-          'alone, and a component using it would fail for part of its users.',
-      child: Column(
-        children: <Widget>[
-          for (final (String label, IconData icon) in <(String, IconData)>[
-            ('Information', Icons.info_outline),
-            ('Completed', Icons.check_circle_outline),
-            ('Needs attention', Icons.warning_amber_outlined),
-            ('Failed', Icons.error_outline),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: IuxSpacing.xs),
-              child: Row(
-                children: <Widget>[
-                  Icon(icon, color: colors.content.primary),
-                  const SizedBox(width: IuxSpacing.xs),
-                  Text(label, style: TextStyle(color: colors.content.primary)),
-                ],
+    Widget sample(String label, Color border, double width, Widget? mark) =>
+        Container(
+          constraints: BoxConstraints(minHeight: geometry.minimumTouchTarget),
+          margin: EdgeInsets.only(bottom: geometry.spacingXs),
+          padding: EdgeInsets.all(geometry.spacingSm),
+          decoration: BoxDecoration(
+            color: colors.surface.base,
+            border: Border.all(color: border, width: width),
+          ),
+          child: Row(
+            children: <Widget>[
+              if (mark != null) ...<Widget>[
+                mark,
+                SizedBox(width: geometry.spacingXs),
+              ],
+              Text(
+                label,
+                style: type.body.copyWith(color: colors.content.primary),
               ),
-            ),
+            ],
+          ),
+        );
+
+    return Column(
+      children: <Widget>[
+        sample('Focused', colors.border.focus, geometry.focus.width, null),
+        sample(
+          'Selected',
+          colors.border.selected,
+          geometry.borderWidth,
+          Icon(Icons.check, color: colors.content.primary),
+        ),
+        sample('Resting', colors.border.standard, geometry.borderWidth, null),
+      ],
+    );
+  }
+}
+
+class _Choice<T> extends StatelessWidget {
+  const _Choice({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.naming,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> values;
+  final String Function(T) naming;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: geometry.spacingSm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style: type.label.copyWith(color: colors.content.secondary),
+          ),
+          SizedBox(height: geometry.spacingXxs),
+          Wrap(
+            spacing: geometry.spacingXs,
+            runSpacing: geometry.spacingXs,
+            children: <Widget>[
+              for (final T option in values)
+                Semantics(
+                  selected: option == value,
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () => onChanged(option),
+                    child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: geometry.minimumTouchTarget,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: geometry.spacingSm,
+                      ),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: option == value
+                            ? colors.surface.selected
+                            : colors.surface.base,
+                        border: Border.all(
+                          color: option == value
+                              ? colors.border.selected
+                              : colors.border.standard,
+                          width: option == value
+                              ? geometry.strongBorderWidth
+                              : geometry.borderWidth,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          if (option == value) ...<Widget>[
+                            Icon(
+                              Icons.check,
+                              size: 16,
+                              color: colors.content.primary,
+                            ),
+                            SizedBox(width: geometry.spacingXxs),
+                          ],
+                          Text(
+                            naming(option),
+                            style: type.label
+                                .copyWith(color: colors.content.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.colors,
+class _Panel extends StatelessWidget {
+  const _Panel({
     required this.title,
     required this.description,
     required this.child,
   });
 
-  final IuxSemanticColors colors;
   final String title;
   final String description;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: IuxSpacing.md),
-      padding: const EdgeInsets.all(IuxSpacing.md),
+      margin: EdgeInsets.only(bottom: geometry.spacingMd),
+      padding: EdgeInsets.all(geometry.spacingMd),
       decoration: BoxDecoration(
         color: colors.surface.raised,
-        border: Border.all(color: colors.border.standard),
+        border: Border.all(
+          color: colors.border.standard,
+          width: geometry.borderWidth,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Text(title,
+              style: type.title.copyWith(color: colors.content.primary)),
+          SizedBox(height: geometry.spacingXxs),
           Text(
-            title,
-            style: TextStyle(
-              color: colors.content.primary,
-              fontWeight: FontWeight.bold,
-            ),
+            description,
+            style: type.supporting.copyWith(color: colors.content.secondary),
           ),
-          const SizedBox(height: IuxSpacing.xxs),
-          Text(description, style: TextStyle(color: colors.content.secondary)),
-          const SizedBox(height: IuxSpacing.sm),
+          SizedBox(height: geometry.spacingSm),
           child,
         ],
       ),
-    );
-  }
-}
-
-class _Note extends StatelessWidget {
-  const _Note(this.text, {required this.colors});
-
-  final String text;
-  final IuxSemanticColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: IuxSpacing.md),
-      padding: const EdgeInsets.all(IuxSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.surface.subtle,
-        border: Border.all(color: colors.border.subtle),
-      ),
-      child: Text(text, style: TextStyle(color: colors.content.secondary)),
     );
   }
 }

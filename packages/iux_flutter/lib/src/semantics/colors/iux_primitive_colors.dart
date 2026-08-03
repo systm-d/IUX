@@ -68,6 +68,9 @@ abstract final class IuxPrimitiveColors {
 
   // Accent ramp. Used for primary actions, links and informational feedback.
 
+  /// Deepest accent, reserved for high contrast engagement states.
+  static const Color accent10 = Color(0xFF051838);
+
   /// Deepest accent, used for content on light accent surfaces.
   static const Color accent20 = Color(0xFF0A2C63);
 
@@ -87,6 +90,9 @@ abstract final class IuxPrimitiveColors {
   static const Color accent90 = Color(0xFFDDEBFB);
 
   // Critical ramp. Used for destructive actions and error feedback.
+
+  /// Deepest critical value, reserved for high contrast engagement states.
+  static const Color critical10 = Color(0xFF3A0508);
 
   /// Deepest critical value, used for content on light critical surfaces.
   static const Color critical20 = Color(0xFF5E0A0E);
@@ -108,6 +114,9 @@ abstract final class IuxPrimitiveColors {
 
   // Positive ramp. Used for success feedback.
 
+  /// Deepest positive value, reserved for high contrast feedback content.
+  static const Color positive10 = Color(0xFF032013);
+
   /// Deepest positive value, used for content on light positive surfaces.
   static const Color positive20 = Color(0xFF06381F);
 
@@ -127,6 +136,9 @@ abstract final class IuxPrimitiveColors {
   static const Color positive90 = Color(0xFFDDF2E7);
 
   // Caution ramp. Used for warning feedback.
+
+  /// Deepest caution value, reserved for high contrast feedback content.
+  static const Color caution10 = Color(0xFF251800);
 
   /// Deepest caution value, used for content on light caution surfaces.
   static const Color caution20 = Color(0xFF402A00);

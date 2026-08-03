@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
-import '../support/demonstration_palettes.dart';
-
 void main() {
-  const IuxSemanticColors light = IuxDemonstrationPalettes.light;
-  const IuxSemanticColors dark = IuxDemonstrationPalettes.dark;
+  // Sourced from the theme engine rather than a fixture, so these tests
+  // exercise the values IUX actually ships.
+  final IuxSemanticColors light =
+      IuxTheme.resolve(const IuxThemeConfiguration()).colors;
+  final IuxSemanticColors dark = IuxTheme.resolve(
+    const IuxThemeConfiguration(brightness: Brightness.dark),
+  ).colors;
 
   group('copyWith', () {
     test('replaces every group, not only the first one', () {
@@ -103,7 +106,7 @@ void main() {
       late IuxSemanticColors resolved;
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData(extensions: const <ThemeExtension<dynamic>>[light]),
+          theme: ThemeData(extensions: <ThemeExtension<dynamic>>[light]),
           home: Builder(
             builder: (BuildContext context) {
               resolved = IuxSemanticColors.of(context);
