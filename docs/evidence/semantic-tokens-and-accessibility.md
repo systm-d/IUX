@@ -894,6 +894,44 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   for the same reason: blocking on something the framework cannot explain is
   itself a silent refusal.
 
+### IUX-APPBAR-001 — The title is never abbreviated; the row gives instead
+
+- **Level**: standard
+- **Scope**: IUX-023 onward
+- **Sources**: WCAG 2.2 SC 1.4.4 Resize Text, SC 2.4.6 Headings and Labels
+- **Status**: implemented — `maxLines` is null, overflow is never `ellipsis`,
+  and there is no code path that abbreviates a title. When it stops fitting,
+  the controls keep their row and the title takes the one below, full width.
+- **Limits**: the decision is measured with a `TextPainter` at the real scale
+  rather than thresholded. The twelve-character readable floor and the
+  half-em-per-character conversion are a hypothesis, wrong for CJK and
+  monospace in the generous direction.
+
+### IUX-APPBAR-002 — Not a PreferredSizeWidget, on purpose
+
+- **Level**: context_dependent
+- **Scope**: IUX-023 onward
+- **Sources**: `Scaffold.appBar` reads `preferredSize` before layout
+- **Status**: implemented — `IuxAppBar` composes into the `Scaffold` body,
+  above `IuxPage`, and two tests lock it in
+- **Limits**: `preferredSize` is read with no `BuildContext`, no text scale,
+  no width and no line count, then caps the bar at that height. Material's own
+  `AppBar` fails identically one level down. Using either slot would have
+  shipped the clipped title this component exists to prevent — at the cost of
+  `SystemUiOverlayStyle`, the automatic drawer button and scroll-under, all
+  tabulated in the doc.
+
+### IUX-APPBAR-003 — The bar consumes the top inset, so the page must not
+
+- **Level**: context_dependent
+- **Scope**: IUX-023 onward
+- **Sources**: the `IuxPageInsets` design from IUX-007
+- **Status**: documented and exemplified, **not** asserted
+- **Limits**: no component can inspect its sibling, so the pairing
+  (`IuxAppBar` + `IuxPageInsets.bottomOnly`) is a convention. A composition
+  widget owning both would make the double-padding hazard unrepresentable;
+  that belongs in `patterns/`.
+
 ## Deferred to later missions
 
 | Subject | Mission |

@@ -2,12 +2,12 @@
 mission_id: IUX-023
 title: App Bar and Top-Level Structure
 priority: high
-status: ready
-started_at:
-started_by:
+status: completed
+started_at: 2026-08-03
+started_by: Claude (subagent)
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,64 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## Ce qui cède à 200 % sur 320 px
+
+La **rangée partagée**, puis la **hauteur de la barre**. Avec un retour et deux
+actions, les contrôles gardent leur rangée et le titre prend celle du dessous,
+pleine largeur — mesuré à plus de 85 % des 320 px.
+
+`maxLines` est nul, l'overflow n'est jamais `ellipsis`, `softWrap` est vrai :
+**aucun chemin de code n'abrège un titre**.
+
+La décision d'empiler est **mesurée, pas seuillée** : un `TextPainter` donne la
+largeur réelle sur une ligne à l'échelle réelle, et la largeur du bandeau de
+contrôles vient de `IuxButtonResolver` — en demandant sa géométrie au bouton
+plutôt qu'en la redéclarant.
+
+L'agent a **refusé** de brancher sur `IuxAccessibility.prefersStackedLayout` :
+sa propre documentation qualifie le seuil de 1,3× d'heuristique, et il
+empilerait un titre de deux mots sur une tablette tout en laissant un titre
+long à l'étroit à 100 % sur un téléphone.
+
+## Pas un `PreferredSizeWidget`, et la raison est honnête
+
+`Scaffold.appBar` lit `preferredSize` **avant** la mise en page : sans
+`BuildContext`, sans échelle de texte, sans largeur, sans nombre de lignes —
+puis plafonne la barre à cette hauteur. L'`AppBar` de Material échoue de la
+même façon un étage plus bas.
+
+Utiliser l'un ou l'autre aurait livré exactement le titre tronqué que ce
+composant existe pour empêcher. `IuxAppBar` se compose donc dans le *corps* du
+`Scaffold`, au-dessus d'`IuxPage` — le précédent posé par `IuxPage` qui se
+compose au lieu d'absorber. Deux tests le verrouillent.
+
+Le coût est tabulé dans la doc : `SystemUiOverlayStyle`, bouton de tiroir
+automatique, scroll-under.
+
+## Garanties de nommage
+
+`actions` est typé `List<IuxIconButton>`, pas `List<Widget>` : une action sans
+nom est **irreprésentable par le typage**, et la barre hérite de l'anneau de
+focus, des sémantiques désactivées et du plancher tactile au lieu d'un chemin
+parallèle.
+
+`IuxAppBarLeading.back` / `.close` exigent un libellé non vide fourni par
+l'appelant. `Icons.arrow_back` déclare `matchTextDirection`, donc le miroir RTL
+est gratuit.
+
+## Tests
+
+34 nouveaux tests.
+
+## Limite non machinée
+
+La barre consomme l'inset haut, donc la page en dessous doit être en
+`IuxPageInsets.bottomOnly`. Aucun composant ne peut inspecter son frère : c'est
+documenté et illustré, pas asserté. Un widget de composition possédant les deux
+rendrait le double-padding irreprésentable — cela appartient à `patterns/`.
