@@ -1820,6 +1820,48 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Status**: open. Cancelling a destructive confirmation costs four Tab
   presses to recover; Flutter's own dialog restores focus at cost zero.
 
+### IUX-EXPAND-CRASH-001 — `expand: true` inside `IuxTargetSpacing` throws (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxButton`, `IuxTargetSpacing`
+- **Status**: **open, found by the catalog putting the obvious call on screen.**
+  Two stacked full-width buttons — the most obvious thing anyone writes —
+  fails with *BoxConstraints forces an infinite width* at
+  `iux_button.dart:417`, because `IuxTargetSpacing` is a `Wrap` on both axes.
+- **The workaround costs the guarantee**: `Column` plus `IuxGap` works and
+  gives up the 8 px target floor that `IuxTargetSpacing` exists to provide.
+  Both arrangements are now on screen in the catalog.
+
+### IUX-OVERLAY-001 — the scroll loss also disposes the opener (WORSE THAN RECORDED)
+
+- **Status**: still open, and worse than the original entry said. The rebuild
+  does not merely lose a scroll position: it **disposes** the panel that was
+  scrolled to, so its callback throws `setState() called after dispose()` on
+  the very tap that answered the dialog.
+
+### IUX-PROGRESS-LABEL-001 — `valueLabel` is unchecked against `value` (OPEN)
+
+- **Level**: standard
+- **Sources**: WCAG 2.2 SC 1.1.1
+- **Status**: open. A 45% bar can announce "90%", so the two audiences are
+  told different things and neither is warned.
+
+### IUX-RAIL-OVERFLOW-001 — the rail can be wider than its own window (OPEN)
+
+- **Level**: standard
+- **Status**: open. At 300% in a 360x320 box the leftover is negative and the
+  `Row` overflows by 36 px. IUX-025's rule weighs *how much is left over* and
+  never asks whether the rail fits at all.
+
+### IUX-DRAWER-LABEL-001 — a longer dismiss label overflows, and text scale fixes it (OPEN)
+
+- **Level**: context_dependent
+- **Status**: open. `dismissLabel: 'Close the menu'` overflows the drawer
+  header by 7.5 px at **100%** text on 800- and 1200-wide surfaces, while
+  `'Close'` does not — the panel caps near 280 px whatever the screen. It only
+  stacks past about 130% text, so **enlarging the text fixes it and leaving it
+  alone does not**. Pinned by a catalog test.
+
 ## Deferred to later missions
 
 | Subject | Mission |

@@ -2,12 +2,12 @@
 mission_id: IUX-037
 title: Catalog Consolidation
 priority: high
-status: ready
+status: completed
 started_at:
 started_by:
 last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,65 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'audit : sept fichiers orphelins
+
+Le travail survivant n'était ni propre à l'analyse ni **câblé**.
+`status_panels.dart` avait été coupé en plein import, et surtout — ce que
+`flutter analyze` ne peut structurellement pas voir — `main.dart` avait encore
+une énumération de sections à trois valeurs. Les **sept** nouveaux fichiers
+étaient donc du code mort, jamais construit une seule fois.
+
+Les câbler a immédiatement produit deux plantages réels.
+
+## Sept constats, dont un plantage sur l'appel le plus évident
+
+**`IuxButton(expand: true)` dans `IuxTargetSpacing` lève une exception.** Deux
+boutons pleine largeur empilés — ce que n'importe qui écrit en premier —
+échouent sur *BoxConstraints forces an infinite width*, parce que
+`IuxTargetSpacing` est un `Wrap` sur les deux axes. Le contournement
+(`Column` + `IuxGap`) fonctionne en **abandonnant le plancher d'espacement de
+8 px que ce primitif existe précisément pour garantir**. Les deux dispositions
+sont désormais à l'écran.
+
+**Ouvrir un modal détruit le widget qui l'a ouvert.** IUX-OVERLAY-001 était
+documenté comme une perte de position de défilement ; la reconstruction
+**dispose** aussi le panneau, dont le rappel lève alors
+`setState() called after dispose()` sur le tap même qui répond au dialogue.
+
+**Un libellé de fermeture plus long déborde l'en-tête du tiroir de 7,5 px à
+100 % de texte**, sur des surfaces de 800 et 1200 de large — et il ne
+s'empile qu'au-delà d'environ 130 %. Autrement dit : **agrandir le texte
+corrige le problème, ne rien faire ne le corrige pas.**
+
+**Le rail peut être plus large que sa propre fenêtre** : à 300 % dans une
+boîte de 360×320, le reste est négatif et la `Row` déborde de 36 px. La règle
+pèse ce qui *reste*, elle ne demande jamais si le rail *tient*.
+
+**`IuxProgressIndicator.valueLabel` n'est pas confronté à `value`** : une
+barre à 45 % peut annoncer « 90 % ». Les deux publics reçoivent des
+informations différentes et aucun n'est averti.
+
+**Cinq pages de documentation périmées**, dont deux qui nient l'existence
+d'emplacements d'`IuxModalLayer` que le catalogue utilise désormais, et une qui
+affirme « Assertée. » là où il n'y a aucune assertion — le composant choisit
+silencieusement la barre.
+
+## Navigabilité traitée comme un problème, pas ignorée
+
+Treize sections plus sept rangées de conditions dépassaient un écran à 300 %.
+L'en-tête se replie donc en gardant une ligne de résumé qui nomme la
+combinaison — une capture à en-tête replié reste une preuve.
+
+## Retenu délibérément
+
+Deux scènes produisent des échecs de debug qui feraient tomber le harnais.
+Elles impriment les nombres mesurés et retiennent l'échantillon, plutôt que de
+faire semblant.
+
+36 tests, APK de debug construit.

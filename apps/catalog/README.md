@@ -36,13 +36,61 @@ prove only that the panel was written to survive it.
 long labels. At 300% the chips are large enough that setting six of them by hand
 is its own obstacle, which is the reason the preset exists.
 
+**The header folds away.** With thirteen sections the chooser and the seven
+condition rows were most of the first screen at 100% and rather more than one
+screen at 300%, so the panel a maintainer came to look at started below the
+fold. It opens by default — a harness whose axes are hidden until discovered is
+a harness that gets used at 100% forever — and the summary line survives the
+fold, so a screenshot of a folded header still says which combination produced
+it.
+
 ## Sections
 
-- **Buttons** — the button system and the action model behind it. This is what
-  the catalog opens on.
-- **Theme** — what a profile resolves to, drawn as bare rectangles, so the theme
-  can be inspected without a component's own decisions in the way.
-- **Runtime** — the accessibility, motion, feedback and layout runtimes.
+Ordered the way the library is built: the things a user touches, then the things
+that arrange them, then the patterns made out of both, then the two engines
+underneath.
+
+| Section | Covers |
+| --- | --- |
+| **Buttons** | the button system and the action model behind it; what the catalog opens on |
+| **Inputs** | text field, checkbox, switch, radio group, selection groups |
+| **Forms** | `IuxForm`, the validation summary, the guided form |
+| **Search** | the query box and the four states a search is ever in |
+| **Cards and lists** | cards, rows, groups, separators, selectable rows |
+| **Media and status** | glyphs, avatars, images, statuses, chips, badges |
+| **Layout** | breakpoints, pages, sections, surfaces, spacing, reading width |
+| **Navigation** | app bar, bottom bar, rail, adaptive, drawer, tabs |
+| **Overlays** | dialog, bottom sheet, transient messages, tooltip |
+| **Feedback** | alerts, banners, progress |
+| **Flows** | empty state, error recovery, loading and retry, permission rationale, destructive flow, disclosure |
+| **Theme** | what a profile resolves to, drawn as bare rectangles |
+| **Runtime** | the accessibility, motion, feedback and layout runtimes |
+
+Every panel of every section ends in a **refusal panel** listing what that part
+of the API will not let you build. They are all `assert`, so a release build has
+none of them, and each one says so.
+
+### Coverage against the barrel
+
+Everything exported from `lib/iux_flutter.dart` has a panel. The exceptions,
+stated rather than left to be discovered:
+
+- `lib/src/patterns/onboarding/` exists on disk but is **not exported**, so it
+  is not public API and has no panel.
+- `IuxProgressIndicator` appears twice on purpose — in **Runtime** for its
+  interaction with the motion preference, and in **Feedback** for its own
+  contract.
+- Token classes (`*_tokens.dart`) are resolved by the components that consume
+  them and are inspected in **Theme** rather than given panels of their own.
+
+## The overlays are owned by the page
+
+Four sections need a dialog, a sheet, a drawer or a transient strip, and all
+four are placed **once**, in `main.dart`, through one `IuxModalLayer` and one
+`IuxTransientLayer`. That is not a catalog convenience: it is the arrangement
+the library requires, and building it anywhere else is how an application ends
+up with two scrims. `catalog_overlays.dart` is the owner, and the panels hand it
+values rather than opening anything themselves.
 
 ## The button panels, and what each one is checking
 
@@ -155,6 +203,97 @@ build has none of them. They catch a developer, not a user.
 - `IuxActionRole` has no value for archiving. `custom` is the only fit, and it
   tells the semantics layer nothing.
 
+### 8. `IuxButton(expand: true)` inside `IuxTargetSpacing` throws
+
+Two full-width buttons stacked with the library's own spacing primitive is the
+most ordinary thing a caller can write:
+
+```dart
+IuxTargetSpacing(children: <Widget>[
+  IuxButton(label: 'Keep', expand: true, …),
+  IuxButton(label: 'Delete', expand: true, …),
+])
+```
+
+`IuxTargetSpacing` is a `Wrap` on **both** axes, a `Wrap` offers its children no
+width, and `expand` is a `SizedBox(width: double.infinity)`. The layout fails on
+*BoxConstraints forces an infinite width* at `iux_button.dart:417`. The button's
+own comment says the loud failure is intended for an unbounded `Row`; nothing
+anticipated that `IuxTargetSpacing` would be one. The workaround — a `Column`
+with `IuxGap` — gives up the eight-pixel target floor the primitive exists to
+guarantee. See the **Layout** section, where both arrangements are shown.
+
+### 9. Opening a modal can destroy the widget that opened it
+
+`IUX-OVERLAY-001` is documented as a lost scroll position. The undocumented half
+is that the rebuild **disposes** any panel that had been scrolled to, so a
+callback closing over that panel's `setState` fires on a dead `State`:
+
+```
+setState() called after dispose(): _DialogPanelState#9a73d
+  (lifecycle state: defunct, not mounted)
+```
+
+thrown from the tap that answered the dialog. Anything an overlay's controls
+report has to outlive the widget that opened it, which is why the catalog's
+counters live on `CatalogOverlays`. See the **Overlays** section.
+
+### 10. A long `dismissLabel` overflows the navigation drawer's header
+
+Measured: `dismissLabel: 'Close the menu'` overflows by **7.5 pixels** at 100%
+text, on an 800-wide surface and again on a 1200-wide one. `'Close'` does not.
+The panel is capped at a readable width of about 280 whatever the screen, so a
+wider screen never helps; the header is `Row([Expanded(title), gap, dismiss])`
+and once the dismissal's intrinsic width plus the gap exceeds the content width
+the `Expanded` is handed negative space. The row stacks instead of sharing a
+line only past roughly 130% text — so *enlarging* the text fixes it and leaving
+it alone does not, which is the opposite of every other size failure here.
+Reproduce from the **Navigation** section's "Dismiss label" chooser; pinned by a
+test.
+
+### 11. `IuxAdaptiveNavigation` picks a rail wider than its own window
+
+On a landscape box past the stacked-text threshold the component takes the rail
+even when the content budget fails, and the argument for that is sound: the bar
+there is a full-width list that would leave zero content. But the reasoning
+weighs how much is *left over* and never asks whether the rail fits at all. At
+300% text in a **360 × 320** box the rail asks for more than the whole box, the
+leftover is negative, and the `Row` overflows by **36 pixels** — a debug error
+rather than the degradation the documentation promises. A rail placed by hand
+gets no refusal and no warning either.
+
+### 12. `IuxProgressIndicator.valueLabel` is unchecked against `value`
+
+`IuxProgressIndicator(value: 0.45, valueLabel: '90%')` compiles and renders: a
+bar at 45% announcing ninety. The parameter exists for a good reason — IUX
+cannot compose a percentage, because `%`, `٪` and `45 %` are all locale
+decisions — but nothing compares the two, and the announcement is what a
+screen-reader user receives. The two audiences are told different things. See
+the **Feedback** section's "Value label" chooser.
+
+### 13. Documentation that no longer matches the code
+
+Four pages describe limits that have since been fixed, and each would send a
+reader off to build a workaround they do not need:
+
+- `docs/components/app-bar.md` — "Not exported from the barrel." It is exported,
+  at `iux_flutter.dart:16`.
+- `docs/components/bottom-sheet.md` — "`IuxModalLayer` cannot hold it. Its slot
+  is `IuxDialog?`." The `sheet` slot exists and this catalog uses it.
+- `docs/components/navigation-drawer.md` — "No `IuxModalLayer` slot." The
+  `drawer` slot exists and this catalog uses it.
+- `docs/patterns/loading-and-retry.md` — still describes a running retry as
+  announced *unavailable* and dropped from the focus order. IUX-038 fixed that;
+  the source docstring on `IuxLoadingRetry` now says the opposite of the page.
+
+And one that describes a guarantee the code does not make:
+
+- `docs/components/navigation-rail.md` — an unbounded box "fails loudly rather
+  than silently … **Asserted.**" There is no assertion. The private width check
+  returns false for an unbounded constraint, so the widget silently chooses the
+  bar; a caller who put it in a scroll view gets the phone arrangement on a
+  tablet and no warning at all.
+
 ## What was checked and found sound
 
 Worth recording, because a suspicion that turned out to be wrong is still work
@@ -169,10 +308,17 @@ somebody would otherwise repeat.
 
 ## Testing the harness
 
-`test/app_test.dart` walks every panel of every section, taps through the
-destructive and asynchronous scenarios, and asserts that the worst case
-survives both the default surface and a 360-wide phone — the narrowest Android
-width still shipped in volume.
+`test/app_test.dart` builds **every section** and checks that its first panel
+renders — the one thing `flutter analyze` cannot do, because a section wired to
+a page nobody built still compiles. It taps through the destructive,
+asynchronous and overlay scenarios, folds and unfolds the header, and asserts
+that the worst case survives both the default surface and a 360-wide phone, the
+narrowest Android width still shipped in volume.
+
+Two tests pin defects rather than behaviour, and both say so: a long
+`dismissLabel` must still overflow the drawer header, and the bottom bar must
+still grow taller rather than narrower at 300%. The day either stops being true
+the test fails, which is when the corresponding finding above should be struck.
 
 The tests scroll by hand rather than with `scrollUntilVisible`, and they pump a
 fixed number of frames rather than settling: `pumpAndSettle` never returns once
@@ -189,3 +335,11 @@ that constraint.
   readout narrows what has to be checked there; it does not replace it.
 - The section switch rebuilds the list, so a scroll position is not kept
   between sections.
+- **Two limits cannot be shown without stopping the thing showing them.** A
+  fourth app-bar action and an adaptive box too narrow for its own rail both
+  produce a debug failure that would take the harness down, so those panels
+  print the measured numbers and withhold the sample. Everything else that
+  looked wrong is on screen.
+- The drawer's overflowing dismiss label *is* built, behind a chooser that is
+  off by default. Turning it on renders a real debug overflow, which is the
+  point.

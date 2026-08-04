@@ -202,7 +202,7 @@ class _IconActionPanel extends StatelessWidget {
                   'Delete this row'
                 ),
               ])
-                _Measured(
+                CatalogMeasured(
                   child: IuxIconButton(
                     icon: icon,
                     action: IuxActionDescriptor(
@@ -485,7 +485,7 @@ class _WrappingPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const CatalogSubheading('natural width'),
-          _Measured(
+          CatalogMeasured(
             child: IuxButton(
               label: label,
               action: _descriptor(IuxActionIntent.primary, long: longLabels),
@@ -874,66 +874,5 @@ class _RefusalPanel extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// Reports the size a control actually occupied.
-///
-/// A touch target that meets its floor in the default profile and loses it at
-/// 300% is a target nobody measures, because the number is invisible. This
-/// prints it, next to the floor the profile resolved, so the comparison is on
-/// screen rather than in a test nobody runs by hand.
-class _Measured extends StatefulWidget {
-  const _Measured({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_Measured> createState() => _MeasuredState();
-}
-
-class _MeasuredState extends State<_Measured> {
-  final GlobalKey _key = GlobalKey();
-  Size? _size;
-
-  @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
-
-    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
-    final IuxTypographyTheme type = IuxTypographyTheme.of(context);
-    final IuxSemanticColors colors = IuxSemanticColors.of(context);
-    final Size? size = _size;
-    final double floor = geometry.minimumTouchTarget;
-    final bool short = size != null && (size.height + 0.5) < floor;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        KeyedSubtree(key: _key, child: widget.child),
-        SizedBox(height: geometry.spacingXxs),
-        Text(
-          size == null
-              ? 'measuring…'
-              : '${size.width.toStringAsFixed(0)}'
-                  ' × ${size.height.toStringAsFixed(0)}'
-                  ' (floor ${floor.toStringAsFixed(0)})'
-                  '${short ? ' — under the floor' : ''}',
-          style: type.supporting.copyWith(
-            color: short
-                ? colors.feedback.error.content
-                : colors.content.secondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _measure() {
-    if (!mounted) return;
-    final Size? size = _key.currentContext?.size;
-    if (size == null || size == _size) return;
-    setState(() => _size = size);
   }
 }
