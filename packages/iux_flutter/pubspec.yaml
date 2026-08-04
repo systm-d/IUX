@@ -17,6 +17,15 @@ version: 0.2.0-dev.1
 # directory". Remove this line once the licence has been chosen — see
 # docs/MISSION_040_PERFORMANCE_AND_PACKAGE_AUDIT.md for the rest of the
 # checklist.
+repository: https://github.com/systm-d/IUX
+issue_tracker: https://github.com/systm-d/IUX/issues
+
+# Still not published. The licence question is settled (MIT) and
+# `dart pub publish --dry-run` is clean, but publishing is a separate
+# decision from being publishable — and several defects in
+# docs/evidence/semantic-tokens-and-accessibility.md are still open,
+# including the fact that nothing has ever been validated on a real
+# device with a screen reader.
 publish_to: none
 
 # No `repository:` or `homepage:`. `dart pub publish --dry-run` recommends one

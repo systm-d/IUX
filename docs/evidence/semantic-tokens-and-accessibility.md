@@ -2200,12 +2200,16 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   probe shows `assert(label.isNotEmpty)` in a `const` constructor fails, so the
   lint would take `const` off every widget that refuses an empty label.
 
-### IUX-PUBLISH-001 — The package cannot be published, and the reason is not technical (OPEN)
+### IUX-PUBLISH-001 — The package cannot be published, and the reason is not technical (RESOLVED)
 
-- **Status**: open. `dart pub publish --dry-run` fails on one blocker:
-  `LICENSE` is a placeholder that explicitly **grants no permission** to use,
-  copy or distribute. For a project whose stated purpose is an open-source
-  framework, that is the single thing standing between it and a release.
+- **Status**: resolved. The project owner chose **MIT**. `LICENSE` is now a
+  real MIT licence at the repository root and in the package, and
+  `dart pub publish --dry-run` passes with no errors — `repository` and
+  `issue_tracker` now point at the GitHub project.
+- **`publish_to: none` deliberately stays.** Being publishable and being ready
+  to publish are different questions, and the answer to the second is still
+  no: defects remain open in this file, and nothing has ever been validated on
+  a real device with a screen reader.
 - Also open: the package `CHANGELOG.md` says `0.1.0-dev.1`, the pubspec says
   `0.1.0-dev.9`, and the repository changelog says `0.1.0-dev.11` — three
   files and no two agreeing.

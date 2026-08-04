@@ -11,12 +11,18 @@ claim WCAG conformance or universal accessibility.
 
 ## Status
 
-The package is **not publishable and not a release candidate**, and both
-statements are load-bearing rather than modest.
+The package is **licensed but not a release candidate**, and the distinction is
+load-bearing rather than modest.
 
-`LICENSE` is a placeholder that grants no permission to use, copy or distribute
-anything here. Until the project owner chooses a licence, nobody may legally
-depend on this, and `dart pub publish` refuses for that reason.
+IUX is **MIT licensed**, so you may legally use, copy, modify and distribute
+it, and `dart pub publish --dry-run` now passes without an error.
+
+What is still true is that it is not ready. `publish_to: none` stays on
+purpose: being publishable and being ready to publish are different questions,
+and the second answer is still no. Most decisively, **nothing here has ever
+been validated on a real device with a screen reader** — every accessibility
+claim in this repository is measured on a semantics tree in a unit test, which
+is a great deal and is not the same thing.
 
 Twenty-two entries in
 [docs/evidence/semantic-tokens-and-accessibility.md](docs/evidence/semantic-tokens-and-accessibility.md)
@@ -57,9 +63,8 @@ dart --version
 
 ## Using it in an application
 
-The package sets `publish_to: none` and has no licence, so there is no pub.dev
-install and adding one would be premature. The only supported dependency today
-is a path:
+The package sets `publish_to: none`, so there is no pub.dev install yet. The
+only supported dependency today is a path:
 
 ```yaml
 dependencies:
