@@ -3,6 +3,7 @@ import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
 import 'catalog_overlays.dart';
+import 'catalog_testable.dart';
 
 /// The things that appear over the page, and the one that appears under it.
 ///
@@ -138,14 +139,19 @@ class _DialogPanelState extends State<_DialogPanel> {
             onChanged: (bool value) => setState(() => _withContent = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxButton(
-            label: 'Ask the question',
-            action: const IuxActionDescriptor(
-              semantics: IuxActionSemantics(
-                label: 'Open the confirmation dialog',
+          CatalogTestable(
+            what: 'Opens the dialog over the whole page. Answering it or '
+                'dismissing it changes the counts below — and focus lands on '
+                'the dialog itself rather than on either action.',
+            child: IuxButton(
+              label: 'Ask the question',
+              action: const IuxActionDescriptor(
+                semantics: IuxActionSemantics(
+                  label: 'Open the confirmation dialog',
+                ),
               ),
+              onActivate: _open,
             ),
-            onActivate: _open,
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -304,12 +310,17 @@ class _SheetPanelState extends State<_SheetPanel> {
             onChanged: (bool value) => setState(() => _withField = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxButton(
-            label: 'Open the sheet',
-            action: const IuxActionDescriptor(
-              semantics: IuxActionSemantics(label: 'Open the options sheet'),
+          CatalogTestable(
+            what: 'Opens the sheet from the bottom edge. Choosing a row closes '
+                'it; with the field in it instead, focusing the field lifts '
+                'the sheet clear of the keyboard.',
+            child: IuxButton(
+              label: 'Open the sheet',
+              action: const IuxActionDescriptor(
+                semantics: IuxActionSemantics(label: 'Open the options sheet'),
+              ),
+              onActivate: _open,
             ),
-            onActivate: _open,
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -423,36 +434,41 @@ class _TransientPanelState extends State<_TransientPanel> {
             onChanged: (bool value) => setState(() => _withAction = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxTargetSpacing(
-            axis: Axis.horizontal,
-            children: <Widget>[
-              IuxButton(
-                label: 'Show it',
-                action: const IuxActionDescriptor(
-                  semantics: IuxActionSemantics(
-                    label: 'Show the transient message',
+          CatalogTestable(
+            what: 'Shows a message at the bottom edge that leaves on its own. '
+                'Press "Replace it" before the first one goes and watch the '
+                'first disappear unread — nothing recovers it.',
+            child: IuxTargetSpacing(
+              axis: Axis.horizontal,
+              children: <Widget>[
+                IuxButton(
+                  label: 'Show it',
+                  action: const IuxActionDescriptor(
+                    semantics: IuxActionSemantics(
+                      label: 'Show the transient message',
+                    ),
+                  ),
+                  onActivate: () =>
+                      widget.overlays.showNotice(_message(long: long)),
+                ),
+                IuxButton(
+                  label: 'Replace it',
+                  variant: IuxButtonVariant.outlined,
+                  action: const IuxActionDescriptor(
+                    semantics: IuxActionSemantics(
+                      label: 'Replace the transient message with another',
+                      hint: 'The first one is lost',
+                    ),
+                  ),
+                  onActivate: () => widget.overlays.showNotice(
+                    const IuxTransientMessage(
+                      text: 'The April invoice was archived too',
+                      dismissLabel: 'Dismiss',
+                    ),
                   ),
                 ),
-                onActivate: () =>
-                    widget.overlays.showNotice(_message(long: long)),
-              ),
-              IuxButton(
-                label: 'Replace it',
-                variant: IuxButtonVariant.outlined,
-                action: const IuxActionDescriptor(
-                  semantics: IuxActionSemantics(
-                    label: 'Replace the transient message with another',
-                    hint: 'The first one is lost',
-                  ),
-                ),
-                onActivate: () => widget.overlays.showNotice(
-                  const IuxTransientMessage(
-                    text: 'The April invoice was archived too',
-                    dismissLabel: 'Dismiss',
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -544,27 +560,33 @@ class _TooltipPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              IuxTooltip(
-                message: short,
-                child: IuxIconButton(
-                  icon: Icons.search,
-                  action: const IuxActionDescriptor(
-                    semantics: IuxActionSemantics(
-                      label: 'Search the invoices',
+          CatalogTestable(
+            what: 'Long-press the glyph, or move keyboard focus to it: the '
+                'message appears above it. An ordinary tap does nothing — the '
+                'control is here to carry the tooltip, and nothing on screen '
+                'says the gesture exists.',
+            child: Row(
+              children: <Widget>[
+                IuxTooltip(
+                  message: short,
+                  child: IuxIconButton(
+                    icon: Icons.search,
+                    action: const IuxActionDescriptor(
+                      semantics: IuxActionSemantics(
+                        label: 'Search the invoices',
+                      ),
                     ),
+                    onActivate: () {},
                   ),
-                  onActivate: () {},
                 ),
-              ),
-              SizedBox(width: geometry.spacingSm),
-              Text(
-                'Long press, or focus it',
-                style:
-                    type.supporting.copyWith(color: colors.content.secondary),
-              ),
-            ],
+                SizedBox(width: geometry.spacingSm),
+                Text(
+                  'Long press, or focus it',
+                  style:
+                      type.supporting.copyWith(color: colors.content.secondary),
+                ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[

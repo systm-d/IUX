@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 
 /// Search, in the four states a search is ever in.
 ///
@@ -83,15 +84,20 @@ class _SearchPanelsState extends State<SearchPanels> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              IuxSearchField(
-                label: widget.longLabels
-                    ? 'Rechnungen und Gutschriften durchsuchen'
-                    : 'Search invoices',
-                hint: 'Results update as you type',
-                placeholder: 'Costa',
-                clearLabel: 'Clear the search',
-                controller: _query,
-                onChanged: (String _) => setState(() {}),
+              CatalogTestable(
+                what: 'Type in it. The results in the panel below filter as '
+                    'you type, and a named control to clear the query appears '
+                    'only once there is something to clear.',
+                child: IuxSearchField(
+                  label: widget.longLabels
+                      ? 'Rechnungen und Gutschriften durchsuchen'
+                      : 'Search invoices',
+                  hint: 'Results update as you type',
+                  placeholder: 'Costa',
+                  clearLabel: 'Clear the search',
+                  controller: _query,
+                  onChanged: (String _) => setState(() {}),
+                ),
               ),
               const CatalogNote(
                 'Clearing returns focus to the box rather than dropping it. '

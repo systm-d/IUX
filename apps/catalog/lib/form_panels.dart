@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 
 /// Forms, and what happens to a user who gets one wrong.
 ///
@@ -146,49 +147,55 @@ class _FormPanelState extends State<_FormPanel> {
                 setState(() => _timing = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxForm(
-            timing: _timing,
-            summary: _withSummary
-                ? IuxValidationSummaryLabels(
-                    categoryLabel: 'Error',
-                    navigationHint: 'Go to this question',
-                    describeCount: (int count) => count == 1
-                        ? '1 question needs your attention'
-                        : '$count questions need your attention',
-                  )
-                : null,
-            submit: IuxFormSubmit(
-              label: long ? 'Rechnung jetzt absenden' : 'Send the invoice',
-              action: const IuxActionDescriptor.primary(
-                semantics: IuxActionSemantics(label: 'Send the invoice'),
+          CatalogTestable(
+            what: 'Press the submit control with the questions empty. The '
+                'submission is refused, the counts below change, and focus '
+                'moves to the list of problems — a move a sighted reader may '
+                'not notice, so look for where the outline lands.',
+            child: IuxForm(
+              timing: _timing,
+              summary: _withSummary
+                  ? IuxValidationSummaryLabels(
+                      categoryLabel: 'Error',
+                      navigationHint: 'Go to this question',
+                      describeCount: (int count) => count == 1
+                          ? '1 question needs your attention'
+                          : '$count questions need your attention',
+                    )
+                  : null,
+              submit: IuxFormSubmit(
+                label: long ? 'Rechnung jetzt absenden' : 'Send the invoice',
+                action: const IuxActionDescriptor.primary(
+                  semantics: IuxActionSemantics(label: 'Send the invoice'),
+                ),
+                onSubmit: () => setState(() => _submitted++),
+                onBlocked: () => setState(() => _blocked++),
               ),
-              onSubmit: () => setState(() => _submitted++),
-              onBlocked: () => setState(() => _blocked++),
-            ),
-            sections: <IuxFormSection>[
-              IuxFormSection(
-                title: long ? 'Angaben zur Rechnung' : 'Invoice details',
-                description: 'Every question here is required.',
-                fields: <IuxFormField>[
-                  for (final _Question field in _fields)
-                    IuxFormField(
-                      input: _inputFor(field, long: long),
-                      focusNode: field.focusNode,
-                      edited: field.edited,
-                      onValidationRequested: (IuxValidationTrigger _) =>
-                          setState(field.check),
-                      child: IuxTextField(
+              sections: <IuxFormSection>[
+                IuxFormSection(
+                  title: long ? 'Angaben zur Rechnung' : 'Invoice details',
+                  description: 'Every question here is required.',
+                  fields: <IuxFormField>[
+                    for (final _Question field in _fields)
+                      IuxFormField(
                         input: _inputFor(field, long: long),
-                        controller: field.controller,
                         focusNode: field.focusNode,
-                        onChanged: (String _) => setState(() {
-                          field.edited = true;
-                        }),
+                        edited: field.edited,
+                        onValidationRequested: (IuxValidationTrigger _) =>
+                            setState(field.check),
+                        child: IuxTextField(
+                          input: _inputFor(field, long: long),
+                          controller: field.controller,
+                          focusNode: field.focusNode,
+                          onChanged: (String _) => setState(() {
+                            field.edited = true;
+                          }),
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingSm),
           CatalogRows(<(String, String)>[
@@ -324,54 +331,60 @@ class _GuidedFormPanelState extends State<_GuidedFormPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          IuxGuidedForm(
-            currentStep: _step,
-            onStepChanged: (int next) => setState(() => _step = next),
-            describePosition: (int step, int count) => 'Step $step of $count',
-            backLabel: 'Back',
-            forwardLabel: long ? 'Weiter zum nächsten Schritt' : 'Continue',
-            summary: IuxValidationSummaryLabels(
-              categoryLabel: 'Error',
-              navigationHint: 'Go to this question',
-              describeCount: (int count) => count == 1
-                  ? '1 question needs your attention'
-                  : '$count questions need your attention',
-            ),
-            submit: IuxFormSubmit(
-              label: long ? 'Rechnung jetzt absenden' : 'Send the invoice',
-              action: const IuxActionDescriptor.primary(
-                semantics: IuxActionSemantics(label: 'Send the invoice'),
+          CatalogTestable(
+            what: 'Press Continue twice without answering anything, then '
+                'submit. Forward is never blocked; the refusal comes at the '
+                'end, and every step change moves focus to the step heading — '
+                'which a sighted reader may not see happen.',
+            child: IuxGuidedForm(
+              currentStep: _step,
+              onStepChanged: (int next) => setState(() => _step = next),
+              describePosition: (int step, int count) => 'Step $step of $count',
+              backLabel: 'Back',
+              forwardLabel: long ? 'Weiter zum nächsten Schritt' : 'Continue',
+              summary: IuxValidationSummaryLabels(
+                categoryLabel: 'Error',
+                navigationHint: 'Go to this question',
+                describeCount: (int count) => count == 1
+                    ? '1 question needs your attention'
+                    : '$count questions need your attention',
               ),
-              onSubmit: () => setState(() => _submitted++),
-            ),
-            steps: <IuxGuidedFormStep>[
-              for (final _Question field in _fields)
-                IuxGuidedFormStep(
-                  title: field.name(long: long),
-                  description: field.help,
-                  sections: <IuxFormSection>[
-                    IuxFormSection(
-                      fields: <IuxFormField>[
-                        IuxFormField(
-                          input: _inputFor(field, long: long),
-                          focusNode: field.focusNode,
-                          edited: field.edited,
-                          onValidationRequested: (IuxValidationTrigger _) =>
-                              setState(field.check),
-                          child: IuxTextField(
-                            input: _inputFor(field, long: long),
-                            controller: field.controller,
-                            focusNode: field.focusNode,
-                            onChanged: (String _) => setState(() {
-                              field.edited = true;
-                            }),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              submit: IuxFormSubmit(
+                label: long ? 'Rechnung jetzt absenden' : 'Send the invoice',
+                action: const IuxActionDescriptor.primary(
+                  semantics: IuxActionSemantics(label: 'Send the invoice'),
                 ),
-            ],
+                onSubmit: () => setState(() => _submitted++),
+              ),
+              steps: <IuxGuidedFormStep>[
+                for (final _Question field in _fields)
+                  IuxGuidedFormStep(
+                    title: field.name(long: long),
+                    description: field.help,
+                    sections: <IuxFormSection>[
+                      IuxFormSection(
+                        fields: <IuxFormField>[
+                          IuxFormField(
+                            input: _inputFor(field, long: long),
+                            focusNode: field.focusNode,
+                            edited: field.edited,
+                            onValidationRequested: (IuxValidationTrigger _) =>
+                                setState(field.check),
+                            child: IuxTextField(
+                              input: _inputFor(field, long: long),
+                              controller: field.controller,
+                              focusNode: field.focusNode,
+                              onChanged: (String _) => setState(() {
+                                field.edited = true;
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingSm),
           CatalogRows(<(String, String)>[

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 
 /// Telling the user something, in the two shapes that stay on screen.
 ///
@@ -61,6 +62,21 @@ class _InlineFeedbackPanelState extends State<_InlineFeedbackPanel> {
   bool get _legal => !(_category == IuxFeedbackCategory.error &&
       _withDismissal &&
       !_withAction);
+
+  /// Frames [message] only while there is something in it to press.
+  ///
+  /// With both the action and the dismissal turned off the message is a
+  /// paragraph in a coloured box and nothing in it answers. A frame saying
+  /// "Test it" around that is the confusion the frame exists to remove,
+  /// reached from the other direction.
+  Widget _framed(Widget message) => _withAction || _withDismissal
+      ? CatalogTestable(
+          what: 'Press the action, or the dismissal if you turned it on: the '
+              'counts below change. The message itself is heard before either '
+              'of them, in every case.',
+          child: message,
+        )
+      : message;
 
   @override
   Widget build(BuildContext context) {
@@ -136,23 +152,27 @@ class _InlineFeedbackPanelState extends State<_InlineFeedbackPanel> {
             )
           else ...<Widget>[
             const CatalogSubheading('an alert, beside what it is about'),
-            IuxAlert(
-              category: _category,
-              categoryLabel: _category.name,
-              title: title,
-              message: _message(long: long),
-              action: action,
-              dismissal: dismissal,
+            _framed(
+              IuxAlert(
+                category: _category,
+                categoryLabel: _category.name,
+                title: title,
+                message: _message(long: long),
+                action: action,
+                dismissal: dismissal,
+              ),
             ),
             SizedBox(height: geometry.spacingSm),
             const CatalogSubheading('a banner, above the content it concerns'),
-            IuxBanner(
-              category: _category,
-              categoryLabel: _category.name,
-              title: title,
-              message: _message(long: long),
-              action: action,
-              dismissal: dismissal,
+            _framed(
+              IuxBanner(
+                category: _category,
+                categoryLabel: _category.name,
+                title: title,
+                message: _message(long: long),
+                action: action,
+                dismissal: dismissal,
+              ),
             ),
           ],
           SizedBox(height: geometry.spacingXs),

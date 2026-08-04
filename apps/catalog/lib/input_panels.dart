@@ -115,34 +115,48 @@ class _TextFieldPanelState extends State<_TextFieldPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          for (final (IuxInputAvailability availability, String note)
-              in <(IuxInputAvailability, String)>[
-            (IuxInputAvailability.enabled, 'editable'),
-            (
-              IuxInputAvailability.readOnly,
-              'read-only — selectable, not typed'
+          CatalogTestable(
+            what: 'Type in the first one. The second takes the caret and lets '
+                'you copy but refuses your typing, and the third answers '
+                'nothing at all — both of those are the specimen rather than '
+                'a fault.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final (IuxInputAvailability availability, String note)
+                    in <(IuxInputAvailability, String)>[
+                  (IuxInputAvailability.enabled, 'editable'),
+                  (
+                    IuxInputAvailability.readOnly,
+                    'read-only — selectable, not typed'
+                  ),
+                  (
+                    IuxInputAvailability.disabled,
+                    'disabled — nothing is reachable'
+                  ),
+                ]) ...<Widget>[
+                  CatalogSubheading(note),
+                  IuxTextField(
+                    input: _descriptor(
+                      long: long,
+                      availability: availability,
+                      helpText: _Copy.help(long: long),
+                      unavailabilityReason:
+                          availability == IuxInputAvailability.disabled
+                              ? 'Sign in before changing your email'
+                              : null,
+                    ),
+                    controller: _controllerFor(
+                      availability.name,
+                      'maria.costa@example.org',
+                    ),
+                    onChanged: (String _) {},
+                  ),
+                  SizedBox(height: geometry.spacingSm),
+                ],
+              ],
             ),
-            (IuxInputAvailability.disabled, 'disabled — nothing is reachable'),
-          ]) ...<Widget>[
-            CatalogSubheading(note),
-            IuxTextField(
-              input: _descriptor(
-                long: long,
-                availability: availability,
-                helpText: _Copy.help(long: long),
-                unavailabilityReason:
-                    availability == IuxInputAvailability.disabled
-                        ? 'Sign in before changing your email'
-                        : null,
-              ),
-              controller: _controllerFor(
-                availability.name,
-                'maria.costa@example.org',
-              ),
-              onChanged: (String _) {},
-            ),
-            SizedBox(height: geometry.spacingSm),
-          ],
+          ),
           const CatalogSubheading('required, with the semantics node printed'),
           SemanticsReadout(
             child: IuxTextField(
@@ -290,27 +304,37 @@ class _ContentTypePanelState extends State<_ContentTypePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          for (final IuxTextContent content
-              in IuxTextContent.values) ...<Widget>[
-            CatalogSubheading(content.name),
-            IuxTextField(
-              content: content,
-              input: IuxInputDescriptor(
-                semantics: IuxInputSemantics(
-                  label: widget.longLabels
-                      ? '${_Copy.longLabel} — ${content.name}'
-                      : content.name,
-                ),
-              ),
-              controller: _controllers.putIfAbsent(
-                content,
-                TextEditingController.new,
-              ),
-              placeholder: 'type here',
-              onChanged: (String _) {},
+          CatalogTestable(
+            what: 'Type in each of them. On a device the keyboard changes with '
+                'the kind of text; in this harness, multiline is the only one '
+                'that grows as you type.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final IuxTextContent content
+                    in IuxTextContent.values) ...<Widget>[
+                  CatalogSubheading(content.name),
+                  IuxTextField(
+                    content: content,
+                    input: IuxInputDescriptor(
+                      semantics: IuxInputSemantics(
+                        label: widget.longLabels
+                            ? '${_Copy.longLabel} — ${content.name}'
+                            : content.name,
+                      ),
+                    ),
+                    controller: _controllers.putIfAbsent(
+                      content,
+                      TextEditingController.new,
+                    ),
+                    placeholder: 'type here',
+                    onChanged: (String _) {},
+                  ),
+                  SizedBox(height: geometry.spacingXs),
+                ],
+              ],
             ),
-            SizedBox(height: geometry.spacingXs),
-          ],
+          ),
           CatalogRows(<(String, String)>[
             ('Content types offered', '${IuxTextContent.values.length}'),
             (
@@ -389,57 +413,62 @@ class _SelectionPanelState extends State<_SelectionPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          IuxSelectionGroup(
-            label: _optionLabel(
-              'Notifications',
-              'Benachrichtigungen zur Zahlungsbestätigung',
-            ),
-            children: <Widget>[
-              IuxCheckbox(
-                label: _optionLabel(
-                  'Everything',
-                  'Alle Benachrichtigungen aktivieren',
-                ),
-                input: const IuxInputDescriptor(
-                  semantics: IuxInputSemantics(
-                    label: 'Every notification',
-                    hint: 'Turns the two below on or off together',
+          CatalogTestable(
+            what: 'Changes the choices. "Everything" turns the two under it on '
+                'and off with it; "Reminders" is disabled on purpose and will '
+                'not respond — that is the specimen, not a fault.',
+            child: IuxSelectionGroup(
+              label: _optionLabel(
+                'Notifications',
+                'Benachrichtigungen zur Zahlungsbestätigung',
+              ),
+              children: <Widget>[
+                IuxCheckbox(
+                  label: _optionLabel(
+                    'Everything',
+                    'Alle Benachrichtigungen aktivieren',
                   ),
+                  input: const IuxInputDescriptor(
+                    semantics: IuxInputSemantics(
+                      label: 'Every notification',
+                      hint: 'Turns the two below on or off together',
+                    ),
+                  ),
+                  value: _all,
+                  onChanged: (bool selected) => setState(() {
+                    _all = selected
+                        ? IuxSelectionState.selected
+                        : IuxSelectionState.unselected;
+                    _receipts = selected;
+                    _reminders = selected;
+                  }),
                 ),
-                value: _all,
-                onChanged: (bool selected) => setState(() {
-                  _all = selected
+                IuxCheckbox(
+                  label: _optionLabel('Receipts', 'Zahlungsbestätigungen'),
+                  input: const IuxInputDescriptor(
+                    semantics: IuxInputSemantics(label: 'Receipts'),
+                    helpText: 'One message per payment.',
+                  ),
+                  value: _receipts
                       ? IuxSelectionState.selected
-                      : IuxSelectionState.unselected;
-                  _receipts = selected;
-                  _reminders = selected;
-                }),
-              ),
-              IuxCheckbox(
-                label: _optionLabel('Receipts', 'Zahlungsbestätigungen'),
-                input: const IuxInputDescriptor(
-                  semantics: IuxInputSemantics(label: 'Receipts'),
-                  helpText: 'One message per payment.',
+                      : IuxSelectionState.unselected,
+                  onChanged: (bool selected) =>
+                      setState(() => _receipts = selected),
                 ),
-                value: _receipts
-                    ? IuxSelectionState.selected
-                    : IuxSelectionState.unselected,
-                onChanged: (bool selected) =>
-                    setState(() => _receipts = selected),
-              ),
-              IuxCheckbox(
-                label: _optionLabel('Reminders', 'Zahlungserinnerungen'),
-                input: const IuxInputDescriptor(
-                  semantics: IuxInputSemantics(label: 'Reminders'),
-                  availability: IuxInputAvailability.disabled,
+                IuxCheckbox(
+                  label: _optionLabel('Reminders', 'Zahlungserinnerungen'),
+                  input: const IuxInputDescriptor(
+                    semantics: IuxInputSemantics(label: 'Reminders'),
+                    availability: IuxInputAvailability.disabled,
+                  ),
+                  value: _reminders
+                      ? IuxSelectionState.selected
+                      : IuxSelectionState.unselected,
+                  onChanged: (bool selected) =>
+                      setState(() => _reminders = selected),
                 ),
-                value: _reminders
-                    ? IuxSelectionState.selected
-                    : IuxSelectionState.unselected,
-                onChanged: (bool selected) =>
-                    setState(() => _reminders = selected),
-              ),
-            ],
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('the partial box, with its node printed'),

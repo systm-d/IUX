@@ -3,6 +3,7 @@ import 'package:iux_flutter/iux_flutter.dart';
 
 import 'button_scenarios.dart';
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 import 'semantics_readout.dart';
 
 /// The button system, put under the conditions it is most likely to fail in.
@@ -674,11 +675,16 @@ class _AsyncPanel extends StatelessWidget {
                         'finishes.',
               ),
               SizedBox(height: geometry.spacingXs),
-              IuxAsyncActionButton(
-                controller: scenarios.async,
-                label: _label(longLabels),
-                busyLabel: 'Sending…',
-                cancelLabel: scenarios.cancelLabel,
+              CatalogTestable(
+                what: 'Starts three seconds of work. The label becomes '
+                    '"Sending…" while it runs, the rows below count the run, '
+                    'and the outcome chosen above decides how it ends.',
+                child: IuxAsyncActionButton(
+                  controller: scenarios.async,
+                  label: _label(longLabels),
+                  busyLabel: 'Sending…',
+                  cancelLabel: scenarios.cancelLabel,
+                ),
               ),
               SizedBox(height: geometry.spacingSm),
               CatalogRows(<(String, String)>[
@@ -754,26 +760,31 @@ class _DestructivePanel extends StatelessWidget {
           children: <Widget>[
             const CatalogSubheading(
                 'reversible — runs immediately, undo offered'),
-            IuxTargetSpacing(
-              axis: Axis.horizontal,
-              children: <Widget>[
-                IuxDestructiveAction(
-                  label: 'Archive',
-                  controller: scenarios.archive,
-                ),
-                if (scenarios.archived)
-                  IuxButton(
-                    label: 'Undo',
-                    variant: IuxButtonVariant.outlined,
-                    action: const IuxActionDescriptor(
-                      role: IuxActionRole.undo,
-                      semantics: IuxActionSemantics(
-                        label: 'Undo archiving the March invoice',
-                      ),
-                    ),
-                    onActivate: scenarios.restore,
+            CatalogTestable(
+              what: 'Archives on the first press, with no question first. The '
+                  'note under it changes and an Undo control appears beside '
+                  'it.',
+              child: IuxTargetSpacing(
+                axis: Axis.horizontal,
+                children: <Widget>[
+                  IuxDestructiveAction(
+                    label: 'Archive',
+                    controller: scenarios.archive,
                   ),
-              ],
+                  if (scenarios.archived)
+                    IuxButton(
+                      label: 'Undo',
+                      variant: IuxButtonVariant.outlined,
+                      action: const IuxActionDescriptor(
+                        role: IuxActionRole.undo,
+                        semantics: IuxActionSemantics(
+                          label: 'Undo archiving the March invoice',
+                        ),
+                      ),
+                      onActivate: scenarios.restore,
+                    ),
+                ],
+              ),
             ),
             CatalogNote(
               scenarios.archived
@@ -784,9 +795,13 @@ class _DestructivePanel extends StatelessWidget {
             ),
             SizedBox(height: geometry.spacingSm),
             const CatalogSubheading('irreversible — asks first'),
-            IuxDestructiveAction(
-              label: 'Delete',
-              controller: scenarios.delete,
+            CatalogTestable(
+              what: 'Opens a confirmation over the whole page. Nothing is '
+                  'deleted until the question is answered.',
+              child: IuxDestructiveAction(
+                label: 'Delete',
+                controller: scenarios.delete,
+              ),
             ),
             CatalogNote(
               scenarios.deleted
@@ -799,24 +814,22 @@ class _DestructivePanel extends StatelessWidget {
             ),
             SizedBox(height: geometry.spacingSm),
             const CatalogSubheading('the same descriptor on a plain IuxButton'),
-            IuxButton(
-              label: 'Delete',
-              action: const IuxActionDescriptor.destructive(
-                semantics: IuxActionSemantics(
-                  label: 'Delete the March invoice without asking',
-                ),
-              ),
-              onActivate: scenarios.runUnguarded,
-            ),
-            CatalogNote(
-              'Ran ${scenarios.unguardedRuns} time(s) without anybody being '
-              'asked. IuxButton evaluates an action with the confirmation '
-              'treated as already obtained, because obtaining it belongs to a '
-              'pattern. The descriptor says "confirm me", the code compiles, '
-              'and nobody is ever asked — which is why IuxDestructiveAction '
-              'exists. Nothing at the call site distinguishes the two, and '
-              'nothing warns.',
-              finding: true,
+            const CatalogNote(
+              'No sample here any more, because there is nothing left to show: '
+              'a plain IuxButton given a confirming descriptor now refuses to '
+              'build. This panel used to hold one, with a counter climbing '
+              'every time it deleted without asking anybody.\n\n'
+              'The rule that closed it: whoever honours a policy strips it '
+              'before delegating, and anything that cannot present a question '
+              'refuses one. An earlier attempt was reverted after concluding '
+              'the destructive trigger could not strip, because the policy had '
+              'to survive to the button. Measured, nothing inside a button '
+              'reads it — not the resolver, not the semantics, not '
+              'isActivatable. The honourer is the controller, which keeps its '
+              'own copy.\n\n'
+              'What no type can catch, and the docs say so: a trigger wired to '
+              'the wrong callback still deletes. The callback is the caller\'s '
+              'own function.',
             ),
             SizedBox(height: geometry.spacingSm),
             IuxButton(

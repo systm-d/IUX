@@ -3,6 +3,7 @@ import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
 import 'catalog_overlays.dart';
+import 'catalog_testable.dart';
 
 /// The patterns that run when there is nothing to show, or it failed.
 ///
@@ -135,9 +136,37 @@ class _EmptyStatePanelState extends State<_EmptyStatePanel> {
         _ => _Copy.guidance(long: widget.longLabels),
       };
 
+  /// Whether the cause on screen offers the user anything to press.
+  ///
+  /// Two of the five deliberately do not: guidance-only and "nothing left to
+  /// do", which is the one cause that owes the user no way forward. Framing
+  /// those would put "Test it" around a paragraph.
+  bool get _responds => switch (_absence) {
+        _Absence.nothingYet ||
+        _Absence.noMatches ||
+        _Absence.restricted =>
+          true,
+        _Absence.nothingYetNoAction || _Absence.finished => false,
+      };
+
   @override
   Widget build(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    final Widget sample = IuxSurface(
+      role: IuxSurfaceRole.subtle,
+      bordered: true,
+      padding: IuxInsets.surface(context),
+      child: IuxEmptyState(
+        cause: _cause,
+        title: widget.longLabels
+            ? 'Noch keine Rechnungen in diesem Zeitraum'
+            : 'No invoices yet',
+        guidance: _guidance,
+        arrival: _arrival,
+        illustration: Icons.inbox_outlined,
+      ),
+    );
 
     return CatalogPanel(
       title: 'Nothing to show, and why',
@@ -166,20 +195,15 @@ class _EmptyStatePanelState extends State<_EmptyStatePanel> {
                 setState(() => _arrival = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxSurface(
-            role: IuxSurfaceRole.subtle,
-            bordered: true,
-            padding: IuxInsets.surface(context),
-            child: IuxEmptyState(
-              cause: _cause,
-              title: widget.longLabels
-                  ? 'Noch keine Rechnungen in diesem Zeitraum'
-                  : 'No invoices yet',
-              guidance: _guidance,
-              arrival: _arrival,
-              illustration: Icons.inbox_outlined,
-            ),
-          ),
+          if (_responds)
+            CatalogTestable(
+              what: 'Press the control the cause offers: the count below '
+                  'climbs. Two of the five causes offer none at all, and then '
+                  'this frame is not here.',
+              child: sample,
+            )
+          else
+            sample,
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
             ('The control was activated', '$_acted time(s)'),
@@ -270,9 +294,26 @@ class _ErrorRecoveryPanelState extends State<_ErrorRecoveryPanel> {
           ),
       };
 
+  /// Whether the route on screen offers anything a press can reach.
+  ///
+  /// The running retry is the one that has to be measured rather than assumed:
+  /// it looks exactly like the idle one and its node offers the focus action
+  /// and *not* tap, because the policy declines a second activation. The
+  /// unrecoverable route offers words instead of a control by design.
+  bool get _responds => switch (_route) {
+        _Route.retry || _Route.alternative => true,
+        _Route.retryRunning || _Route.unrecoverable => false,
+      };
+
   @override
   Widget build(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    final Widget sample = IuxErrorRecovery(
+      route: _recovery,
+      categoryLabel: 'Error',
+      message: _Copy.failure(long: widget.longLabels),
+    );
 
     return CatalogPanel(
       title: 'A failure, and the way out of it',
@@ -292,11 +333,15 @@ class _ErrorRecoveryPanelState extends State<_ErrorRecoveryPanel> {
             onChanged: (_Route value) => setState(() => _route = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxErrorRecovery(
-            route: _recovery,
-            categoryLabel: 'Error',
-            message: _Copy.failure(long: widget.longLabels),
-          ),
+          if (_responds)
+            CatalogTestable(
+              what: 'Press the way out: the count below climbs. Switch to the '
+                  'running retry and this frame goes — that control is not '
+                  'accepting a press, and nothing about it says so.',
+              child: sample,
+            )
+          else
+            sample,
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
             ('Retries', '$_retries'),
@@ -372,6 +417,23 @@ class _LoadingRetryPanelState extends State<_LoadingRetryPanel> {
       ),
     };
 
+    final Widget region = IuxLoadingRetry<String>(
+      state: _state,
+      loadingLabel: 'Fetching the March invoice',
+      failureCategoryLabel: 'Error',
+      recovery: IuxRetryRoute(
+        label: 'Try again',
+        onRetry: () => setState(() {
+          _retries++;
+          _state = states['ready']!;
+        }),
+      ),
+      builder: (BuildContext context, String value) => Text(
+        value,
+        style: type.body.copyWith(color: colors.content.primary),
+      ),
+    );
+
     return CatalogPanel(
       title: 'Waiting, arriving, failing',
       description: 'One region, three branches, and no fourth. There is no '
@@ -394,22 +456,18 @@ class _LoadingRetryPanelState extends State<_LoadingRetryPanel> {
                 setState(() => _state = states[value]!),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxLoadingRetry<String>(
-            state: _state,
-            loadingLabel: 'Fetching the March invoice',
-            failureCategoryLabel: 'Error',
-            recovery: IuxRetryRoute(
-              label: 'Try again',
-              onRetry: () => setState(() {
-                _retries++;
-                _state = states['ready']!;
-              }),
-            ),
-            builder: (BuildContext context, String value) => Text(
-              value,
-              style: type.body.copyWith(color: colors.content.primary),
-            ),
-          ),
+          // Only the failed branch has anything in it to press. Waiting and
+          // arrived are a label and a paragraph, and a frame around either
+          // would be telling the reader to press a sentence.
+          if (_state is IuxLoadFailed<String>)
+            CatalogTestable(
+              what: 'Press "Try again": the content arrives and the retry '
+                  'count climbs. Do it with a keyboard and watch where focus '
+                  'lands — the control you pressed is gone by then.',
+              child: region,
+            )
+          else
+            region,
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[('Retries', '$_retries')]),
           const CatalogNote(
@@ -537,23 +595,29 @@ class _PermissionPanelState extends State<_PermissionPanel> {
             onChanged: (_Moment value) => setState(() => _moment = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxSurface(
-            role: IuxSurfaceRole.subtle,
-            bordered: true,
-            padding: IuxInsets.surface(context),
-            child: IuxPermissionRationale(
-              moment: _permission,
-              title: widget.longLabels
-                  ? 'Zugriff auf die Kamera für das Abfotografieren von Belegen'
-                  : 'Photograph a receipt',
-              reason: widget.longLabels
-                  ? 'Die Kamera wird ausschließlich verwendet, um Belege '
-                      'direkt an eine Rechnung anzuhängen. Es werden keine '
-                      'Aufnahmen gespeichert oder übertragen.'
-                  : 'The camera is used only to attach a receipt to an '
-                      'invoice. Nothing is stored or sent anywhere else.',
-              guidance: _guidance,
-              illustration: Icons.photo_camera_outlined,
+          CatalogTestable(
+            what: 'Press either control: the counts below change. "Not now" is '
+                'there at every moment — a rationale the user can only agree '
+                'to is not a rationale — so there is always something here '
+                'that answers.',
+            child: IuxSurface(
+              role: IuxSurfaceRole.subtle,
+              bordered: true,
+              padding: IuxInsets.surface(context),
+              child: IuxPermissionRationale(
+                moment: _permission,
+                title: widget.longLabels
+                    ? 'Zugriff auf die Kamera für das Abfotografieren von Belegen'
+                    : 'Photograph a receipt',
+                reason: widget.longLabels
+                    ? 'Die Kamera wird ausschließlich verwendet, um Belege '
+                        'direkt an eine Rechnung anzuhängen. Es werden keine '
+                        'Aufnahmen gespeichert oder übertragen.'
+                    : 'The camera is used only to attach a receipt to an '
+                        'invoice. Nothing is stored or sent anywhere else.',
+                guidance: _guidance,
+                illustration: Icons.photo_camera_outlined,
+              ),
             ),
           ),
           SizedBox(height: geometry.spacingXs),
@@ -679,11 +743,17 @@ class _DestructiveFlowPanelState extends State<_DestructiveFlowPanel> {
             onChanged: _choose,
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxDestructiveFlow(
-            label: widget.longLabels
-                ? 'Die Märzrechnung endgültig löschen'
-                : 'Delete',
-            controller: widget.overlays.flow,
+          CatalogTestable(
+            what: 'With an undo it deletes at once and offers the way back on '
+                'the strip at the bottom edge; with a question it opens the '
+                'confirmation over the page first. The count below is net of '
+                'undos.',
+            child: IuxDestructiveFlow(
+              label: widget.longLabels
+                  ? 'Die Märzrechnung endgültig löschen'
+                  : 'Delete',
+              controller: widget.overlays.flow,
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -775,18 +845,24 @@ class _DisclosurePanelState extends State<_DisclosurePanel> {
             }),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxProgressiveDisclosure(
-            summary: widget.longLabels
-                ? 'Zustelloptionen und abweichende Rechnungsanschrift'
-                : 'Delivery options',
-            state: _state,
-            onExpandedChanged: (bool expanded) => setState(() {
-              if (_held) return;
-              _state = expanded
-                  ? const IuxDisclosureState.expanded()
-                  : const IuxDisclosureState.collapsed();
-            }),
-            child: const _VolatileNote(),
+          CatalogTestable(
+            what: 'Opens and closes it. Type in the box, close it, open it '
+                'again — the text is gone. Held open, the toggle is removed '
+                'entirely and the summary is only a heading: there is nothing '
+                'left to press, and that is the point of the third state.',
+            child: IuxProgressiveDisclosure(
+              summary: widget.longLabels
+                  ? 'Zustelloptionen und abweichende Rechnungsanschrift'
+                  : 'Delivery options',
+              state: _state,
+              onExpandedChanged: (bool expanded) => setState(() {
+                if (_held) return;
+                _state = expanded
+                    ? const IuxDisclosureState.expanded()
+                    : const IuxDisclosureState.collapsed();
+              }),
+              child: const _VolatileNote(),
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -816,13 +892,19 @@ class _DisclosurePanelState extends State<_DisclosurePanel> {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('the same control, inside contextual help'),
-          IuxContextualHelp(
-            label: 'What is a payment reference?',
-            help: 'The reference is printed on the invoice, above the total. '
-                'Quoting it lets accounting match your payment automatically.',
-            expanded: _helpExpanded,
-            onExpandedChanged: (bool value) =>
-                setState(() => _helpExpanded = value),
+          CatalogTestable(
+            what: 'Opens and closes the help. It is the same control as the '
+                'one above, built a second time — press both and look for a '
+                'difference.',
+            child: IuxContextualHelp(
+              label: 'What is a payment reference?',
+              help: 'The reference is printed on the invoice, above the total. '
+                  'Quoting it lets accounting match your payment '
+                  'automatically.',
+              expanded: _helpExpanded,
+              onExpandedChanged: (bool value) =>
+                  setState(() => _helpExpanded = value),
+            ),
           ),
           SizedBox(height: geometry.spacingXxs),
           Text(

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 
 /// Pictures, glyphs and the small containers that report a state.
 ///
@@ -438,32 +439,38 @@ class _ChipPanelState extends State<_ChipPanel> {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('filters, which are'),
-          IuxChipGroup(
-            label: 'Filter invoices by state',
-            chips: <Widget>[
-              for (final String filter in _filters)
+          CatalogTestable(
+            what: 'Turns a filter on and off — the row underneath says which '
+                'are in force. The last two, "Archived" and "Disputed", take '
+                'no callback and will not respond: that is how a chip becomes '
+                'unavailable, not a fault.',
+            child: IuxChipGroup(
+              label: 'Filter invoices by state',
+              chips: <Widget>[
+                for (final String filter in _filters)
+                  IuxFilterChip(
+                    label: label(filter),
+                    selected: _selected.contains(filter),
+                    onSelectionChanged: (bool selected) => setState(() {
+                      if (selected) {
+                        _selected.add(filter);
+                      } else {
+                        _selected.remove(filter);
+                      }
+                    }),
+                  ),
                 IuxFilterChip(
-                  label: label(filter),
-                  selected: _selected.contains(filter),
-                  onSelectionChanged: (bool selected) => setState(() {
-                    if (selected) {
-                      _selected.add(filter);
-                    } else {
-                      _selected.remove(filter);
-                    }
-                  }),
+                  label: label('Archived'),
+                  selected: false,
+                  onSelectionChanged: null,
                 ),
-              IuxFilterChip(
-                label: label('Archived'),
-                selected: false,
-                onSelectionChanged: null,
-              ),
-              IuxFilterChip(
-                label: label('Disputed'),
-                selected: true,
-                onSelectionChanged: null,
-              ),
-            ],
+                IuxFilterChip(
+                  label: label('Disputed'),
+                  selected: true,
+                  onSelectionChanged: null,
+                ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[

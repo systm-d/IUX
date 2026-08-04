@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 import 'semantics_readout.dart';
 
 /// Cards and rows: the two containers an application puts its content in.
@@ -117,12 +118,17 @@ class _CardPanelState extends State<_CardPanel> {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('a card that is itself one control'),
-          SemanticsReadout(
-            child: IuxCard.tappable(
-              semanticLabel: 'Open the March invoice',
-              hint: 'Opens the invoice',
-              onActivate: () => setState(() => _opened++),
-              child: body(),
+          CatalogTestable(
+            what: 'Opens the invoice, and the count under it climbs. Anywhere '
+                'on the card answers, because the whole card is the one '
+                'control — the card above it is not.',
+            child: SemanticsReadout(
+              child: IuxCard.tappable(
+                semanticLabel: 'Open the March invoice',
+                hint: 'Opens the invoice',
+                onActivate: () => setState(() => _opened++),
+                child: body(),
+              ),
             ),
           ),
           CatalogNote('Opened $_opened time(s).'),
@@ -254,42 +260,48 @@ class _ListPanelState extends State<_ListPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          IuxListGroup(
-            children: <Widget>[
-              IuxListItem(
-                title: _Copy.title(long: long),
-                subtitle: _Copy.body(long: long),
-                trailingText: '€1,240.00',
-                leading: const IuxIcon(
-                  icon: Icons.description_outlined,
-                  description: IuxImageDescription.decorative(),
-                ),
-              ),
-              const IuxListSeparator(),
-              IuxListItem.tappable(
-                title: long ? 'Aprilrechnung öffnen' : 'April invoice',
-                subtitle: 'Costa Ltd — paid',
-                trailingText: '€980.00',
-                hint: 'Opens the invoice',
-                onActivate: () => setState(() => _opened++),
-              ),
-              const IuxListSeparator(),
-              IuxListItem.tappable(
-                title: long ? 'Mairechnung öffnen' : 'May invoice',
-                subtitle: 'Nordwind GmbH — overdue',
-                hint: 'Opens the invoice',
-                onActivate: () => setState(() => _opened++),
-                trailingAction: IuxIconButton(
-                  icon: Icons.archive_outlined,
-                  action: const IuxActionDescriptor(
-                    role: IuxActionRole.custom,
-                    semantics:
-                        IuxActionSemantics(label: 'Archive the May invoice'),
+          CatalogTestable(
+            what: 'The second and third rows open an invoice and the count '
+                'below climbs; the archive control beside the third is its own '
+                'target and reports separately. The first row is not a control '
+                'and answers nothing.',
+            child: IuxListGroup(
+              children: <Widget>[
+                IuxListItem(
+                  title: _Copy.title(long: long),
+                  subtitle: _Copy.body(long: long),
+                  trailingText: '€1,240.00',
+                  leading: const IuxIcon(
+                    icon: Icons.description_outlined,
+                    description: IuxImageDescription.decorative(),
                   ),
-                  onActivate: () => setState(() => _archived++),
                 ),
-              ),
-            ],
+                const IuxListSeparator(),
+                IuxListItem.tappable(
+                  title: long ? 'Aprilrechnung öffnen' : 'April invoice',
+                  subtitle: 'Costa Ltd — paid',
+                  trailingText: '€980.00',
+                  hint: 'Opens the invoice',
+                  onActivate: () => setState(() => _opened++),
+                ),
+                const IuxListSeparator(),
+                IuxListItem.tappable(
+                  title: long ? 'Mairechnung öffnen' : 'May invoice',
+                  subtitle: 'Nordwind GmbH — overdue',
+                  hint: 'Opens the invoice',
+                  onActivate: () => setState(() => _opened++),
+                  trailingAction: IuxIconButton(
+                    icon: Icons.archive_outlined,
+                    action: const IuxActionDescriptor(
+                      role: IuxActionRole.custom,
+                      semantics:
+                          IuxActionSemantics(label: 'Archive the May invoice'),
+                    ),
+                    onActivate: () => setState(() => _archived++),
+                  ),
+                ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -352,24 +364,29 @@ class _SelectableListPanelState extends State<_SelectableListPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          IuxListGroup(
-            children: <Widget>[
-              for (final String row in _rows)
-                IuxListItem.selectable(
-                  title: row,
-                  subtitle: _chosen.contains(row) ? 'Selected' : null,
-                  selected: _chosen.contains(row)
-                      ? IuxSelectionState.selected
-                      : IuxSelectionState.unselected,
-                  onSelectedChanged: (bool selected) => setState(() {
-                    if (selected) {
-                      _chosen.add(row);
-                    } else {
-                      _chosen.remove(row);
-                    }
-                  }),
-                ),
-            ],
+          CatalogTestable(
+            what: 'Chooses and unchooses a row. The count below changes, and '
+                'so does the word under the name — the row is a checkbox and '
+                'is announced as one.',
+            child: IuxListGroup(
+              children: <Widget>[
+                for (final String row in _rows)
+                  IuxListItem.selectable(
+                    title: row,
+                    subtitle: _chosen.contains(row) ? 'Selected' : null,
+                    selected: _chosen.contains(row)
+                        ? IuxSelectionState.selected
+                        : IuxSelectionState.unselected,
+                    onSelectedChanged: (bool selected) => setState(() {
+                      if (selected) {
+                        _chosen.add(row);
+                      } else {
+                        _chosen.remove(row);
+                      }
+                    }),
+                  ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[

@@ -3,6 +3,7 @@ import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
 import 'catalog_overlays.dart';
+import 'catalog_testable.dart';
 
 /// Getting between the top-level places of an application.
 ///
@@ -120,6 +121,17 @@ class _AppBarPanelState extends State<_AppBarPanel> {
         ),
     ];
 
+    final Widget bar = CatalogMeasured(
+      checksTarget: false,
+      child: IuxAppBar(
+        title: widget.longLabels
+            ? 'Zahlungsbestätigungen und offene Rechnungen'
+            : 'Invoices',
+        leading: _leadingControl,
+        actions: actions,
+      ),
+    );
+
     return CatalogPanel(
       title: 'The bar at the top',
       description: 'A name for the screen, one way back, and at most three '
@@ -146,16 +158,19 @@ class _AppBarPanelState extends State<_AppBarPanel> {
             onChanged: (int value) => setState(() => _actionCount = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          CatalogMeasured(
-            checksTarget: false,
-            child: IuxAppBar(
-              title: widget.longLabels
-                  ? 'Zahlungsbestätigungen und offene Rechnungen'
-                  : 'Invoices',
-              leading: _leadingControl,
-              actions: actions,
+          // Framed only while the bar has a control in it. Set the leading to
+          // none and the actions to zero and there is nothing left to press —
+          // a frame saying "Test it" around a title is the confusion this
+          // frame exists to remove, arrived at from the other direction.
+          if (_leading == 'none' && _actionCount == 0)
+            bar
+          else
+            CatalogTestable(
+              what: 'The leading control and each action answer a press — the '
+                  'count below climbs. None of them navigates: the bar reports '
+                  'and the application decides.',
+              child: bar,
             ),
-          ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
             ('Controls pressed', '$_pressed'),
@@ -237,14 +252,19 @@ class _BottomNavigationPanelState extends State<_BottomNavigationPanel> {
             }),
           ),
           SizedBox(height: geometry.spacingXs),
-          CatalogMeasured(
-            checksTarget: false,
-            child: IuxBottomNavigation(
-              label: 'Main sections',
-              destinations: destinations,
-              selectedIndex: _selected,
-              onDestinationSelected: (int value) =>
-                  setState(() => _selected = value),
+          CatalogTestable(
+            what: 'Moves the selection, and the row underneath says which '
+                'destination is showing. Nothing here is disabled — there is '
+                'no such thing as a disabled destination.',
+            child: CatalogMeasured(
+              checksTarget: false,
+              child: IuxBottomNavigation(
+                label: 'Main sections',
+                destinations: destinations,
+                selectedIndex: _selected,
+                onDestinationSelected: (int value) =>
+                    setState(() => _selected = value),
+              ),
             ),
           ),
           SizedBox(height: geometry.spacingXs),
@@ -330,34 +350,39 @@ class _RailPanelState extends State<_RailPanel> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              SizedBox(
-                height: 360,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: fits ? available : needed,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        IuxNavigationRail(
-                          label: 'Main sections',
-                          destinations: destinations,
-                          selectedIndex: _selected,
-                          onDestinationSelected: (int value) =>
-                              setState(() => _selected = value),
-                        ),
-                        Expanded(
-                          child: IuxSurface(
-                            role: IuxSurfaceRole.subtle,
-                            padding: IuxInsets.surface(context),
-                            child: Text(
-                              destinations[_selected].label,
-                              style: type.body
-                                  .copyWith(color: colors.content.primary),
+              CatalogTestable(
+                what: 'Moves the selection, and the panel beside it follows. '
+                    'When the rail no longer fits, the box scrolls sideways — '
+                    'that scroll is the harness\'s, not the component\'s.',
+                child: SizedBox(
+                  height: 360,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: fits ? available : needed,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          IuxNavigationRail(
+                            label: 'Main sections',
+                            destinations: destinations,
+                            selectedIndex: _selected,
+                            onDestinationSelected: (int value) =>
+                                setState(() => _selected = value),
+                          ),
+                          Expanded(
+                            child: IuxSurface(
+                              role: IuxSurfaceRole.subtle,
+                              padding: IuxInsets.surface(context),
+                              child: Text(
+                                destinations[_selected].label,
+                                style: type.body
+                                    .copyWith(color: colors.content.primary),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -484,21 +509,26 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
           // took the harness down. It is built at every size now: the
           // component asks whether the rail fits before it asks how much is
           // left over, so the case that used to overflow renders the bar.
-          SizedBox(
-            width: _width,
-            height: _boxHeight,
-            child: IuxAdaptiveNavigation(
-              label: 'Main sections',
-              destinations: destinations,
-              selectedIndex: _selected,
-              onDestinationSelected: (int value) =>
-                  setState(() => _selected = value),
-              child: IuxSurface(
-                role: IuxSurfaceRole.subtle,
-                padding: IuxInsets.surface(context),
-                child: Text(
-                  destinations[_selected].label,
-                  style: type.body.copyWith(color: colors.content.primary),
+          CatalogTestable(
+            what: 'Moves the selection, and the panel inside the box follows. '
+                'Change the box width above and the same widget answers as the '
+                'bar or as the rail, with nothing else touched.',
+            child: SizedBox(
+              width: _width,
+              height: _boxHeight,
+              child: IuxAdaptiveNavigation(
+                label: 'Main sections',
+                destinations: destinations,
+                selectedIndex: _selected,
+                onDestinationSelected: (int value) =>
+                    setState(() => _selected = value),
+                child: IuxSurface(
+                  role: IuxSurfaceRole.subtle,
+                  padding: IuxInsets.surface(context),
+                  child: Text(
+                    destinations[_selected].label,
+                    style: type.body.copyWith(color: colors.content.primary),
+                  ),
                 ),
               ),
             ),
@@ -623,20 +653,26 @@ class _DrawerPanelState extends State<_DrawerPanel> {
             value: _longDismiss,
             values: const <bool>[false, true],
             naming: (bool value) =>
-                value ? '"Close the menu" — overflows' : '"Close"',
+                value ? '"Close the menu" — used to overflow' : '"Close"',
             onChanged: (bool value) => setState(() => _longDismiss = value),
           ),
           SizedBox(height: geometry.spacingXs),
-          IuxButton(
-            label: 'Open the menu',
-            action: const IuxActionDescriptor(
-              role: IuxActionRole.navigate,
-              semantics: IuxActionSemantics(
-                label: 'Open the navigation menu',
-                hint: 'Covers the page until it is closed',
+          CatalogTestable(
+            what: 'Opens the menu over the whole page. Choosing a destination '
+                'closes it and changes the row below — and the page behind it '
+                'loses its scroll position on the way, which is the finding '
+                'under this panel.',
+            child: IuxButton(
+              label: 'Open the menu',
+              action: const IuxActionDescriptor(
+                role: IuxActionRole.navigate,
+                semantics: IuxActionSemantics(
+                  label: 'Open the navigation menu',
+                  hint: 'Covers the page until it is closed',
+                ),
               ),
+              onActivate: _open,
             ),
-            onActivate: _open,
           ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
@@ -752,13 +788,18 @@ class _TabsPanelState extends State<_TabsPanel> {
             }),
           ),
           SizedBox(height: geometry.spacingXs),
-          CatalogMeasured(
-            checksTarget: false,
-            child: IuxTabs(
-              label: 'Filter the invoices',
-              tabs: tabs,
-              selectedIndex: _selected,
-              onTabSelected: (int value) => setState(() => _selected = value),
+          CatalogTestable(
+            what: 'Changes the filter, and the panel underneath follows the '
+                'name. A tab is a filter rather than a place: nothing '
+                'navigates and nothing swipes.',
+            child: CatalogMeasured(
+              checksTarget: false,
+              child: IuxTabs(
+                label: 'Filter the invoices',
+                tabs: tabs,
+                selectedIndex: _selected,
+                onTabSelected: (int value) => setState(() => _selected = value),
+              ),
             ),
           ),
           SizedBox(height: geometry.spacingXs),

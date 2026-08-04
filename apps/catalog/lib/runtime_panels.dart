@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 
 /// Demonstrates the accessibility runtime delivered by IUX-005.
 ///
@@ -348,6 +349,20 @@ class _AnnouncementDemoState extends State<_AnnouncementDemo> {
             ),
           ),
         ),
+        const CatalogNote(
+          'This control is not marked as testable, and the reason is the '
+          'finding rather than an oversight. A finger works: the count above '
+          'changes and the live region says so. The semantics node does not — '
+          'measured, it publishes a name, a button role and an enabled state '
+          'with no tap action at all, so nothing a screen reader can do will '
+          'activate it. IuxTapTarget wraps its GestureDetector in a Semantics '
+          'with excludeSemantics set whenever it is given a label, which drops '
+          'the detector\'s own action along with the subtree, and the label is '
+          'the case the widget exists for. The touch-target row and the focus '
+          'row above are the same shape: IuxFocusable answers a key press and '
+          'publishes no tap either.',
+          finding: true,
+        ),
       ],
     );
   }
@@ -382,28 +397,33 @@ class _ProgressDemoState extends State<_ProgressDemo> {
           valueLabel: '${(_value * 100).round()}%',
         ),
         SizedBox(height: geometry.spacingXs),
-        Row(
-          children: <Widget>[
-            for (final (String label, double delta) in <(String, double)>[
-              ('-25%', -0.25),
-              ('+25%', 0.25),
-            ])
-              Padding(
-                padding: EdgeInsets.only(right: geometry.spacingXs),
-                child: IuxButton(
-                  label: label,
-                  variant: IuxButtonVariant.outlined,
-                  action: IuxActionDescriptor(
-                    semantics: IuxActionSemantics(
-                      label: 'Change progress by $label',
+        CatalogTestable(
+          what: 'Moves the bar above, and its value label with it. What a '
+              'screen reader hears is throttled to ten-point milestones, so '
+              'some presses change the picture and say nothing.',
+          child: Row(
+            children: <Widget>[
+              for (final (String label, double delta) in <(String, double)>[
+                ('-25%', -0.25),
+                ('+25%', 0.25),
+              ])
+                Padding(
+                  padding: EdgeInsets.only(right: geometry.spacingXs),
+                  child: IuxButton(
+                    label: label,
+                    variant: IuxButtonVariant.outlined,
+                    action: IuxActionDescriptor(
+                      semantics: IuxActionSemantics(
+                        label: 'Change progress by $label',
+                      ),
+                    ),
+                    onActivate: () => setState(
+                      () => _value = (_value + delta).clamp(0.0, 1.0),
                     ),
                   ),
-                  onActivate: () => setState(
-                    () => _value = (_value + delta).clamp(0.0, 1.0),
-                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
         SizedBox(height: geometry.spacingMd),
         const IuxLoadingIndicator(label: 'Checking availability'),

@@ -377,23 +377,27 @@ void main() {
       }
     });
 
-    testWidgets('a confirming descriptor on a plain button runs unasked', (
-      WidgetTester tester,
-    ) async {
-      // Not a defect in the button: obtaining a confirmation is a pattern's
-      // job, and IuxButton evaluates the action as though it were already
-      // given. It is a trap all the same — the descriptor says "confirm me",
-      // the code compiles, and nobody is ever asked. The catalog shows it
-      // rather than describing it.
+    testWidgets(
+        'the panel that showed the unasked deletion has nothing left '
+        'to show', (WidgetTester tester) async {
+      // This test used to press a plain IuxButton carrying a confirming
+      // descriptor and watch a counter climb, because the button deleted
+      // without asking anybody. A plain button now refuses that descriptor at
+      // build, so there is no sample to press — the panel explains the rule
+      // instead.
       await tester.pumpWidget(const IuxCatalogApp());
       await reveal(tester, 'the same descriptor on a plain IuxButton');
 
-      expect(find.textContaining('Ran 0 time(s)'), findsOneWidget);
-      await tapNamed(tester, 'Delete the March invoice without asking');
-
-      expect(find.textContaining('Ran 1 time(s)'), findsOneWidget,
-          reason: 'the action ran with no confirmation ever shown');
-      expect(find.byType(IuxDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Ran '), findsNothing,
+          reason: 'the counter existed to record deletions nobody was asked '
+              'about, and there are none to record');
+      expect(
+        find.textContaining('refuses to build'),
+        findsOneWidget,
+        reason: 'the panel must say why the sample is gone, or it reads as a '
+            'section somebody forgot to finish',
+      );
     });
 
     testWidgets('the destructive pattern asks before it runs', (
@@ -749,12 +753,15 @@ void main() {
   });
 
   group('navigation', () {
-    testWidgets('a long dismiss label overflows the drawer header', (
+    testWidgets('a long dismiss label no longer overflows the drawer header', (
       WidgetTester tester,
     ) async {
-      // Pinned, because it is a defect rather than a choice. The panel is
-      // capped at a readable width whatever the screen, so the surface is
-      // deliberately wide: a wider screen does not rescue it.
+      // This was pinned as a defect and the day it named has arrived. The
+      // header now measures the way out and keeps the shared line only while
+      // the heading still gets one line or twelve characters, whichever is
+      // less — IuxAppBar's rule. The wide surface is kept because it is where
+      // the overflow used to be worst: 9.5px at 1200, and the heading box was
+      // 0.0px wide before the row gave up.
       await tester.binding.setSurfaceSize(const Size(1200, 4000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -771,14 +778,13 @@ void main() {
       await chooseOption(
         tester,
         'Dismiss label',
-        '"Close the menu" — overflows',
+        '"Close the menu" — used to overflow',
       );
       await reveal(tester, 'The drawer, which the page has to place');
       await tapNamed(tester, 'Open the navigation menu');
 
-      expect(tester.takeException(), isNotNull,
-          reason: 'the day this stops overflowing, this test should fail and '
-              'the finding should be struck from the panel');
+      expect(tester.takeException(), isNull,
+          reason: 'a longer label must not overflow either — it stacks');
     });
 
     testWidgets('the bottom bar grows taller rather than narrower', (
