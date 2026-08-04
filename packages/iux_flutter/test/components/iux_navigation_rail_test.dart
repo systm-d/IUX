@@ -947,8 +947,104 @@ void main() {
                 '$scale; navigation took the whole of the axis the window has '
                 'least of',
           );
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'navigation overflowed a $window window at $scale',
+          );
+
+          // DebugOverflowIndicatorMixin reports a render object's overflow
+          // once per lifetime, so the assertion above is only worth anything
+          // because every case ends by tearing the tree down
+          // (IUX-QA-VACUOUS-003).
+          await tester.pumpWidget(const SizedBox.shrink());
         }
       }
+    });
+
+    testWidgets('a rail that does not fit its window is not an arrangement',
+        (WidgetTester tester) async {
+      // IUX-RAIL-OVERFLOW-001. The rule weighed how much the rail *left over*
+      // and never asked whether it *fitted*: a rail wider than the window
+      // leaves a negative remainder, and a negative number fails a budget test
+      // exactly as a small positive one does, so the case where the rail is not
+      // an arrangement at all read as the case where it is merely a tight one.
+      //
+      // The windows are derived from the measurement rather than written down,
+      // so this pins the rule and not a pixel count. Every one is landscape, so
+      // the aspect term does not decide any of them.
+      const double scale = 3;
+      final double rail = await measuredWidth(tester, textScale: scale);
+
+      final Map<String, double> tooNarrow = <String, double>{
+        // What the audit measured: the rail 36 pixels wider than the screen, a
+        // Row overflowing by 36, and the page laid out at zero.
+        'the rail is 36 pixels wider than the window': rail - 36,
+        // The boundary, where the rail exactly fills the window. It leaves no
+        // page at all and throws nothing, so an assertion written against the
+        // exception alone would have called it healthy.
+        'the rail fills the window exactly': rail,
+      };
+
+      for (final MapEntry<String, double> window in tooNarrow.entries) {
+        await pump(
+          tester,
+          adaptive(child: const SizedBox.expand(key: _content)),
+          size: Size(window.value, window.value - 1),
+          textScale: scale,
+        );
+
+        expect(
+          find.byType(IuxNavigationRail),
+          findsNothing,
+          reason: '${window.key}: the rail wants '
+              '${rail.toStringAsFixed(1)} pixels and the window has '
+              '${window.value.toStringAsFixed(1)}',
+        );
+        expect(find.byType(IuxBottomNavigation), findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: window.key,
+        );
+
+        // DebugOverflowIndicatorMixin reports a render object's overflow once
+        // per lifetime, so the assertion above is only worth anything because
+        // every case ends by tearing the tree down (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('a rail that fits but leaves little is still chosen',
+        (WidgetTester tester) async {
+      // The complement, and the reason the new term is a fit test rather than a
+      // second content budget. The rule deliberately keeps the rail on a short
+      // landscape window where it leaves the content less than the 320 pixels
+      // IUX supports, because the bar there leaves zero. Narrowing the window
+      // to the point where the rail no longer fits must not have taken that
+      // argument with it.
+      const double scale = 3;
+      final double rail = await measuredWidth(tester, textScale: scale);
+      final double width = rail + 100;
+
+      await pump(
+        tester,
+        adaptive(child: const SizedBox.expand(key: _content)),
+        size: Size(width, width - 1),
+        textScale: scale,
+      );
+
+      expect(
+        find.byType(IuxNavigationRail),
+        findsOneWidget,
+        reason: 'the rail leaves 100 pixels — far under the 320 budget, and '
+            'still more than the bar would leave on a window this short',
+      );
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getRect(find.byKey(_content)).width,
+        greaterThan(0),
+      );
     });
 
     testWidgets('an unbounded box is refused loudly, never guessed at',

@@ -719,7 +719,26 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
         ],
         for (int i = 0; i < step.sections.length; i++) ...<Widget>[
           if (i > 0) const IuxGap.between(),
-          step.sections[i],
+          // Keyed by the step, so a section of step 2 is never the element
+          // that was a section of step 1. Without the key Flutter reconciles
+          // the two — same widget type, same position — and the questions of
+          // the arriving step are *updated into* the widgets of the step the
+          // user just left. Two things follow from that, and both are wrong.
+          //
+          // A field then treats a message it arrived carrying as a message
+          // that just appeared, and fires its live region in the same frame as
+          // the focus move to the heading — two utterances competing for one
+          // event, which is exactly the failure this pattern refused a
+          // progress bar to avoid (IUX-GUIDED-FORM-LIVE-001). And whatever
+          // state a control holds about itself — focused, hovered, pressed —
+          // is inherited by a different question.
+          //
+          // The position is in the key as well as the step, because sibling
+          // keys have to differ and a step may hold several sections.
+          KeyedSubtree(
+            key: ValueKey<(int, int)>((widget.currentStep, i)),
+            child: step.sections[i],
+          ),
         ],
         const IuxGap.between(),
         // Aligned to the start rather than stretched, and wrapping rather than

@@ -337,7 +337,7 @@ class _AnnouncementDemoState extends State<_AnnouncementDemo> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: widget.colors.action.primary.background,
-                border: Border.all(color: widget.colors.action.primary.border),
+                border: Border.all(color: widget.colors.border.standard),
               ),
               child: Text(
                 'Refresh',

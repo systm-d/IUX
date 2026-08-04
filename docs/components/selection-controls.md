@@ -196,9 +196,26 @@ is a value they do not have.
   double-tap activates it. Everything below the node is excluded from the
   semantic tree, so without this the control would be announced correctly and
   refuse to respond.
+- **And it publishes the focus it holds on that same node**, for the same
+  reason: the exclusion takes the `Focus` widget's own
+  `focusable`/`focused`/`onFocus` annotations along with everything else. Until
+  this was fixed, a checkbox reported `isFocused: Tristate.none` with
+  `actions: [tap]` where Flutter's own reported `Tristate.isFalse` with
+  `[tap, focus]` — meaning the node declared no focusable state at all and
+  assistive technology could not move accessibility focus onto the control.
+  That is `IUX-A11Y-FOCUS-001`, which was declared fixed for `IuxButton` and
+  found still live in `IuxSemantics.selection` by sweeping every helper that
+  excludes. A read-only control stays focusable; a disabled one declares no
+  focusable state, because it has left the focus order entirely.
 - A disabled control announces its state and, when the caller supplied
   `unavailabilityReason`, explains itself.
 - A required control announces that an answer is expected.
+- The validation message sits on its own node below the control, and is a live
+  region **when it appears** — not when the control arrives already carrying it.
+  A message already on screen when the control mounted is content rather than a
+  status change (SC 4.1.3), and announcing it competes with whatever put the
+  control there (IUX-GUIDED-FORM-LIVE-001). The node and the words are the same
+  either way; only the flag differs.
 - Enter and Space activate a focused control; a disabled one is skipped by
   focus traversal.
 - At least the resolved touch-target floor, at every density, with the spacing

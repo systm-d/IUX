@@ -25,6 +25,16 @@ final List<IuxButtonVariant> _labelledVariants = IuxButtonVariant.values
     .where((IuxButtonVariant v) => v != IuxButtonVariant.icon)
     .toList();
 
+/// Every variant an action the semantic layer models unfilled may take.
+///
+/// `filled` is excluded because a secondary or tertiary action has no fill to
+/// draw: since IUX-039 `IuxButtonResolver` refuses the pair rather than
+/// resolving it, measured, to a text button. The `close` fixture below is
+/// secondary, which is what makes this list the right one for it.
+final List<IuxButtonVariant> _unfilledVariants = IuxButtonVariant.values
+    .where((IuxButtonVariant v) => v != IuxButtonVariant.filled)
+    .toList();
+
 void main() {
   const IuxActionDescriptor close = IuxActionDescriptor(
     semantics: IuxActionSemantics(label: 'Close'),
@@ -277,7 +287,7 @@ void main() {
   group('a variant changes emphasis and nothing else', () {
     testWidgets('every icon button variant activates identically',
         (WidgetTester tester) async {
-      for (final IuxButtonVariant variant in IuxButtonVariant.values) {
+      for (final IuxButtonVariant variant in _unfilledVariants) {
         final List<int> calls = <int>[];
         await pumpIconButton(tester, variant: variant, counter: calls);
         await tester.tap(find.byType(IuxIconButton));
@@ -545,7 +555,7 @@ void main() {
     testWidgets('every icon button variant renders on every theme profile',
         (WidgetTester tester) async {
       for (final IuxThemeConfiguration configuration in _profiles) {
-        for (final IuxButtonVariant variant in IuxButtonVariant.values) {
+        for (final IuxButtonVariant variant in _unfilledVariants) {
           await pumpIconButton(
             tester,
             variant: variant,

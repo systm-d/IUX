@@ -224,10 +224,21 @@ When the parent says a value is invalid:
 - **The field does not move.** The extra border width is paid for out of the
   padding, so the box keeps its size and the caret stays where the user left
   it. Only the message below appears.
-- **The message is a live region**, announced once, in place. Never
-  `SemanticsService`: Android deprecated `announceForAccessibility` because it
-  clears TalkBack's speech queue and cuts off whatever the user was listening
-  to.
+- **The message is a live region when it *appears*,** announced once, in place.
+  Never `SemanticsService`: Android deprecated `announceForAccessibility`
+  because it clears TalkBack's speech queue and cuts off whatever the user was
+  listening to.
+- **A message the field arrived carrying is read, not announced.** A live region
+  is for a status *change* — SC 4.1.3 is about a message that appears in
+  response to something the user did. One that was already there when the field
+  came on screen is content: the user did not do anything, and speaking it puts
+  an utterance in the same frame as whatever mounted the field. That is how
+  `IuxGuidedForm` came to speak twice for one step change
+  (IUX-GUIDED-FORM-LIVE-001), and it is also why a form arriving with three
+  rejected fields no longer fires three live regions at once. The message keeps
+  its own labelled node either way, so nothing became unreachable; it loses only
+  the flag. The same sentence coming back after the user changed the value *is*
+  news, and is announced.
 
 **Help text survives an error.** IUX shows the instruction *and* the message.
 Replacing the helper line with the error — the common pattern — removes the

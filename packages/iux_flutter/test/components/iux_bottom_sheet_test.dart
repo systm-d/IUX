@@ -90,7 +90,7 @@ void main() {
             IuxBottomSheet(
               title: sheetTitle,
               dismissLabel: dismissLabel,
-              onDismiss: () => scenario.dismissals++,
+              onDismissed: () => scenario.dismissals++,
               child: content,
             ),
         ],
@@ -890,7 +890,7 @@ void main() {
         () => IuxBottomSheet(
           title: '',
           dismissLabel: 'Close',
-          onDismiss: () {},
+          onDismissed: () {},
           child: const SizedBox.shrink(),
         ),
         throwsAssertionError,
@@ -902,7 +902,7 @@ void main() {
         () => IuxBottomSheet(
           title: title,
           dismissLabel: '',
-          onDismiss: () {},
+          onDismissed: () {},
           child: const SizedBox.shrink(),
         ),
         throwsAssertionError,

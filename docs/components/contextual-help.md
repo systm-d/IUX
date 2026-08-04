@@ -289,6 +289,11 @@ uninvited and cannot be navigated back from strands the user it moved.
   semantic node carries name, button role, tap action and expanded state, so a
   screen-reader user is told there is something to open before they open it, and
   told the state changed after they did.
+- **It also announces the focus it holds.** The node reports a real focus state
+  and offers `SemanticsAction.focus`, naming the same focus node the control
+  itself holds, so assistive technology can move accessibility focus here
+  rather than only reach it by swiping. It reported `Tristate.none` with
+  `actions: [tap]` until IUX-A11Y-FOCUS-001 was fixed at every call site.
 - **The same state is carried visually by a chevron's direction** — a shape, not
   a hue, so it survives a monochrome screen, a colour-vision deficiency and a
   screenshot printed in black and white.
@@ -461,7 +466,7 @@ Row(children: <Widget>[
 - **`help` cannot contain a control.** No link, no button, no "Learn more". This
   is deliberate for now — a control inside a disclosed panel needs a reachable
   focus order and a way back — and if a demonstrated need appears, the shape to
-  add is a single optional action modelled on `IuxInlineFeedbackAction`, not a
+  add is a single optional action modelled on `IuxNamedAction`, not a
   widget slot.
 - **A tooltip inside a scrollable follows its anchor but does not close when the
   anchor scrolls out of view**; it disappears only when the anchor stops being

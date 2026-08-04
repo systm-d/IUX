@@ -222,7 +222,7 @@ class _ActionSamples extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: background,
                           border: Border.all(
-                            color: entry.value.border,
+                            color: colors.border.standard,
                             width: geometry.borderWidth,
                           ),
                         ),

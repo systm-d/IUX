@@ -8,11 +8,11 @@ are honest at this point in the conversation.
 ```dart
 IuxPermissionRationale(
   moment: IuxBeforeAsking(
-    ask: IuxInlineFeedbackAction(
+    ask: IuxNamedAction(
       label: l10n.chooseCameraAccess,
       onActivate: controller.requestCameraPermission,
     ),
-    decline: IuxInlineFeedbackAction(
+    decline: IuxNamedAction(
       label: l10n.notNow,
       onActivate: controller.dismissRationale,
     ),
@@ -208,13 +208,19 @@ the caller can make, so it is made by naming a type rather than by setting a fla
 that reads the same whichever value it holds. A reviewer sees
 `IuxSystemWillNotAsk` in a diff; nobody sees `stage: 2`.
 
+Each member is reachable two ways, and both mean the same thing —
+`IuxPermissionMoment.beforeAsking(ask: …, decline: …)` and `IuxBeforeAsking(ask: …, decline: …)`. The factory is the one to reach for: it makes the
+sealed type the single place a caller has to look to find out which situations
+exist, and it is the convention every sealed situation type in IUX now follows
+(IUX-API-NAMING-001).
+
 | Member | Carries | Forward control |
 | --- | --- | --- |
 | `IuxBeforeAsking({required ask, required decline})` | a required ask | always |
 | `IuxAfterRefusal({askAgain, required decline})` | an optional second ask | when the caller chose to offer one |
 | `IuxSystemWillNotAsk({openSettings, required decline})` | an optional settings link | never an ask — there is no parameter |
 
-Both controls are `IuxInlineFeedbackAction`, the library's existing value for a
+Both controls are `IuxNamedAction`, the library's existing value for a
 labelled control with no lifecycle of its own — the same type `IuxAlternativeRoute`
 takes, for the same reason. A fourth near-identical action type would have been a
 second vocabulary for something the library already says.

@@ -141,7 +141,7 @@ class _SearchPanelsState extends State<SearchPanels> {
                   results: _state,
                   searchingLabel: 'Searching invoices',
                   failureCategoryLabel: 'Error',
-                  noMatchesGuidance:
+                  emptyGuidance:
                       'Try an organisation name, or part of a month.',
                   summary: (BuildContext context, List<String> rows) => rows
                           .isEmpty
@@ -155,12 +155,15 @@ class _SearchPanelsState extends State<SearchPanels> {
                       _answer = _Answer.filtered;
                     }),
                   ),
-                  reset: IuxEmptyStateAction(
-                    label: 'Clear the search',
-                    action: const IuxActionDescriptor(
-                      semantics: IuxActionSemantics(label: 'Clear the search'),
+                  emptyCause: IuxNoMatches(
+                    reset: IuxEmptyStateAction(
+                      label: 'Clear the search',
+                      action: const IuxActionDescriptor(
+                        semantics:
+                            IuxActionSemantics(label: 'Clear the search'),
+                      ),
+                      onActivate: () => setState(_query.clear),
                     ),
-                    onActivate: () => setState(_query.clear),
                   ),
                   builder: (BuildContext context, List<String> rows) =>
                       ListView(

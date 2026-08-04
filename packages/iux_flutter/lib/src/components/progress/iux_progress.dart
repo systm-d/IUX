@@ -12,6 +12,52 @@ import 'iux_progress_tokens.dart';
 /// invites the user to look for a value it does not have.
 const double _indeterminateSegment = 0.3;
 
+/// A percentage written in [IuxProgressIndicator.valueLabel], if there is one.
+///
+/// The digits, an optional decimal part, an optional space, and a percent sign.
+/// The space is not optional in every language — French writes "45 %" with a
+/// non-breaking one — so the four spaces a typographer would use are all
+/// accepted, and so are the three percent signs that are not U+0025: the Arabic
+/// U+066A, its small form U+FE6A and the fullwidth U+FF05 used in CJK setting.
+///
+/// `\d` is ASCII-only in Dart, which is deliberate here rather than a
+/// limitation worked around: a label written in Arabic-Indic or Devanagari
+/// digits produces no match, and no match means no claim, which is the right
+/// answer for a string this check cannot read.
+final RegExp _kStatedPercentage = RegExp(
+  r'(\d+(?:[.,]\d+)?)[    ]?[%٪﹪％]',
+);
+
+/// How far a stated percentage may sit from the value it describes.
+///
+/// Five points, which is the widest rounding anyone writes: a caller reporting
+/// to the nearest ten per cent is off by at most this much, and one truncating
+/// or rounding to the nearest one is off by at most one. The check exists to
+/// catch a label describing *different* progress — 45 against 90 — not a label
+/// that is merely coarse, and a tolerance tight enough to argue about rounding
+/// conventions would be a false-positive machine.
+const double _kPercentageTolerance = 0.05;
+
+/// The slack that keeps binary floating point off the boundary.
+const double _kToleranceSlack = 1e-9;
+
+/// Why a value label that contradicts the bar is refused.
+String _kLabelDisagrees(String valueLabel, double stated, double value) =>
+    'valueLabel says $valueLabel — ${(stated * 100).toStringAsFixed(1)}% — '
+    'while value is ${(value * 100).toStringAsFixed(1)}%. The bar and the '
+    'sentence are the same statement made to two audiences, and here they '
+    'disagree: a sighted user reads the fill, a screen-reader user hears the '
+    'label, and neither is told the other exists. WCAG 2.2 SC 1.1.1 asks the '
+    'text alternative to serve the equivalent purpose, and a different number '
+    'does not. Feed the bar and the sentence from one division at the call '
+    'site, so the fraction and the words about it cannot come apart, rather '
+    'than computing the two separately.\n'
+    'Percentages are the only form checked, because they are the only one '
+    'that cannot mean something else: "3 of 7" is a legitimate label for a '
+    'run that has finished two steps and started the third, so a framework '
+    'reading it as a fraction would refuse correct code. A label with no '
+    'percent sign in it, or with more than one, is not inspected at all.';
+
 /// Progress through an operation whose extent is known.
 ///
 /// ```dart
@@ -95,6 +141,11 @@ class IuxProgressIndicator extends StatefulWidget {
   /// Write it so it stands alone. It is announced on its own when progress
   /// crosses a milestone, so "45% uploaded" is kinder than "45%" when the
   /// screen holds more than one operation.
+  ///
+  /// **A percentage written here must be the one [value] paints.** A bar at 45%
+  /// announcing "90%" tells its two audiences different things and warns
+  /// neither, so it is refused in debug builds. See
+  /// [_debugValueLabelStatesTheValue] for what is and is not inspected.
   final String valueLabel;
 
   /// The value actually painted.
@@ -103,6 +154,52 @@ class IuxProgressIndicator extends StatefulWidget {
   /// release build from painting outside its own track when a caller ships a
   /// division by zero.
   double get _fraction => value.isFinite ? value.clamp(0.0, 1.0).toDouble() : 0;
+
+  /// Checks that a percentage in [valueLabel] is the one [value] paints, in
+  /// debug only.
+  ///
+  /// Returns true so it can be used inside an `assert`; it never returns false,
+  /// because the failure is worth its own sentence.
+  ///
+  /// **It is checked here rather than in the constructor** for the reason
+  /// `IuxEmptyState` checks its own dead end in `build`: a `const` constructor
+  /// may only assert on constant expressions, and neither a regular-expression
+  /// match nor a division is one. Refusing `const IuxProgressIndicator(...)`
+  /// to move the check three lines earlier would cost every call site a
+  /// constant for nothing — the assertion fires on the first frame either way.
+  ///
+  /// **What it does not inspect, and why that is not a compromise.** A label
+  /// with no percent sign is left alone, and so is one with more than one.
+  /// Every other form this parameter documents is genuinely ambiguous: "3 of
+  /// 7" describes both a run that has finished three of seven steps and a run
+  /// that has finished two and is on the third, "12 MB of 40 MB" may count a
+  /// buffer the bar does not, and a framework that read either as a fraction
+  /// would refuse correct code. A percentage cannot mean anything else, which
+  /// is what makes it the one form worth checking — and it is the form the
+  /// measured defect was written in.
+  ///
+  /// Digits outside ASCII produce no match and therefore no claim. A label
+  /// reading "٤٥٪" is not inspected, which is honest: this check would have to
+  /// carry Unicode's decimal-digit tables to read it, and a check that guessed
+  /// would be worse than one that declines.
+  bool _debugValueLabelStatesTheValue() {
+    final List<RegExpMatch> stated =
+        _kStatedPercentage.allMatches(valueLabel).toList();
+    // No percentage, or more than one and therefore no way to tell which of
+    // them is meant to be the value.
+    if (stated.length != 1) return true;
+
+    final double? percent =
+        double.tryParse(stated.single.group(1)!.replaceFirst(',', '.'));
+    if (percent == null) return true;
+
+    final double fraction = percent / 100;
+    assert(
+      (fraction - _fraction).abs() - _kPercentageTolerance <= _kToleranceSlack,
+      _kLabelDisagrees(valueLabel, fraction, _fraction),
+    );
+    return true;
+  }
 
   @override
   State<IuxProgressIndicator> createState() => _IuxProgressIndicatorState();
@@ -145,6 +242,12 @@ class _IuxProgressIndicatorState extends State<IuxProgressIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    // Checked on every build rather than once, because the pair that can
+    // disagree is supplied on every build: a caller who computes the two apart
+    // gets them level at 0% and drifts afterwards, which is the case a
+    // constructor-time check would have missed entirely.
+    assert(widget._debugValueLabelStatesTheValue());
+
     final IuxProgressTokens tokens = IuxProgressResolver.resolve(context);
 
     final Widget visual = Column(

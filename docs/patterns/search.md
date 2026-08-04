@@ -8,23 +8,21 @@ the wait, the results and their count, nothing matching, or the failure and the
 way out of it — one of those at a time, and exactly one thing announced per
 search.
 
-The example below places the results in an `Expanded`, which is required and
-which means **this composition cannot sit inside an `IuxPage`**. Read
-[Known limitations](#known-limitations) before using it: on the framework's own
-page widget the first non-empty result throws.
+The ordinary arrangement — a search on an `IuxPage`, which is the only thing in
+the framework that knows the page insets and the reading width:
 
 ```dart
-Column(
-  children: <Widget>[
-    IuxSearchField(
-      label: l10n.searchYourOrders,
-      clearLabel: l10n.clearTheSearch,
-      placeholder: l10n.orderNumberOrCustomer,
-      controller: _query,
-      onChanged: controller.queryChanged,
-    ),
-    Expanded(
-      child: IuxSearchResults<Order>(
+IuxPage(
+  child: Column(
+    children: <Widget>[
+      IuxSearchField(
+        label: l10n.searchYourOrders,
+        clearLabel: l10n.clearTheSearch,
+        placeholder: l10n.orderNumberOrCustomer,
+        controller: _query,
+        onChanged: controller.queryChanged,
+      ),
+      IuxSearchResults<Order>(
         results: controller.results,
         summary: (BuildContext context, List<Order> orders) => orders.isEmpty
             ? l10n.nothingMatches(controller.query)
@@ -32,17 +30,27 @@ Column(
         searchingLabel: l10n.searchingYourOrders,
         failureCategoryLabel: l10n.error,
         recovery: IuxRetryRoute(label: l10n.tryAgain, onRetry: controller.search),
-        reset: IuxEmptyStateAction(
-          label: l10n.clearTheSearch,
-          action: const IuxActionDescriptor(
-            semantics: IuxActionSemantics(label: 'Clear the search'),
-          ),
-          onActivate: controller.clear,
-        ),
-        builder: (BuildContext context, List<Order> orders) => OrderList(orders),
+        // The situation is the caller's, because only the caller knows whether
+        // the collection is empty or the query excluded it. See "Which empty".
+        emptyCause: controller.hasAnyOrders
+            ? IuxNoMatches(
+                reset: IuxEmptyStateAction(
+                  label: l10n.clearTheSearch,
+                  action: const IuxActionDescriptor(
+                    semantics: IuxActionSemantics(label: 'Clear the search'),
+                  ),
+                  onActivate: controller.clear,
+                ),
+              )
+            : IuxNothingCreatedYet(create: placeYourFirstOrder),
+        // Under an unbounded height the region measures itself, so the list
+        // must too. Inside an `Expanded` or a `SizedBox` this would be a
+        // `ListView`, and the region would flex it.
+        builder: (BuildContext context, List<Order> orders) =>
+            IuxListGroup(children: <Widget>[for (final Order o in orders) row(o)]),
       ),
-    ),
-  ],
+    ],
+  ),
 )
 ```
 
@@ -86,7 +94,7 @@ every other waited-on region in IUX uses — and the widget composes
 | --- | --- | --- |
 | running | `IuxLoadInProgress` | `IuxLoadingIndicator`, carrying `searchingLabel` |
 | answered with rows | `IuxLoadReady` with a non-empty list | the status line, then `builder`'s widget |
-| answered with nothing | `IuxLoadReady` with an empty list | `IuxEmptyState` with `IuxNoMatches` |
+| answered with nothing | `IuxLoadReady` with an empty list | `IuxEmptyState` with `emptyCause` |
 | broken | `IuxLoadFailed` | `IuxErrorRecovery`, carrying the message and the route |
 
 **There is deliberately no `IuxSearchState`.** A search that is running, one
@@ -97,19 +105,17 @@ exists for, and the one that hand-built searches lose first.
 
 **Nothing matching is not a fourth state**, for the reason IUX-030 gives at
 length: the search succeeded and what came back has no rows in it. What this
-pattern adds over `IuxLoadingRetry` is that it *names* that situation rather
-than leaving it to the builder. The cause is `IuxNoMatches` — the content is
-there and the criteria the user set exclude all of it — which is the one
-`IuxEmptyStateCause` that fits a search, and which IUX-028 already argues covers
-search and filter together because they put the user in the same place with the
-same way out.
+pattern adds over `IuxLoadingRetry` is that it puts the situation into an
+`IuxEmptyState` rather than leaving it to the builder — and it takes the
+situation from the caller, because the caller is the only party that knows it.
+See [Which empty](#which-empty).
 
-That is also why `reset` is **required**. `IuxNoMatches` insists on a way back,
-because the query was set through the interface and can therefore always be
-unset by it, and "no results with no way back" is the most common dead end in
-this category. It does not have to clear the box: "Search everywhere", "Include
-archived" and "Search the last year instead" are all resets. What matters is
-that activating it returns content, so the user learns the query was the reason.
+`IuxNoMatches` is the usual answer and it insists on a way back, because the
+query was set through the interface and can therefore always be unset by it, and
+"no results with no way back" is the most common dead end in this category. It
+does not have to clear the box: "Search everywhere", "Include archived" and
+"Search the last year instead" are all resets. What matters is that activating
+it returns content, so the user learns the query was the reason.
 
 **The region is not mounted before a search has been run.** An empty box has not
 asked anything, so there is nothing to answer; a region rendering "Nothing
@@ -362,40 +368,80 @@ how more of it arrives is the caller's.
 indeterminate, and a search whose extent the caller can count places its own
 indicator.
 
+## Where the region goes
+
+Anywhere. The results branch reads the height it was handed and lays itself out
+accordingly:
+
+| The height it is given | What the region does | What `builder` must return | Who scrolls |
+| --- | --- | --- | --- |
+| bounded — `Expanded`, `SizedBox` | fills it, flexes the list | anything, including a `ListView` | the list |
+| unbounded — `IuxPage`, `ListView`, a sliver | measures itself | something that measures itself | the caller |
+
+The constraints answer the question a parameter would have asked, and they
+answer it correctly for the caller who never read this page. Every vertical
+scroll view in Flutter hands its children an unbounded height — that is what
+makes it a scroll view — so a region inside one is told so, and a region given a
+bounded height was told the size of a box by something that will not scroll it.
+It is the same discriminator `IuxEmptyState` and `IuxPermissionRationale` use,
+for the same reason (`IUX-A11Y-REACH-001`).
+
+Under an unbounded height the only thing the caller owes is a list that measures
+itself: a `Column`, an `IuxListGroup`, or a `ListView` with `shrinkWrap: true` —
+which is what anyone writes inside a scrolling page anyway. A scrolling list
+handed an unbounded height fails on Flutter's own assertion, naming the problem.
+
+The region never introduces a scroll view of its own, in either placement. The
+one exception is the branch that has nothing to show, where `IuxEmptyState`
+scrolls itself under a bounded height so its way out cannot be pushed off a
+short viewport — and only under a bounded height, so it is still never a second
+scrollable inside the caller's.
+
+**What this replaced** (`IUX-SEARCH-RESULTS-001`): the branch put `builder`'s
+widget in an unconditional `Expanded`, so the first non-empty result inside
+`IuxPage` — which scrolls by default — threw *RenderFlex children have non-zero
+flex but incoming height constraints are unbounded*, and the documented remedy
+meant giving up `IuxPage` and with it the page insets and the reading width.
+
+## Which empty
+
+A search that came back with nothing has more than one reason behind it, and
+they need different sentences and different exits. `emptyCause` is the caller's,
+because only the caller knows what is in the collection being searched.
+
+| The collection | The cause | The way out |
+| --- | --- | --- |
+| holds items the query excluded | `IuxNoMatches` | a reset |
+| has never held anything | `IuxNothingCreatedYet` | create the first one |
+| holds items this user may not see | `IuxAccessRestricted` | ask for access |
+| holds nothing left to act on | `IuxNothingLeftToDo` | none, and guidance instead |
+
+The exit travels *inside* the cause rather than beside it, which is
+`IuxEmptyState`'s design and the reason this is one parameter and not two: a
+situation cannot be paired with the wrong way out, because the pairing does not
+compile.
+
+**What this replaced** (`IUX-SEARCH-RESULTS-001`): the pattern hard-coded
+`IuxNoMatches` and **required** its reset, so an account that had never had an
+order in it was told "nothing matches, clear the search" beside an empty search
+box — the query blamed for a collection that was empty before the user typed
+anything, and a reset offered that returns them to the same nothing. Keeping
+those apart is the whole reason `IuxEmptyStateCause` exists.
+
 ## Known limitations
 
-**The results region must be given a bounded height, and this rules out
-`IuxPage`** (`IUX-SEARCH-RESULTS-001`). The results branch puts `builder`'s
-widget in an `Expanded` below the status line, because a result list scrolls and
-a scrolling list has to be told how tall it is. Given unbounded height it fails
-on Flutter's own unbounded-constraints assertion — which names the problem
-rather than laying out silently wrongly, but still throws.
+**A very long summary can still overflow a very short viewport.** The status
+line wraps rather than truncating and takes the height it needs from the results
+below it. Inherited from `IuxLoadingRetry`, and the alternative — a second
+scroll view inside the caller's — is worse.
 
-**`IuxPage` scrolls by default, so it supplies exactly the unbounded height this
-pattern cannot take.** The first non-empty result throws *RenderFlex children
-have non-zero flex but incoming height constraints are unbounded*. The
-documented remedy — place it inside an `Expanded` or a `SizedBox` — therefore
-means giving up `IuxPage`, which is the only thing in the framework that knows
-the page insets and the reading width. There is no arrangement that keeps both.
-
-**It has one empty branch where a list usually needs two.** `IuxSearchResults`
-hard-codes `IuxNoMatches` and **requires** a `reset`, so a collection that has
-never held anything is reported as "no matches, clear the search" beside an
-empty search box. "Nothing exists yet" and "your filter excluded everything" are
-two of the four situations `IuxEmptyStateCause` exists to keep apart, and this
-pattern can express one of them.
-
-**Consequence for a real screen.** A searchable list on an `IuxPage`, which is
-the ordinary case, cannot use this pattern at all today. Compose
-`IuxSearchField`, `IuxEmptyState` and the list directly; the cost is the status
-line, whose count lives in a private widget and has to be reimplemented. Worked
-example in `apps/pilot/lib/jobs_screen.dart`.
-
-**Nothing scrolls.** A very long summary at a large text scale wraps rather than
-truncating, and takes the height it needs from the results below it — in a short
-enough viewport it overflows. This is `IuxLoadingRetry`'s and `IuxEmptyState`'s
-documented behaviour and is inherited: a region inside a list that already
-scrolls must not introduce a second one.
+**The failure branch does not scroll itself under a bounded height.**
+`IuxErrorRecovery` overflows by 96 pixels in a 600-pixel box at 200% text on a
+320-pixel screen, for the reason `IuxEmptyState` and `IuxPermissionRationale`
+used to: a block holding its only control, given a bounded height by something
+that will not scroll it. That is a further instance of `IUX-A11Y-REACH-001`,
+open against `IuxErrorRecovery` rather than against this pattern. Placing the
+region under an unbounded height avoids it.
 
 **A live region is a request, not a guarantee.** Whether the platform speaks it,
 and when, is the platform's decision. A widget test asserts that the node carries

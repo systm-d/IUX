@@ -65,7 +65,7 @@ packages:
       path: "../../packages/iux_flutter"
       relative: true
     source: path
-    version: "0.1.0-dev.1"
+    version: "0.2.0-dev.1"
   leak_tracker:
     dependency: transitive
     description:
@@ -193,4 +193,4 @@ packages:
     version: "15.2.0"
 sdks:
   dart: ">=3.10.0-0 <4.0.0"
-  flutter: ">=3.18.0-18.0.pre.54"
+  flutter: ">=3.35.0"

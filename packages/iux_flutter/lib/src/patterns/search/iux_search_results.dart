@@ -65,12 +65,14 @@ typedef IuxSearchSummary<T> = String Function(
 ///     label: l10n.tryAgain,
 ///     onRetry: controller.search,
 ///   ),
-///   reset: IuxEmptyStateAction(
-///     label: l10n.clearTheSearch,
-///     action: const IuxActionDescriptor(
-///       semantics: IuxActionSemantics(label: 'Clear the search'),
+///   emptyCause: IuxNoMatches(
+///     reset: IuxEmptyStateAction(
+///       label: l10n.clearTheSearch,
+///       action: const IuxActionDescriptor(
+///         semantics: IuxActionSemantics(label: 'Clear the search'),
+///       ),
+///       onActivate: controller.clear,
 ///     ),
-///     onActivate: controller.clear,
 ///   ),
 ///   builder: (BuildContext context, List<Order> orders) => OrderList(orders),
 /// )
@@ -113,13 +115,53 @@ typedef IuxSearchSummary<T> = String Function(
 ///
 /// **Nothing matching is not a fourth state.** The search succeeded and what
 /// came back has no rows in it, so it is [IuxLoadState.ready] with an empty
-/// list — and this widget names the situation for the caller, with
-/// [IuxNoMatches], which is the one [IuxEmptyStateCause] that fits: the content
-/// is there and the criteria the user set exclude all of it. That is also why
-/// [reset] is required rather than optional. `IuxNoMatches` insists on a way
-/// out because the criteria were set through the interface and can therefore
-/// always be unset by it, and a search with no results and no way back is the
-/// most common dead end in the category.
+/// list, and the caller names the situation with [emptyCause].
+///
+/// This widget used to name it instead, always as [IuxNoMatches], and requiring
+/// its reset. That was wrong for the case that matters most: a collection that
+/// has never held anything is not a collection whose criteria excluded
+/// everything, and reporting "nothing matches, clear the search" beside an
+/// empty search box tells a new user that they searched badly when nobody has
+/// put anything there yet — and hands them a reset that returns them to the
+/// same nothing. Keeping those apart is the whole reason [IuxEmptyStateCause]
+/// exists, and a pattern that can only express one of its four situations has
+/// taken the decision away from the only party that can make it. See
+/// [emptyCause].
+///
+/// ## Where this can be placed
+///
+/// Anywhere. The results branch reads the height it was handed and lays itself
+/// out accordingly, which removes the choice a caller used to have to make and
+/// get right:
+///
+/// | The height it is given | What it does | Who scrolls |
+/// | --- | --- | --- |
+/// | bounded — an `Expanded`, a `SizedBox` | fills it, list flexed | the list |
+/// | unbounded — `IuxPage`, `ListView`, a sliver | measures itself | the caller |
+///
+/// The constraints answer the question a parameter would have asked, and they
+/// answer it correctly for the caller who never read this paragraph. Every
+/// vertical scroll view in Flutter hands its children an unbounded height —
+/// that is what makes it a scroll view — so a region inside one is told so, and
+/// a region given a bounded height was told the size of a box by something that
+/// will not scroll it. It is the same discriminator `IuxEmptyState` and
+/// `IuxPermissionRationale` use for the same reason (`IUX-A11Y-REACH-001`).
+///
+/// **What the caller owes in each case is different, and only one of them is a
+/// trap.** Under a bounded height the region flexes the widget [builder]
+/// returns, so a `ListView` there scrolls inside the space left under the
+/// status line. Under an unbounded height there is nothing to flex against, so
+/// [builder] must return something that measures itself — a `Column`, an
+/// `IuxListGroup`, or a `ListView` with `shrinkWrap: true` — which is what a
+/// caller writes inside a scrolling page anyway. A scrolling list handed an
+/// unbounded height fails on Flutter's own assertion, naming the problem.
+///
+/// Before this, the pattern put [builder]'s widget in an unconditional
+/// `Expanded`, so the first non-empty result inside `IuxPage` — which scrolls
+/// by default — threw *RenderFlex children have non-zero flex but incoming
+/// height constraints are unbounded*, and the documented way out was to give up
+/// `IuxPage` and with it the page insets and the reading width
+/// (`IUX-SEARCH-RESULTS-001`).
 ///
 /// ## Exactly one thing is announced per search
 ///
@@ -200,18 +242,15 @@ typedef IuxSearchSummary<T> = String Function(
 ///
 /// ## Known limitations
 ///
-/// **The region must be given a bounded height.** The results branch puts
-/// [builder]'s widget in an `Expanded` below the status line, because a result
-/// list scrolls and a scrolling list has to be told how tall it is. Place this
-/// inside an `Expanded`, a `SizedBox` or anything else that bounds it. Given
-/// unbounded height it fails on Flutter's own unbounded-constraints assertion,
-/// which names the problem, rather than laying out silently wrongly.
-///
-/// **Nothing here scrolls.** The status line, the wait, the empty state and
-/// the failure are all placed rather than wrapped in a scroll view: a region
-/// inside a list that already scrolls must not introduce a second one. A very
-/// long summary at a large text scale wraps rather than truncating, and takes
-/// the height it needs from the results below it.
+/// **This region introduces no scroll view of its own.** The status line, the
+/// wait and the failure are placed rather than wrapped: a region inside a list
+/// that already scrolls must not introduce a second one. A very long summary at
+/// a large text scale wraps rather than truncating, and takes the height it
+/// needs from the results below it. The one exception is the branch that has
+/// nothing to show, where `IuxEmptyState` scrolls itself under a bounded height
+/// so that its way out cannot be pushed off a short viewport — and only under a
+/// bounded height, so it is still never a second scrollable inside the
+/// caller's.
 ///
 /// **A live region is a request, not a guarantee.** Whether the platform speaks
 /// it, and when, is the platform's decision; a widget test can assert that the
@@ -232,11 +271,11 @@ class IuxSearchResults<T> extends StatelessWidget {
     required this.searchingLabel,
     required this.failureCategoryLabel,
     required this.recovery,
-    required this.reset,
+    required this.emptyCause,
     required this.builder,
-    this.noMatchesGuidance,
+    this.emptyGuidance,
   }) : assert(
-          noMatchesGuidance == null || noMatchesGuidance.length > 0,
+          emptyGuidance == null || emptyGuidance.length > 0,
           'Empty guidance is the same as no guidance, and says so less '
           'clearly. Omit the parameter, or pass the localised sentence that '
           'tells the user how to search differently.',
@@ -281,20 +320,47 @@ class IuxSearchResults<T> extends StatelessWidget {
   /// [IuxRecoveryRoute] for which failures may honestly be retried.
   final IuxRecoveryRoute recovery;
 
-  /// How the user gets back to results when nothing matched.
+  /// Why a settled search has nothing in it, and what the user does about it.
   ///
-  /// Required, because [IuxNoMatches] requires it: the query was set through
-  /// the interface, so the interface can always unset it, and a search with no
-  /// results and no way back is a dead end the user has to find their own way
-  /// out of.
+  /// Only used when [results] is ready with an empty list, and it is the
+  /// caller's because this widget cannot know it. A search returning nothing
+  /// says one of several different things:
   ///
-  /// It does not have to clear the box. "Search everywhere", "Include archived"
-  /// and "Search the last year instead" are all resets — what matters is that
-  /// activating it returns content, so the user learns the query was the
-  /// reason. Do not point it at the control the user would have to find anyway:
-  /// a reset labelled "Open the search" hands them back the box they are
-  /// already stuck in.
-  final IuxEmptyStateAction reset;
+  /// | The collection | The cause | The way out |
+  /// | --- | --- | --- |
+  /// | holds items the query excluded | [IuxNoMatches] | a reset |
+  /// | has never held anything | [IuxNothingCreatedYet] | create the first one |
+  /// | holds items this user may not see | [IuxAccessRestricted] | ask for access |
+  ///
+  /// Those are not shades of the same screen. "Nothing matches, clear the
+  /// search" beside an empty search box, on an account that has never had an
+  /// order in it, tells the user their query was wrong when the truth is that
+  /// there is nothing to find — and it offers them a reset that will return
+  /// them to the same nothing. [IuxEmptyStateCause] exists precisely to keep
+  /// those apart, and this widget used to hard-code the first row of the table
+  /// and require its reset (`IUX-SEARCH-RESULTS-001`).
+  ///
+  /// The way out travels inside the cause rather than beside it, which is
+  /// [IuxEmptyState]'s design and the reason this is one parameter and not two:
+  /// [IuxNoMatches] takes a reset and requires one, [IuxNothingCreatedYet]
+  /// takes the control that creates the first item, and there is no way to pair
+  /// a situation with the wrong exit.
+  ///
+  /// A reset does not have to clear the box. "Search everywhere", "Include
+  /// archived" and "Search the last year instead" are all resets — what matters
+  /// is that activating it returns content, so the user learns the query was
+  /// the reason. Do not point it at the control the user would have to find
+  /// anyway: a reset labelled "Open the search" hands them back the box they
+  /// are already stuck in.
+  ///
+  /// Compute it from the same state that produced [results]:
+  ///
+  /// ```dart
+  /// emptyCause: controller.hasAnyOrders
+  ///     ? IuxNoMatches(reset: clearTheSearch)
+  ///     : IuxNothingCreatedYet(create: placeYourFirstOrder),
+  /// ```
+  final IuxEmptyStateCause emptyCause;
 
   /// Builds the region from what the search produced.
   ///
@@ -303,12 +369,15 @@ class IuxSearchResults<T> extends StatelessWidget {
   /// because it is the same contract: the value, not the state.
   final IuxLoadedBuilder<List<T>> builder;
 
-  /// A second sentence shown when nothing matched, already localised.
+  /// A second sentence shown when the search came back with nothing, already
+  /// localised.
   ///
-  /// What would find something: "Try a shorter word", "Order numbers need the
-  /// leading zeros". Optional, because [reset] is already a way out and
-  /// `IuxEmptyState` only insists on one of the two.
-  final String? noMatchesGuidance;
+  /// What would find something, or what would put something there: "Try a
+  /// shorter word", "Order numbers need the leading zeros", "Your orders appear
+  /// here once you have placed one". Optional, because [emptyCause] usually
+  /// carries a way out already and `IuxEmptyState` only insists on one of the
+  /// two.
+  final String? emptyGuidance;
 
   @override
   Widget build(BuildContext context) {
@@ -326,9 +395,14 @@ class IuxSearchResults<T> extends StatelessWidget {
 
         if (value.isEmpty) {
           return IuxEmptyState(
-            cause: IuxNoMatches(reset: reset),
+            // The caller's, not this widget's. A search that came back with
+            // nothing has at least four different reasons behind it and they
+            // need four different sentences and four different ways out; only
+            // the parent knows which one applies, because only the parent knows
+            // what is in the collection being searched. See [emptyCause].
+            cause: emptyCause,
             title: text,
-            guidance: noMatchesGuidance,
+            guidance: emptyGuidance,
             // Not configurable, and not a default. A search result region is
             // only ever reached by asking, so it is always a change the user
             // made — which is exactly when an empty state must announce
@@ -338,16 +412,38 @@ class IuxSearchResults<T> extends StatelessWidget {
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _IuxSearchStatus(summary: text),
-            const IuxGap.tight(),
-            // Expanded rather than a plain child: a result list scrolls, and a
-            // scrolling list has to be told how tall it is. See the note on
-            // bounded height in the class documentation.
-            Expanded(child: builder(context, value)),
-          ],
+        // The constraints decide, not a parameter. See "Where this can be
+        // placed" in the class documentation: a bounded height was handed down
+        // by something that will not scroll, so the list takes what is left
+        // and scrolls inside it; an unbounded height is what every vertical
+        // scroll view gives its children, so the region measures itself and
+        // lets the caller's scroll view carry it.
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final Widget results = builder(context, value);
+
+            return Column(
+              mainAxisSize: constraints.hasBoundedHeight
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _IuxSearchStatus(summary: text),
+                const IuxGap.tight(),
+                // A flex under a bounded height and a plain child under an
+                // unbounded one. Both spellings are wrong in the other's
+                // situation, which is the whole defect: a flex child of a
+                // Column with no end throws on Flutter's own unbounded
+                // assertion, and a plain child under a bounded height would let
+                // a long list overflow the box it was given instead of
+                // scrolling inside it.
+                if (constraints.hasBoundedHeight)
+                  Expanded(child: results)
+                else
+                  results,
+              ],
+            );
+          },
         );
       },
     );

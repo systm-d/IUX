@@ -16,7 +16,6 @@ final class IuxActionColors {
   const IuxActionColors({
     required this.foreground,
     required this.background,
-    required this.border,
     required this.hoveredBackground,
     required this.pressedBackground,
     required this.disabledForeground,
@@ -24,13 +23,36 @@ final class IuxActionColors {
   });
 
   /// The label and icon color, targeting 4.5:1 against every background state.
+  ///
+  /// It is also the outline of an unfilled variant, which is why it is
+  /// measured against the *page* as well: an outline has to reach 3:1 under
+  /// WCAG 2.2 SC 1.4.11, and 4.5:1 clears that.
   final Color foreground;
 
   /// The resting background.
+  ///
+  /// For an intent the layer models unfilled — [IuxActionColorSet.secondary]
+  /// and [IuxActionColorSet.tertiary] — this is the page surface, and that is
+  /// a statement rather than a placeholder: those intents have no fill, and
+  /// `IuxButtonResolver` refuses to draw them filled.
   final Color background;
 
-  /// The outline, targeting 3:1 against the surface behind the action.
-  final Color border;
+  // There is no `border`. One existed until IUX-039, was documented as "the
+  // outline, targeting 3:1 against the surface behind the action", and was
+  // painted by nothing: the only variant that read it was `filled`, whose
+  // outline width is zero except when disabled — and the disabled palette
+  // overrides the colour with `border.disabled` anyway. It was also the only
+  // unmeasured colour in this file, which is how two of the four shipped
+  // profiles came to set it to the page surface itself, i.e. to an invisible
+  // outline, without any test noticing.
+  //
+  // It did do one thing, and the thing was harmful: it was the sole difference
+  // between the secondary and tertiary role definitions, so reading this file
+  // suggested the two intents were distinct while every pixel they produced was
+  // identical. Wiring it up instead was refused. An outline that must clear
+  // 3:1 on the page while the label it encloses clears 4.5:1 has one sensible
+  // value — the label's — and a knob with one correct setting is a knob that
+  // will eventually be set wrongly (PROJECT_PROMPT §19, §20).
 
   /// The background while a pointer rests on the action.
   ///
@@ -51,7 +73,6 @@ final class IuxActionColors {
   IuxActionColors copyWith({
     Color? foreground,
     Color? background,
-    Color? border,
     Color? hoveredBackground,
     Color? pressedBackground,
     Color? disabledForeground,
@@ -60,7 +81,6 @@ final class IuxActionColors {
       IuxActionColors(
         foreground: foreground ?? this.foreground,
         background: background ?? this.background,
-        border: border ?? this.border,
         hoveredBackground: hoveredBackground ?? this.hoveredBackground,
         pressedBackground: pressedBackground ?? this.pressedBackground,
         disabledForeground: disabledForeground ?? this.disabledForeground,
@@ -76,7 +96,6 @@ final class IuxActionColors {
       IuxActionColors(
         foreground: Color.lerp(a.foreground, b.foreground, t)!,
         background: Color.lerp(a.background, b.background, t)!,
-        border: Color.lerp(a.border, b.border, t)!,
         hoveredBackground:
             Color.lerp(a.hoveredBackground, b.hoveredBackground, t)!,
         pressedBackground:
@@ -93,7 +112,6 @@ final class IuxActionColors {
       other is IuxActionColors &&
           other.foreground == foreground &&
           other.background == background &&
-          other.border == border &&
           other.hoveredBackground == hoveredBackground &&
           other.pressedBackground == pressedBackground &&
           other.disabledForeground == disabledForeground &&
@@ -103,7 +121,6 @@ final class IuxActionColors {
   int get hashCode => Object.hash(
         foreground,
         background,
-        border,
         hoveredBackground,
         pressedBackground,
         disabledForeground,
@@ -130,9 +147,22 @@ final class IuxActionColorSet {
   final IuxActionColors primary;
 
   /// A supporting action of comparable legitimacy but lower priority.
+  ///
+  /// Unfilled: its accent lives in [IuxActionColors.foreground] and its
+  /// [IuxActionColors.background] is the page.
   final IuxActionColors secondary;
 
-  /// A low-emphasis action, typically without a filled background.
+  /// An action that leads away from the task rather than through it.
+  ///
+  /// Unfilled like [secondary], and the one intent drawn *without* the accent:
+  /// its foreground is a neutral that clears 4.5:1 on every background it can
+  /// appear on, in all four shipped profiles. It is quieter by hue, never by
+  /// contrast — reducing contrast to express low emphasis is the failure WCAG
+  /// 2.2 SC 1.4.3 exists to catch, and it would fail exactly the reader who
+  /// most needs the label.
+  ///
+  /// This is what makes the intent legible on screen at all. Until IUX-039 it
+  /// differed from [secondary] by a single token nothing painted.
   final IuxActionColors tertiary;
 
   /// An action that destroys or irreversibly alters user data.

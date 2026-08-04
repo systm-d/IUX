@@ -37,17 +37,22 @@ const String _kReversibleConfirmation =
     'genuinely slow or partial — say so with '
     'IuxActionReversibility.difficultToReverse.';
 
-/// Why hold-to-confirm and double activation are not presented here.
+/// Why a policy this pattern cannot present is refused.
+///
+/// It currently cannot fire: `IuxConfirmationPolicy` has exactly two members
+/// and this pattern presents both. `IuxConfirmByHold` and
+/// `IuxConfirmByDoubleActivation` were the two it could not present, and they
+/// were removed from the model rather than left unhonoured. The check stays for
+/// the day a third member lands — nothing else in this file would notice — and
+/// says what to do rather than only that something is wrong.
 const String _kUnsupportedPolicy =
-    'This pattern presents IuxNoConfirmation and IuxConfirmBeforeExecution. '
-    'IuxConfirmByHold is invisible to a screen reader unless it is announced '
-    'and is hard to perform with tremor or limited dexterity, so it may never '
-    'be the only way to reach an action — and a single control cannot offer a '
-    'second route to itself. IuxConfirmByDoubleActivation arms a control in '
-    'place, which needs either a disarm timeout the user has to beat or a '
-    'visible way back that one button has nowhere to put. Both belong to a '
-    'pattern that owns more of the screen than this one does. Use '
-    'IuxConfirmBeforeExecution, or IuxConfirmationPolicy.none with an undo.';
+    'This pattern presents IuxNoConfirmation and IuxConfirmBeforeExecution, '
+    'and it has been handed something else. A single control cannot offer a '
+    'second route to itself, and arming a control in place needs either a '
+    'disarm timeout the user has to beat or a visible way back that one button '
+    'has nowhere to put — both belong to a pattern that owns more of the '
+    'screen than this one does. Use IuxConfirmBeforeExecution, or '
+    'IuxConfirmationPolicy.none with an undo.';
 
 /// Why confirming something nobody asked about is refused.
 const String _kNotConfirming =
@@ -178,6 +183,27 @@ class IuxDestructiveActionController extends ChangeNotifier {
   IuxActionDescriptor _action;
   IuxConfirmationPrompt? _prompt;
   bool _confirming = false;
+  FocusNode? _trigger;
+
+  /// The node the trigger takes when the caller supplies none.
+  ///
+  /// It lives on the controller rather than on the widget because the widget
+  /// does not survive its own confirmation. `IuxModalLayer` adds a `Stack` when
+  /// a dialog opens and removes it when the dialog closes, so the page changes
+  /// depth in the element tree twice and the trigger is rebuilt from scratch
+  /// both times — taking a widget-owned focus node down with it while the
+  /// dialog is still holding that node as the place to send focus back to.
+  /// `IuxFocus.restore` then finds a node with no context and does nothing, and
+  /// the user is left on the page's root scope.
+  ///
+  /// Measured before the fix, on a page of four controls: cancelling the
+  /// confirmation cost **three Tab presses** to get back to the trigger, and
+  /// **zero** afterwards (IUX-DESTRUCTIVE-FOCUS-001, WCAG 2.2 SC 2.4.3). The
+  /// controller is the parent's and outlives the rebuild, so the node does too.
+  ///
+  /// Created on first use, so a caller who owns the node pays nothing for this.
+  FocusNode get _triggerFocusNode =>
+      _trigger ??= FocusNode(debugLabel: 'IuxDestructiveAction trigger');
 
   /// What the action is, and whether it may currently run.
   ///
@@ -210,7 +236,7 @@ class IuxDestructiveActionController extends ChangeNotifier {
       title: prompt.title,
       message: prompt.consequence,
       dismissLabel: prompt.keepLabel,
-      onDismiss: cancel,
+      onDismissed: cancel,
       actions: <IuxDialogAction>[
         IuxDialogAction(
           label: prompt.confirmLabel,
@@ -332,6 +358,12 @@ class IuxDestructiveActionController extends ChangeNotifier {
     assert(action.requiresConfirmation || prompt == null, _kUnusedPrompt);
     return true;
   }
+
+  @override
+  void dispose() {
+    _trigger?.dispose();
+    super.dispose();
+  }
 }
 
 /// The control that triggers an action worth being careful about.
@@ -420,6 +452,12 @@ class IuxDestructiveAction extends StatelessWidget {
   final IuxButtonVariant? variant;
 
   /// An externally owned focus node.
+  ///
+  /// Optional, and the case that matters is the one where it is omitted: the
+  /// controller then lends the trigger a node of its own, because a node this
+  /// widget owned would be disposed by the rebuild the confirmation causes and
+  /// focus would have nowhere to come back to. See
+  /// [IuxDestructiveActionController]'s focus note.
   final FocusNode? focusNode;
 
   /// Whether to fill the available width.
@@ -440,7 +478,10 @@ class IuxDestructiveAction extends StatelessWidget {
           action: controller.action,
           icon: icon,
           variant: variant,
-          focusNode: focusNode,
+          // Never null. A confirmation rebuilds this widget from scratch, so
+          // the node that focus comes back to has to belong to something that
+          // survives that — and the controller does.
+          focusNode: focusNode ?? controller._triggerFocusNode,
           expand: expand,
           busyHint: busyHint,
           // The controller decides what an activation means. This widget does

@@ -56,16 +56,11 @@ void main() {
       );
     });
 
-    test('hold-to-confirm requires an enabled action', () {
-      expect(
-        () => IuxActionDescriptor(
-          semantics: save,
-          availability: IuxActionAvailability.disabled,
-          confirmation: const IuxConfirmByHold(),
-        ),
-        throwsA(isA<AssertionError>()),
-      );
-    });
+    // The assertion that used to sit here — hold-to-confirm on a disabled
+    // action — went with `IuxConfirmByHold` in IUX-039. The rule it stated
+    // survives without it: a disabled action is blocked by
+    // `IuxActionPolicy.evaluate` before any confirmation is considered, which
+    // `an unavailable action is blocked whatever else is true` covers.
 
     test('an undo action cannot be irreversible', () {
       expect(
@@ -226,7 +221,11 @@ void main() {
     test('confirmation policies compare by value', () {
       expect(const IuxNoConfirmation(), equals(const IuxNoConfirmation()));
       expect(
-        const IuxConfirmByHold(),
+        const IuxConfirmBeforeExecution(),
+        equals(const IuxConfirmBeforeExecution()),
+      );
+      expect(
+        const IuxNoConfirmation(),
         isNot(equals(const IuxConfirmBeforeExecution())),
       );
     });

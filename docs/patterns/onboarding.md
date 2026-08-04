@@ -17,11 +17,11 @@ IuxOnboardingFlow(
       body: l10n.weWillTellYouWhenYouAreCloseToIt,
     ),
   ],
-  skip: IuxInlineFeedbackAction(
+  skip: IuxNamedAction(
     label: l10n.skipSetup,
     onActivate: controller.leaveOnboarding,
   ),
-  finish: IuxInlineFeedbackAction(
+  finish: IuxNamedAction(
     label: l10n.startUsingLedger,
     onActivate: controller.completeOnboarding,
   ),
@@ -106,7 +106,7 @@ own; whoever consolidates them should start from the two `_spoken` getters.
 | a step holds | `IuxFormSection`s | a title, a sentence, and anything else |
 | leaving early | is abandoning their own task | is **required to be offered, on every step** |
 | the end | submits one set of answers | leaves the flow |
-| the last control | `IuxFormSubmit`, with a busy state | `IuxInlineFeedbackAction`, with none |
+| the last control | `IuxFormSubmit`, with a busy state | `IuxNamedAction`, with none |
 
 The last row is a decision. Finishing an onboarding flow commits nothing, so it
 carries no operation and needs no busy state. An application whose last step
@@ -294,8 +294,8 @@ IuxOnboardingFlow({
   required IuxStepPositionDescription describePosition,
   required String backLabel,                       // one word for the whole flow
   required String forwardLabel,
-  required IuxInlineFeedbackAction skip,           // on every step
-  required IuxInlineFeedbackAction finish,         // replaces forward on the last
+  required IuxNamedAction skip,           // on every step
+  required IuxNamedAction finish,         // replaces forward on the last
 })
 
 IuxOnboardingStep({

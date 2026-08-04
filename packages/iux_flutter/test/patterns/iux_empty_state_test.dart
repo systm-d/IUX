@@ -758,19 +758,21 @@ void main() {
   group('layout under pressure', () {
     testWidgets('long text wraps rather than clipping at 200%',
         (WidgetTester tester) async {
-      // Placed inside a scroll view, which is the case where the block adds
-      // none of its own: a region embedded in a list that already scrolls must
-      // not introduce a second one. See "the way out stays reachable" for the
-      // standalone case, which the block now scrolls itself.
+      // Standalone, in the bounded viewport, and that is the whole point of
+      // this test. It used to wrap the block in a `SingleChildScrollView`,
+      // which hands the column an unbounded height — so
+      // `expect(takeException(), isNull)` could not fail, whatever the block
+      // did. Rebuilt without it the assertion has teeth: remove the
+      // `LayoutBuilder` that lets a bounded block scroll itself and this
+      // reports `RenderFlex overflowed`. The already-scrolling arrangement has
+      // its own test in "the way out stays reachable" (IUX-QA-VACUOUS-003).
       await pump(
         tester,
-        SingleChildScrollView(
-          child: IuxEmptyState(
-            cause: IuxNoMatches(reset: wayOut()),
-            title: _kTitle,
-            guidance: _kLongGuidance,
-            illustration: Icons.filter_alt_outlined,
-          ),
+        IuxEmptyState(
+          cause: IuxNoMatches(reset: wayOut()),
+          title: _kTitle,
+          guidance: _kLongGuidance,
+          illustration: Icons.filter_alt_outlined,
         ),
         textScale: 2,
         size: const Size(320, 640),

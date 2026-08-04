@@ -172,6 +172,38 @@ tests pump.
   title identifies the item, so it is the part that keeps the space and the
   value is the part that wraps. A layout that lets a long value squeeze the
   title produces rows the user cannot tell apart.
+- **`trailingAction` gets the same one third, as a ceiling.** It used to be laid
+  out as a plain `Row` child, which in Flutter means it is measured against
+  unbounded width and takes whatever its content asks for, with the `Expanded`
+  holding the text absorbing the remainder — including a negative one. Two
+  components that each behave perfectly alone then fail together
+  (`IUX-LISTITEM-TRAILING-001`, WCAG 2.2 SC 1.4.4). It is now bounded, so a
+  control that fits is untouched and one that does not wraps instead of pushing
+  the title out of the row.
+
+### What the pair was measured doing
+
+An `IuxListItem.tappable` carrying an `IuxStatusIndicator`, on a 320-pixel
+screen:
+
+| Text | Before | After |
+| --- | --- | --- |
+| 100% | title box 75.8 px wide, three lines | title keeps two thirds |
+| 150% | title box **2.8 px** wide and 324 tall | no change to the rule |
+| 200% | title box **0**, `RenderFlex overflowed by 34 pixels` | no overflow |
+| 300% | title box **0**, overflow of 180 | no overflow |
+
+**The overflow is the half of it a test could see.** Nothing was thrown until
+200%, so an assertion on `takeException` alone would have called 150% healthy
+while the title was one character to a line. A control that takes its intrinsic
+width from a row does not begin failing where the framework complains; it
+begins failing as soon as it takes more than its share.
+
+**Neither component overflows alone**, which is why no component test found it:
+the indicator wraps its own label perfectly well when something tells it how
+wide it may be, and the row wraps its title perfectly well when something is
+left for it. The test that pins this exercises the combination and pumps each
+half on its own as the control.
 - **The leading element sits beside the first line**, not opposite the middle of
   a three-line sentence.
 

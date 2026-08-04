@@ -126,6 +126,18 @@ sealed class IuxWayBack {
   /// Creates a way back.
   const IuxWayBack();
 
+  /// The deletion can be undone from a notice. See [IuxUndoOffer].
+  const factory IuxWayBack.undo({
+    required String notice,
+    required String undoLabel,
+    required String dismissLabel,
+    required VoidCallback onUndo,
+    String? undoSemanticLabel,
+  }) = IuxUndoOffer;
+
+  /// Nothing this pattern can show reverses the deletion. See [IuxNoWayBack].
+  const factory IuxWayBack.none() = IuxNoWayBack;
+
   /// Whether this way back removes the need to ask the user first.
   ///
   /// Exactly one safeguard is applied, and this is the switch between them.

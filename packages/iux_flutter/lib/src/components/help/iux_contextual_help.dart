@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import 'iux_help_tokens.dart';
 
@@ -215,43 +216,50 @@ class _IuxHelpDisclosureControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IuxSemantics.action(
-      label: label,
-      expanded: expanded,
-      onTap: onActivate,
-      child: IuxFocusable(
-        focusNode: focusNode,
-        onActivate: onActivate,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onActivate,
-          child: ConstrainedBox(
-            // The interactive region meets the resolved floor while the glyphs
-            // and the label stay the size of the text around them. They are
-            // separate measurements.
-            constraints: BoxConstraints(minHeight: tokens.minimumSize),
-            child: Padding(
-              padding: tokens.controlPadding,
-              child: Row(
-                // Only as wide as it needs to be: a target stretching the width
-                // of the page would swallow taps meant for the margin beside it.
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  _IuxHelpGlyph(icon: tokens.glyph, tokens: tokens),
-                  SizedBox(width: tokens.gap),
-                  // Flexible so a long question wraps rather than overflowing
-                  // once the two glyphs have taken their share of the width.
-                  Flexible(
-                    child: Text(
-                      label,
-                      // No line limit and no ellipsis: a truncated question is
-                      // a question the user cannot decide whether to ask.
-                      style: tokens.labelStyle,
+    // Announced node and focusable region name one node, not two, or the
+    // platform is told about a focus that lives elsewhere. IUX-A11Y-FOCUS-001.
+    return IuxFocusNodeOwner(
+      focusNode: focusNode,
+      debugLabel: label,
+      builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+        label: label,
+        expanded: expanded,
+        onTap: onActivate,
+        focusNode: node,
+        child: IuxFocusable(
+          focusNode: node,
+          onActivate: onActivate,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onActivate,
+            child: ConstrainedBox(
+              // The interactive region meets the resolved floor while the glyphs
+              // and the label stay the size of the text around them. They are
+              // separate measurements.
+              constraints: BoxConstraints(minHeight: tokens.minimumSize),
+              child: Padding(
+                padding: tokens.controlPadding,
+                child: Row(
+                  // Only as wide as it needs to be: a target stretching the width
+                  // of the page would swallow taps meant for the margin beside it.
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _IuxHelpGlyph(icon: tokens.glyph, tokens: tokens),
+                    SizedBox(width: tokens.gap),
+                    // Flexible so a long question wraps rather than overflowing
+                    // once the two glyphs have taken their share of the width.
+                    Flexible(
+                      child: Text(
+                        label,
+                        // No line limit and no ellipsis: a truncated question is
+                        // a question the user cannot decide whether to ask.
+                        style: tokens.labelStyle,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: tokens.gap),
-                  _IuxHelpGlyph(icon: tokens.stateGlyph, tokens: tokens),
-                ],
+                    SizedBox(width: tokens.gap),
+                    _IuxHelpGlyph(icon: tokens.stateGlyph, tokens: tokens),
+                  ],
+                ),
               ),
             ),
           ),

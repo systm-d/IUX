@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
@@ -409,6 +411,43 @@ class IuxListItem extends StatelessWidget {
 /// caller able to assemble this by hand would eventually assemble it without
 /// the spacing, which is the arrangement that produces mis-taps between "open"
 /// and "delete".
+///
+/// ## Why the control is given a ceiling
+///
+/// The control used to be laid out as a plain `Row` child, which in Flutter
+/// means it is measured against **unbounded** width and takes whatever its
+/// content asks for; the `Expanded` beside it then absorbs whatever is left,
+/// including a negative remainder. That is fine until the control's own content
+/// grows, and the thing that grows all of it at once is the user's text size.
+///
+/// Measured on a 320-pixel screen, an `IuxListItem.tappable` carrying an
+/// `IuxStatusIndicator`: **34 pixels over at 200%** and **180 at 300%**.
+/// Neither component overflows on its own — the indicator wraps its own label
+/// perfectly well when something tells it how wide it may be, and the row wraps
+/// its title perfectly well when something is left for it — which is why no
+/// component test found this and why the fix belongs here, at the join
+/// (`IUX-LISTITEM-TRAILING-001`, WCAG 2.2 SC 1.4.4).
+///
+/// **The overflow is the half of it a test could see.** The same measurement
+/// on the way up reports what the row was doing before it ran out of pixels:
+/// the title's box came out **75.8 wide at 100%**, **2.8 wide and 324 tall at
+/// 150%**, and **zero at 200%** — one character to a line, then no line at
+/// all — with no exception thrown until 200%. A control that takes its
+/// intrinsic width from a row does not begin failing at the point the
+/// framework complains; it begins failing as soon as it takes more than its
+/// share, and everything between there and the exception is silent.
+///
+/// The ceiling is [IuxListItemTokens.valueFlex]'s share of the row, which is
+/// the split this component already applies one level down, to the trailing
+/// *text*, for the reason written against those constants: the title is the
+/// only thing that identifies the item, so it is the part that keeps the space
+/// and the trailing element is the part that wraps. A control and a value are
+/// the same problem, and answering them differently would mean two rules to
+/// get right.
+///
+/// A control that fits inside its share is untouched — a `maxWidth` a child
+/// does not reach changes nothing — so this is invisible at the text sizes
+/// where nothing was wrong.
 class _IuxListItemWithAction extends StatelessWidget {
   const _IuxListItemWithAction({required this.region, required this.action});
 
@@ -419,21 +458,43 @@ class _IuxListItemWithAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final IuxListItemTokens tokens = IuxListItemResolver.resolve(context);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        // Expanded, so the row's target reaches the control rather than
-        // stopping at the end of its text. A gap between two targets that
-        // belongs to neither is a gap where a tap does nothing at all.
-        Expanded(child: region),
-        SizedBox(width: tokens.actionSpacing),
-        Padding(
-          // The control's own end padding, outside its target: the target
-          // stops before the edge of the group, the row's does not.
-          padding: EdgeInsetsDirectional.only(end: tokens.horizontalPadding),
-          child: action,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        // Unbounded width is left alone rather than guessed at. A row inside a
+        // horizontally scrolling parent has no share to take a fraction of,
+        // and the `Expanded` below has already refused that arrangement in
+        // terms the framework wrote.
+        final double ceiling = constraints.hasBoundedWidth
+            ? (constraints.maxWidth -
+                    tokens.actionSpacing -
+                    tokens.horizontalPadding) *
+                tokens.valueFlex /
+                (tokens.textFlex + tokens.valueFlex)
+            : double.infinity;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            // Expanded, so the row's target reaches the control rather than
+            // stopping at the end of its text. A gap between two targets that
+            // belongs to neither is a gap where a tap does nothing at all.
+            Expanded(child: region),
+            SizedBox(width: tokens.actionSpacing),
+            Padding(
+              // The control's own end padding, outside its target: the target
+              // stops before the edge of the group, the row's does not.
+              padding:
+                  EdgeInsetsDirectional.only(end: tokens.horizontalPadding),
+              child: ConstrainedBox(
+                // A maximum, never a minimum and never a tight width: a small
+                // control keeps its size, and the row keeps its share.
+                constraints: BoxConstraints(maxWidth: math.max(ceiling, 0)),
+                child: action,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -19,7 +19,16 @@ import '../semantics/iux_semantic_colors.dart';
 /// Every mapping is `const`: resolving a theme is a table lookup, not a
 /// computation, so nothing is generated per frame.
 ///
-/// All pairs are measured in `test/themes/theme_contrast_test.dart`.
+/// All pairs are measured in `test/themes/theme_contrast_test.dart`, and the
+/// colours a button actually paints are measured again, after resolution, in
+/// `test/themes/button_distinguishability_test.dart`. The second file exists
+/// because this one was measured and still shipped a role nobody could see:
+/// `action.tertiary` differed from `action.secondary` by a single `border`
+/// entry that no variant painted, and in two of these four mappings not even
+/// by that. Both intents now carry their difference in `foreground`, which
+/// every unfilled variant paints — tertiary in the profile's supporting
+/// neutral, secondary in the accent. Neither is quieter than the other by
+/// contrast; the accent is what one has and the other does not.
 @internal
 abstract final class IuxColorPalettes {
   /// Returns the mapping for a brightness and contrast combination.
@@ -69,7 +78,6 @@ abstract final class IuxColorPalettes {
       primary: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral0,
         background: IuxPrimitiveColors.accent40,
-        border: IuxPrimitiveColors.accent40,
         hoveredBackground: IuxPrimitiveColors.accent30,
         pressedBackground: IuxPrimitiveColors.accent20,
         disabledForeground: IuxPrimitiveColors.neutral45,
@@ -78,16 +86,14 @@ abstract final class IuxColorPalettes {
       secondary: IuxActionColors(
         foreground: IuxPrimitiveColors.accent30,
         background: IuxPrimitiveColors.neutral0,
-        border: IuxPrimitiveColors.neutral45,
         hoveredBackground: IuxPrimitiveColors.neutral5,
         pressedBackground: IuxPrimitiveColors.neutral10,
         disabledForeground: IuxPrimitiveColors.neutral45,
         disabledBackground: IuxPrimitiveColors.neutral10,
       ),
       tertiary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent30,
+        foreground: IuxPrimitiveColors.neutral60,
         background: IuxPrimitiveColors.neutral0,
-        border: IuxPrimitiveColors.neutral0,
         hoveredBackground: IuxPrimitiveColors.neutral5,
         pressedBackground: IuxPrimitiveColors.neutral10,
         disabledForeground: IuxPrimitiveColors.neutral45,
@@ -96,7 +102,6 @@ abstract final class IuxColorPalettes {
       destructive: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral0,
         background: IuxPrimitiveColors.critical40,
-        border: IuxPrimitiveColors.critical40,
         hoveredBackground: IuxPrimitiveColors.critical30,
         pressedBackground: IuxPrimitiveColors.critical20,
         disabledForeground: IuxPrimitiveColors.neutral45,
@@ -177,25 +182,22 @@ abstract final class IuxColorPalettes {
       primary: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral95,
         background: IuxPrimitiveColors.accent70,
-        border: IuxPrimitiveColors.accent70,
         hoveredBackground: IuxPrimitiveColors.accent80,
         pressedBackground: IuxPrimitiveColors.accent90,
         disabledForeground: IuxPrimitiveColors.neutral50,
         disabledBackground: IuxPrimitiveColors.neutral80,
       ),
       secondary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent70,
+        foreground: IuxPrimitiveColors.accent80,
         background: IuxPrimitiveColors.neutral90,
-        border: IuxPrimitiveColors.neutral50,
         hoveredBackground: IuxPrimitiveColors.neutral80,
         pressedBackground: IuxPrimitiveColors.neutral70,
         disabledForeground: IuxPrimitiveColors.neutral50,
         disabledBackground: IuxPrimitiveColors.neutral80,
       ),
       tertiary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent70,
+        foreground: IuxPrimitiveColors.neutral30,
         background: IuxPrimitiveColors.neutral90,
-        border: IuxPrimitiveColors.neutral90,
         hoveredBackground: IuxPrimitiveColors.neutral80,
         pressedBackground: IuxPrimitiveColors.neutral70,
         disabledForeground: IuxPrimitiveColors.neutral50,
@@ -204,7 +206,6 @@ abstract final class IuxColorPalettes {
       destructive: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral95,
         background: IuxPrimitiveColors.critical70,
-        border: IuxPrimitiveColors.critical70,
         hoveredBackground: IuxPrimitiveColors.critical80,
         pressedBackground: IuxPrimitiveColors.critical90,
         disabledForeground: IuxPrimitiveColors.neutral50,
@@ -252,6 +253,17 @@ abstract final class IuxColorPalettes {
   /// carries meaning — content, borders that identify a control, focus and
   /// engagement states — while leaving decorative separation alone, so the
   /// interface gains legibility without becoming a grid of hard lines.
+  ///
+  /// Only one intent may reach for the neutral extreme when it is engaged.
+  /// Both accent ramps are compressed here, so a third engaged step has to
+  /// come from somewhere, and this mapping used to take it from black for
+  /// primary *and* destructive — which made a pressed "Delete" byte-identical
+  /// to a pressed "Save" in the profile whose whole purpose is separation, and
+  /// at the one moment the user commits. Primary keeps the extreme; destructive
+  /// stays inside its own hue, one rung lighter at rest so it has two steps to
+  /// deepen through. It gives up a little contrast at rest — 9.69:1 rather
+  /// than 13.76:1, both far above the 4.5:1 required — and keeps being red
+  /// when it matters.
   static const IuxSemanticColors highContrastLight = IuxSemanticColors(
     content: IuxContentColors(
       primary: IuxPrimitiveColors.neutral100,
@@ -286,25 +298,22 @@ abstract final class IuxColorPalettes {
       primary: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral0,
         background: IuxPrimitiveColors.accent20,
-        border: IuxPrimitiveColors.accent20,
         hoveredBackground: IuxPrimitiveColors.accent10,
         pressedBackground: IuxPrimitiveColors.neutral100,
         disabledForeground: IuxPrimitiveColors.neutral60,
         disabledBackground: IuxPrimitiveColors.neutral20,
       ),
       secondary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent20,
+        foreground: IuxPrimitiveColors.accent10,
         background: IuxPrimitiveColors.neutral0,
-        border: IuxPrimitiveColors.neutral80,
         hoveredBackground: IuxPrimitiveColors.neutral10,
         pressedBackground: IuxPrimitiveColors.neutral20,
         disabledForeground: IuxPrimitiveColors.neutral60,
         disabledBackground: IuxPrimitiveColors.neutral20,
       ),
       tertiary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent20,
+        foreground: IuxPrimitiveColors.neutral80,
         background: IuxPrimitiveColors.neutral0,
-        border: IuxPrimitiveColors.neutral80,
         hoveredBackground: IuxPrimitiveColors.neutral10,
         pressedBackground: IuxPrimitiveColors.neutral20,
         disabledForeground: IuxPrimitiveColors.neutral60,
@@ -312,10 +321,9 @@ abstract final class IuxColorPalettes {
       ),
       destructive: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral0,
-        background: IuxPrimitiveColors.critical20,
-        border: IuxPrimitiveColors.critical20,
-        hoveredBackground: IuxPrimitiveColors.critical10,
-        pressedBackground: IuxPrimitiveColors.neutral100,
+        background: IuxPrimitiveColors.critical30,
+        hoveredBackground: IuxPrimitiveColors.critical20,
+        pressedBackground: IuxPrimitiveColors.critical10,
         disabledForeground: IuxPrimitiveColors.neutral60,
         disabledBackground: IuxPrimitiveColors.neutral20,
       ),
@@ -360,6 +368,10 @@ abstract final class IuxColorPalettes {
   /// The base is near-black rather than pure black, for the same reason as the
   /// standard dark mapping: surface contrast remains the only usable elevation
   /// signal, and pure black leaves nothing to descend from.
+  ///
+  /// Destructive brightens within its own hue instead of ending at white, for
+  /// the reason given on [highContrastLight]: two intents that both reach for
+  /// the neutral extreme when pressed are one intent.
   static const IuxSemanticColors highContrastDark = IuxSemanticColors(
     content: IuxContentColors(
       primary: IuxPrimitiveColors.neutral0,
@@ -394,25 +406,22 @@ abstract final class IuxColorPalettes {
       primary: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral95,
         background: IuxPrimitiveColors.accent80,
-        border: IuxPrimitiveColors.accent80,
         hoveredBackground: IuxPrimitiveColors.accent90,
         pressedBackground: IuxPrimitiveColors.neutral0,
         disabledForeground: IuxPrimitiveColors.neutral40,
         disabledBackground: IuxPrimitiveColors.neutral70,
       ),
       secondary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent80,
+        foreground: IuxPrimitiveColors.accent90,
         background: IuxPrimitiveColors.neutral95,
-        border: IuxPrimitiveColors.neutral30,
         hoveredBackground: IuxPrimitiveColors.neutral80,
         pressedBackground: IuxPrimitiveColors.neutral70,
         disabledForeground: IuxPrimitiveColors.neutral40,
         disabledBackground: IuxPrimitiveColors.neutral70,
       ),
       tertiary: IuxActionColors(
-        foreground: IuxPrimitiveColors.accent80,
+        foreground: IuxPrimitiveColors.neutral20,
         background: IuxPrimitiveColors.neutral95,
-        border: IuxPrimitiveColors.neutral30,
         hoveredBackground: IuxPrimitiveColors.neutral80,
         pressedBackground: IuxPrimitiveColors.neutral70,
         disabledForeground: IuxPrimitiveColors.neutral40,
@@ -420,10 +429,9 @@ abstract final class IuxColorPalettes {
       ),
       destructive: IuxActionColors(
         foreground: IuxPrimitiveColors.neutral95,
-        background: IuxPrimitiveColors.critical80,
-        border: IuxPrimitiveColors.critical80,
-        hoveredBackground: IuxPrimitiveColors.critical90,
-        pressedBackground: IuxPrimitiveColors.neutral0,
+        background: IuxPrimitiveColors.critical70,
+        hoveredBackground: IuxPrimitiveColors.critical80,
+        pressedBackground: IuxPrimitiveColors.critical90,
         disabledForeground: IuxPrimitiveColors.neutral40,
         disabledBackground: IuxPrimitiveColors.neutral70,
       ),

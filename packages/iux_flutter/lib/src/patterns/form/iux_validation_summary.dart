@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../accessibility/iux_touch_target.dart';
 import '../../components/feedback/iux_inline_feedback_tokens.dart';
@@ -306,32 +307,43 @@ class _IuxSummaryEntry extends StatelessWidget {
   final String? hint;
 
   @override
-  Widget build(BuildContext context) => IuxSemantics.action(
-        // Joined with a full stop, which is the pause between two of the
-        // caller's own sentences and not a sentence of IUX's own. The
-        // alternative is two stops in the reading order for one problem, where
-        // the second is a message with nothing to attach it to.
-        label: '${entry.label}. ${entry.message}',
-        hint: hint,
-        onTap: entry.onActivate,
-        child: IuxFocusable(
-          onActivate: entry.onActivate,
-          borderRadius: BorderRadius.circular(tokens.actionRadius),
-          child: IuxTapTarget(
-            onTap: entry.onActivate,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  entry.label,
-                  style: tokens.actionStyle.copyWith(
-                    decoration: TextDecoration.underline,
-                    decorationColor: tokens.content,
+  Widget build(BuildContext context) =>
+      // The entry is the one control on a refusal a screen-reader user has to
+      // be able to be *sent* to, not merely swiped onto. That needs the focus
+      // node named on the announced node as well as on the region that holds
+      // it. IUX-A11Y-FOCUS-001.
+      IuxFocusNodeOwner(
+        focusNode: null,
+        debugLabel: entry.label,
+        builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+          // Joined with a full stop, which is the pause between two of the
+          // caller's own sentences and not a sentence of IUX's own. The
+          // alternative is two stops in the reading order for one problem,
+          // where the second is a message with nothing to attach it to.
+          label: '${entry.label}. ${entry.message}',
+          hint: hint,
+          onTap: entry.onActivate,
+          focusNode: node,
+          child: IuxFocusable(
+            focusNode: node,
+            onActivate: entry.onActivate,
+            borderRadius: BorderRadius.circular(tokens.actionRadius),
+            child: IuxTapTarget(
+              onTap: entry.onActivate,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    entry.label,
+                    style: tokens.actionStyle.copyWith(
+                      decoration: TextDecoration.underline,
+                      decorationColor: tokens.content,
+                    ),
                   ),
-                ),
-                Text(entry.message, style: tokens.messageStyle),
-              ],
+                  Text(entry.message, style: tokens.messageStyle),
+                ],
+              ),
             ),
           ),
         ),

@@ -41,23 +41,23 @@ const String _kLongReason =
 
 void main() {
   /// Builds a forward control that records its activations.
-  IuxInlineFeedbackAction ask({
+  IuxNamedAction ask({
     String label = _kAskLabel,
     String? semanticLabel,
     VoidCallback? onActivate,
   }) =>
-      IuxInlineFeedbackAction(
+      IuxNamedAction(
         label: label,
         semanticLabel: semanticLabel,
         onActivate: onActivate ?? () {},
       );
 
   /// Builds a refusal that records its activations.
-  IuxInlineFeedbackAction decline({
+  IuxNamedAction decline({
     String label = _kDeclineLabel,
     VoidCallback? onActivate,
   }) =>
-      IuxInlineFeedbackAction(
+      IuxNamedAction(
         label: label,
         onActivate: onActivate ?? () {},
       );
@@ -1239,21 +1239,24 @@ void main() {
     testWidgets('it survives 200% text on a small screen', (
       WidgetTester tester,
     ) async {
-      // Placed inside a scroll view, which is the case where the block adds
-      // none of its own: a block embedded in a list that already scrolls must
-      // not introduce a second one. See "both answers stay reachable" for the
-      // standalone case, and for why finding a control is not the same as
-      // being able to press it.
+      // Standalone, in the bounded viewport, and that is the whole point of
+      // this test. It used to wrap the block in a `SingleChildScrollView`,
+      // which hands the column an unbounded height — so
+      // `expect(takeException(), isNull)` could not fail, whatever the block
+      // did. Rebuilt without it the assertion has teeth: remove the
+      // `LayoutBuilder` that lets a bounded block scroll itself and this
+      // reports `RenderFlex overflowed`. The already-scrolling arrangement has
+      // its own test in "both answers stay reachable", which is also where
+      // finding a control is shown not to be the same as pressing it
+      // (IUX-QA-VACUOUS-003).
       await pump(
         tester,
-        SingleChildScrollView(
-          child: IuxPermissionRationale(
-            moment: IuxBeforeAsking(ask: ask(), decline: decline()),
-            title: _kTitle,
-            reason: _kLongReason,
-            guidance: _kGuidance,
-            illustration: Icons.photo_camera_outlined,
-          ),
+        IuxPermissionRationale(
+          moment: IuxBeforeAsking(ask: ask(), decline: decline()),
+          title: _kTitle,
+          reason: _kLongReason,
+          guidance: _kGuidance,
+          illustration: Icons.photo_camera_outlined,
         ),
         textScale: 2,
         size: const Size(320, 640),
@@ -1315,6 +1318,11 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text(_kReason), findsOneWidget);
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so without this every case after the first would
+        // pass whatever it laid out (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
 

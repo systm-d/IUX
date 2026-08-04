@@ -313,27 +313,14 @@ void main() {
       );
     });
 
-    refuses('hold to confirm, which this pattern does not present', () {
-      IuxDestructiveActionController(
-        action: const IuxActionDescriptor.destructive(
-          semantics: _semantics,
-          confirmation: IuxConfirmByHold(),
-        ),
-        prompt: _prompt,
-        onConfirmed: () {},
-      );
-    });
-
-    refuses('double activation, which this pattern does not present', () {
-      IuxDestructiveActionController(
-        action: const IuxActionDescriptor.destructive(
-          semantics: _semantics,
-          confirmation: IuxConfirmByDoubleActivation(),
-        ),
-        prompt: _prompt,
-        onConfirmed: () {},
-      );
-    });
+    // Two cases stood here, checking that this controller refused
+    // `IuxConfirmByHold` and `IuxConfirmByDoubleActivation`. IUX-039 removed
+    // both policies from `IuxConfirmationPolicy` — this controller's refusal
+    // was the only reading either ever received, and a policy honoured by
+    // nothing is a precaution the user is promised and never gets. There is
+    // now no unhonourable member left to refuse, so the assertion in
+    // `_debugCoherent` is a guard against a future member rather than against
+    // a shipped one.
 
     refuses('an update that leaves the wording behind', () {
       IuxDestructiveActionController(
@@ -636,6 +623,103 @@ void main() {
         trigger.hasFocus,
         isTrue,
         reason: 'and going ahead does too',
+      );
+    });
+
+    testWidgets('and it returns there when the caller supplied no node',
+        (WidgetTester tester) async {
+      // The test above hands the trigger a node the *test* owns, which is what
+      // made it pass while the ordinary call site was broken. Without a node
+      // the trigger's own was created by the widget, and the widget does not
+      // survive its own confirmation: `IuxModalLayer` adds a `Stack` when the
+      // dialog opens and removes it when it closes, so the page changes depth
+      // in the element tree twice and is rebuilt from scratch both times.
+      // `IuxFocus.restore` then found a node with no context and did nothing.
+      //
+      // Measured before the fix on this page of four controls: focus landed on
+      // the page's root scope and cost **three Tab presses** to get back to
+      // the trigger. After it, zero (IUX-DESTRUCTIVE-FOCUS-001, WCAG 2.2 SC
+      // 2.4.3 — Flutter's own dialog costs zero too).
+      final IuxDestructiveActionController controller =
+          IuxDestructiveActionController(
+        action: _confirming,
+        prompt: _prompt,
+        onConfirmed: () {},
+      );
+      addTearDown(controller.dispose);
+
+      Widget filler(String label) => IuxButton(
+            label: label,
+            action: IuxActionDescriptor.primary(
+              semantics: IuxActionSemantics(label: label),
+            ),
+            onActivate: () {},
+          );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.light(),
+          home: ListenableBuilder(
+            listenable: controller,
+            builder: (BuildContext context, Widget? child) => IuxModalLayer(
+              dialog: controller.dialog,
+              child: IuxPage(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    filler('One'),
+                    filler('Two'),
+                    // No focusNode: the ordinary call site.
+                    IuxDestructiveAction(
+                      label: 'Delete',
+                      controller: controller,
+                    ),
+                    filler('Four'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      bool onTrigger() {
+        final BuildContext? held = FocusManager.instance.primaryFocus?.context;
+        return held != null &&
+            held.findAncestorWidgetOfExactType<IuxDestructiveAction>() != null;
+      }
+
+      /// Tabs until the trigger holds focus, and says how many presses it took.
+      Future<int> tabsToTheTrigger() async {
+        int presses = 0;
+        while (!onTrigger() && presses < 12) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pumpAndSettle();
+          presses++;
+        }
+        return presses;
+      }
+
+      // A keyboard user arrives at the trigger and opens the question from it.
+      expect(await tabsToTheTrigger(), lessThan(12));
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(onTrigger(), isFalse, reason: 'the confirmation takes focus');
+
+      await tester.tap(find.text(_prompt.keepLabel));
+      await tester.pumpAndSettle();
+
+      expect(
+        onTrigger(),
+        isTrue,
+        reason: 'leaving the question puts the user back on the control they '
+            'asked it from, without a node the caller had to know to supply',
+      );
+      expect(
+        await tabsToTheTrigger(),
+        0,
+        reason: 'and the way back costs no presses at all',
       );
     });
 

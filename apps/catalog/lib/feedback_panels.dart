@@ -67,8 +67,8 @@ class _InlineFeedbackPanelState extends State<_InlineFeedbackPanel> {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final bool long = widget.longLabels;
 
-    final IuxInlineFeedbackAction? action = _withAction
-        ? IuxInlineFeedbackAction(
+    final IuxNamedAction? action = _withAction
+        ? IuxNamedAction(
             label: 'Use another card',
             onActivate: () => setState(() => _acted++),
           )
@@ -77,7 +77,7 @@ class _InlineFeedbackPanelState extends State<_InlineFeedbackPanel> {
     final IuxInlineFeedbackDismissal? dismissal = _withDismissal
         ? IuxInlineFeedbackDismissal(
             label: 'Dismiss',
-            onDismiss: () => setState(() => _dismissed++),
+            onDismissed: () => setState(() => _dismissed++),
           )
         : null;
 

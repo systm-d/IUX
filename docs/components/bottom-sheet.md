@@ -15,7 +15,7 @@ Stack(
       IuxBottomSheet(
         title: 'Filter orders',
         dismissLabel: 'Close',
-        onDismiss: controller.closeFilters,
+        onDismissed: controller.closeFilters,
         child: filterFields,
       ),
   ],
@@ -165,7 +165,7 @@ content is still there behind the sheet.
 | --- | --- | --- |
 | `title` | yes | what the sheet is; also the announced route name |
 | `dismissLabel` | yes | the visible text of the way out |
-| `onDismiss` | yes | scrim, Escape and the header button all call this |
+| `onDismissed` | yes | scrim, Escape and the header button all call this |
 | `child` | yes | the content, which is the reason the sheet exists |
 
 There is no `actions` list. A sheet is a surface, not a decision: actions that
@@ -181,9 +181,9 @@ There is no colour, radius, elevation, duration, height, snap point,
 | Event | Result |
 | --- | --- |
 | opens | focus moves into the sheet; the route is announced; the page leaves the semantic tree |
-| Escape | `onDismiss` |
-| tap on the scrim, including above the panel | `onDismiss` |
-| tap on the header button | `onDismiss` |
+| Escape | `onDismissed` |
+| tap on the scrim, including above the panel | `onDismissed` |
+| tap on the header button | `onDismissed` |
 | tap on the panel itself | nothing — a tap on the padding is not a dismissal |
 | drag on the panel | nothing; see below |
 | a keyboard opens | the sheet lifts above it and its content keeps scrolling |
@@ -278,14 +278,14 @@ cannot outlive its own removal.
 
 ```dart
 // Wrong: the sheet is asked to close itself.
-IuxBottomSheet(onDismiss: () { save(); closeItself(); })
+IuxBottomSheet(onDismissed: () { save(); closeItself(); })
 // Right: the parent owns the flag.
-IuxBottomSheet(onDismiss: controller.closeFilters)
+IuxBottomSheet(onDismissed: controller.closeFilters)
 ```
 
 ```dart
 // Wrong: a sheet with no way out but a swipe.
-// Unrepresentable — onDismiss and dismissLabel are required, and there is no
+// Unrepresentable — onDismissed and dismissLabel are required, and there is no
 // enableDrag / isDismissible flag to turn the visible one off.
 ```
 

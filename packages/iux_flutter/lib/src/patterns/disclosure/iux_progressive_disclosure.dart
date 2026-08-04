@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../semantics/iux_semantic_colors.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
@@ -294,24 +295,32 @@ class _IuxDisclosureControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IuxSemantics.action(
-      label: summary,
-      // Not null, and not omitted. Left absent the platform is never told this
-      // control has an open state, so it cannot say "collapsed" before the
-      // press — which is the announcement that makes a disclosure usable
-      // without opening it.
-      expanded: expanded,
-      onTap: onActivate,
-      child: IuxFocusable(
-        focusNode: focusNode,
-        onActivate: onActivate,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onActivate,
-          child: _IuxDisclosureRow(
-            summary: summary,
-            tokens: tokens,
-            stateGlyph: expanded ? Icons.expand_less : Icons.expand_more,
+    // One node named twice: the announced node and the focusable region below
+    // it have to be the same focus node, or the platform is told about a focus
+    // that lives somewhere else. IUX-A11Y-FOCUS-001.
+    return IuxFocusNodeOwner(
+      focusNode: focusNode,
+      debugLabel: summary,
+      builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+        label: summary,
+        // Not null, and not omitted. Left absent the platform is never told
+        // this control has an open state, so it cannot say "collapsed" before
+        // the press — which is the announcement that makes a disclosure usable
+        // without opening it.
+        expanded: expanded,
+        onTap: onActivate,
+        focusNode: node,
+        child: IuxFocusable(
+          focusNode: node,
+          onActivate: onActivate,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onActivate,
+            child: _IuxDisclosureRow(
+              summary: summary,
+              tokens: tokens,
+              stateGlyph: expanded ? Icons.expand_less : Icons.expand_more,
+            ),
           ),
         ),
       ),

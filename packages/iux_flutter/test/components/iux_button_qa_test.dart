@@ -932,13 +932,9 @@ void main() {
       );
     });
 
-    accepts('hold-to-confirm on an action that must also be stoppable', () {
-      const IuxActionDescriptor(
-        semantics: IuxActionSemantics(label: 'Wipe the device'),
-        confirmation: IuxConfirmByHold(),
-        cancellation: IuxActionCancellation.required,
-      );
-    });
+    // A case for `IuxConfirmByHold` stood here. The policy was removed in
+    // IUX-039 because nothing in the package honoured it — including this
+    // button, which ran the action on the first ordinary tap.
 
     accepts('an unavailable action that has already succeeded', () {
       const IuxActionDescriptor(
@@ -1008,9 +1004,17 @@ Future<void> _forEveryPalette(
   for (final IuxThemeConfiguration configuration in profiles) {
     for (final IuxActionIntent intent in IuxActionIntent.values) {
       for (final IuxButtonVariant variant in IuxButtonVariant.values) {
-        // Tonal refuses a destructive intent by design.
+        // Two pairs are refused by design. Tonal refuses a destructive
+        // intent; and since IUX-039 `filled` refuses secondary and tertiary,
+        // which the semantic layer models unfilled — the combination used to
+        // be accepted and resolved, measured, to a text button.
         if (variant == IuxButtonVariant.tonal &&
             intent == IuxActionIntent.destructive) {
+          continue;
+        }
+        if (variant == IuxButtonVariant.filled &&
+            (intent == IuxActionIntent.secondary ||
+                intent == IuxActionIntent.tertiary)) {
           continue;
         }
         late IuxButtonTokens tokens;

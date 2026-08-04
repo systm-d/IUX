@@ -146,7 +146,7 @@ void main() {
       );
       expect(
         IuxAlternativeRoute(
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: _kAlternativeLabel,
             onActivate: () {},
           ),
@@ -221,7 +221,7 @@ void main() {
       // The one thing that keeps this control from being announced as, and
       // treated as, the retry the type deliberately is not.
       final IuxAlternativeRoute route = IuxAlternativeRoute(
-        action: IuxInlineFeedbackAction(
+        action: IuxNamedAction(
           label: _kAlternativeLabel,
           onActivate: () {},
         ),
@@ -292,7 +292,7 @@ void main() {
           categoryLabel: _kCategory,
           message: _kMessage,
           route: IuxAlternativeRoute(
-            action: IuxInlineFeedbackAction(
+            action: IuxNamedAction(
               label: _kAlternativeLabel,
               onActivate: () {},
             ),
@@ -412,7 +412,7 @@ void main() {
           categoryLabel: _kCategory,
           message: _kMessage,
           route: IuxAlternativeRoute(
-            action: IuxInlineFeedbackAction(
+            action: IuxNamedAction(
               label: _kAlternativeLabel,
               onActivate: () => activations++,
             ),
@@ -692,6 +692,125 @@ void main() {
     });
   });
 
+  group('the retry stays reachable', () {
+    /// The scales the audit measures, and the screen it measures them on.
+    const List<double> scales = <double>[1, 1.5, 2, 3];
+    const Size small = Size(320, 640);
+
+    /// A block carrying what a real one carries, so the control sits where a
+    /// real one puts it: under a long explanation.
+    IuxErrorRecovery block(VoidCallback onRetry) => IuxErrorRecovery(
+          categoryLabel: _kCategory,
+          message: _kLongMessage,
+          route: IuxRetryRoute(label: _kRetryLabel, onRetry: onRetry),
+        );
+
+    /// Drags from the middle of the viewport until the block stops moving.
+    ///
+    /// Repeated rather than one long drag, because a message this long at 300%
+    /// is taller than any single gesture; the physics clamp the last one. The
+    /// start point is never on top of the control being reached.
+    Future<void> dragToTheEnd(WidgetTester tester) async {
+      for (int i = 0; i < 8; i++) {
+        await tester.dragFrom(const Offset(160, 320), const Offset(0, -2000));
+        await tester.pumpAndSettle();
+      }
+    }
+
+    testWidgets(
+        'the retry can be reached and pressed at 100, 150, 200 and 300 '
+        'per cent', (WidgetTester tester) async {
+      // The third pattern with the defect IUX-038 measured on the other two,
+      // found because the test that should have caught it wrapped the block in
+      // a scroll view. Measured before the fix, standalone on 320x640 at 200%:
+      // `RenderFlex overflowed by 2312 pixels` and the retry off screen — an
+      // error the user is told about and cannot act on.
+      for (final double scale in scales) {
+        int attempts = 0;
+        await pump(
+          tester,
+          block(() => attempts++),
+          textScale: scale,
+          size: small,
+        );
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so this assertion is only worth anything because
+        // every case ends by tearing the tree down (IUX-QA-VACUOUS-003).
+        expect(tester.takeException(), isNull, reason: 'at ${scale}x');
+        expect(find.byType(Scrollable), findsOneWidget, reason: 'at ${scale}x');
+
+        final Finder retry = find.byType(IuxButton);
+        await dragToTheEnd(tester);
+
+        expect(retry.hitTestable(), findsOneWidget, reason: 'at ${scale}x');
+        await tester.tap(retry);
+        await tester.pump();
+        expect(attempts, 1, reason: 'at ${scale}x');
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets(
+        'a caller who already scrolls does not get a second scroll view',
+        (WidgetTester tester) async {
+      // Every vertical scroll view hands its children an unbounded height, so
+      // the block sees one and adds nothing. The documented placement keeps
+      // costing exactly what it cost before.
+      final Map<String, Widget Function(Widget)> hosts =
+          <String, Widget Function(Widget)>{
+        'an IuxPage': (Widget child) => IuxPage(child: child),
+        'a single-child scroll view': (Widget child) =>
+            SingleChildScrollView(child: child),
+        'a list': (Widget child) => ListView(children: <Widget>[child]),
+        'a sliver list': (Widget child) => CustomScrollView(
+              slivers: <Widget>[SliverToBoxAdapter(child: child)],
+            ),
+      };
+
+      for (final MapEntry<String, Widget Function(Widget)> host
+          in hosts.entries) {
+        await pump(
+          tester,
+          host.value(block(() {})),
+          textScale: 2,
+          size: small,
+        );
+
+        expect(tester.takeException(), isNull, reason: 'inside ${host.key}');
+        expect(
+          find.byType(Scrollable),
+          findsOneWidget,
+          reason: 'inside ${host.key} there must be one scroll view, the '
+              "caller's — a second one is a nested scrollable",
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('a block that fits is not moved and takes no gesture',
+        (WidgetTester tester) async {
+      // The fix has to be invisible where there was nothing wrong.
+      await pump(
+        tester,
+        IuxErrorRecovery(
+          categoryLabel: _kCategory,
+          message: _kMessage,
+          route: IuxRetryRoute(label: _kRetryLabel, onRetry: () {}),
+        ),
+        size: small,
+      );
+
+      final Rect before = tester.getRect(find.text(_kMessage));
+      await dragToTheEnd(tester);
+
+      expect(tester.getRect(find.text(_kMessage)), before);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('layout under pressure', () {
     testWidgets('a long message wraps rather than clipping', (
       WidgetTester tester,
@@ -716,17 +835,12 @@ void main() {
     testWidgets('it survives 200% text on a small screen', (
       WidgetTester tester,
     ) async {
-      // Placed inside a scroll view, which is the documented contract: the
-      // pattern imposes none of its own, because a block embedded in a list
-      // that already scrolls must not introduce a second one.
       await pump(
         tester,
-        SingleChildScrollView(
-          child: IuxErrorRecovery(
-            categoryLabel: _kCategory,
-            message: _kLongMessage,
-            route: IuxRetryRoute(label: _kRetryLabel, onRetry: () {}),
-          ),
+        IuxErrorRecovery(
+          categoryLabel: _kCategory,
+          message: _kLongMessage,
+          route: IuxRetryRoute(label: _kRetryLabel, onRetry: () {}),
         ),
         textScale: 2,
         size: const Size(320, 640),
@@ -805,6 +919,11 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text(_kMessage), findsOneWidget);
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so without this every case after the first would
+        // pass whatever it laid out (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
 

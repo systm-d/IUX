@@ -87,6 +87,48 @@ Write it so it stands alone — it is announced on its own when progress crosses
 a milestone, so `45% uploaded` is kinder than `45%` on a screen holding more
 than one operation.
 
+### And why a percentage in it is checked against `value`
+
+`value` paints the bar and `valueLabel` is spoken. They are the same statement
+made to two audiences, and nothing used to stop them disagreeing: a 45% bar
+could announce "90%", the sighted user read the fill, the screen-reader user
+heard the label, and neither was told the other existed
+(`IUX-PROGRESS-LABEL-001`, WCAG 2.2 SC 1.1.1). A percentage written in
+`valueLabel` is now checked against `value` in debug builds.
+
+**What is inspected.** A number adjacent to a percent sign — `%`, and the
+Arabic `٪`, small `﹪` and fullwidth `％` — with or without the space French and
+others put in front of it, and with either a full stop or a comma as the decimal
+separator. One percentage, anywhere in the sentence.
+
+**What is not, and why that is the point rather than a shortfall.**
+
+| Left alone | Because |
+| --- | --- |
+| `3 of 7` | it legitimately describes a run that finished two steps and started the third |
+| `12 MB of 40 MB` | the counted bytes need not be the ones the bar draws |
+| `٤٥٪` | the digits are outside ASCII, so nothing is read and nothing is claimed |
+| two percentages in one label | there is no way to tell which is meant to be the value |
+
+A percentage is the one form that cannot mean something else, which is what
+makes it the one form worth checking. A check that guessed at the others would
+refuse correct code, and a false-positive assertion is worse than a missing one.
+
+**The tolerance is five percentage points**, which is the widest rounding
+anyone writes: a caller reporting to the nearest ten is off by at most that, and
+one truncating to the nearest one is off by at most one. The check exists to
+catch a label describing *different* progress, not one that is merely coarse.
+
+**Where it runs.** In `build`, not in the constructor — a `const` constructor
+may only assert on constant expressions and a regular-expression match is not
+one — and therefore on every rebuild, which is what catches the realistic shape
+of the defect: the two agree at 0% and drift as the work advances.
+
+The check narrows the gap; it does not close it. A caller who computes the
+percentage wrongly *and* writes it out consistently is telling both audiences
+the same wrong thing, which no component can detect. Deriving both from one
+quantity at the call site is still the only real answer.
+
 ## States
 
 | State | Source |

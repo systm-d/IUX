@@ -57,11 +57,11 @@ const String _kDeadEnd =
 /// ```dart
 /// IuxPermissionRationale(
 ///   moment: IuxBeforeAsking(
-///     ask: IuxInlineFeedbackAction(
+///     ask: IuxNamedAction(
 ///       label: l10n.chooseCameraAccess,
 ///       onActivate: controller.requestCameraPermission,
 ///     ),
-///     decline: IuxInlineFeedbackAction(
+///     decline: IuxNamedAction(
 ///       label: l10n.notNow,
 ///       onActivate: controller.dismissRationale,
 ///     ),
@@ -490,7 +490,7 @@ class IuxPermissionRationale extends StatelessWidget {
   /// D-pad and a screen-reader swipe — and so the control that opens a system
   /// prompt is never the one an accidental activation reaches.
   List<Widget> _controls() {
-    final IuxInlineFeedbackAction decline = moment.decline;
+    final IuxNamedAction decline = moment.decline;
     final List<Widget> controls = <Widget>[
       IuxButton(
         label: decline.label,
@@ -499,7 +499,7 @@ class IuxPermissionRationale extends StatelessWidget {
       ),
     ];
 
-    final IuxInlineFeedbackAction? offer = moment.action;
+    final IuxNamedAction? offer = moment.action;
     final IuxActionDescriptor? offerAction = moment.actionDescriptor;
     if (offer != null && offerAction != null) {
       controls.add(

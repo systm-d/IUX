@@ -191,6 +191,65 @@ void main() {
       expect(host.state.focusNodes[1].hasPrimaryFocus, isTrue);
       expect(headingNode(tester).hasPrimaryFocus, isFalse);
     });
+
+    testWidgets('a step change is one utterance, not two',
+        (WidgetTester tester) async {
+      // The rule this pattern refused a progress bar to keep: a step change is
+      // one event, so it gets one announcement, and that announcement is the
+      // focus move to the heading. A live region arriving in the same frame is
+      // a second utterance competing for the same event, in an order the
+      // platform decides.
+      //
+      // It was arriving. A field that is already rejected on the step being
+      // navigated *to* mounts with its validation message, and the message is
+      // a live region. Measured on this form: one live region — "Enter a
+      // street" — in the frame focus moved to "Step 2 of 3", and none after
+      // (IUX-GUIDED-FORM-LIVE-001).
+      //
+      // Two things had to be true for that to stop. The step's sections are
+      // keyed by the step, so the arriving questions are not reconciled into
+      // the departing ones — without the key, Flutter updates the old field in
+      // place and the message reads as having just appeared. And a field
+      // treats a message it arrived carrying as content rather than as a
+      // status change.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final _Host host = await pumpGuidedForm(tester);
+
+      // 'Street' is the first field of step 2, and the parent rejects it while
+      // the user is still on step 1 and cannot see it.
+      host.state.reject(2, 'Enter a street');
+      await tester.pumpAndSettle();
+      expect(liveRegions(tester), isEmpty, reason: 'nothing speaks yet');
+
+      await tap(tester, 'Continue');
+
+      expect(headingNode(tester).hasPrimaryFocus, isTrue);
+      expect(
+        liveRegions(tester),
+        isEmpty,
+        reason: 'the focus move is the announcement; a live region in the same '
+            'frame is the second utterance this pattern exists to avoid',
+      );
+      // And nothing was hidden: the message is still a node the user reaches.
+      expect(find.text('Enter a street'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('a rejection that lands while the user is looking still speaks',
+        (WidgetTester tester) async {
+      // The other half of the same rule. Suppressing a message that arrived
+      // with its field must not suppress one that appears under a field the
+      // user is standing in — that one *is* a status change, and it is the
+      // reason the live region exists.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final _Host host = await pumpGuidedForm(tester);
+
+      host.state.reject(0, 'Enter an email address');
+      await tester.pumpAndSettle();
+
+      expect(liveRegions(tester), <String>['Enter an email address']);
+      handle.dispose();
+    });
   });
 
   group('the heading announces the whole arrival', () {
@@ -1019,6 +1078,37 @@ Future<void> activateEntry(WidgetTester tester, String label) async {
 FocusNode summaryNode(WidgetTester tester) => tester
     .widget<IuxValidationSummary>(find.byType(IuxValidationSummary))
     .focusNode!;
+
+/// Every live region currently in the semantics tree, by what it says.
+///
+/// A live region is a request for the platform to speak, so counting them is
+/// how "one event, one utterance" is measured rather than argued.
+/// Walks the real tree rather than asserting prose. The root is reached by
+/// climbing from a node the finder can reach, because the binding's own
+/// accessor for it is deprecated.
+List<String> liveRegions(WidgetTester tester) {
+  SemanticsNode node = tester.getSemantics(find.byType(MaterialApp));
+  while (node.parent != null) {
+    node = node.parent!;
+  }
+
+  final List<String> found = <String>[];
+  void walk(SemanticsNode current) {
+    // A node merged into its parent is not a stop and is not announced
+    // separately: its label is already part of the parent's.
+    if (!current.isMergedIntoParent) {
+      final SemanticsData data = current.getSemanticsData();
+      if (data.flagsCollection.isLiveRegion) found.add(data.label);
+    }
+    current.visitChildren((SemanticsNode child) {
+      walk(child);
+      return true;
+    });
+  }
+
+  walk(node);
+  return found;
+}
 
 /// The node the form gave its step heading, which is where focus goes when the
 /// step changes.

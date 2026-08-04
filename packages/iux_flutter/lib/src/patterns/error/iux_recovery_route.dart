@@ -60,6 +60,25 @@ const String _kEmptyGuidance =
 sealed class IuxRecoveryRoute {
   /// Creates a route.
   const IuxRecoveryRoute();
+
+  /// Running the same operation again. See [IuxRetryRoute].
+  const factory IuxRecoveryRoute.retry({
+    required String label,
+    required VoidCallback onRetry,
+    String? semanticLabel,
+    bool isRunning,
+    String? busyHint,
+  }) = IuxRetryRoute;
+
+  /// A different way to the same place. See [IuxAlternativeRoute].
+  const factory IuxRecoveryRoute.alternative({
+    required IuxNamedAction action,
+  }) = IuxAlternativeRoute;
+
+  /// Nothing on this screen moves the user forward. See [IuxUnrecoverable].
+  const factory IuxRecoveryRoute.unrecoverable({
+    required String guidance,
+  }) = IuxUnrecoverable;
 }
 
 /// Running the same operation again, on the user's request.
@@ -243,7 +262,7 @@ final class IuxRetryRoute extends IuxRecoveryRoute {
 ///
 /// ```dart
 /// IuxAlternativeRoute(
-///   action: IuxInlineFeedbackAction(
+///   action: IuxNamedAction(
 ///     label: l10n.signInAgain,
 ///     onActivate: controller.openSignIn,
 ///   ),
@@ -283,13 +302,13 @@ final class IuxAlternativeRoute extends IuxRecoveryRoute {
   /// Name the destination — "Sign in again", "Use another card", "Open
   /// settings" — so the control says where it goes before it goes there.
   ///
-  /// An [IuxInlineFeedbackAction] because that is already the library's value
+  /// An [IuxNamedAction] because that is already the library's value
   /// for "a labelled way out of a message", and because a call site that
   /// outgrows [IuxAlert] should not have to rewrite its actions to move here.
   /// It carries no lifecycle, which is correct: an alternative goes somewhere
   /// else, and the somewhere else owns its own progress. A control that has to
   /// report progress *in this block* is a retry, and that is the other type.
-  final IuxInlineFeedbackAction action;
+  final IuxNamedAction action;
 
   /// This route as the action model already understands it.
   ///

@@ -339,7 +339,7 @@ void main() {
         region(
           const IuxLoadState<String>.failed(message: _kFailureMessage),
           recovery: IuxAlternativeRoute(
-            action: IuxInlineFeedbackAction(
+            action: IuxNamedAction(
               label: 'Sign in again',
               onActivate: () {},
             ),
@@ -793,6 +793,13 @@ void main() {
         expect(tester.takeException(), isNull, reason: '$configuration');
         expect(find.text(_kFailureMessage), findsOneWidget);
 
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so without a teardown between cases every case
+        // after the first would pass whatever it laid out
+        // (IUX-QA-VACUOUS-003). Two per iteration, because the wait and the
+        // failure are two different layouts.
+        await tester.pumpWidget(const SizedBox.shrink());
+
         await host(
           tester,
           region(const IuxLoadState<String>.loading()),
@@ -800,6 +807,8 @@ void main() {
         );
         expect(tester.takeException(), isNull, reason: '$configuration');
         expect(find.text(_kLoadingLabel), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
   });

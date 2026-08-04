@@ -97,22 +97,20 @@ void main() {
         }
       }
 
-      // IuxElevation: four members, declared at
-      // lib/src/foundations/iux_foundations.dart, exported through the barrel,
-      // and named nowhere in lib/, test/ or apps/. Elevation is expressed by
-      // IuxSurface's own IuxSurfaceRole and by IuxGeometryTheme.elevationRaised
-      // / .elevationModal, neither of which goes through this enum. Deleting it
-      // is a breaking change to nothing.
+      // This list was `['IuxElevation']` until IUX-039 deleted that enum:
+      // four members, exported through the barrel, and named nowhere in lib/,
+      // test/ or apps/. Elevation is expressed by IuxSurface's own
+      // IuxSurfaceRole and by IuxGeometryTheme.elevationRaised /
+      // .elevationModal, neither of which went through it.
       //
-      // Equality rather than containment, in both directions on purpose:
-      // a *new* dead enum fails this, and so does removing IuxElevation
-      // without updating this list — which is what makes the list honest.
+      // Equality rather than containment, on purpose: an empty list is now the
+      // guarantee, so a *new* dead enum fails this.
       expect(
         dead..sort(),
-        <String>['IuxElevation'],
+        isEmpty,
         reason: 'an enum that is neither referenced nor resolved is public API '
             'with nothing behind it (PROJECT_PROMPT §19). Either resolve it or '
-            'delete it. If you fixed IuxElevation, remove it from this list.',
+            'delete it.',
       );
     });
 
@@ -156,17 +154,24 @@ void main() {
       );
     });
 
-    testWidgets('IuxActionDescriptor.importance changes nothing observable',
+    testWidgets('IuxActionDescriptor.importance reaches the screen',
         (WidgetTester tester) async {
-      // `importance` is stored, copied by copyWith, compared in ==, folded
-      // into hashCode — and read by nothing in lib/. This is precisely the
-      // shape IUX-BUTTON-DEAD-001 described: "the value is computed, stored,
-      // compared in `==` and hashed. It simply never reaches a pixel."
+      // This test used to assert the opposite, and passed: `importance` was
+      // stored, copied by copyWith, compared in ==, folded into hashCode — and
+      // read by nothing in lib/, so high, medium and low rendered identically.
+      // That is precisely the shape IUX-BUTTON-DEAD-001 described: "the value
+      // is computed, stored, compared in `==` and hashed. It simply never
+      // reaches a pixel."
+      //
+      // IUX-039 gave it the one job that is neither a duplicate of the variant
+      // nor a second colour channel: it chooses the container an action is
+      // drawn in when the call site names no variant. All three values must
+      // now differ from one another, which is the whole claim.
       //
       // Measured rather than grepped, because `.importance` is a common enough
       // name that a textual scan could be fooled by another class's field —
       // the false negative `component_standard_test.dart` documents.
-      Future<RenderBox> pump(IuxActionImportance importance) async {
+      Future<BoxDecoration> pump(IuxActionImportance importance) async {
         await tester.pumpWidget(
           MaterialApp(
             theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
@@ -175,6 +180,7 @@ void main() {
                 label: 'Save',
                 action: IuxActionDescriptor(
                   semantics: const IuxActionSemantics(label: 'Save'),
+                  intent: IuxActionIntent.primary,
                   importance: importance,
                 ),
                 onActivate: () {},
@@ -183,37 +189,54 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        return tester.renderObject<RenderBox>(find.byType(IuxButton));
+        return tester
+            .widget<AnimatedContainer>(find.byType(AnimatedContainer))
+            .decoration! as BoxDecoration;
       }
 
-      final Size high = (await pump(IuxActionImportance.high)).size;
-      final String highSemantics =
-          tester.getSemantics(find.bySemanticsLabel('Save')).toStringDeep();
+      final BoxDecoration high = await pump(IuxActionImportance.high);
+      final BoxDecoration medium = await pump(IuxActionImportance.medium);
+      final BoxDecoration low = await pump(IuxActionImportance.low);
 
-      final Size low = (await pump(IuxActionImportance.low)).size;
-      final String lowSemantics =
-          tester.getSemantics(find.bySemanticsLabel('Save')).toStringDeep();
-
-      expect(
-        <Object>[low, lowSemantics],
-        <Object>[high, highSemantics],
-        reason: 'IuxActionImportance is a three-member public enum that no '
-            'widget reads: high, medium and low render and announce '
-            'identically. Either something must resolve it — a filled button '
-            'for high, a text button for low, say — or it should go '
-            '(PROJECT_PROMPT §19). When it is wired up, this test fails, and '
-            'that failure is the point.',
-      );
+      const String why = 'IuxActionImportance is a three-member public enum. '
+          'Two members that resolve to the same container are one member and '
+          'a synonym (PROJECT_PROMPT §19).';
+      expect(<Object?>[
+        high.color,
+        high.border
+      ], isNot(<Object?>[medium.color, medium.border]), reason: why);
+      expect(<Object?>[
+        medium.color,
+        medium.border
+      ], isNot(<Object?>[low.color, low.border]), reason: why);
+      expect(<Object?>[
+        high.color,
+        high.border
+      ], isNot(<Object?>[low.color, low.border]), reason: why);
     });
 
     testWidgets('IuxActionRole changes nothing observable either',
         (WidgetTester tester) async {
-      // IuxActionRole documents itself as "used for semantics, feedback and
+      // IuxActionRole documented itself as "used for semantics, feedback and
       // pattern selection". Measured, it drives none of the three: the only
       // reads of IuxActionDescriptor.role in lib/ are two debug assertions
       // (undo-must-be-reversible, and IuxEmptyStateAction refusing `retry`).
-      // Three of its eleven members — confirm, edit, select — are never even
-      // constructed, in lib/, test/ or apps/.
+      //
+      // IUX-039 kept the enum and corrected the docstring instead of wiring or
+      // shrinking it, and this test stays green on purpose. Unlike
+      // `importance`, role is not a knob whose effect is missing: it is a
+      // vocabulary whose value is what it *forbids*, and error prevention is
+      // §22's whole subject. Rendering it would also help exactly one kind of
+      // user — two buttons differing only by role would differ for a sighted
+      // reader and not for a screen-reader one, which the component standard
+      // refuses.
+      //
+      // One correction to the finding that produced this test: it recorded
+      // confirm, edit and select as "never constructed, in lib/, test/ or
+      // apps/". `IuxActionRole.confirm` is constructed at
+      // apps/pilot/lib/job_detail_screen.dart:71. edit and select remain
+      // unused, which is what an unused member of a caller-facing vocabulary
+      // looks like — not a defect.
       Future<String> announce(IuxActionRole role) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -244,72 +267,71 @@ void main() {
       );
     });
 
-    testWidgets('two of four IuxConfirmationPolicy members are unusable',
-        (WidgetTester tester) async {
-      // IuxConfirmationPolicy is sealed with four members. Exactly one widget
+    test('every IuxConfirmationPolicy member is honoured by something', () {
+      // IuxConfirmationPolicy was sealed with four members. Exactly one type
       // in the package evaluates a confirmation policy —
       // IuxDestructiveActionController — and it asserts that the policy is
       // either IuxNoConfirmation or IuxConfirmBeforeExecution. So
-      // IuxConfirmByHold and IuxConfirmByDoubleActivation are exported,
-      // documented, constructible, and honoured by nothing at all.
+      // IuxConfirmByHold and IuxConfirmByDoubleActivation were exported,
+      // documented, constructible, and honoured by nothing at all: measured,
+      // `IuxButton` with IuxConfirmByHold ran onActivate on the first ordinary
+      // tap. IUX-039 removed both.
       //
-      // This is adjacent to IUX-BUTTON-CONFIRM-001 but is not the same
-      // finding: that one is about a policy one widget honours and three
-      // ignore. These two are honoured by *zero*, and the one evaluator
-      // rejects them outright.
-      int runs = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
-          home: Scaffold(
-            body: IuxButton(
-              label: 'Delete',
-              action: const IuxActionDescriptor(
-                semantics: IuxActionSemantics(label: 'Delete'),
-                confirmation: IuxConfirmByHold(),
-              ),
-              onActivate: () => runs++,
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
+      // This was adjacent to IUX-BUTTON-CONFIRM-001 but not the same finding:
+      // that one is a policy one widget honours and three ignore, and it stays
+      // open. These two were honoured by *zero*.
+      //
+      // The guarantee is now structural, so a fifth member cannot be added
+      // without something reading it. Source-level rather than rendered,
+      // because "is honoured" is not a pixel: it is whether any file outside
+      // the model performs a type test against the member.
+      final String model = sources.entries
+          .firstWhere((MapEntry<String, String> e) =>
+              e.key.endsWith('iux_action_model.dart'))
+          .value;
+      final List<String> members = RegExp(
+        r'final class (Iux\w+) extends IuxConfirmationPolicy',
+      ).allMatches(model).map((RegExpMatch m) => m.group(1)!).toList()
+        ..sort();
 
       expect(
-        runs,
-        1,
-        reason: 'IuxConfirmByHold ran on the first ordinary tap: nothing in '
-            'the package implements hold-to-confirm, and IuxButton cannot. '
-            'Either a widget honours it or it leaves the sealed type '
-            '(PROJECT_PROMPT §19, §22).',
-      );
+          members, <String>['IuxConfirmBeforeExecution', 'IuxNoConfirmation'],
+          reason: 'sanity: the scan found the wrong set of members');
 
-      expect(
-        () => IuxDestructiveActionController(
-          action: const IuxActionDescriptor(
-            semantics: IuxActionSemantics(label: 'Delete'),
-            confirmation: IuxConfirmByDoubleActivation(),
-          ),
-          onConfirmed: () {},
-        ),
-        throwsAssertionError,
-        reason: 'the one controller that evaluates confirmation policies '
-            'refuses half of the sealed type it is given. A caller reading '
-            'IuxConfirmationPolicy sees four choices and can use two.',
-      );
+      for (final String member in members) {
+        final bool honoured = sources.entries.any(
+          (MapEntry<String, String> e) =>
+              !e.key.endsWith('iux_action_model.dart') &&
+              RegExp('is\\s+$member\\b').hasMatch(e.value),
+        );
+        expect(
+          honoured,
+          isTrue,
+          reason: '$member is a member of a sealed *safety* type that nothing '
+              'reads. A caller who states a precaution and receives none is '
+              'worse off than one who states nothing, because the call site '
+              'reads as if the user were being asked (PROJECT_PROMPT §5, §22). '
+              'Either something evaluates it, or it leaves the type.',
+        );
+      }
     });
   });
 
   group('the same concept keeps one name', () {
-    test('IuxInlineFeedbackAction and IuxTransientAction are the same type',
-        () {
+    test('IuxNamedAction and IuxTransientAction are still the same type', () {
       // Two public value types, declared in different files by different
       // missions, with byte-identical shape: {required label, required
       // onActivate, semanticLabel?}, the same effectiveSemanticLabel getter,
       // the same == and the same hashCode. Nothing distinguishes them but the
       // name, and the names force a caller with one to rebuild it as the other
       // to move a control from a banner into a snack bar.
+      //
+      // Half of the fix has landed: `IuxInlineFeedbackAction` is now
+      // `IuxNamedAction`, a name about the shape rather than about one of the
+      // five places it is used. The other half is one line in
+      // `lib/src/components/transient/iux_transient_message.dart` — delete
+      // `IuxTransientAction` and type `IuxTransientMessage.action` as
+      // `IuxNamedAction` — and this test stays until it lands.
       List<String> fieldsOf(String className) {
         for (final String source in sources.values) {
           final String? body = _declarationBody(
@@ -326,7 +348,7 @@ void main() {
         return <String>['<not found>'];
       }
 
-      final List<String> inline = fieldsOf('IuxInlineFeedbackAction');
+      final List<String> inline = fieldsOf('IuxNamedAction');
       expect(inline, <String>['label', 'onActivate', 'semanticLabel']);
       expect(
         fieldsOf('IuxTransientAction'),
@@ -451,13 +473,17 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    test('one dismissal callback is past tense and four are not', () {
+    test('the dismissal callback is past tense everywhere but one', () {
       // §7 of the Component Standard: "Callbacks are named for what happened
       // (onPressed), not for what should follow (onSave)." Four public widgets
-      // say onDismiss; IuxTransientLayer says onDismissed. By the standard's
-      // own rule the odd one out is the correct one — and
-      // iux_transient_layer.dart uses *both* spellings internally, which is
-      // how you can tell this is an accident rather than a distinction.
+      // said onDismiss and one said onDismissed, and iux_transient_layer.dart
+      // used *both* spellings internally, which is how you could tell it was
+      // an accident rather than a distinction. By the standard's own rule the
+      // minority spelling was the correct one, so it won.
+      //
+      // IuxNavigationDrawer is the one left, because that file belonged to a
+      // concurrent mission. One line, and this expectation becomes
+      // `imperative, isEmpty`.
       final Set<String> imperative = <String>{};
       final Set<String> pastTense = <String>{};
       for (final MapEntry<String, String> entry in sources.entries) {
@@ -483,22 +509,37 @@ void main() {
       );
       expect(
         pastTense,
-        <String>{'IuxTransientLayer'},
-        reason: 'one public widget in five spells the dismissal callback in '
-            'the past tense. The Component Standard §7 says past tense is '
-            'right, so the majority is wrong — but either way it is one name, '
-            'not two. Current imperative users: ${imperative.toList()..sort()}',
+        <String>{
+          'IuxTransientLayer',
+          'IuxDialog',
+          'IuxBottomSheet',
+          'IuxInlineFeedbackDismissal',
+        },
+        reason: 'one spelling, not two. Component Standard §7: a callback is '
+            'named for what happened.',
+      );
+      expect(
+        imperative,
+        <String>{'IuxNavigationDrawer'},
+        reason: 'the last imperative spelling. Renaming '
+            'IuxNavigationDrawer.onDismiss to onDismissed finishes '
+            'IUX-API-NAMING-001 and this expectation becomes isEmpty.',
       );
     });
   });
 
   group('sealed types agree on how they are built', () {
-    // Eight sealed types model "which situation is this". Three front their
-    // members with `const factory` redirects and five expect the caller to
-    // name the subclass. Both are reasonable; having both is not — a caller
-    // writes `IuxLoadState.loading()` on one line and `IuxNoWayBack()` on the
+    // Eight sealed types model "which situation is this". Three fronted their
+    // members with `const factory` redirects and five expected the caller to
+    // name the subclass. Both are reasonable; having both was not — a caller
+    // wrote `IuxLoadState.loading()` on one line and `IuxNoWayBack()` on the
     // next, for the same modelling idea.
-    test('the factory-versus-subclass split is 3 to 5', () {
+    //
+    // The factory convention won, because it is additive: the subclass names
+    // still work, so nothing that named one had to change, and the sealed
+    // type became the one place a caller has to look to find out which
+    // situations exist.
+    test('every sealed situation type fronts its members with a factory', () {
       final Set<String> withFactories = <String>{};
       final Set<String> withoutFactories = <String>{};
       for (final String source in sources.values) {
@@ -522,22 +563,79 @@ void main() {
 
       expect(
         withFactories,
-        <String>{'IuxLoadState', 'IuxDisclosureState', 'IuxAsyncOutcome'},
-      );
-      expect(
-        withoutFactories,
         <String>{
-          'IuxConfirmationPolicy',
+          'IuxLoadState',
+          'IuxDisclosureState',
+          'IuxAsyncOutcome',
           'IuxEmptyStateCause',
           'IuxPermissionMoment',
           'IuxRecoveryRoute',
           'IuxWayBack',
         },
-        reason: 'two call-site vocabularies for one idea. Pick one and apply '
-            'it to all eight (PROJECT_PROMPT §19: an API should be usable '
-            'correctly first time; two conventions guarantee it is not). A '
-            'new sealed type must land in one of these sets deliberately, '
-            'which is what this test is for.',
+      );
+      expect(
+        withoutFactories,
+        <String>{'IuxConfirmationPolicy'},
+        reason: 'the last sealed type still expecting the caller to name a '
+            'subclass. It lives in lib/src/actions/, which belonged to a '
+            'concurrent mission; adding `const factory '
+            'IuxConfirmationPolicy.beforeExecution()` beside its existing '
+            '`none` finishes IUX-API-NAMING-001 and this expectation becomes '
+            'isEmpty. A new sealed type must land in one of these sets '
+            'deliberately, which is what this test is for.',
+      );
+    });
+
+    test('the factory redirects build the members they name', () {
+      // The scan above reads source. This builds one member of each family the
+      // fix touched and compares it with the subclass call it redirects to, so
+      // a factory whose signature drifted from its subclass is a failure here
+      // rather than a surprise at a call site.
+      void same(Object viaFactory, Object viaSubclass) {
+        expect(viaFactory, viaSubclass);
+        expect(viaFactory.runtimeType, viaSubclass.runtimeType);
+      }
+
+      void nothing() {}
+
+      same(
+        const IuxRecoveryRoute.unrecoverable(guidance: 'Nothing was charged'),
+        const IuxUnrecoverable(guidance: 'Nothing was charged'),
+      );
+      same(
+        IuxRecoveryRoute.retry(label: 'Try again', onRetry: nothing),
+        IuxRetryRoute(label: 'Try again', onRetry: nothing),
+      );
+      same(const IuxWayBack.none(), const IuxNoWayBack());
+      same(
+        IuxWayBack.undo(
+          notice: 'Invoice archived',
+          undoLabel: 'Undo',
+          dismissLabel: 'Dismiss the archived-invoice notice',
+          onUndo: nothing,
+        ),
+        IuxUndoOffer(
+          notice: 'Invoice archived',
+          undoLabel: 'Undo',
+          dismissLabel: 'Dismiss the archived-invoice notice',
+          onUndo: nothing,
+        ),
+      );
+      same(
+        const IuxEmptyStateCause.nothingLeftToDo(),
+        const IuxNothingLeftToDo(),
+      );
+      final IuxNamedAction decline =
+          IuxNamedAction(label: 'Not now', onActivate: nothing);
+      final IuxNamedAction ask =
+          IuxNamedAction(label: 'Choose camera access', onActivate: nothing);
+      same(
+        IuxPermissionMoment.beforeAsking(ask: ask, decline: decline),
+        IuxBeforeAsking(ask: ask, decline: decline),
+      );
+      same(
+        IuxPermissionMoment.systemWillNotAsk(decline: decline),
+        IuxSystemWillNotAsk(decline: decline),
       );
     });
 

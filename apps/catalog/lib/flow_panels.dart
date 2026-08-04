@@ -255,7 +255,7 @@ class _ErrorRecoveryPanelState extends State<_ErrorRecoveryPanel> {
             busyHint: 'Asking the invoice service again',
           ),
         _Route.alternative => IuxAlternativeRoute(
-            action: IuxInlineFeedbackAction(
+            action: IuxNamedAction(
               label: 'Open the saved copy',
               onActivate: () => setState(() => _alternatives++),
             ),
@@ -471,12 +471,12 @@ class _PermissionPanelState extends State<_PermissionPanel> {
   int _asked = 0;
   int _declined = 0;
 
-  IuxInlineFeedbackAction _ask(String label) => IuxInlineFeedbackAction(
+  IuxNamedAction _ask(String label) => IuxNamedAction(
         label: label,
         onActivate: () => setState(() => _asked++),
       );
 
-  IuxInlineFeedbackAction get _decline => IuxInlineFeedbackAction(
+  IuxNamedAction get _decline => IuxNamedAction(
         label: 'Not now',
         onActivate: () => setState(() => _declined++),
       );

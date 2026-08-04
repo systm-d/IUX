@@ -855,6 +855,180 @@ void main() {
     });
   });
 
+  group('a row and the control beside it, which only fail together', () {
+    /// The scales the audit measures, and the screen it measures them on.
+    const List<double> scales = <double>[1, 1.5, 2, 3];
+    const Size small = Size(320, 640);
+
+    /// A status that is wide enough to matter and short enough to be real.
+    const IuxStatusIndicator delivered = IuxStatusIndicator(
+      status: IuxStatus.success('Delivered'),
+    );
+
+    /// The combination: a tappable row with a status beside it.
+    ///
+    /// `IUX-LISTITEM-TRAILING-001`. The point of this test is the *pair*.
+    /// Neither half overflows on its own — the indicator wraps its own label
+    /// when something bounds it, and the row wraps its title when something is
+    /// left for it — which is exactly why no component test found this and why
+    /// the two are pumped separately below as the control.
+    Widget combined() => IuxListItem.tappable(
+          title: 'Order 3141',
+          subtitle: 'Handed to the carrier on Monday',
+          onActivate: () {},
+          hint: 'Opens the order',
+          trailingAction: delivered,
+        );
+
+    testWidgets(
+        'the pair fits a 320 pixel row at 100, 150, 200 and 300 per cent',
+        (WidgetTester tester) async {
+      for (final double scale in scales) {
+        await pump(tester, combined(), textScale: scale, size: small);
+
+        // DebugOverflowIndicatorMixin reports a render object's overflow once
+        // per lifetime, so this assertion is only worth anything because every
+        // case ends by tearing the tree down (IUX-QA-VACUOUS-003). Without the
+        // teardown the run passes vacuously from the second case on.
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'at ${scale}x the row overflowed: measured 34 pixels over at '
+              '200% and 180 at 300% before the trailing control was given a '
+              'ceiling (WCAG 2.2 SC 1.4.4)',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('the title keeps a column it can be read in, before that',
+        (WidgetTester tester) async {
+      // The half of this defect no exception reported. On the way up to the
+      // overflow the title's box was measured at 75.8 pixels at 100%, 2.8 at
+      // 150% and zero at 200% — one character to a line, then none — and
+      // nothing was thrown until 200%. An assertion on `takeException` alone
+      // would have called 150% healthy.
+      for (final double scale in scales) {
+        await pump(tester, combined(), textScale: scale, size: small);
+
+        expect(
+          tester.getSize(find.text('Order 3141')).width,
+          greaterThan(IuxTouchTarget.minimum),
+          reason: 'at ${scale}x the title was squeezed into a column narrower '
+              'than a touch target, which is not a title any more',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('neither half overflows alone, which is why this needed a pair',
+        (WidgetTester tester) async {
+      // The control. If either of these failed, the defect would have been
+      // found by that component's own suite and this group would be in the
+      // wrong file.
+      for (final double scale in scales) {
+        await pump(
+          tester,
+          IuxListItem.tappable(
+            title: 'Order 3141',
+            subtitle: 'Handed to the carrier on Monday',
+            onActivate: () {},
+            hint: 'Opens the order',
+          ),
+          textScale: scale,
+          size: small,
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the row alone at ${scale}x',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+
+        await pump(tester, delivered, textScale: scale, size: small);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the indicator alone at ${scale}x',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('the row keeps the larger share of the width, at every scale',
+        (WidgetTester tester) async {
+      // Not merely "nothing threw". A row whose text region had been squeezed
+      // to nothing would also report no overflow, and would be useless: the
+      // title is the only thing that tells this item from the next one.
+      for (final double scale in scales) {
+        await pump(tester, combined(), textScale: scale, size: small);
+
+        final double region = tester.getSize(find.text('Order 3141')).width;
+        final double control =
+            tester.getSize(find.byType(IuxStatusIndicator)).width;
+
+        expect(
+          control,
+          lessThan(region),
+          reason: 'at ${scale}x the status took more of the row than the text '
+              'that identifies it',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('a control that already fits is not resized',
+        (WidgetTester tester) async {
+      // The ceiling is a maximum, never a tight width, so it has to be
+      // invisible wherever there was room. Measured against the same indicator
+      // shrink-wrapped on its own, on a window wide enough that its natural
+      // width is under the share — which is the ordinary case, and the one a
+      // fix for the narrow case must not disturb.
+      const Size wide = Size(640, 640);
+
+      await pump(
+        tester,
+        const Row(
+            mainAxisSize: MainAxisSize.min, children: <Widget>[delivered]),
+        size: wide,
+      );
+      final double natural =
+          tester.getSize(find.byType(IuxStatusIndicator)).width;
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await pump(tester, combined(), size: wide);
+
+      expect(
+        tester.getSize(find.byType(IuxStatusIndicator)).width,
+        moreOrLessEquals(natural, epsilon: 0.5),
+        reason: 'there was room for the control at its natural size, so '
+            'bounding it must have changed nothing',
+      );
+    });
+
+    testWidgets('the two targets still cannot overlap',
+        (WidgetTester tester) async {
+      // The guarantee the arrangement exists for, re-checked at the scale that
+      // used to break the layout: bounding the control must not have let it
+      // slide under the row's target.
+      await pump(tester, combined(), textScale: 2, size: small);
+
+      final Rect row = tester.getRect(tapRegion());
+      final Rect control = tester.getRect(find.byType(IuxStatusIndicator));
+
+      expect(row.overlaps(control), isFalse);
+      expect(
+        control.left - row.right,
+        greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
+        reason: 'the spacing floor between two adjacent targets is the reason '
+            'this arrangement is provided rather than left to a call site',
+      );
+    });
+  });
+
   group('a group of rows', () {
     Widget threeRows() => IuxListGroup(
           children: <Widget>[

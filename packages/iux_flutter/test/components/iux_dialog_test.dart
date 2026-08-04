@@ -77,7 +77,7 @@ void main() {
                             message: message,
                             dismissLabel: dismissLabel,
                             content: content,
-                            onDismiss: () => scenario.dismissals++,
+                            onDismissed: () => scenario.dismissals++,
                             actions: <IuxDialogAction>[
                               if (withChoice)
                                 IuxDialogAction(
@@ -668,7 +668,7 @@ void main() {
           title: '',
           message: shortMessage,
           dismissLabel: 'Keep it',
-          onDismiss: () {},
+          onDismissed: () {},
         ),
         throwsAssertionError,
       );
@@ -680,7 +680,7 @@ void main() {
           title: title,
           message: '',
           dismissLabel: 'Keep it',
-          onDismiss: () {},
+          onDismissed: () {},
         ),
         throwsAssertionError,
       );
@@ -692,7 +692,7 @@ void main() {
           title: title,
           message: shortMessage,
           dismissLabel: '',
-          onDismiss: () {},
+          onDismissed: () {},
         ),
         throwsAssertionError,
       );
@@ -709,7 +709,7 @@ void main() {
           title: title,
           message: shortMessage,
           dismissLabel: 'Keep it',
-          onDismiss: () {},
+          onDismissed: () {},
           actions: <IuxDialogAction>[choice, choice, choice],
         ),
         throwsAssertionError,

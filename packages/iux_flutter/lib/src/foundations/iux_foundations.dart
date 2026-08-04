@@ -71,20 +71,20 @@ enum IuxShape {
   full,
 }
 
-/// Structural levels of elevation, resolved by a future theme.
-enum IuxElevation {
-  /// In the page's own plane.
-  none,
-
-  /// Lifted off the page, such as a card.
-  raised,
-
-  /// Above the page and blocking it, such as a dialog or a sheet.
-  modal,
-
-  /// Above everything and short-lived, such as a transient message.
-  transient,
-}
+// There is no `IuxElevation`, and the four-member enum that used to sit here
+// was never resolved by anything. It was declared, documented and exported for
+// forty missions, and named nowhere in `lib/`, `test/` or `apps/` — so no
+// caller could tell it apart from a comment (PROJECT_PROMPT §19).
+//
+// Re-declaring it was refused rather than postponed. Elevation is already
+// expressed twice, by things that reach the screen: `IuxSurfaceRole` says what
+// plane a surface is on, and `IuxGeometryTheme.elevationRaised` /
+// `.elevationModal` carry the numbers. Neither routes through an enum, and a
+// third vocabulary would have to agree with both. More to the point, every
+// surface in the package resolves its elevation to zero and rests hierarchy on
+// colour instead, for the reason recorded on `IuxButtonTheme`: a shadow
+// disappears under a reduced visual stimulation preference, so separation that
+// rests on it is separation some users never receive. (IUX-API-DEAD-001.)
 
 /// Semantic text roles without selecting a font family.
 enum IuxTypographyRole {

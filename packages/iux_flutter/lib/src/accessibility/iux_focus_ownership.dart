@@ -12,8 +12,16 @@ import 'package:flutter/widgets.dart';
 /// Callers usually accept a `focusNode` from their own caller and it is usually
 /// null, so every control would otherwise repeat the same four lines: hold a
 /// fallback node, create it lazily, prefer the caller's, dispose only the one
-/// it owns. Four lines repeated at eight call sites is four lines that will
+/// it owns. Four lines repeated at nine call sites is four lines that will
 /// eventually disagree, and the one most easily forgotten is the disposal.
+///
+/// **Every composer of `IuxSemantics.action` routes through this**, and that is
+/// enforced rather than remembered:
+/// `test/accessibility/announced_controls_test.dart` refuses a call site that
+/// passes no `focusNode` or no `onTap`, and refuses a file that composes the
+/// helper without naming this widget. It had exactly one call site for a
+/// while, which is how eight controls stayed broken after the defect was
+/// declared fixed.
 ///
 /// ```dart
 /// IuxFocusNodeOwner(

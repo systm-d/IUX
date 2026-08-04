@@ -179,8 +179,18 @@ at once with the way out of neither visible.
 
 ## What it refuses to present
 
-`IuxConfirmationPolicy` has four values. This pattern presents two, and refuses
-the other two on an assertion rather than approximating them.
+`IuxConfirmationPolicy` had four values, and this pattern refused two of them on
+an assertion rather than approximating them. **IUX-039 removed those two from
+the type**, on this section's own reasoning plus one measurement it did not
+have: this pattern's refusal was the *only* reading either policy ever received
+anywhere, and every other control — including a plain `IuxButton` — ran
+`onActivate` on the first ordinary tap whatever the policy said. A member of a
+sealed safety type that nothing honours is a precaution the caller states and
+the user never receives.
+
+The reasoning is kept here rather than deleted, because it is the argument a
+future pattern that owns more of the screen will have to answer before re-adding
+either member.
 
 - **`IuxConfirmByHold`.** Deliberate by construction and it avoids a second
   screen, but it is invisible to a screen reader unless it is announced, and it
@@ -200,8 +210,9 @@ the other two on an assertion rather than approximating them.
   which one button has nowhere to put. Left armed with no way back, it is a
   destructive control sitting in a state the user did not choose.
 
-Both are modelled in `IuxActionModel` because they are real techniques worth
-naming. Not every technique belongs in every presentation.
+Both used to be modelled in `IuxActionModel` on the grounds that they are real
+techniques worth naming. Naming a technique nothing performs turned out to cost
+more than it bought: see `docs/components/action-model.md`.
 
 ## Behaviour
 
@@ -228,15 +239,39 @@ its way back to whatever held it.
 | Disabled is announced, with a reason | `IuxButton`, from `unavailabilityReason` |
 | Target size, focus ring, keyboard activation | `IuxButton` → `IuxTapTarget`, `IuxFocusable` |
 | The confirmation announces itself as a route | `IuxDialog` → `IuxSemantics.route` |
-| Focus is trapped in the confirmation and restored on close | `IuxDialog` |
+| Focus is trapped in the confirmation and restored on close | `IuxDialog`, plus a node the controller owns — see below |
 | **Focus never lands on the confirming choice** | `IuxDialog` focuses its panel |
 | The page behind is removed from the semantic tree | `IuxDialog` → `BlockSemantics` |
-| Escape, the scrim and the labelled way out are one outcome | `IuxDialog.onDismiss`, wired to `cancel()` |
+| Escape, the scrim and the labelled way out are one outcome | `IuxDialog.onDismissed`, wired to `cancel()` |
 | The consequence wraps at 200% text and scrolls | `IuxDialog` |
 
 The confirming choice carries the *action's* semantics, not the word on the
 button: a screen-reader user who swipes onto it hears "Delete the three selected
 files", not "Delete".
+
+### The trigger's focus node lives on the controller
+
+`IuxDestructiveAction.focusNode` is optional, and when it is omitted the
+controller lends the trigger one of its own rather than the widget creating it.
+That is not tidiness. **The widget does not survive its own confirmation.**
+`IuxModalLayer` adds a `Stack` when the dialog opens and removes it when the
+dialog closes, so the page changes depth in the element tree twice and the
+trigger is rebuilt from scratch both times — taking a widget-owned focus node
+down with it while `IuxDialog` was still holding that node as the place to send
+focus back to. `IuxFocus.restore` then found a node with no context and did
+nothing.
+
+Measured on a page of four controls, with no `focusNode` supplied: cancelling
+the confirmation left focus on the page's root scope and cost **three Tab
+presses** to get back to the trigger; afterwards, **zero**. Flutter's own dialog
+costs zero, which is the bar WCAG 2.2 SC 2.4.3 sets
+(IUX-DESTRUCTIVE-FOCUS-001).
+
+The controller is the parent's and outlives the rebuild, so the node does too;
+it is created on first use, so a caller who owns the node pays nothing. One
+consequence worth stating: a single controller drives a single trigger. Two
+`IuxDestructiveAction`s sharing one controller would share one node, and they
+already share one dialog, so the arrangement was never meaningful.
 
 **Still needs a device.** TalkBack reading order, Voice Access labelling and
 physical keyboard traversal are approximated by widget tests and no more.
@@ -330,7 +365,7 @@ content.
 | Focus never lands on the confirming choice | Strong guidance | WAI-ARIA APG, dialog pattern, "least destructive action" |
 | Irreversible actions get an explicit confirmation step | Standard | WCAG 2.2 SC 3.3.4 (Error Prevention) |
 | Every control is named and its state announced | Standard | WCAG 2.2 SC 4.1.2 |
-| Hold-to-confirm must never be the only route | Standard | WCAG 2.2 SC 2.5.1, 2.5.7; `IuxConfirmByHold` doc |
+| Hold-to-confirm must never be the only route | Standard | WCAG 2.2 SC 2.5.1, 2.5.7 |
 | Refusing reversible + confirmation on an assertion | Brand choice | IUX governance, PROJECT_PROMPT.md §18, §22 |
 
 ## Sources

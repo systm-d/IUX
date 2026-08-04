@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import 'iux_status_tokens.dart';
@@ -220,26 +221,43 @@ class _IuxFilterChipState extends State<IuxFilterChip> {
       ),
     );
 
-    return IuxSemantics.action(
-      label: widget.label,
-      enabled: _enabled,
-      // Selected, not toggled. A screen reader says "selected" or "not
-      // selected" for the first and "on" or "off" for the second, and a filter
-      // is something the user chose rather than a switch they threw.
-      selected: widget.selected,
-      child: IuxFocusable(
-        autofocus: widget.autofocus,
-        focusNode: widget.focusNode,
-        canRequestFocus: _enabled,
-        onActivate: _enabled ? _handleActivate : null,
-        borderRadius: BorderRadius.circular(tokens.radius),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: _enabled ? (TapDownDetails _) => _setPressed(true) : null,
-          onTapUp: _enabled ? (TapUpDetails _) => _setPressed(false) : null,
-          onTapCancel: _enabled ? () => _setPressed(false) : null,
-          onTap: _enabled ? _handleActivate : null,
-          child: visual,
+    return IuxFocusNodeOwner(
+      focusNode: widget.focusNode,
+      debugLabel: widget.label,
+      builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+        label: widget.label,
+        enabled: _enabled,
+        // Selected, not toggled. A screen reader says "selected" or "not
+        // selected" for the first and "on" or "off" for the second, and a
+        // filter is something the user chose rather than a switch they threw.
+        selected: widget.selected,
+        // Carried here because the helper excludes the subtree to control the
+        // announced name, and that takes the gesture detector's tap with it.
+        // Without this the chip announced itself as a button and refused a
+        // screen-reader double-tap — the IUX-011 defect, still live here.
+        onTap: _enabled ? _handleActivate : null,
+        // The same exclusion took the focus annotations. One node named on
+        // both, so they cannot describe two different focuses.
+        // IUX-A11Y-FOCUS-001.
+        focusNode: node,
+        // A disabled chip leaves the focus order entirely, so it declares no
+        // focusable state rather than declaring itself unfocused.
+        focusable: _enabled,
+        child: IuxFocusable(
+          autofocus: widget.autofocus,
+          focusNode: node,
+          canRequestFocus: _enabled,
+          onActivate: _enabled ? _handleActivate : null,
+          borderRadius: BorderRadius.circular(tokens.radius),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown:
+                _enabled ? (TapDownDetails _) => _setPressed(true) : null,
+            onTapUp: _enabled ? (TapUpDetails _) => _setPressed(false) : null,
+            onTapCancel: _enabled ? () => _setPressed(false) : null,
+            onTap: _enabled ? _handleActivate : null,
+            child: visual,
+          ),
         ),
       ),
     );

@@ -111,11 +111,11 @@ class _HostState extends State<_Host> {
       describePosition: _position,
       backLabel: _backLabel,
       forwardLabel: _forwardLabel,
-      skip: IuxInlineFeedbackAction(
+      skip: IuxNamedAction(
         label: _skipLabel,
         onActivate: () => skipped++,
       ),
-      finish: IuxInlineFeedbackAction(
+      finish: IuxNamedAction(
         label: _finishLabel,
         onActivate: () => finished++,
       ),
@@ -263,9 +263,8 @@ void main() {
           describePosition: _position,
           backLabel: backLabel,
           forwardLabel: forwardLabel,
-          skip: IuxInlineFeedbackAction(label: _skipLabel, onActivate: () {}),
-          finish:
-              IuxInlineFeedbackAction(label: _finishLabel, onActivate: () {}),
+          skip: IuxNamedAction(label: _skipLabel, onActivate: () {}),
+          finish: IuxNamedAction(label: _finishLabel, onActivate: () {}),
         );
 
     test('one step is not a flow', () {

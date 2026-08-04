@@ -13,7 +13,7 @@ Scaffold(
             title: 'Delete this invoice?',
             message: 'The invoice and its attachments are removed permanently.',
             dismissLabel: 'Keep it',
-            onDismiss: controller.closeDialog,
+            onDismissed: controller.closeDialog,
             actions: <IuxDialogAction>[
               IuxDialogAction(
                 label: 'Delete',
@@ -119,7 +119,7 @@ reason.
 | `title` | yes | the question or the consequence; also the announced route name |
 | `message` | yes | what actually happens, in plain language |
 | `dismissLabel` | yes | the visible text of the way out |
-| `onDismiss` | yes | scrim, Escape and the dismissal button all call this |
+| `onDismissed` | yes | scrim, Escape and the dismissal button all call this |
 | `actions` | no | at most two choices beside the dismissal |
 | `content` | no | detail under the message — a list of affected items, not a form |
 
@@ -150,9 +150,9 @@ parameter, and there will not be one. See "What it refuses to do" below.
 | Event | Result |
 | --- | --- |
 | opens | focus moves into the dialog; the route is announced; the page leaves the semantic tree |
-| Escape | `onDismiss` |
-| tap on the scrim | `onDismiss` |
-| tap on the dismissal button | `onDismiss` |
+| Escape | `onDismissed` |
+| tap on the scrim | `onDismissed` |
+| tap on the dismissal button | `onDismissed` |
 | tap on the panel itself | nothing — a tap on the padding is not a dismissal |
 | a choice is activated | that choice's `onActivate`; the dialog stays open |
 | removed from the tree | focus returns to whatever held it when the dialog opened |
@@ -229,7 +229,7 @@ IuxDialogAction(onActivate: controller.confirmDelete)
 
 ```dart
 // Wrong: a dialog with no way out.
-// Unrepresentable — onDismiss and dismissLabel are required.
+// Unrepresentable — onDismissed and dismissLabel are required.
 ```
 
 ```dart

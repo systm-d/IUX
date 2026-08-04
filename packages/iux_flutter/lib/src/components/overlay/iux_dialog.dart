@@ -81,7 +81,7 @@ final class IuxDialogAction {
 ///   title: 'Delete this invoice?',
 ///   message: 'The invoice and its attachments are removed permanently.',
 ///   dismissLabel: 'Keep it',
-///   onDismiss: controller.closeDialog,
+///   onDismissed: controller.closeDialog,
 ///   actions: <IuxDialogAction>[
 ///     IuxDialogAction(
 ///       label: 'Delete',
@@ -122,7 +122,7 @@ final class IuxDialogAction {
 /// button does not reach it — see `docs/components/dialog.md` for the
 /// two-line `PopScope` the parent adds.
 ///
-/// **Dismissal is guaranteed and unambiguous.** [onDismiss] is required, and
+/// **Dismissal is guaranteed and unambiguous.** [onDismissed] is required, and
 /// the scrim, the Escape key and the visible dismissal button all call it. No
 /// flag turns one of them off: a dialog whose scrim silently ignores taps is
 /// indistinguishable from one that is broken, and a dialog with no visible way
@@ -141,7 +141,7 @@ class IuxDialog extends StatefulWidget {
     required this.title,
     required this.message,
     required this.dismissLabel,
-    required this.onDismiss,
+    required this.onDismissed,
     this.actions = const <IuxDialogAction>[],
     this.content,
   })  : assert(
@@ -197,7 +197,7 @@ class IuxDialog extends StatefulWidget {
   /// so the three cannot drift into meaning different things. The parent
   /// removes the dialog from the tree in response; this widget does not close
   /// itself.
-  final VoidCallback onDismiss;
+  final VoidCallback onDismissed;
 
   /// The choices offered beside the dismissal. At most two.
   ///
@@ -340,7 +340,7 @@ class _IuxDialogState extends State<IuxDialog>
               actions: <Type, Action<Intent>>{
                 DismissIntent: CallbackAction<DismissIntent>(
                   onInvoke: (DismissIntent intent) {
-                    widget.onDismiss();
+                    widget.onDismissed();
                     return null;
                   },
                 ),
@@ -370,7 +370,7 @@ class _IuxDialogState extends State<IuxDialog>
       // only by swiping is a control a user cannot verify before activating.
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onDismiss,
+        onTap: widget.onDismissed,
         child: ColoredBox(color: _scrimColor(colors)),
       ),
     );
@@ -493,7 +493,7 @@ class _IuxDialogState extends State<IuxDialog>
             // cancellation would suggest work is being thrown away.
             role: IuxActionRole.dismiss,
           ),
-          onActivate: widget.onDismiss,
+          onActivate: widget.onDismissed,
         ),
         for (final IuxDialogAction choice in widget.actions)
           IuxButton(

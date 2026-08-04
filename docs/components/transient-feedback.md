@@ -387,6 +387,12 @@ reach the page underneath.
 - **Keyboard.** Both controls are reachable and activatable without a pointer,
   and screen-reader activation works because the tap action is carried onto the
   semantic node.
+- **Assistive technology can be *sent* to either control**, not only swipe to
+  it. Both report a real focus state and offer `SemanticsAction.focus`, and
+  performing that action moves focus onto the node the control holds. That
+  matters most here of anywhere in the library: the message is on a clock, and
+  reaching it stops that clock. Both reported `Tristate.none` with
+  `actions: [tap]` until IUX-A11Y-FOCUS-001 was fixed at every call site.
 - **RTL.** A `Row` lays out in reading order, so an Arabic interface gets the
   glyph on the right without the widget knowing which language it is in.
 
@@ -438,7 +444,7 @@ IuxAlert(
   category: IuxFeedbackCategory.error,
   categoryLabel: l10n.error,
   message: l10n.uploadFailedNoConnection,
-  action: IuxInlineFeedbackAction(label: l10n.tryAgain, onActivate: retry),
+  action: IuxNamedAction(label: l10n.tryAgain, onActivate: retry),
 )
 ```
 

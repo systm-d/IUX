@@ -260,6 +260,36 @@ owns the consequence knowingly: two announcements per step change, in an order
 the platform decides. A follow-up mission could ship a step indicator with a
 resolved announcement policy; this one will not guess at it.
 
+### The pattern was doing it anyway
+
+The rule above was stated and not held. Measured on a two-step form: navigating
+to a step holding a field the parent had already rejected produced **one live
+region — the field's validation message — in the same frame as the focus move to
+the heading**. The utterance the progress bar was refused to prevent was already
+being spoken, by the questions themselves (IUX-GUIDED-FORM-LIVE-001).
+
+Two things had to change, and both are one line each.
+
+**The step's sections are keyed by the step.** Without a key Flutter reconciles
+them — same widget type, same position — so the arriving step's questions are
+*updated into* the departing step's widgets. A field then sees a message change
+under an element that was already mounted, which is exactly what a status change
+looks like, and fires its live region. Keying also stops whatever a control
+holds about itself — focused, hovered, pressed — being inherited by a different
+question.
+
+**A validation message a control arrived carrying is content, not a status
+change.** `IuxTextField`, `IuxCheckbox`, `IuxSwitch` and `IuxRadioGroup` keep the
+message's own labelled node either way, so nothing became unreachable; they drop
+only the live-region flag, and only for a message that was already there when
+the control appeared. A message that appears under a control the user is
+standing in is still announced — that one is the change the live region exists
+for. This also removes a second failure nobody had named: a form arriving with
+three rejected fields used to fire three live regions at once.
+
+The result is what the section above claims: one event, one utterance. The test
+counts live regions in the semantics tree rather than arguing it.
+
 ## When to validate
 
 Unchanged from `IuxForm`: `IuxValidationTiming.onBlur` by default, gated on

@@ -483,6 +483,161 @@ void main() {
     });
   });
 
+  group('a label that states a percentage must state the one being painted',
+      () {
+    /// Pumps an indicator and returns whatever it threw, or null.
+    ///
+    /// The check runs in `build` rather than in the constructor — a `const`
+    /// constructor may only assert on constant expressions, and a regular
+    /// expression match is not one — so the widget has to be mounted for the
+    /// assertion to be reached.
+    Future<Object?> mount(
+      WidgetTester tester, {
+      required double value,
+      required String valueLabel,
+    }) async {
+      await determinate(tester, value: value, valueLabel: valueLabel);
+      return tester.takeException();
+    }
+
+    testWidgets('a bar at 45% announcing 90% is refused',
+        (WidgetTester tester) async {
+      // IUX-PROGRESS-LABEL-001, WCAG 2.2 SC 1.1.1. The two audiences were told
+      // different things and neither was warned.
+      final Object? thrown =
+          await mount(tester, value: 0.45, valueLabel: '90%');
+
+      expect(thrown, isA<AssertionError>());
+      expect(
+        thrown.toString(),
+        allOf(contains('90'), contains('45')),
+        reason: 'the message has to carry both numbers, or the developer has '
+            'to go and find the one that is wrong',
+      );
+    });
+
+    testWidgets('a label that agrees is accepted', (WidgetTester tester) async {
+      expect(await mount(tester, value: 0.45, valueLabel: '45%'), isNull);
+      expect(await mount(tester, value: 0, valueLabel: '0%'), isNull);
+      expect(await mount(tester, value: 1, valueLabel: '100%'), isNull);
+    });
+
+    testWidgets('rounding and truncation are not disagreement',
+        (WidgetTester tester) async {
+      // The check exists to catch a label describing different progress, not
+      // one that is merely coarse. A tolerance tight enough to argue about
+      // rounding conventions would refuse correct code, which is worse than
+      // the defect.
+      final Map<String, (double, String)> rounded = <String, (double, String)>{
+        'truncated to the nearest one': (0.4599, '45%'),
+        'rounded to the nearest one': (0.4549, '45%'),
+        'rounded to the nearest ten, downward': (0.4499, '40%'),
+        'rounded to the nearest ten, upward': (0.45, '50%'),
+        'stated to a decimal place': (0.4567, '45.7%'),
+      };
+
+      for (final MapEntry<String, (double, String)> entry in rounded.entries) {
+        expect(
+          await mount(
+            tester,
+            value: entry.value.$1,
+            valueLabel: entry.value.$2,
+          ),
+          isNull,
+          reason: entry.key,
+        );
+      }
+    });
+
+    testWidgets('a percentage is read wherever it sits in the sentence',
+        (WidgetTester tester) async {
+      // The parameter's own documentation asks for a label that stands alone,
+      // so the number is rarely the whole string.
+      expect(
+        await mount(tester, value: 0.45, valueLabel: '45% uploaded'),
+        isNull,
+      );
+      expect(
+        await mount(tester, value: 0.45, valueLabel: 'Uploaded 90% so far'),
+        isA<AssertionError>(),
+      );
+    });
+
+    testWidgets('the space and the sign a locale writes are both read',
+        (WidgetTester tester) async {
+      // French writes "45 %" with a non-breaking space; Arabic writes U+066A;
+      // CJK setting uses the fullwidth U+FF05. All three are the same claim.
+      expect(
+        await mount(tester, value: 0.45, valueLabel: '45 %'),
+        isNull,
+      );
+      expect(
+        await mount(tester, value: 0.45, valueLabel: '90 %'),
+        isA<AssertionError>(),
+      );
+      expect(
+        await mount(tester, value: 0.45, valueLabel: '90٪'),
+        isA<AssertionError>(),
+      );
+      expect(
+        await mount(tester, value: 0.45, valueLabel: '90％'),
+        isA<AssertionError>(),
+      );
+      // A decimal comma, which is what most of Europe writes.
+      expect(
+        await mount(tester, value: 0.457, valueLabel: '45,7 %'),
+        isNull,
+      );
+    });
+
+    testWidgets('a label with no percentage in it is not inspected',
+        (WidgetTester tester) async {
+      // Deliberate, and the reason the check is worth having. "3 of 7"
+      // describes both a run that finished three steps and one that finished
+      // two and started the third, so reading it as a fraction would refuse
+      // correct code — and a false-positive assertion is worse than a missing
+      // one. The forms this parameter documents are all here.
+      for (final String label in <String>[
+        '3 of 7',
+        '12 MB of 40 MB',
+        'Almost there',
+        '٤٥٪', // "45%" in Arabic-Indic digits: not ASCII, so
+        // no match and therefore no claim.
+      ]) {
+        expect(
+          await mount(tester, value: 0.45, valueLabel: label),
+          isNull,
+          reason: 'inspected "$label", which it cannot read unambiguously',
+        );
+      }
+    });
+
+    testWidgets('two percentages in one label are left alone',
+        (WidgetTester tester) async {
+      // There is no way to tell which of them is meant to be the value, and
+      // guessing is how a check starts refusing correct code.
+      expect(
+        await mount(
+          tester,
+          value: 0.45,
+          valueLabel: '45% of the 90% allowance',
+        ),
+        isNull,
+      );
+    });
+
+    testWidgets('a label computed apart from the value is caught as it drifts',
+        (WidgetTester tester) async {
+      // The realistic shape of this defect: the two agree at the start and
+      // separate afterwards, which is why the check runs on every build rather
+      // than once at construction.
+      expect(await mount(tester, value: 0, valueLabel: '0%'), isNull);
+
+      await determinate(tester, value: 0.6, valueLabel: '30%');
+      expect(tester.takeException(), isA<AssertionError>());
+    });
+  });
+
   group('it holds up under the conditions users actually have', () {
     testWidgets('a 200% text scale on a small screen clips nothing',
         (WidgetTester tester) async {

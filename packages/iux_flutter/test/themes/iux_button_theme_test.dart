@@ -193,9 +193,17 @@ void main() {
       ]) {
         for (final IuxButtonVariant variant in IuxButtonVariant.values) {
           for (final IuxActionIntent intent in IuxActionIntent.values) {
-            // Tonal refuses destructive by design; covered separately.
+            // Two pairs are refused by design; both are covered separately.
+            // Tonal carries intent through its border, which is not enough
+            // separation for a destructive action; and secondary and tertiary
+            // have no fill for `filled` to draw.
             if (variant == IuxButtonVariant.tonal &&
                 intent == IuxActionIntent.destructive) {
+              continue;
+            }
+            if (variant == IuxButtonVariant.filled &&
+                (intent == IuxActionIntent.secondary ||
+                    intent == IuxActionIntent.tertiary)) {
               continue;
             }
             for (final bool pressed in <bool>[false, true]) {
@@ -229,6 +237,7 @@ void main() {
         tester,
         action: const IuxActionDescriptor(
           semantics: label,
+          intent: IuxActionIntent.primary,
           availability: IuxActionAvailability.disabled,
         ),
       );
@@ -246,6 +255,7 @@ void main() {
         tester,
         action: const IuxActionDescriptor(
           semantics: label,
+          intent: IuxActionIntent.primary,
           availability: IuxActionAvailability.disabled,
         ),
       );
@@ -315,6 +325,131 @@ void main() {
       );
       expect(tester.takeException(), isA<AssertionError>());
     });
+
+    for (final IuxActionIntent intent in <IuxActionIntent>[
+      IuxActionIntent.secondary,
+      IuxActionIntent.tertiary,
+    ]) {
+      testWidgets('a ${intent.name} action cannot be filled',
+          (WidgetTester tester) async {
+        // IUX-039. This combination used to be accepted and discarded: the
+        // semantic layer models both intents unfilled, so `filled` painted the
+        // page surface over the page surface and resolved — measured — to a
+        // text button. §22 asks a component to prevent an incoherent state,
+        // and the resolver already refused one such pair; this is the second.
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.light(),
+            home: Builder(
+              builder: (BuildContext context) {
+                IuxButtonResolver.resolve(
+                  context,
+                  IuxActionDescriptor(semantics: label, intent: intent),
+                  variant: IuxButtonVariant.filled,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+        expect(tester.takeException(), isA<AssertionError>());
+      });
+    }
+  });
+
+  group('the variant a call site did not name', () {
+    // `IuxButtonTheme.variant` used to answer this with one constant, `filled`,
+    // for every intent — so the most ordinary button in the package, a plain
+    // secondary descriptor, resolved to a fill equal to the page and an
+    // outline of width zero. The action answers now.
+    const Map<(IuxActionIntent, IuxActionImportance), IuxButtonVariant> table =
+        <(IuxActionIntent, IuxActionImportance), IuxButtonVariant>{
+      (IuxActionIntent.primary, IuxActionImportance.high):
+          IuxButtonVariant.filled,
+      (IuxActionIntent.primary, IuxActionImportance.medium):
+          IuxButtonVariant.outlined,
+      (IuxActionIntent.primary, IuxActionImportance.low): IuxButtonVariant.text,
+      (IuxActionIntent.destructive, IuxActionImportance.high):
+          IuxButtonVariant.filled,
+      (IuxActionIntent.secondary, IuxActionImportance.high):
+          IuxButtonVariant.outlined,
+      (IuxActionIntent.secondary, IuxActionImportance.medium):
+          IuxButtonVariant.tonal,
+      (IuxActionIntent.secondary, IuxActionImportance.low):
+          IuxButtonVariant.text,
+      (IuxActionIntent.tertiary, IuxActionImportance.medium):
+          IuxButtonVariant.tonal,
+      (IuxActionIntent.tertiary, IuxActionImportance.low):
+          IuxButtonVariant.text,
+    };
+
+    test('follows intent and importance together', () {
+      table.forEach(
+        ((IuxActionIntent, IuxActionImportance) input,
+            IuxButtonVariant expected) {
+          expect(
+            IuxButtonResolver.defaultVariantFor(
+              IuxActionDescriptor(
+                semantics: label,
+                intent: input.$1,
+                importance: input.$2,
+              ),
+            ),
+            expected,
+            reason: '${input.$1.name} + ${input.$2.name}',
+          );
+        },
+      );
+    });
+
+    test('never resolves to a combination the resolver refuses', () {
+      // A default that trips an assertion is worse than no default: it fails
+      // on the shortest call a caller can write.
+      for (final IuxActionIntent intent in IuxActionIntent.values) {
+        for (final IuxActionImportance importance
+            in IuxActionImportance.values) {
+          final IuxButtonVariant resolved = IuxButtonResolver.defaultVariantFor(
+            IuxActionDescriptor(
+              semantics: label,
+              intent: intent,
+              importance: importance,
+            ),
+          );
+          expect(
+            resolved == IuxButtonVariant.filled &&
+                (intent == IuxActionIntent.secondary ||
+                    intent == IuxActionIntent.tertiary),
+            isFalse,
+            reason: '${intent.name} + ${importance.name} defaults to filled',
+          );
+          expect(
+            resolved == IuxButtonVariant.tonal &&
+                intent == IuxActionIntent.destructive,
+            isFalse,
+            reason: '${intent.name} + ${importance.name} defaults to tonal',
+          );
+        }
+      }
+    });
+
+    testWidgets('the two factory constructors keep their container',
+        (WidgetTester tester) async {
+      // `IuxActionDescriptor.destructive` was importance medium, which under
+      // this table would have made every deletion in the package an outlined
+      // button. It is high now — not because deleting is desirable, but
+      // because a control that destroys data has to be identifiable as a
+      // control.
+      for (final IuxActionDescriptor action in <IuxActionDescriptor>[
+        const IuxActionDescriptor.primary(semantics: label),
+        const IuxActionDescriptor.destructive(semantics: label),
+      ]) {
+        expect(
+          IuxButtonResolver.defaultVariantFor(action),
+          IuxButtonVariant.filled,
+          reason: '${action.intent.name} lost its fill',
+        );
+      }
+    });
   });
 
   group('geometry follows the theme, never a literal', () {
@@ -333,7 +468,10 @@ void main() {
       ]) {
         final IuxButtonTokens tokens = await resolve(
           tester,
-          action: const IuxActionDescriptor(semantics: label),
+          action: const IuxActionDescriptor(
+            semantics: label,
+            intent: IuxActionIntent.primary,
+          ),
           configuration: configuration,
         );
         expect(
@@ -368,6 +506,11 @@ void main() {
       // variant — the guarantee being that hierarchy rests on contrast-measured
       // colour and never on a shadow that a reduced visual stimulation
       // preference removes.
+      // Primary throughout: it is the one intent every variant is legal for.
+      const IuxActionDescriptor action = IuxActionDescriptor(
+        semantics: label,
+        intent: IuxActionIntent.primary,
+      );
       for (final IuxButtonVariant variant in IuxButtonVariant.values) {
         await tester.pumpWidget(
           MaterialApp(
@@ -377,13 +520,13 @@ void main() {
                 child: variant == IuxButtonVariant.icon
                     ? IuxIconButton(
                         icon: Icons.close,
-                        action: const IuxActionDescriptor(semantics: label),
+                        action: action,
                         onActivate: () {},
                       )
                     : IuxButton(
                         label: 'Save',
                         variant: variant,
-                        action: const IuxActionDescriptor(semantics: label),
+                        action: action,
                         onActivate: () {},
                       ),
               ),
@@ -407,8 +550,8 @@ void main() {
   group('the theme extension behaves as a value', () {
     test('defaults are the cautious ones', () {
       const IuxButtonTheme theme = IuxButtonTheme();
-      expect(theme.variant, IuxButtonVariant.filled);
       expect(theme.shape, IuxButtonShape.medium);
+      expect(theme.iconSize, 20);
     });
 
     test('copyWith and equality cover every field', () {
@@ -416,7 +559,7 @@ void main() {
       expect(base.copyWith(), equals(base));
       expect(base.copyWith(iconSize: 24).iconSize, 24);
       expect(
-        base.copyWith(variant: IuxButtonVariant.text),
+        base.copyWith(shape: IuxButtonShape.full),
         isNot(equals(base)),
       );
       expect(base.hashCode, equals(const IuxButtonTheme().hashCode));
@@ -424,11 +567,11 @@ void main() {
 
     test('categorical fields never land between two values', () {
       const IuxButtonTheme a = IuxButtonTheme();
-      const IuxButtonTheme b = IuxButtonTheme(variant: IuxButtonVariant.text);
+      const IuxButtonTheme b = IuxButtonTheme(shape: IuxButtonShape.full);
       for (final double t in <double>[0, 0.25, 0.5, 0.75, 1]) {
         expect(
-          a.lerp(b, t).variant,
-          anyOf(IuxButtonVariant.filled, IuxButtonVariant.text),
+          a.lerp(b, t).shape,
+          anyOf(IuxButtonShape.medium, IuxButtonShape.full),
         );
       }
     });
@@ -456,7 +599,10 @@ void main() {
 
   group('tokens are a value type', () {
     testWidgets('identical inputs resolve equal', (WidgetTester tester) async {
-      const IuxActionDescriptor action = IuxActionDescriptor(semantics: label);
+      const IuxActionDescriptor action = IuxActionDescriptor(
+        semantics: label,
+        intent: IuxActionIntent.primary,
+      );
       final IuxButtonTokens a = await resolve(tester, action: action);
       final IuxButtonTokens b = await resolve(tester, action: action);
       expect(a, equals(b));

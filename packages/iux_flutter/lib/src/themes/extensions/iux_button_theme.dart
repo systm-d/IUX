@@ -15,6 +15,10 @@ import 'iux_typography_theme.dart';
 /// discreet on another without changing what it does.
 enum IuxButtonVariant {
   /// A solid fill. The most prominent.
+  ///
+  /// Only [IuxActionIntent.primary] and [IuxActionIntent.destructive] have a
+  /// fill to draw. Asking for one on the other two intents is refused rather
+  /// than approximated: see [IuxButtonResolver].
   filled,
 
   /// An outline on the page background.
@@ -169,13 +173,22 @@ final class IuxButtonTokens {
 final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   /// Creates a button theme.
   const IuxButtonTheme({
-    this.variant = IuxButtonVariant.filled,
     this.shape = IuxButtonShape.medium,
     this.iconSize = 20,
   });
 
-  /// The variant used when a call site does not name one.
-  final IuxButtonVariant variant;
+  // There is no `variant`. One existed until IUX-039 and held the variant used
+  // when a call site named none — a single constant, `filled`, for all four
+  // intents. Two of them have no fill, so the most ordinary button in the
+  // package resolved to a container that was exactly the page it sat on. The
+  // default now comes from the action, through
+  // `IuxButtonResolver.defaultVariantFor`, which is the only place that can
+  // know which containers an intent actually owns.
+  //
+  // Keeping it as an application-wide override was refused. It would have had
+  // to be ignored for secondary and tertiary to stay legal, which is the same
+  // silent discard this mission removed one line further down; and nothing in
+  // `lib/`, `test/` or `apps/` ever set it to anything but the default.
 
   /// The corner treatment.
   final IuxButtonShape shape;
@@ -204,12 +217,10 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
 
   @override
   IuxButtonTheme copyWith({
-    IuxButtonVariant? variant,
     IuxButtonShape? shape,
     double? iconSize,
   }) =>
       IuxButtonTheme(
-        variant: variant ?? this.variant,
         shape: shape ?? this.shape,
         iconSize: iconSize ?? this.iconSize,
       );
@@ -221,9 +232,7 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   ) {
     if (other is! IuxButtonTheme) return this;
     return IuxButtonTheme(
-      // Variant and shape are categorical; a half-applied variant is not a
-      // variant.
-      variant: t < 0.5 ? variant : other.variant,
+      // Shape is categorical; a half-applied corner treatment is not one.
       shape: t < 0.5 ? shape : other.shape,
       iconSize: iconSize + (other.iconSize - iconSize) * t,
     );
@@ -233,12 +242,11 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is IuxButtonTheme &&
-          other.variant == variant &&
           other.shape == shape &&
           other.iconSize == iconSize;
 
   @override
-  int get hashCode => Object.hash(variant, shape, iconSize);
+  int get hashCode => Object.hash(shape, iconSize);
 }
 
 /// Corner treatments a button may take.
@@ -305,6 +313,56 @@ abstract final class IuxButtonStateResolver {
 ///
 /// The only entry point a button widget needs.
 abstract final class IuxButtonResolver {
+  /// The variant an action is drawn with when no call site names one.
+  ///
+  /// Two axes, and each answers a different question. The intent says which
+  /// containers are *available*: [IuxActionIntent.primary] and
+  /// [IuxActionIntent.destructive] own a fill, the other two do not, so their
+  /// ladders start one rung lower. [IuxActionDescriptor.importance] then
+  /// chooses a rung.
+  ///
+  /// | | primary, destructive | secondary, tertiary |
+  /// |---|---|---|
+  /// | high | filled | outlined |
+  /// | medium | outlined | tonal |
+  /// | low | text | text |
+  ///
+  /// This replaced a single `IuxButtonTheme.variant` constant that defaulted
+  /// to `filled` for everything. That default was wrong for half the intents
+  /// and silently so: a plain `IuxActionDescriptor` is secondary, so the most
+  /// ordinary button in the package resolved to a fill that equalled the page
+  /// and an outline of width zero — a label floating on the background. One
+  /// value cannot be the right default for four intents, and the honest way to
+  /// say that is to let the action answer.
+  ///
+  /// Deriving a default is not the same failure as discarding a request. A
+  /// call site that names `variant:` always gets it, or an assertion saying
+  /// why it cannot have it.
+  static IuxButtonVariant defaultVariantFor(IuxActionDescriptor action) =>
+      switch ((action.intent, action.importance)) {
+        (
+          IuxActionIntent.primary || IuxActionIntent.destructive,
+          IuxActionImportance.high
+        ) =>
+          IuxButtonVariant.filled,
+        (
+          IuxActionIntent.primary || IuxActionIntent.destructive,
+          IuxActionImportance.medium
+        ) =>
+          IuxButtonVariant.outlined,
+        (
+          IuxActionIntent.secondary || IuxActionIntent.tertiary,
+          IuxActionImportance.high
+        ) =>
+          IuxButtonVariant.outlined,
+        (
+          IuxActionIntent.secondary || IuxActionIntent.tertiary,
+          IuxActionImportance.medium
+        ) =>
+          IuxButtonVariant.tonal,
+        (_, IuxActionImportance.low) => IuxButtonVariant.text,
+      };
+
   /// Resolves [action] into paintable tokens.
   static IuxButtonTokens resolve(
     BuildContext context,
@@ -319,7 +377,8 @@ abstract final class IuxButtonResolver {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
 
-    final IuxButtonVariant resolvedVariant = variant ?? theme.variant;
+    final IuxButtonVariant resolvedVariant =
+        variant ?? defaultVariantFor(action);
     assert(
       !(resolvedVariant == IuxButtonVariant.tonal &&
           action.intent == IuxActionIntent.destructive),
@@ -327,6 +386,23 @@ abstract final class IuxButtonResolver {
       'lowest-emphasis container, and it carries intent through its border '
       'rather than its fill — which is not enough separation for an action '
       'that destroys data. Use filled or outlined.',
+    );
+    assert(
+      !(resolvedVariant == IuxButtonVariant.filled &&
+          (action.intent == IuxActionIntent.secondary ||
+              action.intent == IuxActionIntent.tertiary)),
+      'A secondary or tertiary action has no fill to draw. The semantic layer '
+      'models both as unfilled: their background *is* the page surface, and '
+      'their accent lives in the foreground. Asking for filled therefore '
+      'painted the page over the page and produced a control with no '
+      'container at all — measured byte-identical to the text variant, which '
+      'is a button a user cannot identify as one (WCAG 2.2 SC 1.4.11). It was '
+      'accepted and discarded in silence until IUX-039. Inventing a fill for '
+      'these intents was refused rather than deferred: one filled action per '
+      'group is what makes the primary readable as the primary, and a second '
+      'fill takes that away from every screen at once. Use outlined, tonal or '
+      'text — or, if this really is the dominant action here, say so with '
+      'IuxActionIntent.primary.',
     );
 
     final IuxActionColors actionColors = switch (action.intent) {
@@ -399,13 +475,21 @@ abstract final class IuxButtonResolver {
     }
 
     // Which role carries the intent's accent — the colour that must read as
-    // text on the page background.
+    // text on the page background, and that also draws the outline of every
+    // unfilled variant.
     //
     // The semantic layer already models secondary and tertiary as unfilled:
     // their `background` *is* the page surface and their accent lives in
     // `foreground`. Primary and destructive are filled, so theirs is in
     // `background`. Assuming one of the two universally produced a white
     // label on a white surface, which the contrast test caught.
+    //
+    // This is the one colour that separates one intent from another once the
+    // container is decided, which is why `IuxActionColors` no longer carries a
+    // separate `border`: an outline that disagreed with the label it encloses
+    // would be a second intent signal to keep in step, and the one time the
+    // two disagreed — tertiary's outline set to the page surface itself —
+    // nothing painted it and nothing measured it.
     //
     // A brand theme that fills secondary must revisit this. Every
     // variant/intent/state pair is measured, so it fails loudly rather than
@@ -436,10 +520,13 @@ abstract final class IuxButtonResolver {
         };
 
     return switch (variant) {
+      // A filled button draws no outline (`_borderWidth` returns zero), so its
+      // border is the fill: a token nothing paints must not carry a colour
+      // nobody chose, or the next reader will believe it is painted.
       IuxButtonVariant.filled => _Palette(
           background: engaged(action.background),
           foreground: action.foreground,
-          border: action.border,
+          border: engaged(action.background),
         ),
       IuxButtonVariant.outlined => _Palette(
           background: tinted(colors.surface.base),

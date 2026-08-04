@@ -10,7 +10,7 @@ IuxAlert(
   category: IuxFeedbackCategory.error,
   categoryLabel: l10n.error,
   message: l10n.cardDeclined,
-  action: IuxInlineFeedbackAction(
+  action: IuxNamedAction(
     label: l10n.useAnotherCard,
     onActivate: controller.changePaymentMethod,
   ),
@@ -67,7 +67,7 @@ Both widgets take the same parameters.
 | `categoryLabel` | yes | the localised word for `category` |
 | `message` | yes | what happened, already localised |
 | `title` | no | a short first line, when the message runs long |
-| `action` | no | `IuxInlineFeedbackAction` — the way out |
+| `action` | no | `IuxNamedAction` — the way out |
 | `dismissal` | no | `IuxInlineFeedbackDismissal` — the way to remove it |
 
 There is no colour, glyph, radius, elevation or duration parameter, and there
@@ -101,7 +101,7 @@ know why, or whether trying again will cost them anything. Naming the next step
 is what turns a report into a way out.
 
 ```dart
-IuxInlineFeedbackAction(
+IuxNamedAction(
   label: l10n.tryAgain,            // name the outcome, not the mechanism
   semanticLabel: l10n.retryUpload, // when three controls all read "Retry"
   onActivate: controller.retry,
@@ -118,6 +118,14 @@ colour, and `confirmation`, `cancellation` and a running `operation` describe an
 action with a lifecycle of its own, which does not belong inside a sentence the
 user is still reading. When you need those, put an `IuxButton` below the message
 and let it own its own state.
+
+**It was called `IuxInlineFeedbackAction`, and the name had stopped being
+true.** The same type is the recovery path of `IuxAlternativeRoute`, both
+answers of `IuxPermissionRationale`, and both controls of `IuxOnboardingFlow`;
+a name saying "inline feedback" on a permission prompt teaches a caller
+something false about where the type belongs. `IuxNamedAction` says what it is —
+a control that has a name and does one thing — and says nothing about where it
+appears (IUX-API-NAMING-001).
 
 ## Dismissal
 
@@ -210,6 +218,16 @@ inside it.
   and the dismiss control leave, which is what keeps the dismiss control on
   screen on a 320-pixel phone instead of being pushed past the edge.
 - **Keyboard.** Both controls are reachable and activatable without a pointer.
+- **A screen reader can activate either control, and can be sent to either.**
+  Both were announced as buttons with **no tap action at all** and no focus
+  state until this was fixed — visible, correctly named, and inert to a
+  screen-reader double-tap. That is the IUX-011 defect surviving in a second
+  place, found alongside IUX-A11Y-FOCUS-001 by sweeping every composer of
+  `IuxSemantics.action`; the mechanical check that was supposed to prevent it
+  reads bare `Semantics(` calls and these compose the helper instead. Both now
+  carry `[tap, focus]`, and both are measured in
+  `test/accessibility/control_focus_semantics_test.dart` — including performing
+  each action and checking something happened.
 - **RTL.** The glyph leads and the dismiss control trails, in reading order. A
   `Row` lays out in reading order, so an Arabic interface gets the glyph on the
   right without the widget knowing which language it is in.
@@ -246,7 +264,7 @@ IuxAlert(
   category: IuxFeedbackCategory.error,
   categoryLabel: l10n.error,
   message: l10n.uploadFailedNoConnection,
-  action: IuxInlineFeedbackAction(
+  action: IuxNamedAction(
     label: l10n.tryAgain,
     onActivate: controller.retry,
   ),
@@ -257,11 +275,11 @@ IuxAlert(
 // Wrong: the component decides it is finished.
 IuxAlert(..., dismissal: IuxInlineFeedbackDismissal(
   label: l10n.dismiss,
-  onDismiss: () {},          // nothing changes; it reappears next rebuild
+  onDismissed: () {},          // nothing changes; it reappears next rebuild
 ))
 
 // Right: the parent owns whether it exists.
-if (state.lastError != null) IuxAlert(..., dismissal: ...onDismiss: controller.clearError)
+if (state.lastError != null) IuxAlert(..., dismissal: ...onDismissed: controller.clearError)
 ```
 
 ```dart

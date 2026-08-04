@@ -338,6 +338,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -358,6 +364,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -387,6 +399,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -404,6 +422,12 @@ void main() {
           isChecked: true,
           hasEnabledState: true,
           isEnabled: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
       expect(
@@ -415,6 +439,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -484,6 +514,12 @@ void main() {
           hasRequiredState: true,
           isRequired: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -508,6 +544,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           isReadOnly: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -587,6 +629,12 @@ void main() {
           isChecked: true,
           hasEnabledState: true,
           isEnabled: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
       expect(
@@ -598,6 +646,12 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           hasTapAction: true,
+          // The exclusion that sets the announced name also takes the
+          // Focus widget's annotations, so the node has to publish the
+          // focus itself or assistive technology cannot move
+          // accessibility focus here — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });

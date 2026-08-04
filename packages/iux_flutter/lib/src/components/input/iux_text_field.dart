@@ -368,11 +368,38 @@ class _IuxTextFieldState extends State<IuxTextField> {
   bool _focused = false;
   bool _hovered = false;
 
+  /// The validation message this field arrived on screen carrying, if any.
+  ///
+  /// Set once, and cleared for good the first time the message differs from
+  /// it. See [_messageIsNews].
+  String? _messageOnArrival;
+
+  /// Whether the message currently shown is a change rather than content.
+  ///
+  /// A live region announces a *status change* — SC 4.1.3 is about a message
+  /// that appears in response to something the user did. A message that was
+  /// already there when the field appeared is not that: it is content, read
+  /// when the user reaches it, and announcing it puts an utterance in the same
+  /// frame as whatever mounted the field.
+  ///
+  /// That is how `IuxGuidedForm` came to speak twice for one step change
+  /// (IUX-GUIDED-FORM-LIVE-001): arriving at a step holding a rejected field
+  /// fired the field's live region against the focus move to the step heading,
+  /// which is precisely the failure that pattern refused a progress bar to
+  /// avoid. Measured on a two-step form: one live region in the frame of the
+  /// focus move before, none after, and the message still reachable — it keeps
+  /// its own labelled node either way.
+  bool get _messageIsNews {
+    final String? message = widget.input.validation.message;
+    return message != null && message != _messageOnArrival;
+  }
+
   FocusNode get _focusNode => widget.focusNode ?? (_ownedNode ??= FocusNode());
 
   @override
   void initState() {
     super.initState();
+    _messageOnArrival = widget.input.validation.message;
     _focusNode.addListener(_handleFocusChange);
     _focused = _focusNode.hasFocus;
   }
@@ -380,6 +407,12 @@ class _IuxTextFieldState extends State<IuxTextField> {
   @override
   void didUpdateWidget(IuxTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Any message that is not the one this field arrived with is news, and so
+    // is every message after it — including the same sentence coming back,
+    // which is a fresh refusal of a value the user has changed since.
+    if (widget.input.validation.message != _messageOnArrival) {
+      _messageOnArrival = null;
+    }
     if (widget.focusNode == oldWidget.focusNode) return;
     oldWidget.focusNode?.removeListener(_handleFocusChange);
     _ownedNode?.removeListener(_handleFocusChange);
@@ -507,6 +540,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
             child: _IuxValidationMessage(
               message: message,
               style: tokens.messageStyle,
+              announce: _messageIsNews,
             ),
           ),
         ],
@@ -778,22 +812,37 @@ class _IuxReadOnlyMarker extends StatelessWidget {
 ///
 /// The text is also always on screen. An error that only a screen reader hears
 /// is an error a sighted user with a cognitive impairment never finds.
+///
+/// [announce] is what makes "when it appears" true. A message the field was
+/// already showing when it arrived on screen keeps its node and its words and
+/// loses only the flag, so nothing is unreachable — it is simply not shouted
+/// over whatever moved the user here.
 class _IuxValidationMessage extends StatelessWidget {
-  const _IuxValidationMessage({required this.message, required this.style});
+  const _IuxValidationMessage({
+    required this.message,
+    required this.style,
+    required this.announce,
+  });
 
   final String message;
   final TextStyle style;
+
+  /// Whether this message is a change the user did not see arrive.
+  final bool announce;
 
   @override
   Widget build(BuildContext context) {
     // The visual repeats the label verbatim, so it is excluded to keep the
     // message from being read twice — the same shape the progress indicator
     // uses.
-    return IuxSemantics.liveRegion(
-      label: message,
-      child: IuxSemantics.decorative(
-        child: Text(message, style: style),
-      ),
+    final Widget text = IuxSemantics.decorative(
+      child: Text(message, style: style),
     );
+    // The same container either way, so turning the flag on later changes one
+    // property of one node rather than replacing it — which is what keeps a
+    // message that becomes news from being announced twice.
+    return announce
+        ? IuxSemantics.liveRegion(label: message, child: text)
+        : IuxSemantics.group(label: message, child: text);
   }
 }

@@ -14,6 +14,7 @@ export 'src/actions/iux_action_descriptor.dart';
 export 'src/actions/iux_action_model.dart';
 export 'src/actions/iux_async_action.dart';
 export 'src/components/appbar/iux_app_bar.dart';
+export 'src/components/appbar/iux_screen.dart';
 export 'src/components/button/iux_async_button.dart';
 export 'src/components/button/iux_button.dart';
 export 'src/components/card/iux_card.dart';

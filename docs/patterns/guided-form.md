@@ -358,6 +358,13 @@ What the form guarantees:
 - **Every entry is a control**, named `"$label. $message"`, carrying a tap
   action, meeting the touch-target floor through `IuxTapTarget`, and reachable
   by keyboard. Moving by control walks the list of problems.
+- **And assistive technology can move accessibility focus onto an entry**,
+  rather than only reaching it by swiping. Each entry reports a real focus
+  state and offers `SemanticsAction.focus`, and performing that action moves
+  focus onto the node the entry holds. Entries reported `Tristate.none` with
+  `actions: [tap]` until IUX-A11Y-FOCUS-001 was fixed at every call site —
+  which mattered here more than most, because this pattern's whole promise is
+  that the user can be *taken* to the problem.
 - **Entries are in field order**, so the list matches the form rather than the
   order the failures happened to be discovered in.
 - **Nothing is carried by colour.** The block has a glyph, an outline and words;

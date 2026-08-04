@@ -9,6 +9,12 @@ import 'iux_spacing_primitives.dart';
 /// Applying `SafeArea` everywhere is how double padding happens: a page adds
 /// it, then a sheet inside adds it again, and the content ends up inset twice
 /// from a notch that is only there once.
+///
+/// **Under an `IuxAppBar`, this is not the caller's decision to make.** Put the
+/// two in an `IuxScreen`: it hands the page a `MediaQuery` with the top inset
+/// already removed, so the default below is correct and the choice disappears.
+/// The values here are for the arrangements no component owns — a page under a
+/// host that IUX did not draw.
 enum IuxPageInsets {
   /// The page consumes the insets. The usual choice for a full screen.
   handled,
@@ -39,6 +45,20 @@ enum IuxPageInsets {
 ///   appBar: AppBar(title: Text('Orders')),
 ///   body: IuxPage(
 ///     child: IuxSection(title: 'Recent', children: <Widget>[...]),
+///   ),
+/// )
+/// ```
+///
+/// With an `IuxAppBar` above it, use `IuxScreen` rather than a `Column`. As
+/// siblings the two cannot see each other: the top inset is spent twice and
+/// neither owns the height, which is three separate defects and a composition
+/// every application writes (`IUX-APPBAR-PAGE-001`).
+///
+/// ```dart
+/// Scaffold(
+///   body: IuxScreen(
+///     appBar: IuxAppBar(title: l10n.orders),
+///     page: IuxPage(child: content),
 ///   ),
 /// )
 /// ```

@@ -252,6 +252,15 @@ void main() {
           hasEnabledState: true,
           isSelected: true,
           hasSelectedState: true,
+          // A screen reader's double-tap has to reach the chip. The helper
+          // excludes the subtree in order to control the announced name, so
+          // the gesture detector's own action is gone and this node is the
+          // only place an activation can live — IUX-011.
+          hasTapAction: true,
+          // And assistive technology has to be able to *put* accessibility
+          // focus here rather than only find it by swiping — IUX-A11Y-FOCUS-001.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -274,6 +283,9 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasSelectedState: true,
+          hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });
@@ -315,6 +327,9 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasSelectedState: true,
+          hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
         reason: 'the chip still shows what the parent last told it',
       );

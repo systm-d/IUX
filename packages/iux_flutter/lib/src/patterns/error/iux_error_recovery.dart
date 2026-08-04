@@ -249,7 +249,7 @@ class IuxErrorRecovery extends StatelessWidget {
       width: tokens.borderWidth,
     );
 
-    return IuxSemantics.contentContainer(
+    final Widget block = IuxSemantics.contentContainer(
       child: Column(
         // The block takes the width it is given; the control takes its own and
         // sits at the start of the reading order, which right-to-left mirrors
@@ -321,6 +321,30 @@ class IuxErrorRecovery extends StatelessWidget {
           ..._control(),
         ],
       ),
+    );
+
+    // The same discriminator `IuxEmptyState` and `IuxPermissionRationale` use,
+    // for the same measured reason. A bounded height means nobody above is
+    // going to scroll this block, so its retry control can be pushed off the
+    // screen with no way to reach it; an unbounded height is what every
+    // vertical scroll view hands its children, so a block already inside one
+    // adds nothing. The constraints decide, not a parameter — the caller who
+    // never read the docs is exactly the one who leaves a flag at its wrong
+    // default.
+    //
+    // Measured on 320x640 at 200% text: standalone, the block overflowed by
+    // **2312 pixels** and the retry landed off screen, which is the failure
+    // IUX-038 recorded for the other two patterns. The test that should have
+    // caught it wrapped the block in a `SingleChildScrollView`, which hands
+    // the column an unbounded height and made `takeException()` unable to
+    // report anything (IUX-QA-VACUOUS-003).
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (!constraints.hasBoundedHeight) return block;
+        // Sizes itself to the block up to the height it was given, so a block
+        // that fits keeps its size and takes no gesture.
+        return SingleChildScrollView(child: block);
+      },
     );
   }
 

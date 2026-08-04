@@ -119,6 +119,12 @@ a value someone appends to an enum, and every member answers
 `requiresWayForward` for itself instead of leaving a `switch` somewhere to be
 forgotten.
 
+Each member is reachable two ways, and both mean the same thing —
+`IuxEmptyStateCause.noMatches(reset: …)` and `IuxNoMatches(reset: …)`. The factory is the one to reach for: it makes the
+sealed type the single place a caller has to look to find out which situations
+exist, and it is the convention every sealed situation type in IUX now follows
+(IUX-API-NAMING-001).
+
 | Member | Carries | `requiresWayForward` |
 | --- | --- | --- |
 | `IuxNothingCreatedYet({create})` | an optional create action | `true` |

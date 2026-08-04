@@ -15,7 +15,7 @@ import 'iux_dialog.dart';
 ///             message: 'The invoice and its attachments are removed '
 ///                 'permanently.',
 ///             dismissLabel: 'Keep it',
-///             onDismiss: controller.closeDialog,
+///             onDismissed: controller.closeDialog,
 ///           )
 ///         : null,
 ///     child: IuxPage(child: content),

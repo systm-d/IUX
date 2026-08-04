@@ -155,12 +155,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget get _reminders => switch (widget.permission) {
         ReminderPermission.notAsked => IuxPermissionRationale(
             moment: IuxBeforeAsking(
-              ask: IuxInlineFeedbackAction(
+              ask: IuxNamedAction(
                 label: Strings.permissionAsk,
                 onActivate: () =>
                     widget.onPermissionChanged(ReminderPermission.granted),
               ),
-              decline: IuxInlineFeedbackAction(
+              decline: IuxNamedAction(
                 label: Strings.permissionDecline,
                 onActivate: () =>
                     widget.onPermissionChanged(ReminderPermission.refused),
@@ -171,12 +171,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ReminderPermission.refused => IuxPermissionRationale(
             moment: IuxAfterRefusal(
-              askAgain: IuxInlineFeedbackAction(
+              askAgain: IuxNamedAction(
                 label: Strings.permissionAskAgain,
                 onActivate: () =>
                     widget.onPermissionChanged(ReminderPermission.granted),
               ),
-              decline: IuxInlineFeedbackAction(
+              decline: IuxNamedAction(
                 label: Strings.permissionKeepOff,
                 onActivate: () =>
                     widget.onPermissionChanged(ReminderPermission.refused),
@@ -190,7 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             categoryLabel: Strings.noteCategory,
             title: Strings.permissionGranted,
             message: Strings.permissionGrantedDetail,
-            action: IuxInlineFeedbackAction(
+            action: IuxNamedAction(
               label: Strings.permissionTurnOff,
               onActivate: () =>
                   widget.onPermissionChanged(ReminderPermission.refused),

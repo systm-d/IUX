@@ -129,8 +129,15 @@ completeness: a running button announces itself as *disabled* — its node is
 indistinguishable from an unavailable one apart from `busyHint` — and it leaves
 focus traversal for the duration of the run. Both are pinned in
 `test/components/iux_button_qa_test.dart` and belong to the accessibility
-audit. `IuxSemantics.action` also yields `isFocused: Tristate.none` and no
-`SemanticsAction.focus`; see IUX-A11Y-FOCUS-001.
+audit.
+
+`IuxSemantics.action` used to yield `isFocused: Tristate.none` and no
+`SemanticsAction.focus`, which left every control it built unreachable by an
+assistive technology trying to *move* accessibility focus onto it. That is
+IUX-A11Y-FOCUS-001, fixed here at IUX-038 and at the remaining eight call
+sites since: the button now reports the same focus state and the same
+`[tap, focus]` pair as Flutter's own, measured side by side in
+`test/accessibility/control_focus_semantics_test.dart`.
 
 ## Catalog
 

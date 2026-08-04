@@ -253,7 +253,7 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Try again',
             onActivate: () {},
           ),
@@ -293,7 +293,7 @@ void main() {
           message: 'Your changes are saved.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the saved notice',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -314,7 +314,7 @@ void main() {
           message: 'Delivery takes three days.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the delivery notice',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -338,7 +338,7 @@ void main() {
           message: 'Your changes are saved.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the saved notice',
-            onDismiss: () => dismissed++,
+            onDismissed: () => dismissed++,
           ),
         ),
       );
@@ -361,7 +361,7 @@ void main() {
           message: 'We could not charge your card.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
         throwsAssertionError,
@@ -373,7 +373,7 @@ void main() {
           message: 'Your session expired.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
         throwsAssertionError,
@@ -388,13 +388,13 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'We could not charge your card.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Use another card',
             onActivate: () {},
           ),
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the payment error',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -418,11 +418,16 @@ void main() {
             message: 'A sentence about ${category.name}.',
             dismissal: IuxInlineFeedbackDismissal(
               label: 'Dismiss the ${category.name} notice',
-              onDismiss: () {},
+              onDismissed: () {},
             ),
           ),
         );
         expect(tester.takeException(), isNull, reason: category.name);
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so without this every case after the first would
+        // pass whatever it laid out (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
   });
@@ -437,7 +442,7 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed because you went offline.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Try again',
             onActivate: () => retried++,
           ),
@@ -463,7 +468,7 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Try again',
             onActivate: () {},
           ),
@@ -484,7 +489,7 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Retry',
             semanticLabel: 'Retry uploading the photographs',
             onActivate: () {},
@@ -507,7 +512,7 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Try again',
             onActivate: () => retried++,
           ),
@@ -537,13 +542,13 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'The upload failed.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Try again',
             onActivate: () => retried++,
           ),
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the upload error',
-            onDismiss: () => dismissed++,
+            onDismissed: () => dismissed++,
           ),
         ),
       );
@@ -590,13 +595,13 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'Error',
           message: 'We could not charge your card. Try another one.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'Use another card',
             onActivate: () {},
           ),
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the payment error',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
         textScale: 2,
@@ -618,7 +623,7 @@ void main() {
               'automatically because your card expired.',
           dismissal: IuxInlineFeedbackDismissal(
             label: 'Dismiss the subscription notice',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
         textScale: 2,
@@ -639,13 +644,13 @@ void main() {
           category: IuxFeedbackCategory.error,
           categoryLabel: 'خطأ',
           message: 'تعذر إتمام الدفع.',
-          action: IuxInlineFeedbackAction(
+          action: IuxNamedAction(
             label: 'حاول مرة أخرى',
             onActivate: () {},
           ),
           dismissal: IuxInlineFeedbackDismissal(
             label: 'إغلاق',
-            onDismiss: () {},
+            onDismissed: () {},
           ),
         ),
         direction: TextDirection.rtl,
@@ -670,7 +675,7 @@ void main() {
             message: 'A short note.',
             dismissal: IuxInlineFeedbackDismissal(
               label: 'Dismiss',
-              onDismiss: () {},
+              onDismissed: () {},
             ),
           ),
           direction: direction,
@@ -697,7 +702,7 @@ void main() {
               category: category,
               categoryLabel: category.name,
               message: 'A sentence about ${category.name}.',
-              action: IuxInlineFeedbackAction(
+              action: IuxNamedAction(
                 label: 'Act',
                 onActivate: () {},
               ),
@@ -707,6 +712,12 @@ void main() {
           expect(tester.takeException(), isNull, reason: '$configuration');
           expect(
               find.text('A sentence about ${category.name}.'), findsOneWidget);
+
+          // DebugOverflowIndicatorMixin reports an overflow once per render
+          // object lifetime, so without a teardown between cases every case
+          // after the first would pass whatever it laid out
+          // (IUX-QA-VACUOUS-003).
+          await tester.pumpWidget(const SizedBox.shrink());
 
           await host(
             tester,
@@ -718,6 +729,8 @@ void main() {
             configuration: configuration,
           );
           expect(tester.takeException(), isNull, reason: '$configuration');
+
+          await tester.pumpWidget(const SizedBox.shrink());
         }
       }
     });
@@ -1013,11 +1026,11 @@ void main() {
 
     test('an unlabelled recovery control is rejected', () {
       expect(
-        () => IuxInlineFeedbackAction(label: '', onActivate: () {}),
+        () => IuxNamedAction(label: '', onActivate: () {}),
         throwsAssertionError,
       );
       expect(
-        () => IuxInlineFeedbackAction(
+        () => IuxNamedAction(
           label: 'Retry',
           semanticLabel: '',
           onActivate: () {},
@@ -1028,7 +1041,7 @@ void main() {
 
     test('an unnamed dismiss control is rejected', () {
       expect(
-        () => IuxInlineFeedbackDismissal(label: '', onDismiss: () {}),
+        () => IuxInlineFeedbackDismissal(label: '', onDismissed: () {}),
         throwsAssertionError,
       );
     });

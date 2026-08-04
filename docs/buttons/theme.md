@@ -25,6 +25,35 @@ and discreet on another without changing what it does.
 | `text` | label only |
 | `icon` | square target, no label |
 
+## The variant a call site did not name
+
+`IuxButtonResolver.defaultVariantFor(action)` derives it. Intent says which
+containers exist for that meaning; `IuxActionDescriptor.importance` picks a
+rung of what is left.
+
+| | primary, destructive | secondary, tertiary |
+| --- | --- | --- |
+| `high` | `filled` | `outlined` |
+| `medium` | `outlined` | `tonal` |
+| `low` | `text` | `text` |
+
+There was an `IuxButtonTheme.variant` field until IUX-039, holding one constant
+— `filled` — for all four intents. Two of them have no fill, so the most
+ordinary button in the package, a plain secondary descriptor, resolved to a
+container exactly equal to the page it sat on. Keeping it as an application-wide
+override was refused: it would have had to be ignored for secondary and tertiary
+to stay legal, which is the same silent discard described below, and nothing in
+`lib/`, `test/` or `apps/` ever set it to anything but the default.
+
+This is also what gave `importance` an effect. It was read by nothing at all
+until IUX-039 — `high` and `low` rendered and announced identically. Choosing
+the default is the one job that neither duplicates the variant axis nor adds a
+second colour channel the caller has to keep in step with it.
+
+`IuxActionDescriptor.destructive` states `importance: high` so that a deletion
+keeps its fill. Not because deleting is desirable — because a control that
+destroys data has to be identifiable as a control (WCAG 2.2 SC 1.4.11).
+
 ## Where an intent's accent lives
 
 Not every intent keeps its accent in the same role, and assuming otherwise
@@ -36,12 +65,55 @@ by review.
 | `primary`, `destructive` | `background` | filled in the semantic layer |
 | `secondary`, `tertiary` | `foreground` | already modelled as unfilled; their `background` *is* the page surface |
 
+The accent is the label of every variant and the outline of every unfilled one.
+`IuxActionColors` used to carry a separate `border` for the outline; it was
+painted by nothing — the only variant that read it was `filled`, whose outline
+width is zero except when disabled, and the disabled palette overrides the
+colour anyway — and it was the only unmeasured colour in the file, which is how
+two of the four profiles came to set it to the page surface itself. It was
+removed at IUX-039 rather than wired: an outline that must clear 3:1 on the page
+while the label it encloses clears 4.5:1 has one sensible value, the label's.
+
 Applying an `outlined` variant to a `secondary` intent therefore double-encodes
 emphasis. The resolver handles it explicitly rather than pretending the two
 axes are independent.
 
 A brand theme that gives `secondary` a real fill must revisit this. Every
 variant × intent × state × profile pair is measured, so the failure is loud.
+
+## Filled refuses secondary and tertiary
+
+Same shape as the tonal rule below, found the same way. Since those two intents
+have no fill, `filled` painted the page over the page: measured on all four
+profiles, `filled` + `tertiary` was byte-identical to `text`, and `filled` +
+`secondary` differed only in the unpainted `border` token. The request was
+accepted and discarded in silence until IUX-039, which is worse than a refusal
+because the call site reads as though it worked (§22).
+
+Giving them a fill was refused rather than deferred: one filled action per group
+is what makes the primary readable as the primary.
+
+## Tertiary is the intent without an accent
+
+`tertiary` used to mean "a low-emphasis action" — a statement about weight,
+which the variant axis and `importance` already make. Measured on all four
+profiles, it rendered byte-identically to `secondary` in `outlined`, `tonal`,
+`text` and `icon`: the two roles differed by one `border` token that no variant
+painted, and in the two high-contrast profiles not even by that.
+
+It now means an action that leads *away* from the task rather than through it —
+back, close, skip, dismiss — and it is drawn in the profile's supporting neutral
+rather than the accent. Quieter by hue, never by contrast: every tertiary
+foreground clears 4.5:1 on its own container on every profile, because reducing
+contrast to signal low emphasis fails exactly the reader who most needs the
+label. This is the meaning `IuxAppBar`'s back control already relied on when it
+declared `tertiary`, and did not receive.
+
+Deleting the member instead was the alternative considered, and it is the
+cleaner answer to "an intent that names an emphasis level duplicates the axis
+that resolves emphasis". It was rejected because `IuxAppBar`, the Material
+`ColorScheme` bridge and two catalog panels all name it, and because the
+back-control case is a real meaning that no other intent expresses.
 
 ## Tonal refuses destructive
 

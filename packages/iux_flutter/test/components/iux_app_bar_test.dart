@@ -307,6 +307,112 @@ void main() {
     });
   });
 
+  group('the controls at the sizes that stop fitting', () {
+    /// The widest the bar can be asked to hold: a way out, the maximum three
+    /// actions, the narrowest screen, and three times the text.
+    ///
+    /// The stacked strip used to be one `IuxTargetSpacing` holding all four
+    /// controls, and is now the way out beside a strip of the actions — so this
+    /// is where that change would show if it were going to.
+    ///
+    /// Given the whole height it asks for rather than a window that cannot hold
+    /// it, so that an overflow reported here is the bar's own and not the
+    /// harness `Column` running out of screen.
+    Future<void> pumpFullStrip(WidgetTester tester, double textScale) async {
+      const Size size = Size(320, 640);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: MaterialApp(
+            theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+            home: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Scaffold(
+                body: SingleChildScrollView(
+                  child: IuxAppBar(
+                    title: _longTitle,
+                    leading: IuxAppBarLeading.back(
+                      label: 'Back',
+                      onActivate: () {},
+                    ),
+                    actions: <IuxIconButton>[
+                      action(Icons.search, 'Search'),
+                      action(Icons.filter_list, 'Filter'),
+                      action(Icons.more_vert, 'More'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('every control stays inside the bar, at every text scale',
+        (WidgetTester tester) async {
+      for (final double scale in <double>[1, 1.5, 2, 2.5, 3]) {
+        // A fresh tree per case: an overflow is reported once per render
+        // object lifetime, so a reused one hides every case after the first.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await pumpFullStrip(tester, scale);
+
+        final Rect bar = tester.getRect(find.byType(IuxAppBar));
+        for (int i = 0; i < 4; i++) {
+          final Rect rect = control(tester, i);
+          expect(rect.left, greaterThanOrEqualTo(bar.left - 0.01),
+              reason: 'control $i at ${scale}x');
+          expect(rect.right, lessThanOrEqualTo(bar.right + 0.01),
+              reason: 'control $i at ${scale}x');
+        }
+        expect(tester.takeException(), isNull, reason: 'at ${scale}x');
+      }
+    });
+
+    testWidgets('adjacent controls keep the floor when the strip wraps',
+        (WidgetTester tester) async {
+      await pumpFullStrip(tester, 3);
+
+      // Whichever line each control landed on, two that share one keep the
+      // separation, and two that do not are further apart than that anyway.
+      for (int i = 1; i < 4; i++) {
+        final Rect previous = control(tester, i - 1);
+        final Rect current = control(tester, i);
+        final bool sameLine = current.top < previous.bottom - 0.01;
+        if (sameLine) {
+          expect(
+            current.left - previous.right,
+            greaterThanOrEqualTo(kIuxMinimumTargetSpacing - 0.01),
+          );
+        } else {
+          expect(current.top, greaterThanOrEqualTo(previous.top));
+        }
+      }
+    });
+
+    testWidgets('the title still gets the width below them',
+        (WidgetTester tester) async {
+      await pumpFullStrip(tester, 3);
+
+      expect(
+        tester.getSize(find.text(_longTitle)).width,
+        greaterThan(320 * 0.85),
+      );
+      expect(
+        tester.getRect(find.text(_longTitle)).top,
+        greaterThanOrEqualTo(control(tester, 0).bottom),
+      );
+    });
+  });
+
   group('the way out', () {
     testWidgets('it is named, and the name is the caller\'s',
         (WidgetTester tester) async {

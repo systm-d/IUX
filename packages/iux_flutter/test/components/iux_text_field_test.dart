@@ -404,6 +404,11 @@ void main() {
 
     testWidgets('the error is announced, not only shown',
         (WidgetTester tester) async {
+      // The field is on screen first and the parent rejects the value after,
+      // which is the only order in which the message is a *status change*.
+      // Pumping straight into the rejected state was the old shape of this
+      // test, and it could not tell the two apart.
+      await pump(tester, input: email);
       await pump(tester, input: invalid);
 
       expect(
@@ -416,6 +421,43 @@ void main() {
           label: 'Add the part after the @',
           isLiveRegion: true,
         ),
+      );
+    });
+
+    testWidgets('a message the field arrived carrying is read, not announced',
+        (WidgetTester tester) async {
+      // A live region is for a status *change* (SC 4.1.3). A message that was
+      // already there when the field appeared is content: the user did not do
+      // anything, and speaking it competes with whatever put the field on
+      // screen — a step change, a revealed section, a page. That collision is
+      // IUX-GUIDED-FORM-LIVE-001, measured as two utterances for one event.
+      await pump(tester, input: invalid);
+
+      final SemanticsNode node = tester
+          .getSemantics(find.bySemanticsLabel('Add the part after the @'));
+
+      expect(
+        node,
+        isSemantics(label: 'Add the part after the @', isLiveRegion: false),
+        reason: 'a message present on arrival is not a status change',
+      );
+      // And it is still a node of its own, so nothing became unreachable: the
+      // difference is whether it interrupts, not whether it can be read.
+      expect(find.bySemanticsLabel('Add the part after the @'), findsOneWidget);
+    });
+
+    testWidgets('the same message coming back is announced again',
+        (WidgetTester tester) async {
+      // The user changed the value, the parent refused it for the same reason,
+      // and that refusal is news even though the sentence is the one they saw
+      // before.
+      await pump(tester, input: invalid);
+      await pump(tester, input: email);
+      await pump(tester, input: invalid);
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Add the part after the @')),
+        isSemantics(label: 'Add the part after the @', isLiveRegion: true),
       );
     });
 

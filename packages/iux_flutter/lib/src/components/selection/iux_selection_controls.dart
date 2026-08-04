@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../accessibility/iux_touch_target.dart';
 import '../../inputs/iux_input_descriptor.dart';
@@ -262,7 +263,7 @@ class IuxSwitch extends StatelessWidget {
 /// **The group owns the answer.** [value] is the chosen option; the widget
 /// derives each row's state from it, so two options can never both appear
 /// chosen.
-class IuxRadioGroup<T> extends StatelessWidget {
+class IuxRadioGroup<T> extends StatefulWidget {
   /// Creates a mutually exclusive group.
   ///
   /// The assertions here catch the contradictions that can be decided from the
@@ -337,7 +338,45 @@ class IuxRadioGroup<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
+  State<IuxRadioGroup<T>> createState() => _IuxRadioGroupState<T>();
+}
+
+class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
+  /// The validation message this group arrived on screen carrying, if any.
+  String? _messageOnArrival;
+
+  /// Whether the message currently shown is a change rather than content.
+  ///
+  /// The rule the individual controls use, for the same reason: a message
+  /// already there when the group appeared is content, not a status change,
+  /// and announcing it competes with whatever put the group on screen
+  /// (IUX-GUIDED-FORM-LIVE-001).
+  bool get _messageIsNews {
+    final String? message = widget.input.validation.message;
+    return message != null && message != _messageOnArrival;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _messageOnArrival = widget.input.validation.message;
+  }
+
+  @override
+  void didUpdateWidget(IuxRadioGroup<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.input.validation.message != _messageOnArrival) {
+      _messageOnArrival = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final String label = widget.label;
+    final IuxInputDescriptor input = widget.input;
+    final T? value = widget.value;
+    final List<IuxRadioOption<T>> options = widget.options;
+    final ValueChanged<T> onChanged = widget.onChanged;
     final IuxSelectionTokens tokens =
         IuxSelectionResolver.resolve(context, input);
     final String? help = input.helpText;
@@ -380,9 +419,14 @@ class IuxRadioGroup<T> extends StatelessWidget {
           ),
           if (message != null) ...<Widget>[
             const IuxGap.tight(),
-            IuxSemantics.liveRegion(
-              child: Text(message, style: tokens.messageStyle),
-            ),
+            if (_messageIsNews)
+              IuxSemantics.liveRegion(
+                child: Text(message, style: tokens.messageStyle),
+              )
+            else
+              IuxSemantics.group(
+                child: Text(message, style: tokens.messageStyle),
+              ),
           ],
         ],
       ),
@@ -402,7 +446,7 @@ class IuxRadioGroup<T> extends StatelessWidget {
           unavailabilityReason: option.unavailabilityReason,
         ),
         availability: option.isAvailable
-            ? input.availability
+            ? widget.input.availability
             : IuxInputAvailability.disabled,
         helpText: option.helpText,
       );
@@ -526,6 +570,38 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
   bool _pressed = false;
   bool _hovered = false;
 
+  /// The validation message this control arrived on screen carrying, if any.
+  String? _messageOnArrival;
+
+  /// Whether the message currently shown is a change rather than content.
+  ///
+  /// A live region announces a *status change*. A message that was already
+  /// there when the control appeared is not one: it is content, read when the
+  /// user reaches it, and announcing it puts an utterance in the same frame as
+  /// whatever mounted the control — which is how a stepped form came to speak
+  /// twice for one step change (IUX-GUIDED-FORM-LIVE-001). The message keeps
+  /// its own labelled node either way, so nothing becomes unreachable.
+  bool get _messageIsNews {
+    final String? message = widget.input.validation.message;
+    return message != null && message != _messageOnArrival;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _messageOnArrival = widget.input.validation.message;
+  }
+
+  @override
+  void didUpdateWidget(_IuxSelectionControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Any message that is not the one this control arrived with is news, and
+    // so is every message after it.
+    if (widget.input.validation.message != _messageOnArrival) {
+      _messageOnArrival = null;
+    }
+  }
+
   /// Whether a gesture here would change anything.
   ///
   /// A chosen radio is excluded: it is available, it is focusable, and
@@ -584,39 +660,52 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
       ],
     );
 
-    final Widget control = _selectionSemantics(
-      role: widget.role,
-      value: widget.value,
-      input: widget.input,
-      // Registered on the node itself, because everything below it is excluded
-      // from the semantic tree. Without this the control would be announced
-      // correctly and refuse to respond to a screen reader's activation.
-      onTap: _canActivate ? _handleActivate : null,
-      child: IuxFocusable(
-        autofocus: widget.autofocus,
-        focusNode: widget.focusNode,
-        canRequestFocus: widget.input.isFocusable,
-        onActivate: _canActivate ? _handleActivate : null,
-        child: Listener(
-          // A Listener, not a second GestureDetector. Pointer events never
-          // enter the gesture arena, so press feedback cannot steal the tap
-          // from the target beneath it.
-          onPointerDown: (PointerDownEvent _) => _setPressed(true),
-          onPointerUp: (PointerUpEvent _) => _setPressed(false),
-          onPointerCancel: (PointerCancelEvent _) => _setPressed(false),
-          child: MouseRegion(
-            onEnter: (_) => _setHovered(true),
-            onExit: (_) => _setHovered(false),
-            child: AnimatedContainer(
-              duration: tokens.motion.duration,
-              curve: tokens.motion.curve,
-              color: tokens.rowHighlight,
-              // Outside the tap target, so the tint covers the region that
-              // actually responds rather than only the part that is painted.
-              child: IuxTapTarget(
-                enabled: _canActivate,
-                onTap: _canActivate ? _handleActivate : null,
-                child: row,
+    // One node named twice. The announced node and the focusable region have to
+    // be the same focus node, or the platform is told about a focus that lives
+    // somewhere else — IUX-A11Y-FOCUS-001, which reached this helper as well as
+    // IuxSemantics.action.
+    final Widget control = IuxFocusNodeOwner(
+      focusNode: widget.focusNode,
+      debugLabel: widget.input.semantics.label,
+      builder: (BuildContext context, FocusNode node) => _selectionSemantics(
+        role: widget.role,
+        value: widget.value,
+        input: widget.input,
+        // Registered on the node itself, because everything below it is excluded
+        // from the semantic tree. Without this the control would be announced
+        // correctly and refuse to respond to a screen reader's activation.
+        onTap: _canActivate ? _handleActivate : null,
+        // The same exclusion takes the Focus widget's own annotations, so the
+        // control declared no focusable state at all and assistive technology had
+        // no way to move accessibility focus onto it.
+        focusNode: node,
+        focusable: widget.input.isFocusable,
+        child: IuxFocusable(
+          autofocus: widget.autofocus,
+          focusNode: node,
+          canRequestFocus: widget.input.isFocusable,
+          onActivate: _canActivate ? _handleActivate : null,
+          child: Listener(
+            // A Listener, not a second GestureDetector. Pointer events never
+            // enter the gesture arena, so press feedback cannot steal the tap
+            // from the target beneath it.
+            onPointerDown: (PointerDownEvent _) => _setPressed(true),
+            onPointerUp: (PointerUpEvent _) => _setPressed(false),
+            onPointerCancel: (PointerCancelEvent _) => _setPressed(false),
+            child: MouseRegion(
+              onEnter: (_) => _setHovered(true),
+              onExit: (_) => _setHovered(false),
+              child: AnimatedContainer(
+                duration: tokens.motion.duration,
+                curve: tokens.motion.curve,
+                color: tokens.rowHighlight,
+                // Outside the tap target, so the tint covers the region that
+                // actually responds rather than only the part that is painted.
+                child: IuxTapTarget(
+                  enabled: _canActivate,
+                  onTap: _canActivate ? _handleActivate : null,
+                  child: row,
+                ),
               ),
             ),
           ),
@@ -636,10 +725,17 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
         // Its own node, outside the control's. Merging it into the label would
         // have the error read out again every time the user passes the
         // control; a live region announces it when it appears and then lets
-        // the user re-read it on their own terms.
-        IuxSemantics.liveRegion(
-          child: Text(message, style: tokens.messageStyle),
-        ),
+        // the user re-read it on their own terms. "When it appears" is what
+        // [_messageIsNews] makes true — a message already there when the
+        // control arrived keeps the node and loses only the flag.
+        if (_messageIsNews)
+          IuxSemantics.liveRegion(
+            child: Text(message, style: tokens.messageStyle),
+          )
+        else
+          IuxSemantics.group(
+            child: Text(message, style: tokens.messageStyle),
+          ),
       ],
     );
   }
@@ -667,6 +763,8 @@ Widget _selectionSemantics({
   required IuxSelectionState value,
   required IuxInputDescriptor input,
   required VoidCallback? onTap,
+  required FocusNode? focusNode,
+  required bool focusable,
   required Widget child,
 }) =>
     IuxSemantics.selection(
@@ -682,6 +780,8 @@ Widget _selectionSemantics({
       readOnly: input.availability == IuxInputAvailability.readOnly,
       isRequired: input.isRequired,
       onTap: onTap,
+      focusNode: focusNode,
+      focusable: focusable,
       child: child,
     );
 

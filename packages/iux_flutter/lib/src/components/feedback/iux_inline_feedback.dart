@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../accessibility/iux_touch_target.dart';
 import '../../layout/iux_spacing_primitives.dart';
@@ -35,11 +36,15 @@ const String _kErrorDismissWithoutRecovery =
 
 /// A labelled control with no lifecycle of its own.
 ///
-/// It began as the recovery path inside an inline message, which is where the
-/// name comes from. It is now the library's general value for "a control that
-/// has a name and does one thing": `IuxAlternativeRoute` carries one inside
-/// `IuxErrorRecovery`, and both answers of `IuxPermissionRationale` are one.
-/// The type was right each time; only this sentence had to widen.
+/// The library's value for "a control that has a name and does one thing", and
+/// the name is deliberately about the shape rather than about any one place it
+/// is used. It began as the recovery path inside an inline message and was
+/// called `IuxInlineFeedbackAction` for that reason, which had stopped being
+/// true: `IuxAlternativeRoute` carries one inside `IuxErrorRecovery`, both
+/// answers of `IuxPermissionRationale` are one, and so are the two controls of
+/// `IuxOnboardingFlow`. A name that says "inline feedback" on a permission
+/// prompt teaches the caller something false about where the type belongs
+/// (IUX-API-NAMING-001).
 ///
 /// This exists because of the single most common failure in this component
 /// family: a message that says what went wrong and stops there. "Something
@@ -55,9 +60,9 @@ const String _kErrorDismissWithoutRecovery =
 /// need those, put an [IuxButton] below the message and let it own its own
 /// state.
 @immutable
-final class IuxInlineFeedbackAction {
-  /// Creates a recovery path.
-  const IuxInlineFeedbackAction({
+final class IuxNamedAction {
+  /// Creates a labelled control.
+  const IuxNamedAction({
     required this.label,
     required this.onActivate,
     this.semanticLabel,
@@ -103,13 +108,16 @@ final class IuxInlineFeedbackAction {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is IuxInlineFeedbackAction &&
+      other is IuxNamedAction &&
           other.label == label &&
           other.onActivate == onActivate &&
           other.semanticLabel == semanticLabel;
 
   @override
   int get hashCode => Object.hash(label, onActivate, semanticLabel);
+
+  @override
+  String toString() => 'IuxNamedAction($label)';
 }
 
 /// The ability to remove an inline message from the screen.
@@ -140,7 +148,7 @@ final class IuxInlineFeedbackDismissal {
   /// Creates a dismissal control.
   const IuxInlineFeedbackDismissal({
     required this.label,
-    required this.onDismiss,
+    required this.onDismissed,
   }) : assert(
           label.length > 0,
           'The dismiss control is an icon with no text. Without a name it '
@@ -160,17 +168,17 @@ final class IuxInlineFeedbackDismissal {
   /// The message does not remove itself. The parent owns the state, so it is
   /// the parent that stops rendering this — which is also what stops a
   /// dismissed message reappearing on the next rebuild.
-  final VoidCallback onDismiss;
+  final VoidCallback onDismissed;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is IuxInlineFeedbackDismissal &&
           other.label == label &&
-          other.onDismiss == onDismiss;
+          other.onDismissed == onDismissed;
 
   @override
-  int get hashCode => Object.hash(label, onDismiss);
+  int get hashCode => Object.hash(label, onDismissed);
 }
 
 /// A message about the content beside it.
@@ -180,7 +188,7 @@ final class IuxInlineFeedbackDismissal {
 ///   category: IuxFeedbackCategory.error,
 ///   categoryLabel: l10n.error,
 ///   message: l10n.cardDeclined,
-///   action: IuxInlineFeedbackAction(
+///   action: IuxNamedAction(
 ///     label: l10n.useAnotherCard,
 ///     onActivate: controller.changePaymentMethod,
 ///   ),
@@ -289,8 +297,8 @@ class IuxAlert extends StatelessWidget {
   /// What the user can do about it.
   ///
   /// Optional in the type system and close to mandatory in practice for
-  /// [IuxFeedbackCategory.error]. See [IuxInlineFeedbackAction].
-  final IuxInlineFeedbackAction? action;
+  /// [IuxFeedbackCategory.error]. See [IuxNamedAction].
+  final IuxNamedAction? action;
 
   /// How the user removes the message, or null when they may not.
   ///
@@ -317,7 +325,7 @@ class IuxAlert extends StatelessWidget {
 ///   category: IuxFeedbackCategory.warning,
 ///   categoryLabel: l10n.warning,
 ///   message: l10n.workingOffline,
-///   action: IuxInlineFeedbackAction(
+///   action: IuxNamedAction(
 ///     label: l10n.retryConnection,
 ///     onActivate: controller.reconnect,
 ///   ),
@@ -384,7 +392,7 @@ class IuxBanner extends StatelessWidget {
   final String? title;
 
   /// What the user can do about the condition.
-  final IuxInlineFeedbackAction? action;
+  final IuxNamedAction? action;
 
   /// How the user removes the banner, or null when they may not.
   ///
@@ -426,7 +434,7 @@ class _IuxInlineFeedback extends StatelessWidget {
   final String categoryLabel;
   final String message;
   final String? title;
-  final IuxInlineFeedbackAction? action;
+  final IuxNamedAction? action;
   final IuxInlineFeedbackDismissal? dismissal;
   final bool edgeToEdge;
 
@@ -508,7 +516,7 @@ class _IuxInlineFeedback extends StatelessWidget {
                   IuxSemantics.decorative(child: _text(tokens)),
                   if (action != null) ...<Widget>[
                     const IuxGap.tight(),
-                    _IuxInlineFeedbackActionControl(
+                    _IuxNamedActionControl(
                       action: action!,
                       tokens: tokens,
                     ),
@@ -556,38 +564,52 @@ class _IuxInlineFeedback extends StatelessWidget {
 /// measured against the page and never against this surface. Drawing it from
 /// the same [IuxFeedbackRoleColors] as the message keeps the pair the theme
 /// actually verified.
-class _IuxInlineFeedbackActionControl extends StatelessWidget {
-  const _IuxInlineFeedbackActionControl({
+class _IuxNamedActionControl extends StatelessWidget {
+  const _IuxNamedActionControl({
     required this.action,
     required this.tokens,
   });
 
-  final IuxInlineFeedbackAction action;
+  final IuxNamedAction action;
   final IuxInlineFeedbackTokens tokens;
 
   @override
-  Widget build(BuildContext context) => IuxSemantics.action(
-        label: action.effectiveSemanticLabel,
-        child: IuxFocusable(
-          onActivate: action.onActivate,
-          borderRadius: BorderRadius.circular(tokens.actionRadius),
-          child: IuxTapTarget(
-            onTap: action.onActivate,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                // Outlined, so the control is identifiable as one by its shape.
-                // A bare coloured word inside an already-coloured block asks
-                // the user to tell two tints apart to find out what is
-                // tappable, which is the failure WCAG 1.4.1 is about.
-                border: Border.all(
-                  color: tokens.content,
-                  width: tokens.borderWidth,
+  Widget build(BuildContext context) => IuxFocusNodeOwner(
+        focusNode: null,
+        debugLabel: action.effectiveSemanticLabel,
+        builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+          label: action.effectiveSemanticLabel,
+          // Carried here because the helper excludes the subtree in order to
+          // control the announced name, and the exclusion takes the tap target's
+          // own action with it. Without this the recovery control on a failure
+          // message was announced as a button and did nothing at all when a
+          // screen-reader user double-tapped it — IUX-011 all over again.
+          onTap: action.onActivate,
+          // The same exclusion took the focus annotations. Named on both nodes
+          // so they describe one focus rather than two. IUX-A11Y-FOCUS-001.
+          focusNode: node,
+          child: IuxFocusable(
+            focusNode: node,
+            onActivate: action.onActivate,
+            borderRadius: BorderRadius.circular(tokens.actionRadius),
+            child: IuxTapTarget(
+              onTap: action.onActivate,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  // Outlined, so the control is identifiable as one by its
+                  // shape. A bare coloured word inside an already-coloured
+                  // block asks the user to tell two tints apart to find out
+                  // what is tappable, which is the failure WCAG 1.4.1 is about.
+                  border: Border.all(
+                    color: tokens.content,
+                    width: tokens.borderWidth,
+                  ),
+                  borderRadius: BorderRadius.circular(tokens.actionRadius),
                 ),
-                borderRadius: BorderRadius.circular(tokens.actionRadius),
-              ),
-              child: Padding(
-                padding: IuxInsets.compact(context),
-                child: Text(action.label, style: tokens.actionStyle),
+                child: Padding(
+                  padding: IuxInsets.compact(context),
+                  child: Text(action.label, style: tokens.actionStyle),
+                ),
               ),
             ),
           ),
@@ -611,20 +633,30 @@ class _IuxInlineFeedbackDismissControl extends StatelessWidget {
   final IuxInlineFeedbackTokens tokens;
 
   @override
-  Widget build(BuildContext context) => IuxSemantics.action(
-        label: dismissal.label,
-        child: IuxFocusable(
-          onActivate: dismissal.onDismiss,
-          child: IuxTapTarget(
-            onTap: dismissal.onDismiss,
-            child: Icon(
-              Icons.close,
-              size: tokens.iconSize,
-              // The content role, not the icon role: this glyph is a control
-              // rather than the category, and a control is held to the text
-              // ratio the theme measured for content on this surface.
-              color: tokens.content,
-              applyTextScaling: false,
+  Widget build(BuildContext context) => IuxFocusNodeOwner(
+        focusNode: null,
+        debugLabel: dismissal.label,
+        builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+          label: dismissal.label,
+          // As for the recovery control above: the exclusion that sets the
+          // announced name takes the tap target's action and the focus
+          // annotations with it, so both are re-published here.
+          onTap: dismissal.onDismissed,
+          focusNode: node,
+          child: IuxFocusable(
+            focusNode: node,
+            onActivate: dismissal.onDismissed,
+            child: IuxTapTarget(
+              onTap: dismissal.onDismissed,
+              child: Icon(
+                Icons.close,
+                size: tokens.iconSize,
+                // The content role, not the icon role: this glyph is a control
+                // rather than the category, and a control is held to the text
+                // ratio the theme measured for content on this surface.
+                color: tokens.content,
+                applyTextScaling: false,
+              ),
             ),
           ),
         ),

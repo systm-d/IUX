@@ -61,11 +61,11 @@ const String _kEmptyForwardLabel =
 ///       body: l10n.weWillTellYouWhenYouAreCloseToIt,
 ///     ),
 ///   ],
-///   skip: IuxInlineFeedbackAction(
+///   skip: IuxNamedAction(
 ///     label: l10n.skipSetup,
 ///     onActivate: controller.leaveOnboarding,
 ///   ),
-///   finish: IuxInlineFeedbackAction(
+///   finish: IuxNamedAction(
 ///     label: l10n.startUsingLedger,
 ///     onActivate: controller.completeOnboarding,
 ///   ),
@@ -318,7 +318,7 @@ class IuxOnboardingFlow extends StatefulWidget {
   /// Its callback is the only signal an application receives that this user
   /// chose not to sit through the flow. A caller that records nothing there can
   /// only show it again.
-  final IuxInlineFeedbackAction skip;
+  final IuxNamedAction skip;
 
   /// How the user leaves the flow having reached the end.
   ///
@@ -331,12 +331,12 @@ class IuxOnboardingFlow extends StatefulWidget {
   /// not different *events* as far as the person pressing them is concerned,
   /// which is the limitation named above.
   ///
-  /// An [IuxInlineFeedbackAction] rather than an `IuxFormSubmit`: finishing an
+  /// An [IuxNamedAction] rather than an `IuxFormSubmit`: finishing an
   /// onboarding flow carries no operation and has no busy state, because
   /// nothing here commits anything. An application whose last step starts real
   /// work owns that screen and its progress; a spinner underneath a flow that
   /// has already been left is a spinner nobody sees.
-  final IuxInlineFeedbackAction finish;
+  final IuxNamedAction finish;
 
   @override
   State<IuxOnboardingFlow> createState() => _IuxOnboardingFlowState();

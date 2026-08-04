@@ -69,6 +69,26 @@ sealed class IuxPermissionMoment {
   /// Creates a moment.
   const IuxPermissionMoment();
 
+  /// The system has not asked yet. See [IuxBeforeAsking].
+  const factory IuxPermissionMoment.beforeAsking({
+    required IuxNamedAction ask,
+    required IuxNamedAction decline,
+  }) = IuxBeforeAsking;
+
+  /// The user said no and the system will let you ask again. See
+  /// [IuxAfterRefusal].
+  const factory IuxPermissionMoment.afterRefusal({
+    IuxNamedAction? askAgain,
+    required IuxNamedAction decline,
+  }) = IuxAfterRefusal;
+
+  /// Only the system settings remain, or not even those. See
+  /// [IuxSystemWillNotAsk].
+  const factory IuxPermissionMoment.systemWillNotAsk({
+    IuxNamedAction? openSettings,
+    required IuxNamedAction decline,
+  }) = IuxSystemWillNotAsk;
+
   /// What the user can do to obtain the permission, or null when nothing in
   /// this application can obtain it for them.
   ///
@@ -81,7 +101,7 @@ sealed class IuxPermissionMoment {
   /// and the settings screen will not help either. In both cases the sentence
   /// carries the way forward instead of a button — see the dead-end rule in
   /// `IuxPermissionRationale`.
-  IuxInlineFeedbackAction? get action;
+  IuxNamedAction? get action;
 
   /// How the user says no, or not now.
   ///
@@ -90,7 +110,7 @@ sealed class IuxPermissionMoment {
   /// Name what happens rather than the mechanism: "Not now", "Continue without
   /// photos", "Skip". "Cancel" makes the user work out which of two things is
   /// being cancelled, and here one of them is a feature they asked for.
-  IuxInlineFeedbackAction get decline;
+  IuxNamedAction get decline;
 
   /// [action] as the action model already understands it, or null when there is
   /// no action.
@@ -128,7 +148,7 @@ sealed class IuxPermissionMoment {
   /// own progress — the same reasoning `IuxAlternativeRoute` gives. A spinner
   /// underneath a system dialog is a spinner nobody sees.
   IuxActionDescriptor? get actionDescriptor {
-    final IuxInlineFeedbackAction? offer = action;
+    final IuxNamedAction? offer = action;
     if (offer == null) return null;
     return IuxActionDescriptor(
       semantics: IuxActionSemantics(label: offer.effectiveSemanticLabel),
@@ -166,11 +186,11 @@ sealed class IuxPermissionMoment {
 ///
 /// ```dart
 /// IuxBeforeAsking(
-///   ask: IuxInlineFeedbackAction(
+///   ask: IuxNamedAction(
 ///     label: l10n.chooseCameraAccess,
 ///     onActivate: controller.requestCameraPermission,
 ///   ),
-///   decline: IuxInlineFeedbackAction(
+///   decline: IuxNamedAction(
 ///     label: l10n.notNow,
 ///     onActivate: controller.dismissRationale,
 ///   ),
@@ -202,7 +222,7 @@ sealed class IuxPermissionMoment {
 final class IuxBeforeAsking extends IuxPermissionMoment {
   /// Creates the moment before the system has asked.
   const IuxBeforeAsking({
-    required IuxInlineFeedbackAction ask,
+    required IuxNamedAction ask,
     required this.decline,
   }) : action = ask;
 
@@ -215,11 +235,11 @@ final class IuxBeforeAsking extends IuxPermissionMoment {
   /// honest; "Allow" is not, because this control allows nothing — the system's
   /// question does, and it has not been asked yet.
   @override
-  final IuxInlineFeedbackAction action;
+  final IuxNamedAction action;
 
   /// How the user declines to be asked.
   @override
-  final IuxInlineFeedbackAction decline;
+  final IuxNamedAction decline;
 
   @override
   bool operator ==(Object other) =>
@@ -239,11 +259,11 @@ final class IuxBeforeAsking extends IuxPermissionMoment {
 ///
 /// ```dart
 /// IuxAfterRefusal(
-///   askAgain: IuxInlineFeedbackAction(
+///   askAgain: IuxNamedAction(
 ///     label: l10n.chooseCameraAccess,
 ///     onActivate: controller.requestCameraPermission,
 ///   ),
-///   decline: IuxInlineFeedbackAction(
+///   decline: IuxNamedAction(
 ///     label: l10n.continueWithoutTheCamera,
 ///     onActivate: controller.dismissRationale,
 ///   ),
@@ -296,7 +316,7 @@ final class IuxBeforeAsking extends IuxPermissionMoment {
 final class IuxAfterRefusal extends IuxPermissionMoment {
   /// Creates the moment after a refusal the system will let you revisit.
   const IuxAfterRefusal({
-    IuxInlineFeedbackAction? askAgain,
+    IuxNamedAction? askAgain,
     required this.decline,
   }) : action = askAgain;
 
@@ -308,12 +328,12 @@ final class IuxAfterRefusal extends IuxPermissionMoment {
   /// correction of the user's answer. "Try again" tells someone who deliberately
   /// said no that the interface read their decision as a mistake.
   @override
-  final IuxInlineFeedbackAction? action;
+  final IuxNamedAction? action;
 
   /// How the user declines again, and this time for good as far as this screen
   /// is concerned.
   @override
-  final IuxInlineFeedbackAction decline;
+  final IuxNamedAction decline;
 
   @override
   bool operator ==(Object other) =>
@@ -333,11 +353,11 @@ final class IuxAfterRefusal extends IuxPermissionMoment {
 ///
 /// ```dart
 /// IuxSystemWillNotAsk(
-///   openSettings: IuxInlineFeedbackAction(
+///   openSettings: IuxNamedAction(
 ///     label: l10n.openSettings,
 ///     onActivate: controller.openAppSettings,
 ///   ),
-///   decline: IuxInlineFeedbackAction(
+///   decline: IuxNamedAction(
 ///     label: l10n.continueWithoutTheCamera,
 ///     onActivate: controller.dismissRationale,
 ///   ),
@@ -373,7 +393,7 @@ final class IuxSystemWillNotAsk extends IuxPermissionMoment {
   /// Creates the moment where only the system settings remain, or not even
   /// those.
   const IuxSystemWillNotAsk({
-    IuxInlineFeedbackAction? openSettings,
+    IuxNamedAction? openSettings,
     required this.decline,
   }) : action = openSettings;
 
@@ -386,7 +406,7 @@ final class IuxSystemWillNotAsk extends IuxPermissionMoment {
   /// who lands on a settings screen having been told the camera was about to be
   /// turned on has been misled by one word.
   @override
-  final IuxInlineFeedbackAction? action;
+  final IuxNamedAction? action;
 
   /// How the user carries on without the permission.
   ///
@@ -394,7 +414,7 @@ final class IuxSystemWillNotAsk extends IuxPermissionMoment {
   /// settled, so the honest label is usually about the feature rather than the
   /// permission: "Continue without photos", "Add receipts by hand".
   @override
-  final IuxInlineFeedbackAction decline;
+  final IuxNamedAction decline;
 
   @override
   bool operator ==(Object other) =>

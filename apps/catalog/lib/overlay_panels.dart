@@ -77,7 +77,7 @@ class _DialogPanelState extends State<_DialogPanel> {
               'zugestellt und kann danach nicht mehr zurückgezogen werden.'
           : 'It goes to the address on the account and cannot be recalled.',
       dismissLabel: 'Close',
-      onDismiss: () {
+      onDismissed: () {
         overlays.record(_dismissed);
         overlays.closeModal();
       },
@@ -247,7 +247,7 @@ class _SheetPanelState extends State<_SheetPanel> {
     final IuxBottomSheet value = IuxBottomSheet(
       title: long ? 'Zustelloptionen für die Märzrechnung' : 'Delivery options',
       dismissLabel: 'Close',
-      onDismiss: () {
+      onDismissed: () {
         overlays.record(_dismissed);
         overlays.closeModal();
       },

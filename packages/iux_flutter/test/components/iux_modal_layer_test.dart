@@ -115,7 +115,7 @@ void main() {
           sheet: IuxBottomSheet(
             title: 'Trier',
             dismissLabel: 'Fermer',
-            onDismiss: () {},
+            onDismissed: () {},
             child: const SizedBox(),
           ),
           child: page(),

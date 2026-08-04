@@ -213,6 +213,17 @@ and the two would disagree for as long as the caller took to catch up.
   carries `button` plus `selected`; a tag carries neither. `selected` rather
   than `toggled`, because a filter is something the user chose rather than a
   switch they threw.
+- **And a role that is honest is not enough.** `IuxFilterChip` announced itself
+  as a button with **no tap action and no focus state** until this was fixed: a
+  screen-reader double-tap did nothing, and assistive technology could not move
+  accessibility focus onto it. `IuxSemantics.action` sets `excludeSemantics` to
+  control the announced name, which deletes the gesture detector's tap and the
+  `Focus` widget's annotations along with it — the IUX-011 and
+  IUX-A11Y-FOCUS-001 defects, both live here until a sweep of every composer of
+  the helper found them. The chip now carries `[tap, focus]` and reports a real
+  focus state, matching `ElevatedButton`. A *disabled* chip still declares no
+  focusable state, deliberately: it has left the focus order entirely, and
+  announcing "not focused" would describe a state it does not have.
 - **Targets.** A filter chip is at least
   `IuxAccessibility.minimumTouchTarget` in both dimensions, at every touch
   target preference. A tag resolves a minimum of `0` on purpose: padding it out

@@ -30,6 +30,28 @@ Scaffold(
 | `IuxReadableWidth` | a reading-width cap that scales with text size |
 | `IuxLayoutClass` / `IuxResponsiveValue` | width-class branching |
 
+## An app bar over a page is one component
+
+`IuxAppBar` and `IuxPage` written as siblings in a `Column` is the most-repeated
+composition any application writes, and it carried three defects
+(`IUX-APPBAR-PAGE-001`): the top inset was spent twice, nothing owned the total
+height so the frame overflowed at a large text scale, and the standard
+fill-viewport-or-scroll remedy threw because the bar decided its layout in a
+`LayoutBuilder`.
+
+```dart
+Scaffold(
+  body: IuxScreen(
+    appBar: IuxAppBar(title: l10n.orders),
+    page: IuxPage(child: content),
+  ),
+)
+```
+
+`IuxScreen` owns both: the inset is spent once, the chrome may take at most half
+the box, and the page keeps the rest. Under an app bar there is no longer an
+`IuxPageInsets` decision to make. See `docs/components/screen.md`.
+
 ## `IuxPage` does not replace `Scaffold`
 
 A `Scaffold` owns app bars, sheets and the snack bar host. `IuxPage` owns the
@@ -53,9 +75,9 @@ that exists once.
 
 | `IuxPageInsets` | Use when |
 | --- | --- |
-| `handled` | a full screen. The default. |
+| `handled` | a full screen. The default, and the right answer inside an `IuxScreen`. |
 | `topOnly` | the bottom is occupied by navigation that handles its own inset |
-| `bottomOnly` | the top is occupied by an app bar that already does |
+| `bottomOnly` | the top is occupied by a bar that already does, and that IUX did not draw |
 | `none` | edge-to-edge content painting behind the system bars |
 
 Under `none` the application owns the insets, including
@@ -187,6 +209,10 @@ to use it is the screen's decision.
 - The character-to-pixel conversion assumes a proportional Latin face and is
   deliberately generous. It will be wrong for CJK and for monospace.
 - Form fields, navigation and app bars are later missions.
+- `IuxScreen` owns the top chrome and the content. The bottom chrome belongs to
+  `IuxAdaptiveNavigation`, which bounds it by the window rather than by what the
+  content can spare — so on a 320x640 window at 300% text the navigation still
+  takes 57% of the screen before the screen gets a say.
 
 ## Evidence level
 

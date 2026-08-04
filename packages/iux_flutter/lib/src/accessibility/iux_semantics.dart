@@ -123,18 +123,51 @@ abstract final class IuxSemantics {
     FocusNode? focusNode,
     bool focusable = true,
   }) =>
-      _IuxActionSemantics(
-        label: label,
-        enabled: enabled,
-        selected: selected,
-        expanded: expanded,
-        onTap: onTap,
-        hint: busyHint == null || busyHint.isEmpty
-            ? hint
-            : _joinHint(hint, busyHint),
+      _IuxFocusAwareSemantics(
         focusNode: focusNode,
         focusable: focusable,
-        child: child,
+        builder: (bool isFocusable, FocusNode? node) => Semantics(
+          container: true,
+          button: true,
+          enabled: enabled,
+          selected: selected,
+          // A disclosure control has to announce whether the thing it controls
+          // is open, on the same node as its name. Left null it is absent
+          // rather than false, so an ordinary button is not announced as
+          // "collapsed" — a state it does not have.
+          expanded: expanded,
+          label: label,
+          // Carried here because [excludeSemantics] removes the child's own tap
+          // action along with its label. Without it the node announces a button
+          // and offers nothing to activate, so a screen-reader double-tap does
+          // nothing at all — the control is visible, named, and unusable.
+          onTap: enabled ? onTap : null,
+          // The same exclusion removes the `Focus` widget's own annotations,
+          // which is how every IUX control came to declare no focusable state
+          // at all. Re-published here, on the node the user actually lands on.
+          focusable: isFocusable,
+          focused: isFocusable ? node!.hasPrimaryFocus : null,
+          // Flutter withholds this on iOS for an open engine defect
+          // (flutter/flutter#150030) and IUX follows rather than diverging: the
+          // alternative is shipping a known platform bug that this package
+          // cannot reproduce, let alone verify a fix for.
+          onFocus: isFocusable && defaultTargetPlatform != TargetPlatform.iOS
+              ? node!.requestFocus
+              : null,
+          // A running action is announced through the hint, because a screen
+          // reader gives no standard indication for it and silence is
+          // indistinguishable from a control that simply did nothing.
+          //
+          // The wording is the caller's. An earlier version composed the
+          // English literal 'In progress' here, which every non-English
+          // application would have shipped untranslated — the framework holds
+          // roles, never user-facing text.
+          hint: busyHint == null || busyHint.isEmpty
+              ? hint
+              : _joinHint(hint, busyHint),
+          excludeSemantics: true,
+          child: child,
+        ),
       );
 
   /// Wraps [child] as one control whose content is part of its announcement.
@@ -207,6 +240,19 @@ abstract final class IuxSemantics {
   /// [readOnly] is not the opposite of [enabled]: a read-only control keeps
   /// its place in the focus order and still announces its value, a disabled
   /// one leaves the order entirely.
+  ///
+  /// [focusNode] is the node the control actually focuses, and it is what lets
+  /// this node carry a focus *state* and a `focus` action. The exclusion above
+  /// takes the `Focus` widget's `focusable`/`focused`/`onFocus` annotations
+  /// along with everything else, so without it the control declares no
+  /// focusable state at all and assistive technology cannot move accessibility
+  /// focus onto it — the same defect [action] had, in a second helper
+  /// (IUX-A11Y-FOCUS-001). Pass the same node the focusable region below is
+  /// given; `IuxFocusNodeOwner` exists to make that one node rather than two.
+  ///
+  /// [focusable] is whether the control takes part in focus at all, the same
+  /// answer given to `IuxFocusable.canRequestFocus`. A read-only control is
+  /// still focusable; a disabled one is not.
   static Widget selection({
     required Widget child,
     required IuxSelectionRole role,
@@ -217,6 +263,8 @@ abstract final class IuxSemantics {
     bool readOnly = false,
     bool isRequired = false,
     VoidCallback? onTap,
+    FocusNode? focusNode,
+    bool focusable = true,
   }) {
     assert(
       label.length > 0,
@@ -232,25 +280,34 @@ abstract final class IuxSemantics {
     );
 
     final bool selected = value == IuxSelectionValue.selected;
-    return Semantics(
-      container: true,
-      enabled: enabled,
-      // Only ever set, never cleared: `readOnly: false` would announce a state
-      // this control does not have.
-      readOnly: readOnly ? true : null,
-      label: label,
-      hint: hint,
-      isRequired: isRequired ? true : null,
-      // A checkbox and a radio are "checked"; a switch is "toggled".
-      checked: role == IuxSelectionRole.toggle ? null : selected,
-      mixed: role == IuxSelectionRole.checkbox
-          ? value == IuxSelectionValue.partial
-          : null,
-      toggled: role == IuxSelectionRole.toggle ? selected : null,
-      inMutuallyExclusiveGroup: role == IuxSelectionRole.radio ? true : null,
-      onTap: enabled ? onTap : null,
-      excludeSemantics: true,
-      child: child,
+    return _IuxFocusAwareSemantics(
+      focusNode: focusNode,
+      focusable: focusable,
+      builder: (bool isFocusable, FocusNode? node) => Semantics(
+        container: true,
+        enabled: enabled,
+        // Only ever set, never cleared: `readOnly: false` would announce a
+        // state this control does not have.
+        readOnly: readOnly ? true : null,
+        label: label,
+        hint: hint,
+        isRequired: isRequired ? true : null,
+        // A checkbox and a radio are "checked"; a switch is "toggled".
+        checked: role == IuxSelectionRole.toggle ? null : selected,
+        mixed: role == IuxSelectionRole.checkbox
+            ? value == IuxSelectionValue.partial
+            : null,
+        toggled: role == IuxSelectionRole.toggle ? selected : null,
+        inMutuallyExclusiveGroup: role == IuxSelectionRole.radio ? true : null,
+        onTap: enabled ? onTap : null,
+        focusable: isFocusable,
+        focused: isFocusable ? node!.hasPrimaryFocus : null,
+        onFocus: isFocusable && defaultTargetPlatform != TargetPlatform.iOS
+            ? node!.requestFocus
+            : null,
+        excludeSemantics: true,
+        child: child,
+      ),
     );
   }
 
@@ -465,39 +522,41 @@ abstract final class IuxSemantics {
       hint == null || hint.isEmpty ? addition : '$hint. $addition';
 }
 
-/// The node [IuxSemantics.action] builds, kept in step with a focus node.
+/// Re-publishes a control's focus state onto the node its helper builds.
 ///
 /// A widget rather than a plain `Semantics`, because the focus state has to be
 /// re-read when it changes and only a listener can do that. Everything else
-/// about the node is a pure function of its arguments.
-class _IuxActionSemantics extends StatefulWidget {
-  const _IuxActionSemantics({
-    required this.child,
-    required this.label,
-    required this.hint,
-    required this.enabled,
-    required this.selected,
-    required this.expanded,
-    required this.onTap,
+/// about the node is a pure function of its arguments, which is why [builder]
+/// is given only the two things that are not.
+///
+/// One widget for both [IuxSemantics.action] and [IuxSemantics.selection].
+/// Both set `excludeSemantics` in order to control the announced name, both
+/// therefore lose the `Focus` widget's own `focusable`/`focused`/`onFocus`
+/// annotations, and a second copy of this listener is a second copy that can
+/// come to disagree about what an unfocusable control announces
+/// (IUX-A11Y-FOCUS-001).
+class _IuxFocusAwareSemantics extends StatefulWidget {
+  const _IuxFocusAwareSemantics({
     required this.focusNode,
     required this.focusable,
+    required this.builder,
   });
 
-  final Widget child;
-  final String label;
-  final String? hint;
-  final bool enabled;
-  final bool? selected;
-  final bool? expanded;
-  final VoidCallback? onTap;
   final FocusNode? focusNode;
   final bool focusable;
 
+  /// Builds the node, given whether it may take focus and the node it names.
+  ///
+  /// The [FocusNode] is non-null whenever the flag is true, and unusable when
+  /// it is false.
+  final Widget Function(bool focusable, FocusNode? node) builder;
+
   @override
-  State<_IuxActionSemantics> createState() => _IuxActionSemanticsState();
+  State<_IuxFocusAwareSemantics> createState() =>
+      _IuxFocusAwareSemanticsState();
 }
 
-class _IuxActionSemanticsState extends State<_IuxActionSemantics> {
+class _IuxFocusAwareSemanticsState extends State<_IuxFocusAwareSemantics> {
   @override
   void initState() {
     super.initState();
@@ -505,7 +564,7 @@ class _IuxActionSemanticsState extends State<_IuxActionSemantics> {
   }
 
   @override
-  void didUpdateWidget(_IuxActionSemantics oldWidget) {
+  void didUpdateWidget(_IuxFocusAwareSemantics oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.focusNode != widget.focusNode) {
       oldWidget.focusNode?.removeListener(_handleFocusChanged);
@@ -525,55 +584,14 @@ class _IuxActionSemanticsState extends State<_IuxActionSemantics> {
 
   @override
   Widget build(BuildContext context) {
-    final FocusNode? node = widget.focusNode;
     // Mirrors what Flutter's own `Focus` publishes, so an IUX control and a
     // Material one describe focus identically. `focused` and the focus action
     // are withheld from a control that cannot take focus: announcing "not
     // focused" for something that can never be focused describes a state it
     // does not have, which is the same mistake as announcing a plain button as
     // "not selected".
-    final bool focusable = node != null && widget.focusable;
-
-    return Semantics(
-      container: true,
-      button: true,
-      enabled: widget.enabled,
-      selected: widget.selected,
-      // A disclosure control has to announce whether the thing it controls is
-      // open, on the same node as its name. Left null it is absent rather than
-      // false, so an ordinary button is not announced as "collapsed" — a state
-      // it does not have.
-      expanded: widget.expanded,
-      label: widget.label,
-      // Carried here because [excludeSemantics] removes the child's own tap
-      // action along with its label. Without it the node announces a button
-      // and offers nothing to activate, so a screen-reader double-tap does
-      // nothing at all — the control is visible, named, and unusable.
-      onTap: widget.enabled ? widget.onTap : null,
-      // The same exclusion removes the `Focus` widget's own annotations, which
-      // is how every IUX control came to declare no focusable state at all.
-      // Re-published here, on the node the user actually lands on.
-      focusable: focusable,
-      focused: focusable ? node.hasPrimaryFocus : null,
-      // Flutter withholds this on iOS for an open engine defect
-      // (flutter/flutter#150030) and IUX follows rather than diverging: the
-      // alternative is shipping a known platform bug that this package cannot
-      // reproduce, let alone verify a fix for.
-      onFocus: focusable && defaultTargetPlatform != TargetPlatform.iOS
-          ? node.requestFocus
-          : null,
-      // A running action is announced through the hint, because a screen
-      // reader gives no standard indication for it and silence is
-      // indistinguishable from a control that simply did nothing.
-      //
-      // The wording is the caller's. An earlier version composed the English
-      // literal 'In progress' here, which every non-English application would
-      // have shipped untranslated — the framework holds roles, never
-      // user-facing text.
-      hint: widget.hint,
-      excludeSemantics: true,
-      child: widget.child,
-    );
+    final FocusNode? node = widget.focusNode;
+    return widget.builder(node != null && widget.focusable, node);
   }
 }
 

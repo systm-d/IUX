@@ -49,7 +49,7 @@ const double _kMaximumScreenFraction = 0.6;
 ///       IuxBottomSheet(
 ///         title: 'Filter orders',
 ///         dismissLabel: 'Close',
-///         onDismiss: controller.closeFilters,
+///         onDismissed: controller.closeFilters,
 ///         child: IuxTextField(...),
 ///       ),
 ///   ],
@@ -82,7 +82,7 @@ const double _kMaximumScreenFraction = 0.6;
 /// Android back button does not reach it — see `docs/components/bottom-sheet.md`
 /// for the two-line `PopScope` the parent adds.
 ///
-/// **Dismissal is guaranteed, visible and requires no gesture.** [onDismiss]
+/// **Dismissal is guaranteed, visible and requires no gesture.** [onDismissed]
 /// is required, and the scrim, the Escape key and a labelled button in the
 /// header all call it. There is no flag that turns one of them off, and there
 /// is deliberately no drag-to-dismiss: a drag is invisible to a screen reader
@@ -99,7 +99,7 @@ class IuxBottomSheet extends StatefulWidget {
     super.key,
     required this.title,
     required this.dismissLabel,
-    required this.onDismiss,
+    required this.onDismissed,
     required this.child,
   })  : assert(
           title.length > 0,
@@ -135,7 +135,7 @@ class IuxBottomSheet extends StatefulWidget {
   /// The same callback for the scrim, for Escape and for the header button, so
   /// the three cannot drift into meaning different things. The parent removes
   /// the sheet from the tree in response; this widget does not close itself.
-  final VoidCallback onDismiss;
+  final VoidCallback onDismissed;
 
   /// The content, which is the reason the sheet exists.
   ///
@@ -286,7 +286,7 @@ class _IuxBottomSheetState extends State<IuxBottomSheet>
               actions: <Type, Action<Intent>>{
                 DismissIntent: CallbackAction<DismissIntent>(
                   onInvoke: (DismissIntent intent) {
-                    widget.onDismiss();
+                    widget.onDismissed();
                     return null;
                   },
                 ),
@@ -352,7 +352,7 @@ class _IuxBottomSheetState extends State<IuxBottomSheet>
       // swiping is a control a user cannot verify before activating.
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onDismiss,
+        onTap: widget.onDismissed,
         child: ColoredBox(color: _scrimColor(colors)),
       ),
     );
@@ -510,7 +510,7 @@ class _IuxBottomSheetState extends State<IuxBottomSheet>
         // work is being thrown away.
         role: IuxActionRole.dismiss,
       ),
-      onActivate: widget.onDismiss,
+      onActivate: widget.onDismissed,
     );
 
     if (IuxReadableText.shouldStack(context)) {

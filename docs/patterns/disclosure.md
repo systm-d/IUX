@@ -379,6 +379,14 @@ not a state of the disclosure.
   double-tap, and the parent receives the request. This is the failure mode
   `test/accessibility/announced_controls_test.dart` exists for: a node announced
   as a button with nothing to activate.
+- **And a screen-reader *focus* works.** The control reports a real focus state
+  and offers `SemanticsAction.focus`, and performing that action moves focus
+  onto the node the control actually holds — not merely a flag saying it did.
+  It reported `Tristate.none` with `actions: [tap]` until this was fixed, which
+  meant assistive technology could not put accessibility focus here at all:
+  IUX-A11Y-FOCUS-001, WCAG 2.2 SC 4.1.2. Measured in
+  `test/accessibility/control_focus_semantics_test.dart` against
+  `ElevatedButton` under the same host.
 - **The chevron is a shape, not a hue.** Direction survives a monochrome screen,
   a colour-vision deficiency and a black-and-white printout. It is excluded from
   the semantic tree, because the state is already on the node where the platform

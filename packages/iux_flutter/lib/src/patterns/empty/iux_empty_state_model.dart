@@ -228,6 +228,26 @@ sealed class IuxEmptyStateCause {
   /// Creates a cause.
   const IuxEmptyStateCause();
 
+  /// The collection has never held anything. See [IuxNothingCreatedYet].
+  const factory IuxEmptyStateCause.nothingCreatedYet({
+    IuxEmptyStateAction? create,
+  }) = IuxNothingCreatedYet;
+
+  /// The criteria exclude everything. See [IuxNoMatches].
+  const factory IuxEmptyStateCause.noMatches({
+    required IuxEmptyStateAction reset,
+  }) = IuxNoMatches;
+
+  /// The content is there and this user may not see it. See
+  /// [IuxAccessRestricted].
+  const factory IuxEmptyStateCause.accessRestricted({
+    IuxEmptyStateAction? request,
+  }) = IuxAccessRestricted;
+
+  /// The emptiness is the outcome the user was working towards. See
+  /// [IuxNothingLeftToDo].
+  const factory IuxEmptyStateCause.nothingLeftToDo() = IuxNothingLeftToDo;
+
   /// The exit this situation offers, or null when it offers none.
   ///
   /// Nullable on the base and non-nullable on the subclasses that always have

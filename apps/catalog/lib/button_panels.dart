@@ -133,8 +133,16 @@ class _EmphasisPanel extends StatelessWidget {
   }
 
   static bool _isRefused(IuxActionIntent intent, IuxButtonVariant variant) =>
-      intent == IuxActionIntent.destructive &&
-      variant == IuxButtonVariant.tonal;
+      // A tonal destructive is refused because the tint reads as an ordinary
+      // surface. A filled secondary or tertiary is refused because the
+      // semantic layer models both as unfilled, so the fill was accepted and
+      // silently discarded — measured identical to `text` before it was
+      // asserted.
+      (intent == IuxActionIntent.destructive &&
+          variant == IuxButtonVariant.tonal) ||
+      (variant == IuxButtonVariant.filled &&
+          (intent == IuxActionIntent.secondary ||
+              intent == IuxActionIntent.tertiary));
 }
 
 /// A cell standing in for a combination the framework will not build.

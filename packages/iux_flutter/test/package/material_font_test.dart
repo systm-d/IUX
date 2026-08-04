@@ -35,7 +35,8 @@ void main() {
 
       final List<String> users = <String>[
         for (final File source in sources)
-          if (RegExp(r'(?<![A-Za-z_$.])Icons\.').hasMatch(source.readAsStringSync()))
+          if (RegExp(r'(?<![A-Za-z_$.])Icons\.')
+              .hasMatch(source.readAsStringSync()))
             source.path,
       ];
 

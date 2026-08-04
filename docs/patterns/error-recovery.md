@@ -163,6 +163,22 @@ them is a claim about the failure that only the caller can make, so it is made
 by naming a type rather than by setting a flag that reads the same whichever
 value it holds.
 
+Each member is reachable two ways, and both mean the same thing:
+
+```dart
+IuxRecoveryRoute.retry(label: l10n.tryAgain, onRetry: controller.activate)
+IuxRetryRoute(label: l10n.tryAgain, onRetry: controller.activate)
+```
+
+The factory is the one to reach for. It makes the sealed type the single place
+a caller has to look to find out which situations exist, and it is the
+convention every sealed situation type in IUX now follows —
+`IuxLoadState.loading()`, `IuxWayBack.none()`,
+`IuxEmptyStateCause.noMatches(...)`, `IuxPermissionMoment.beforeAsking(...)`.
+Before IUX-API-NAMING-001 three of them fronted their members and five did not,
+so a caller wrote `IuxLoadState.loading()` on one line and `IuxNoWayBack()` on
+the next for the same modelling idea.
+
 #### `IuxRetryRoute`
 
 | Parameter | | |
@@ -194,7 +210,7 @@ should be offered:
 
 #### `IuxAlternativeRoute`
 
-Takes one `IuxInlineFeedbackAction` — the library's existing value for "a
+Takes one `IuxNamedAction` — the library's existing value for "a
 labelled way out of a message", so a call site that outgrows `IuxAlert` does not
 have to rewrite its actions to move here. It carries no lifecycle, which is
 correct: an alternative goes somewhere else, and the somewhere else owns its own
@@ -268,6 +284,34 @@ read before knowing whether it matters.
   supplies the event.
 - The block is tinted; the control sits on the page below it. Both follow from
   the contrast guarantee — see below.
+
+### Reaching the retry
+
+**The block scrolls itself when, and only when, it is given a bounded height.**
+One `LayoutBuilder`, `constraints.hasBoundedHeight` decides, no new parameter,
+no new public API — the same shape and the same argument as `IuxEmptyState` and
+`IuxPermissionRationale`.
+
+The reason it is the constraints and not a flag: every vertical scroll view in
+Flutter hands its children an unbounded height, so a block inside a caller's
+`ListView`, `SingleChildScrollView`, `CustomScrollView` or `IuxPage` sees
+unbounded height and adds nothing. A block given a *bounded* height was told the
+size of a box by something that will not scroll it — the dead-screen case. A
+`placement:` parameter would be the right behaviour by the wrong mechanism: the
+caller who never read this page is exactly the one who leaves it at its wrong
+default.
+
+Measured on 320×640 at 200% text, standalone: before the fix the block
+overflowed by **2312 pixels** and the retry landed off screen — an error the
+user is told about and cannot act on. After it, one scrollable and one drag
+away, and the retry takes a real tap at 100, 150, 200 and 300 per cent.
+Scrollable count is **1** standalone and **1** inside all four nesting hosts.
+Never two.
+
+This was found because the test that should have caught it wrapped the block in
+a `SingleChildScrollView`, which hands the column an unbounded height and left
+`expect(tester.takeException(), isNull)` unable to report anything
+(IUX-QA-VACUOUS-003).
 
 ### Why the block is tinted and the control is not inside it
 
@@ -393,10 +437,9 @@ duration parameter, and there will not be one.
   carries the flag and no more, so TalkBack remains a manual check. Nothing
   essential depends on the announcement — the same words are on screen either
   way.
-- **The block does not scroll.** A long message at a large text scale in a short
-  viewport is the caller's to place inside something scrollable. This pattern
-  imposes no scroll view, because a block embedded in a list that already
-  scrolls must not introduce a second one.
+- **The block scrolls itself only when it was given a bounded height.** See
+  "Reaching the retry" — inside anything that already scrolls it adds nothing,
+  which is the rule it always had.
 - **One failure, one block.** A screen with three failed sections shows three of
   these, beside the three things that failed. There is no collected list of
   failures, and `IuxValidationSummary` is not a substitute for one because it

@@ -1826,7 +1826,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `IuxSearchResults` has the same defect and will need the same shape — which
   would make three. It wants to be one layout primitive.
 
-### IUX-QA-VACUOUS-003 — Two more, and the mechanism that makes them possible (OPEN)
+### IUX-QA-VACUOUS-003 — Two more, and the mechanism that makes them possible (FIXED)
 
 - **Level**: standard
 - **Status**: open. `iux_permission_rationale_test.dart` and
@@ -1841,14 +1841,14 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `pumpWidget(const SizedBox.shrink())` between cases.
 - Fifth and sixth vacuous tests found in this project.
 
-### IUX-GUIDED-FORM-LIVE-001 — The collision it refused a progress bar to avoid (OPEN)
+### IUX-GUIDED-FORM-LIVE-001 — The collision it refused a progress bar to avoid (FIXED)
 
 - **Level**: standard
 - **Status**: open. `IuxGuidedForm` puts a live region in the same frame as its
   focus move — which is precisely the failure it declined to ship a progress
   bar in order to prevent.
 
-### IUX-DESTRUCTIVE-FOCUS-001 — Cancelling drops focus to the page root (OPEN)
+### IUX-DESTRUCTIVE-FOCUS-001 — Cancelling drops focus to the page root (FIXED)
 
 - **Level**: standard
 - **Sources**: WCAG 2.2 SC 2.4.3
@@ -1899,14 +1899,14 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   scrolled to, so its callback throws `setState() called after dispose()` on
   the very tap that answered the dialog.
 
-### IUX-PROGRESS-LABEL-001 — `valueLabel` is unchecked against `value` (OPEN)
+### IUX-PROGRESS-LABEL-001 — `valueLabel` is unchecked against `value` (FIXED)
 
 - **Level**: standard
 - **Sources**: WCAG 2.2 SC 1.1.1
 - **Status**: open. A 45% bar can announce "90%", so the two audiences are
   told different things and neither is warned.
 
-### IUX-RAIL-OVERFLOW-001 — the rail can be wider than its own window (OPEN)
+### IUX-RAIL-OVERFLOW-001 — the rail can be wider than its own window (FIXED)
 
 - **Level**: standard
 - **Status**: open. At 300% in a 360x320 box the leftover is negative and the
@@ -1980,7 +1980,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   focus. Right for someone still waiting, wrong for someone who walked away.
   The only fix is the parent-reported outcome that was argued against.
 
-### IUX-API-DEAD-001 — Reachable API that nothing honours or reads (OPEN)
+### IUX-API-DEAD-001 — Reachable API that nothing honours or reads (FIXED)
 
 - **Level**: standard (PROJECT_PROMPT §19)
 - **Status**: open, all measured across lib, test and apps.
@@ -1997,7 +1997,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   - `IuxElevation` is an entire **exported enum with zero references**.
     Deleting it breaks nothing.
 
-### IUX-API-NAMING-001 — One name for three things, and one thing under two names (OPEN)
+### IUX-API-NAMING-001 — One name for three things, and one thing under two names (FIXED)
 
 - **Level**: standard (PROJECT_PROMPT §20)
 - **Status**: open.
@@ -2084,7 +2084,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   of its box earlier. What is lost is the top of a sentence nobody needed,
   against a navigation bar everybody does.
 
-### IUX-APPBAR-PAGE-001 — Three defects in one composition (OPEN)
+### IUX-APPBAR-PAGE-001 — Three defects in one composition (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxAppBar` composed with `IuxPage` — the most-repeated
@@ -2107,7 +2107,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
     pilot had to scroll the whole screen and lose its pinned title at every
     text scale.
 
-### IUX-SEARCH-RESULTS-001 — Unusable for a searchable list, two ways (OPEN)
+### IUX-SEARCH-RESULTS-001 — Unusable for a searchable list, two ways (FIXED)
 
 - **Level**: standard
 - **Status**: open. Its ready branch wraps the caller's list in an `Expanded`
@@ -2120,7 +2120,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   search box. `IuxEmptyStateCause` exists precisely to keep those apart, and
   this pattern can express one of the four.
 
-### IUX-LISTITEM-TRAILING-001 — Two components that only overflow together (OPEN)
+### IUX-LISTITEM-TRAILING-001 — Two components that only overflow together (FIXED)
 
 - **Level**: standard
 - **Sources**: WCAG 2.2 SC 1.4.4
@@ -2211,6 +2211,54 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   files and no two agreeing.
 - Also open: **47 broken dartdoc references** in `lib/` that render as literal
   text on pub.dev.
+
+### IUX-DISTINGUISHABILITY-001 — Choices that resolved to the same thing (FIXED)
+
+- **Level**: standard (PROJECT_PROMPT §19, §20)
+- **The rule**: *any two values a caller can choose between must produce a
+  different resolved result; where they do not, either the API is lying or one
+  of them is dead.* Nothing in 1978 tests asked this question — each test
+  checked one configuration against its own expectation, and none compared two.
+- **What it found**, all measured across four theme profiles:
+  - `IuxActionIntent.tertiary` was identical to `secondary` in `outlined`,
+    `tonal` and `text`, and identical to `text` in `filled`. Redefined from a
+    statement about *weight* — which `IuxButtonVariant` and `importance`
+    already make — to **an action that leads away from the task**: back, close,
+    skip. That is the meaning `IuxAppBar`'s back control already declared and
+    never received. Quieter by hue, never by contrast: lowest measured 6.31:1.
+  - **`primary` and `secondary` were byte-identical in every unfilled variant
+    on dark standard, high-contrast light and high-contrast dark.**
+  - **A pressed filled `destructive` was byte-identical to a pressed filled
+    `primary` in both high-contrast profiles** — a pressed "Delete"
+    indistinguishable from a pressed "Save", in the profile whose entire
+    purpose is separation, at the moment the user commits.
+- `IuxActionColors.border` was **removed**: painted by nothing, measured by
+  nothing, and set to the page surface itself in two of four profiles — while
+  being the *sole* source-level difference between `secondary` and `tertiary`,
+  so the file read as though they were distinct while every pixel was
+  identical.
+- `IuxButtonTheme.variant` was **removed** too. A single constant `filled` for
+  all four intents meant the most ordinary button in the package — a plain
+  descriptor is secondary — resolved to a fill equal to the page and an outline
+  of width zero. Replaced by a derived default: intent says which containers
+  exist, importance picks the rung. **A named `variant:` always wins or
+  asserts** — deriving a default is not the same failure as discarding a
+  request.
+- Now permanent: `test/themes/button_distinguishability_test.dart`, 22 tests,
+  every profile x legal intent x legal variant x interaction state, with the
+  two deliberate exclusions pinned and argued rather than left silent.
+
+### IUX-LISTITEM-TRAILING-001 — residual at 300%, measured not rounded away
+
+- The trailing control is now bounded to the same one-third share the row
+  already applied to trailing text. **214 px of overflow at 300% became 6 px**,
+  and 200% is clean where it was 68 px over.
+- **The measurement that mattered was not the exception.** Before the fix the
+  title box was squeezed to **2.8 px wide at 150%** — silently, with nothing
+  thrown until 200%. A `takeException` assertion alone would have called 150%
+  healthy. The test asserts the title keeps a usable width.
+- The 6 px residual at 300% is pinned at its real number in the pilot's own
+  suite, so a regression is visible and nobody records this as closed.
 
 ## Deferred to later missions
 

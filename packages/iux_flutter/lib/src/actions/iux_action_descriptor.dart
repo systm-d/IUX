@@ -45,12 +45,11 @@ final class IuxActionDescriptor {
           'started cannot be running. Enable it while it runs, or model the '
           'busy state with operation alone.',
         ),
-        assert(
-          !(confirmation is IuxConfirmByHold &&
-              availability == IuxActionAvailability.disabled),
-          'Hold-to-confirm requires an enabled action: a disabled control '
-          'cannot be held.',
-        ),
+        // There was an assertion here that a hold-to-confirm action could not
+        // also be disabled. It went with `IuxConfirmByHold`, which nothing
+        // honoured — see iux_action_model.dart. The rule it stated is covered
+        // anyway: `IuxActionPolicy.evaluate` blocks a disabled action before
+        // it ever looks at a confirmation.
         assert(
           !(role == IuxActionRole.undo &&
               reversibility == IuxActionReversibility.irreversible),
@@ -80,6 +79,12 @@ final class IuxActionDescriptor {
   /// that is the safe reading when the caller has not said otherwise. Both are
   /// overridable: archiving is destructive and reversible, and confirming
   /// every deletion trains users to dismiss confirmations.
+  ///
+  /// Its importance is [IuxActionImportance.high] — not because deleting
+  /// things is desirable, but because importance now chooses the container an
+  /// action is drawn in, and a control that destroys data must be identifiable
+  /// as a control (WCAG 2.2 SC 1.4.11). A caller who wants a quiet deletion
+  /// says so on the plain constructor.
   const IuxActionDescriptor.destructive({
     required IuxActionSemantics semantics,
     IuxActionRole role = IuxActionRole.delete,
@@ -90,7 +95,7 @@ final class IuxActionDescriptor {
   }) : this(
           semantics: semantics,
           intent: IuxActionIntent.destructive,
-          importance: IuxActionImportance.medium,
+          importance: IuxActionImportance.high,
           role: role,
           availability: availability,
           operation: operation,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../accessibility/iux_touch_target.dart';
 import '../../layout/iux_content_width.dart';
@@ -562,31 +563,42 @@ class _IuxTransientActionControl extends StatelessWidget {
   final IuxTransientTokens tokens;
 
   @override
-  Widget build(BuildContext context) => IuxSemantics.action(
-        label: action.effectiveSemanticLabel,
-        // Carried through so a screen-reader double-tap activates it. The
-        // helper excludes the child's semantics in order to control the
-        // announced name, and that removes the child's own tap action with it.
-        onTap: action.onActivate,
-        child: IuxFocusable(
-          onActivate: action.onActivate,
-          borderRadius: BorderRadius.circular(tokens.actionRadius),
-          child: IuxTapTarget(
-            onTap: action.onActivate,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                // Outlined, so the control is identifiable as one by shape. A
-                // bare coloured word inside an already-coloured block asks the
-                // user to tell two tints apart to find out what is tappable.
-                border: Border.all(
-                  color: tokens.content,
-                  width: tokens.borderWidth,
+  Widget build(BuildContext context) =>
+      // A message that leaves on its own is the case where being *sent* to the
+      // control matters most: the user has a few seconds to reach it, and
+      // swiping there is not always fast enough. IUX-A11Y-FOCUS-001.
+      IuxFocusNodeOwner(
+        focusNode: null,
+        debugLabel: action.effectiveSemanticLabel,
+        builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+          label: action.effectiveSemanticLabel,
+          // Carried through so a screen-reader double-tap activates it. The
+          // helper excludes the child's semantics in order to control the
+          // announced name, and that removes the child's own tap action with
+          // it.
+          onTap: action.onActivate,
+          focusNode: node,
+          child: IuxFocusable(
+            focusNode: node,
+            onActivate: action.onActivate,
+            borderRadius: BorderRadius.circular(tokens.actionRadius),
+            child: IuxTapTarget(
+              onTap: action.onActivate,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  // Outlined, so the control is identifiable as one by shape. A
+                  // bare coloured word inside an already-coloured block asks the
+                  // user to tell two tints apart to find out what is tappable.
+                  border: Border.all(
+                    color: tokens.content,
+                    width: tokens.borderWidth,
+                  ),
+                  borderRadius: BorderRadius.circular(tokens.actionRadius),
                 ),
-                borderRadius: BorderRadius.circular(tokens.actionRadius),
-              ),
-              child: Padding(
-                padding: IuxInsets.compact(context),
-                child: Text(action.label, style: tokens.actionStyle),
+                child: Padding(
+                  padding: IuxInsets.compact(context),
+                  child: Text(action.label, style: tokens.actionStyle),
+                ),
               ),
             ),
           ),
@@ -613,21 +625,31 @@ class _IuxTransientDismissControl extends StatelessWidget {
   final IuxTransientTokens tokens;
 
   @override
-  Widget build(BuildContext context) => IuxSemantics.action(
-        label: label,
-        onTap: onDismiss,
-        child: IuxFocusable(
-          onActivate: onDismiss,
-          child: IuxTapTarget(
-            onTap: onDismiss,
-            child: Icon(
-              Icons.close,
-              size: tokens.iconSize,
-              // The content role, not the icon role: this glyph is a control
-              // rather than the tone, and a control is held to the text ratio
-              // the theme measured for content on this surface.
-              color: tokens.content,
-              applyTextScaling: false,
+  Widget build(BuildContext context) =>
+      // The only mechanism WCAG 2.2 SC 2.2.2 leaves a screen-reader user for
+      // stopping the clock, so it is also the one their assistive technology
+      // must be able to move focus onto. IUX-A11Y-FOCUS-001.
+      IuxFocusNodeOwner(
+        focusNode: null,
+        debugLabel: label,
+        builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+          label: label,
+          onTap: onDismiss,
+          focusNode: node,
+          child: IuxFocusable(
+            focusNode: node,
+            onActivate: onDismiss,
+            child: IuxTapTarget(
+              onTap: onDismiss,
+              child: Icon(
+                Icons.close,
+                size: tokens.iconSize,
+                // The content role, not the icon role: this glyph is a control
+                // rather than the tone, and a control is held to the text ratio
+                // the theme measured for content on this surface.
+                color: tokens.content,
+                applyTextScaling: false,
+              ),
             ),
           ),
         ),

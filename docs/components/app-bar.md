@@ -7,34 +7,31 @@ belonging to the screen as a whole.
 
 ```dart
 Scaffold(
-  body: Column(
-    children: <Widget>[
-      IuxAppBar(
-        title: l10n.orders,
-        leading: IuxAppBarLeading.back(
-          label: l10n.backToHome,
-          onActivate: controller.goBack,
-        ),
-        actions: <IuxIconButton>[
-          IuxIconButton(
-            icon: Icons.search,
-            action: IuxActionDescriptor(
-              semantics: IuxActionSemantics(label: l10n.search),
-            ),
-            onActivate: controller.search,
+  body: IuxScreen(
+    appBar: IuxAppBar(
+      title: l10n.orders,
+      leading: IuxAppBarLeading.back(
+        label: l10n.backToHome,
+        onActivate: controller.goBack,
+      ),
+      actions: <IuxIconButton>[
+        IuxIconButton(
+          icon: Icons.search,
+          action: IuxActionDescriptor(
+            semantics: IuxActionSemantics(label: l10n.search),
           ),
-        ],
-      ),
-      Expanded(
-        child: IuxPage(
-          insets: IuxPageInsets.bottomOnly,   // the bar spent the top inset
-          child: content,
+          onActivate: controller.search,
         ),
-      ),
-    ],
+      ],
+    ),
+    page: IuxPage(child: content),
   ),
 )
 ```
+
+**With a page under it, use `IuxScreen`.** Written as siblings in a `Column`
+the two cannot see each other, and three separate things go wrong; see
+`docs/components/screen.md`, which is where that composition now lives.
 
 **Use it** at the top of a screen that has a name worth showing.
 
@@ -130,15 +127,53 @@ to prevent.
 The bar consumes the top system inset itself, inside its own background, so the
 surface paints behind the status bar while the content clears it.
 
-That makes the page below it `IuxPageInsets.bottomOnly`. This is the exact
-double-padding hazard `IuxPageInsets` exists for: the bar and the page are
-siblings, so the page still sees a non-zero top padding and will add the status
-bar height a second time, below the bar, if it is left on `handled`.
-
 `SafeArea` removes what it consumes for its own subtree, so nesting is safe —
 an `IuxAppBar` inside something that already handled the top inset adds nothing.
-Only the sibling case needs the caller's attention, and no assertion can detect
-it. It is the one thing to get right at the call site.
+The **sibling** case is the one a `SafeArea` cannot reach: a page beside the bar
+still sees the full padding and spends it again, and no assertion can detect a
+sibling.
+
+That used to be "the one thing to get right at the call site", with
+`IuxPageInsets.bottomOnly` as the remedy. It is now `IuxScreen`'s job: the page
+it holds is given a `MediaQuery` with the top inset already removed, so the
+default `handled` is right and there is nothing to get right. Measured with a
+40-pixel inset, a bar with a back affordance on a 320-pixel screen: the content
+starts at y 204 inside an `IuxScreen` and at y 244 beside the bar in a `Column`
+— exactly one status bar of daylight nobody asked for.
+
+## It is measurable, and it fits the box it is given
+
+Two properties that only matter when something goes wrong, and both used to go
+wrong silently.
+
+**It answers intrinsic queries.** The arrangement is decided by a render object
+rather than a `LayoutBuilder`. A `LayoutBuilder` has to build before it knows
+anything, so it can never answer *how tall would you be at this width* — and
+while one was in here, **no tree containing an IUX app bar could take part in
+`IntrinsicHeight`, `IntrinsicWidth`, an intrinsic `Table` column, or
+`SliverFillRemaining(hasScrollBody: false)`**. Every one of those threw
+*LayoutBuilder does not support returning intrinsic dimensions*, which took
+fill-viewport-or-scroll — the standard Flutter answer to a screen that
+sometimes fits — off the table for every application (`IUX-APPBAR-PAGE-001`).
+All four now work, and are tested.
+
+The decision itself is unchanged, but the numbers behind it are no longer
+estimated. The control strip used to be inferred from `IuxButtonResolver` — one
+icon button's geometry multiplied by the number of controls — and is now the
+measured width of the controls actually in the bar, so the estimate and the
+thing it estimated cannot disagree. Measured across 100%, 150%, 200%, 250% and
+300% text on 320x640 and 360x800, the bar's height came out identical before and
+after the change.
+
+**Given a box too short for it, it scrolls.** The bar has no fixed height, so a
+caller can hand it less room than its title needs — at 300% text under a
+navigation bar, routinely. A `Column` in that position overflows and paints
+outside itself. The bar does instead what `IuxBottomNavigation` does at the
+other end of the screen: the strip scrolls its own content, inside the
+decoration, so the surface and the boundary line still span the box. Nothing is
+clipped, nothing is abbreviated, and a screen reader is not stopped by a
+viewport edge. **Where the bar fits, this scrolls nothing and measures exactly
+as it did before.** Who decides how short the box is, is `IuxScreen`.
 
 ## The way out must be named
 
@@ -287,18 +322,16 @@ below it.
 Scaffold(appBar: PreferredSize(preferredSize: Size.fromHeight(56), child: IuxAppBar(...)))
 
 // Right: the bar sits at the top of the body and grows with its title.
-Scaffold(body: Column(children: <Widget>[IuxAppBar(...), Expanded(child: page)]))
+Scaffold(body: IuxScreen(appBar: IuxAppBar(...), page: IuxPage(child: content)))
 ```
 
 ```dart
-// Wrong: the top inset is spent twice — once by the bar, once by the page.
+// Wrong: siblings. The top inset is spent twice, nobody owns the height, and
+// at 250% text under a navigation bar the frame overflows.
 Column(children: <Widget>[IuxAppBar(...), Expanded(child: IuxPage(child: content))])
 
-// Right.
-Column(children: <Widget>[
-  IuxAppBar(...),
-  Expanded(child: IuxPage(insets: IuxPageInsets.bottomOnly, child: content)),
-])
+// Right: one component owns both.
+IuxScreen(appBar: IuxAppBar(...), page: IuxPage(child: content))
 ```
 
 ```dart
@@ -335,42 +368,36 @@ IuxAppBar(title: l10n.orders, actions: <IuxIconButton>[deleteThisOrder])
   component with a separate contract, not a parameter on this one.
 - **No `PreferredSizeWidget`**, so it cannot be dropped into `Scaffold.appBar`
   or into any third-party API that expects one. See above for why.
-- **The double-padding rule is documentation, not an assertion.** The bar and
-  the page are siblings, and no component can inspect its sibling. A composition
-  widget owning both would make it unrepresentable; that belongs to a later
-  mission, not to a component that should stay one thing.
+- **The double-padding rule is still not an assertion, in a hand-written
+  `Column`.** No component can inspect its sibling, so the arrangement cannot be
+  refused — it can only be made unnecessary. `IuxScreen` owns both and spends
+  the inset once; a caller who writes the `Column` anyway gets the old
+  behaviour, and `docs/components/screen.md` is where that is measured.
 - **The readable floor is a hypothesis.** Twelve characters, and half an em per
   character, are the same crude conversion the layout package already uses. It
   will be wrong for CJK and for monospace, in the generous direction — the title
   keeps the shared row slightly more often than it should, and wraps rather than
   truncating when it does.
 - **A very long title with no controls can push the content most of the way down
-  a small screen.** Nothing clips, which is the guarantee; whether a title that
-  long is a good title is the caller's decision.
-- **Composed with `IuxPage`, three things go wrong** (`IUX-APPBAR-PAGE-001`),
-  and this is the most-repeated composition any application writes.
-  - **The top inset is applied twice, and nothing asserts.** The bar's
-    `SafeArea` removes the inset for its own subtree only; a sibling `IuxPage`
-    on the default `IuxPageInsets.handled` consumes it again. Measured with a
-    40 px inset: content starts at y 152 instead of y 112. `IuxPageInsets`
-    cannot express the fix — `none` also drops the landscape side insets, and
-    there is no `exceptTop` — so the working remedy is
-    `MediaQuery.removePadding(removeTop: true)` around the page. See
-    `apps/pilot/lib/screen_frame.dart`.
-  - **The chrome does not fit at a large text scale, and no component owns the
-    total.** On 320x640 with three destinations: at 100% the bar and bottom
-    navigation take 56 and 92 px and leave 492; at 300% they take 260 and 408
-    and leave **−28**, and the frame overflows. `IuxBottomNavigation` honours
-    its own documented degradation and takes its share first; nothing then
-    defends the content.
-  - **The standard fix is structurally unavailable.** Fill-viewport-or-scroll
-    needs `IntrinsicHeight`, which throws with *LayoutBuilder does not support
-    returning intrinsic dimensions* — `IuxAppBar` uses a `LayoutBuilder`
-    internally to decide whether the title shares a row with the controls. **No
-    IUX screen containing an app bar can take part in `IntrinsicHeight`,
-    `IntrinsicWidth` or intrinsic `Table` sizing.** What is left is to scroll
-    the whole screen, bar included, and the cost is that the title is not
-    pinned at any text scale.
+  a small screen** — as far as half of it inside an `IuxScreen`, and all of it
+  in a hand-written `Column`. Nothing clips, which is the guarantee; whether a
+  title that long is a good title is the caller's decision.
+- **A short strip scrolls, and a scrollbar is not drawn.** Where the box is
+  shorter than the title needs, part of the title is off the top or bottom of
+  the strip with no visible affordance saying so — the same discoverability cost
+  `IuxBottomNavigation` accepted for the same reason: a title the user has to
+  scroll to is a title they may not find, and a title that is not rendered is
+  one they certainly will not. Screen-reader users are unaffected: the whole
+  title is in the semantics tree and focusing it scrolls it into view.
+- **The internal viewport consumes a vertical drag that lands on the bar**, even
+  when there is nothing to scroll, so a parent gesture on the bar's own strip
+  will not see it. The page's own scrollable is unaffected — measured: dragging
+  the content moves the content and leaves the bar where it was.
+- **`IUX-APPBAR-PAGE-001` is closed by a component, not by an assertion.** All
+  three of its defects — the doubled inset, the overflowing frame, and the
+  intrinsic dimensions — are fixed in `IuxScreen` and in this component's
+  layout. The composition it replaces still behaves as it did, and two tests pin
+  that so the fix cannot be quietly reverted.
 
 ## Evidence level
 
@@ -399,6 +426,8 @@ width. Neither has been validated with users.
   in TalkBack.
 - Material 3 — top app bar: action count, and the medium/large forms that place
   the title on its own line below the controls.
+- `docs/components/screen.md` — `IuxScreen`, which owns this component with an
+  `IuxPage` and settles the height between them.
 - `docs/layout/overview.md` — `IuxPage`, `IuxPageInsets`, target spacing,
   wrapping beats clipping.
 - `docs/components/button.md` and `docs/components/button-variants.md` —

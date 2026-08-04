@@ -8,13 +8,13 @@ Variant resolution itself lives in the button theme — see
 
 ## Variant is emphasis, intent is meaning
 
-| Variant | Weight | Labelled | Icon-only |
-| --- | --- | --- | --- |
-| `filled` | most prominent | yes | yes |
-| `outlined` | outline on the page | yes | yes |
-| `tonal` | soft container | yes | yes |
-| `text` | label only, no container | yes | yes |
-| `icon` | square target, no label | **no** | default |
+| Variant | Weight | Labelled | Icon-only | Intents |
+| --- | --- | --- | --- | --- |
+| `filled` | most prominent | yes | yes | primary, destructive |
+| `outlined` | outline on the page | yes | yes | all |
+| `tonal` | soft container | yes | yes | all but destructive |
+| `text` | label only, no container | yes | yes | all |
+| `icon` | square target, no label | **no** | default | all |
 
 The same action can be prominent on one screen and discreet on another without
 changing what it does. That is why emphasis is a separate axis from
@@ -25,6 +25,31 @@ variant activates identically, and there is a test that says so.
 `IuxButton` refuses `IuxButtonVariant.icon`. It describes a control with no
 label, so it cannot describe a button that has one. The assertion names
 `IuxIconButton` rather than leaving the caller to guess.
+
+### Two combinations are refused
+
+The last column is not decoration. Two cells of the variant × intent grid are
+assertions, not appearances:
+
+- **`tonal` + `destructive`.** Tonal carries intent through its border rather
+  than its fill, which is not enough separation for an action that destroys
+  data.
+- **`filled` + `secondary` or `tertiary`.** The semantic layer models both
+  intents unfilled: their background *is* the page surface and their accent
+  lives in the foreground. So `filled` painted the page over the page and
+  produced a control with no container at all — measured byte-identical to
+  `text`, which is a button a user cannot identify as one (WCAG 2.2 SC 1.4.11).
+  Until IUX-039 the request was accepted and discarded in silence, which is
+  worse than a refusal because the call site reads as if it worked.
+
+Inventing a fill for those two intents was refused rather than deferred: one
+filled action per group is what makes the primary readable as the primary, and
+a second fill takes that away from every screen at once. If an action really is
+the dominant one, say so with `IuxActionIntent.primary`.
+
+`test/themes/button_distinguishability_test.dart` sweeps the whole legal grid
+on all four theme profiles and requires every cell to differ from every other.
+Two variants that resolve to one appearance mean one of them is not a variant.
 
 ## IuxIconButton
 
@@ -156,15 +181,32 @@ invalid.
 | `label` | `IuxButton` | yes | must not be empty |
 | `action` | both | yes | carries the accessible name |
 | `onActivate` | both | yes | once per accepted gesture |
-| `variant` | both | no | labelled: the theme's. Icon: `icon` |
+| `variant` | both | no | labelled: from the action. Icon: `icon` |
 | `autofocus`, `focusNode` | both | no | focus handling |
 | `expand` | `IuxButton` | no | width only |
 | `busyHint` | both | no | announced while running; silent if omitted |
 
-`IuxIconButton` defaults to `IuxButtonVariant.icon` rather than to the theme's
-variant, which describes labelled buttons and is normally `filled`. Icon
-actions usually appear several to a row, and a row of filled containers
-competes with the content it sits above.
+`IuxIconButton` defaults to `IuxButtonVariant.icon` rather than deriving one
+from the action. Icon actions usually appear several to a row, and a row of
+containers competes with the content it sits above.
+
+A labelled button that names no variant derives one from the action, through
+`IuxButtonResolver.defaultVariantFor` — intent says which containers exist,
+importance picks a rung:
+
+| | primary, destructive | secondary, tertiary |
+| --- | --- | --- |
+| `high` | `filled` | `outlined` |
+| `medium` | `outlined` | `tonal` |
+| `low` | `text` | `text` |
+
+There was a single `IuxButtonTheme.variant` constant here until IUX-039, and it
+was `filled` for every intent. Since a plain `IuxActionDescriptor` is secondary,
+the most ordinary button in the package resolved to a fill equal to the page and
+an outline of width zero. One value cannot be the right default for four
+intents. Deriving a default is not the same failure as discarding a request: a
+call site that names `variant:` always gets it, or an assertion saying why it
+cannot have it.
 
 ## Anti-patterns
 

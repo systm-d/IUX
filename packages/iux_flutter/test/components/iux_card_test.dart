@@ -674,6 +674,20 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+      // The harness places the card in a scroll view, which is where a card
+      // belongs and which hands it an unbounded *height* — so growing taller
+      // than the screen is correct here and `takeException` can only ever
+      // report the sideways case. Say what is actually being claimed, and
+      // claim it with an assertion that can fail: the card and its actions
+      // stay inside the 320 pixels they were given (IUX-QA-VACUOUS-003).
+      expect(
+          tester.getSize(find.byType(IuxCard)).width, lessThanOrEqualTo(320));
+      for (final Element target in find.byType(IuxTapTarget).evaluate()) {
+        expect(
+          tester.getRect(find.byWidget(target.widget)).right,
+          lessThanOrEqualTo(320),
+        );
+      }
     });
 
     testWidgets('a tappable card survives 200% text on a small screen',
@@ -690,6 +704,12 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+      expect(
+          tester.getSize(find.byType(IuxCard)).width, lessThanOrEqualTo(320));
+      expect(
+        tester.getRect(find.text('Order 3141 was delivered on Tuesday')).right,
+        lessThanOrEqualTo(320),
+      );
     });
 
     testWidgets('a group survives 200% text on a small screen',
@@ -707,6 +727,16 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(IuxContentGroup)).width,
+        lessThanOrEqualTo(320),
+      );
+      expect(
+        tester
+            .getRect(find.text('12 Rue des Fleurs, Building C, Staircase 3'))
+            .right,
+        lessThanOrEqualTo(320),
+      );
     });
 
     testWidgets('both render right to left', (WidgetTester tester) async {
@@ -753,6 +783,11 @@ void main() {
         expect(tester.takeException(), isNull, reason: '$configuration');
         expect(find.text('Order 3141'), findsOneWidget);
         expect(find.text('City'), findsOneWidget);
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so without this every case after the first would
+        // pass whatever it laid out (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
   });

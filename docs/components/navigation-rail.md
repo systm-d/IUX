@@ -70,10 +70,28 @@ window has more of, and never spend width the content cannot afford.
 
 ```text
 rail  ⟺  available.width >= available.height
+         && available.width > railWidth
          && (available.width - railWidth >= 320  ||  the bar is no longer a strip)
 ```
 
-Both terms are measured rather than assumed.
+Every term is measured rather than assumed.
+
+The middle term asks whether the rail **fits**; the last one asks how much it
+**leaves**. They look like the same question and are not, which is what
+`IUX-RAIL-OVERFLOW-001` cost: a rail wider than its window leaves a *negative*
+remainder, and a negative number fails a positive budget in exactly the way a
+small positive one does. The budget therefore answered "narrow" to a rail that
+did not fit at all, and the stacked-layout fallback below then chose it anyway.
+Measured at 300% on 360x320: the rail wanted 396 px against a 360 px window,
+the `Row` overflowed by 36, and the content beside it was laid out at zero.
+
+The floor is zero and deliberately not more. A window that small at that text
+scale has no arrangement leaving a usable page — five short names put the rail
+at 352 px there, so the page is six pixels wide, while the bar takes all 320 of
+the height and leaves none. Raising the fit term to a touch target would trade
+the first for the second, which is not an improvement. This term fixes the case
+that is unambiguously wrong — a rail wider than the screen it is drawn on — and
+claims nothing about the case where nothing fits.
 
 `railWidth` is `IuxNavigationRail.widthFor`: the widest destination name at the
 text size actually in force, not a constant. That is how text scale enters the
@@ -475,10 +493,15 @@ the application when the user turns the device.
   picks the bar** — a caller who puts it inside a scroll view gets the phone
   arrangement on a tablet, with no warning at all. Put it in `Scaffold.body`,
   not inside a scroll view, and verify by looking.
-- **The rail can be wider than its own window** (`IUX-RAIL-OVERFLOW-001`). At
-  300% in a 360x320 box the leftover is negative and the `Row` overflows by
-  36 px. The rule weighs *how much is left over* for the content and never asks
-  whether the rail itself fits.
+- ~~**The rail can be wider than its own window**~~ (`IUX-RAIL-OVERFLOW-001`).
+  **Fixed.** The rule weighed *how much was left over* for the content and
+  never asked whether the rail itself fitted, so a negative remainder — a rail
+  wider than the screen — failed the 320-pixel budget in exactly the way a
+  narrow-but-affordable window did, and the fallback for a window too short for
+  the bar then chose it anyway. Measured at 300% in a 360x320 box: the rail
+  wanted 396 px, the `Row` overflowed by 36, and the page beside it was laid
+  out at zero. The rule now carries a fit term of its own — see
+  [How the arrangement is chosen](#how-the-arrangement-is-chosen).
 - **Widths here are measured in a test font that is wider than Roboto.** Real
   rails are narrower, so the arrangement flips to the rail slightly earlier on
   a device than the tables above suggest. Nothing in the rule depends on the

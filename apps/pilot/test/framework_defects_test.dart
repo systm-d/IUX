@@ -78,8 +78,8 @@ void main() {
   });
 
   testWidgets(
-      'IuxListItem overflows when its trailing control is an IuxStatusIndicator',
-      (WidgetTester tester) async {
+      'IuxListItem no longer overflows when its trailing control is an '
+      'IuxStatusIndicator', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -107,20 +107,34 @@ void main() {
       return tester.takeException();
     }
 
-    // The row lays its trailing control out as a non-flexible child of a Row,
-    // so the control takes its full intrinsic width and the Expanded holding
-    // the row's own text absorbs a negative remainder. Neither component is
-    // wrong on its own; the composition is.
+    // The row used to lay its trailing control out as a non-flexible child of
+    // a Row, so the control took its full intrinsic width and the Expanded
+    // holding the row's own text absorbed a negative remainder — 68px over at
+    // 200%, 214px at 300%. Neither component was wrong alone; the composition
+    // was, which is why no component test found it.
     //
-    // Workaround: lib/jobs_screen.dart uses `trailingText`, which sits inside
-    // the constrained region — and loses the status tone with it.
+    // The trailing control is now bounded to the same one-third share the row
+    // already applied to trailing text. The measurement that mattered turned
+    // out not to be the exception: the title box was squeezed to 2.8px wide at
+    // 150%, silently, before anything was thrown at all. So this asserts the
+    // title keeps a usable width, not merely that nothing threw.
     expect(await at(1), isNull);
     expect(await at(1.5), isNull);
-    expect(await at(2), isNotNull, reason: 'overflows by 68px at 200%');
-    expect(await at(3), isNotNull, reason: 'overflows by 214px at 300%');
+    expect(await at(2), isNull, reason: 'was 68px over before the fix');
+
+    // Residual, measured rather than rounded away: 300% still overflows, by
+    // 6px where it was 214. The bound is a share of the row, so at an extreme
+    // scale the two thirds left to the text are still not enough for a word
+    // this long. Pinned at the real number so a regression is visible and so
+    // nobody records this as closed.
+    expect(
+      await at(3),
+      isNotNull,
+      reason: '6px residual at 300%, down from 214px',
+    );
   });
 
-  testWidgets('IuxSearchResults cannot be placed on an IuxPage',
+  testWidgets('IuxSearchResults can now be placed on an IuxPage',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       host(
@@ -132,12 +146,14 @@ void main() {
           searchingLabel: 'Searching',
           failureCategoryLabel: 'Error',
           recovery: IuxRetryRoute(label: 'Try again', onRetry: () {}),
-          reset: IuxEmptyStateAction(
-            label: 'Clear the search',
-            action: const IuxActionDescriptor(
-              semantics: IuxActionSemantics(label: 'Clear the search'),
+          emptyCause: IuxNoMatches(
+            reset: IuxEmptyStateAction(
+              label: 'Clear the search',
+              action: const IuxActionDescriptor(
+                semantics: IuxActionSemantics(label: 'Clear the search'),
+              ),
+              onActivate: () {},
             ),
-            onActivate: () {},
           ),
           builder: (BuildContext context, List<String> value) =>
               const Text('results'),
@@ -153,10 +169,10 @@ void main() {
     //
     // Workaround: lib/jobs_screen.dart composes IuxSearchField, IuxEmptyState
     // and IuxListGroup by hand, reimplementing the private status line.
-    expect(tester.takeException(), isNotNull);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('IuxAppBar cannot report an intrinsic height',
+  testWidgets('IuxAppBar can now report an intrinsic height',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -184,7 +200,7 @@ void main() {
     //
     // Consequence: lib/screen_frame.dart scrolls the whole screen and the
     // title is never pinned.
-    expect(tester.takeException(), isNotNull);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('IuxAppBar above IuxPage applies the top inset twice',

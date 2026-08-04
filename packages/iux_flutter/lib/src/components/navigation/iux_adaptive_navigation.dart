@@ -89,8 +89,16 @@ const double _minimumContentWidth = 320;
 ///
 /// ```text
 /// rail  ⟺  available.width >= available.height
+///          && available.width > railWidth
 ///          && (available.width - railWidth >= 320 || the bar is no longer a strip)
 /// ```
+///
+/// The middle term looks implied by the last one and is not. It asks whether
+/// the rail *fits*, where the last one asks how much it *leaves*, and a
+/// remainder that has gone negative fails a budget test exactly as a small
+/// positive one does — so without it the rule answered "narrow but affordable"
+/// to a rail wider than the screen it was drawn on. See `_prefersRail`, and
+/// `IUX-RAIL-OVERFLOW-001` for the 36 pixels it cost.
 ///
 /// Every term is measured rather than assumed.
 ///
@@ -305,6 +313,35 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     final double remaining = constraints.maxWidth -
         IuxNavigationRail.widthFor(context, destinations);
     if (remaining >= _minimumContentWidth) return true;
+
+    // Whether the rail *fits* is a different question from how much it leaves,
+    // and the rule below only ever asked the second one. A rail wider than the
+    // window it is in leaves a **negative** remainder, and every comparison
+    // against a positive budget answers a negative number exactly as it
+    // answers a small positive one — so the case where the rail is not an
+    // arrangement at all read as the case where it is merely a tight one.
+    // Measured on 360 x 320 at 300% text with five short destination names:
+    // the rail wanted 396 pixels against a 360-pixel window, the Row overflowed
+    // by 36, and the content beside it was laid out at zero.
+    //
+    // Nothing below can rescue it. The rail's width is the width its names
+    // need, and clamping it would clip the destination the user is looking
+    // for, so a window this narrow has no rail in it and the question ends
+    // here. The bar is then the answer by elimination rather than on merit,
+    // and it is a real answer: it degrades on purpose, it is bounded by the
+    // window, and every destination stays reachable.
+    //
+    // **The floor is zero, and deliberately not more.** A window this small at
+    // this text scale has no arrangement that leaves a usable page — measured
+    // on 360 x 320 at 300%, five short names put the rail at 352 and the page
+    // at six pixels wide, while the bar on the same window takes all 320 and
+    // leaves the page none. Raising this floor to a touch target would trade
+    // the first for the second, which is not an improvement, and the real
+    // answer is the one the pilot's findings point at: something has to own
+    // the total and scroll the whole frame. This term fixes the case that is
+    // unambiguously wrong — a rail wider than the screen it is drawn on — and
+    // claims nothing about the case where nothing fits.
+    if (remaining <= 0) return false;
 
     // The budget failed, and the interesting question is what the alternative
     // costs. Below the stacked threshold the bar is a compact strip — 72 to 92

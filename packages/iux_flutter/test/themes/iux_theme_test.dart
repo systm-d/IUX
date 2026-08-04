@@ -340,7 +340,6 @@ void main() {
           primary: IuxActionColors(
             foreground: Color(0xFFFFFFFF),
             background: Color(0xFF0000EE),
-            border: Color(0xFF0000EE),
             hoveredBackground: Color(0xFF0000CC),
             pressedBackground: Color(0xFF0000AA),
             disabledForeground: Color(0xFF707070),
@@ -349,7 +348,6 @@ void main() {
           secondary: IuxActionColors(
             foreground: Color(0xFF0000EE),
             background: Color(0xFFFFFFFF),
-            border: Color(0xFF707070),
             hoveredBackground: Color(0xFFF0F0F0),
             pressedBackground: Color(0xFFE8E8E8),
             disabledForeground: Color(0xFF707070),
@@ -358,7 +356,6 @@ void main() {
           tertiary: IuxActionColors(
             foreground: Color(0xFF0000EE),
             background: Color(0xFFFFFFFF),
-            border: Color(0xFFFFFFFF),
             hoveredBackground: Color(0xFFF0F0F0),
             pressedBackground: Color(0xFFE8E8E8),
             disabledForeground: Color(0xFF707070),
@@ -367,7 +364,6 @@ void main() {
           destructive: IuxActionColors(
             foreground: Color(0xFFFFFFFF),
             background: Color(0xFFB00020),
-            border: Color(0xFFB00020),
             hoveredBackground: Color(0xFF8E001A),
             pressedBackground: Color(0xFF6C0014),
             disabledForeground: Color(0xFF707070),
