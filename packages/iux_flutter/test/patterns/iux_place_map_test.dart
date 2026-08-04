@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
-import 'package:iux_flutter/src/patterns/map/iux_place_map.dart';
-import 'package:iux_flutter/src/patterns/map/iux_place_map_model.dart';
 // Not in the barrel yet: the team lead owns that file. Imported from source so
 // the pattern can be measured before the two export lines land.
 
