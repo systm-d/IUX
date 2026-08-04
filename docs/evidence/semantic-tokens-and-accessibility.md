@@ -1862,6 +1862,81 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   stacks past about 130% text, so **enlarging the text fixes it and leaving it
   alone does not**. Pinned by a catalog test.
 
+### IUX-FORM-FOCUS-001 — An accepted submission arms an unbounded focus move (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxForm`, `IuxGuidedForm`
+- **Sources**: WCAG 2.2 SC 3.2.2
+- **Status**: **open, and it answers the question IUX-033 thought it had
+  settled.** `_handleSubmit` increments `_attempt`, but on the *accepted* path
+  it never calls the focus move, so `_focusedAttempt` is never brought level.
+  `_attempt != _focusedAttempt` is then permanently true, and **every** later
+  `didUpdateWidget` carrying a rejected field moves focus.
+- **Measured**: the user submits successfully, edits a field, tabs on, the
+  parent answers the **blur** check — and the caret is ripped into the
+  summary. The user asked for nothing.
+- **Not a one-line fix**: hoisting the assignment does nothing, because the
+  method is not called on that path at all; assigning it in `_handleSubmit`
+  fixes this and breaks the deliberate *"a rejection that arrives after the
+  submission still moves focus"* in both suites — verified by doing exactly
+  that. It needs a bounded pending-submission window, which is a decision.
+- **What this means for IUX-033's reconciling test.** IUX-033 proposed *"did
+  the user ask for this?"* as the single line behind seven independent focus
+  decisions. Measured across all seven: the other five hold — IUX-028, 029,
+  030 and 031 move nothing, and IUX-036 moves only on a step change with
+  nothing pending. The two form patterns do not. The test was a good
+  description of the intent and not of the code.
+
+### IUX-API-DEAD-001 — Reachable API that nothing honours or reads (OPEN)
+
+- **Level**: standard (PROJECT_PROMPT §19)
+- **Status**: open, all measured across lib, test and apps.
+  - **Two of four `IuxConfirmationPolicy` members are honoured by nothing.**
+    `IuxConfirmByHold` on a plain `IuxButton` runs `onActivate` on the first
+    tap. This is distinct from IUX-BUTTON-CONFIRM-001 — that is one honourer
+    in four, this is **zero**.
+  - `IuxActionDescriptor.importance` is stored, copied, compared and hashed
+    and read by **zero** call sites: `high` and `low` render and announce
+    identically. `role`'s only reads are two debug assertions, and
+    `confirm`/`edit`/`select` are never constructed anywhere. The dimension
+    table called `role` "used for semantics, feedback and pattern selection";
+    measured, none of the three.
+  - `IuxElevation` is an entire **exported enum with zero references**.
+    Deleting it breaks nothing.
+
+### IUX-API-NAMING-001 — One name for three things, and one thing under two names (OPEN)
+
+- **Level**: standard (PROJECT_PROMPT §20)
+- **Status**: open.
+  - **`summary` names three unrelated types** — a `String` headline, a labels
+    object, and a result-describing function. Same name, different meanings,
+    which is the worst shape. Recommended: `headline` and `describeResults`.
+  - **`IuxInlineFeedbackAction` and `IuxTransientAction` are field-for-field
+    identical** — same three fields, same `effectiveSemanticLabel`, same
+    equality. One type under two names, so moving a control from a banner to a
+    snack bar means rebuilding it.
+  - **`busyLabel` versus `busyHint` is an undiscoverable difference**: the
+    hint only appends to the announcement, the label *also replaces the
+    visible text*.
+  - **`onDismiss` (four widgets) versus `onDismissed` (one)** — and
+    `iux_transient_layer.dart` uses both spellings internally, which is how
+    you can tell it is an accident.
+  - **Sealed-type construction splits three to five**: three front their
+    members with `const factory`, five expect the subclass name.
+    `IuxConfirmationPolicy` is also the only sealed type *defaulted* rather
+    than required — the one safety-relevant answer nobody has to give.
+
+### IUX-038's eleven-parameter argument was weaker than it looked
+
+- Across all 59 public widget constructors exactly one reaches eleven
+  parameters — `IuxListItem.selectable` — and none of its eleven is a styling
+  knob. §20's complaint is colour, elevation, radius and shadow; that
+  constructor is content slots plus focus plumbing. IUX-038 cited "an
+  eleven-parameter widget" as a reason not to merge the duplicated disclosure
+  control; that particular argument does not carry the weight it appeared to.
+  Its other two reasons — the inverted layer direction and the eight unread
+  exported token fields — stand.
+
 ## Deferred to later missions
 
 | Subject | Mission |

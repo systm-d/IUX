@@ -2,12 +2,12 @@
 mission_id: IUX-039
 title: API Consistency Review
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-04
+started_by: IUX-039 audit agent
+last_updated_at: 2026-08-04
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,74 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## La question centrale, et la réponse est non
+
+IUX-033 avait proposé une seule ligne pour réconcilier sept décisions de focus
+prises indépendamment : *l'utilisateur l'a-t-il demandé ?* Mesuré sur les
+sept : **cinq tiennent**, les deux motifs de formulaire non.
+
+`_handleSubmit` incrémente `_attempt`, mais sur le chemin **accepté** il
+n'appelle jamais le déplacement de focus, donc `_focusedAttempt` n'est jamais
+remis à niveau. La condition devient alors définitivement vraie, et **chaque**
+`didUpdateWidget` ultérieur portant un champ rejeté déplace le focus.
+
+Mesuré : l'utilisateur envoie avec succès, corrige un champ, tabule — le
+parent répond au contrôle de **perte de focus** — et le curseur est arraché
+vers le résumé. Il n'avait rien demandé.
+
+Et ce n'est pas une correction d'une ligne : remonter l'affectation ne fait
+rien puisque la méthode n'est pas appelée sur ce chemin ; l'affecter dans
+`_handleSubmit` corrige ceci et **casse** le comportement délibéré « un rejet
+qui arrive après l'envoi déplace quand même le focus », dans les deux suites —
+vérifié en le faisant. Il faut une fenêtre bornée de soumission en attente,
+c'est-à-dire une décision.
+
+Le test était une bonne description de l'intention, pas du code.
+
+## Ce que personne n'honore ni ne lit
+
+**Deux membres sur quatre d'`IuxConfirmationPolicy` ne sont honorés par rien.**
+`IuxConfirmByHold` sur un `IuxButton` simple exécute `onActivate` au premier
+tap. Distinct d'IUX-BUTTON-CONFIRM-001 : là c'était un honoreur sur quatre,
+ici c'est **zéro**.
+
+`IuxActionDescriptor.importance` est stocké, copié, comparé, haché — et lu par
+**zéro** site d'appel : `high` et `low` rendent et s'annoncent à l'identique.
+Le tableau des dimensions affirmait que `role` sert « à la sémantique, au
+retour et à la sélection de motif » : mesuré, aucun des trois.
+
+`IuxElevation` est une énumération **exportée entière sans aucune référence**.
+
+## Un nom pour trois choses, une chose sous deux noms
+
+`summary` désigne une `String`, un objet de libellés et une fonction — même
+nom, sens différents, la pire forme. Et `IuxInlineFeedbackAction` /
+`IuxTransientAction` sont identiques champ pour champ : déplacer un contrôle
+d'une bannière vers un bandeau oblige à le reconstruire.
+
+## Ce qui est propre, dit franchement
+
+`selectedIndex` cohérent 4/4. La famille des libellés de sortie : chaque
+différence porte un sens. L'appariement `label`/`semanticLabel`. Le câblage
+`autofocus`/`focusNode`.
+
+**Et une correction à IUX-038 :** sur 59 constructeurs publics, exactement un
+atteint onze paramètres, et aucun des onze n'est un bouton de style. §20 vise
+la couleur, l'élévation, le rayon et l'ombre ; celui-ci est fait
+d'emplacements de contenu et de plomberie de focus. L'argument « widget à onze
+paramètres » qu'IUX-038 opposait à la fusion du contrôle de divulgation ne
+porte pas le poids qu'il paraissait avoir. Ses deux autres raisons tiennent.
+
+## Aucun test creux
+
+Il a douté d'un test et l'a cassé pour vérifier : il échoue correctement. Il
+n'est pas creux — seulement monté sur le seul chemin où le défaut est
+invisible, ce qui est exactement ce qui a permis au défaut d'être livré.
+
+13 tests mécaniques plus deux épingles de défaut.

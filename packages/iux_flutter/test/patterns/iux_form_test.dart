@@ -285,6 +285,71 @@ void main() {
       expect(host.state.focusNodes[2].hasPrimaryFocus, isTrue);
       expect(summaryNode(tester).hasPrimaryFocus, isFalse);
     });
+
+    // IUX-039. The test above makes a general claim — "an ordinary rebuild
+    // does not steal focus" — and demonstrates it on the one path where it
+    // holds. It is not vacuous: deleting `_focusedAttempt = _attempt` from
+    // `_moveFocusToFailure` makes it fail, verified by doing exactly that.
+    // What it never exercises is a submission the parent *accepted*.
+    //
+    // On that path `_handleSubmit` increments `_attempt`, finds nothing
+    // invalid, and calls `onSubmit` — so `_moveFocusToFailure` never runs and
+    // `_focusedAttempt` is never brought level. `_attempt != _focusedAttempt`
+    // is then permanently true, and the next `didUpdateWidget` that arrives
+    // with any rejected field moves focus, however long afterwards and
+    // whatever caused it.
+    //
+    // Measured below with an ordinary blur check: the user edits a field, tabs
+    // onward, and the parent answers the *blur* — the request list proves it —
+    // and the caret is taken out from under them.
+    //
+    // This is the reconciling test IUX-033 proposed for the seven focus
+    // decisions — "did the user ask for this?" — failing in one of the two
+    // patterns that proposed it. WCAG 2.2 SC 3.2.2.
+    //
+    // Pinned as-is rather than fixed, because it is not a one-line fix and
+    // this mission may not edit lib/. Both candidate one-liners were tried:
+    // hoisting the assignment above the `invalid.isEmpty` bail changes
+    // nothing, because `_moveFocusToFailure` is not called at all on the
+    // accepted path; assigning it in `_handleSubmit` fixes this test and
+    // breaks 'a rejection that arrives after the submission still moves it',
+    // which is deliberate behaviour. The two requirements are in genuine
+    // tension and need a bounded pending-submission window, which is a
+    // decision rather than a patch.
+    testWidgets(
+        'DEFECT: an accepted submission arms an unbounded focus move '
+        '(IUX-039)', (WidgetTester tester) async {
+      final _Host host = await pumpForm(tester);
+
+      // Nothing is wrong, so the submission goes out and is accepted.
+      await submit(tester);
+      expect(host.submissions, 1);
+      expect(find.byType(IuxValidationSummary), findsNothing);
+      host.requests.clear();
+
+      // Later, the user edits the first field and tabs onward.
+      host.state.focusNodes[0].requestFocus();
+      await tester.pumpAndSettle();
+      host.state.focusNodes[1].requestFocus();
+      await tester.pumpAndSettle();
+      expect(host.state.focusNodes[1].hasPrimaryFocus, isTrue);
+
+      // The parent answers the blur check, not any submission.
+      expect(host.requests, <String>['Email address:blur']);
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      // What should happen: focus stays in the field the user is standing in,
+      // exactly as 'an ordinary rebuild does not steal focus' requires.
+      // What happens: it is moved to the summary.
+      expect(
+        host.state.focusNodes[1].hasPrimaryFocus,
+        isFalse,
+        reason: 'pinning the defect. When it is fixed this expectation flips '
+            'to isTrue and the one below to isFalse.',
+      );
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
   });
 
   group('the summary links to the fields', () {

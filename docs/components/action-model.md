@@ -95,12 +95,27 @@ action they cannot perform would be a lie.
 Sealed, so a component can handle them exhaustively and adding one is a
 reviewable change.
 
-| Policy | Note |
-| --- | --- |
-| `IuxNoConfirmation` | the action runs on activation |
-| `IuxConfirmBeforeExecution` | how it is presented is the pattern's decision, not this model's |
-| `IuxConfirmByHold` | deliberate by construction, but invisible to a screen reader unless announced, and hard with tremor — never the only route |
-| `IuxConfirmByDoubleActivation` | the first activation arms |
+| Policy | Honoured by | Note |
+| --- | --- | --- |
+| `IuxNoConfirmation` | every widget | the action runs on activation |
+| `IuxConfirmBeforeExecution` | `IuxDestructiveAction`, `IuxDestructiveFlow` | how it is presented is the pattern's decision, not this model's |
+| `IuxConfirmByHold` | **nothing** | deliberate by construction, but invisible to a screen reader unless announced, and hard with tremor — never the only route |
+| `IuxConfirmByDoubleActivation` | **nothing** | the first activation arms |
+
+The third column is the part a caller needs and this table used to omit
+(measured at IUX-039). Two of the four policies are honoured by no widget in
+the package: `IuxDestructiveActionController` — the only thing that evaluates
+a policy at all — asserts that it is given one of the first two, and every
+other control runs `onActivate` on the first tap whatever the policy says.
+`docs/patterns/destructive-action.md` explains why that pattern refuses them,
+and the reasoning is good; what was missing is that no other pattern accepts
+them either. Pinned in `test/api/api_consistency_test.dart`, so the day one is
+implemented the test fails and this table has to be updated.
+
+The second column is also the answer to the wider trap recorded as
+IUX-BUTTON-CONFIRM-001: a policy on a descriptor is a *statement*, not an
+enforcement, and handing such a descriptor to a plain `IuxButton` runs the
+action on the first tap.
 
 Nothing here imposes a dialog.
 
@@ -114,8 +129,17 @@ user-facing text, so it cannot leak one language into another.
 - The model describes policy; it executes nothing. Presenting a confirmation,
   running the operation and reporting the outcome are the parent's and the
   pattern's jobs.
-- `role: custom` tells the semantics layer nothing. It exists as an escape
-  hatch, not as a default.
+- **`role` tells the semantics layer nothing — not just `custom`.** Measured at
+  IUX-039: the only reads of `IuxActionDescriptor.role` in the library are two
+  debug assertions (an `undo` action may not be irreversible; an
+  `IuxEmptyStateAction` may not be `retry`). No role reaches a rendered pixel
+  or a spoken word, and three of the eleven — `confirm`, `edit`, `select` — are
+  never constructed anywhere in the repository. Read the dimension table above
+  as *what the caller is stating*, not as what the framework will do about it.
+- **`importance` is read by nothing at all.** It is stored, copied by
+  `copyWith`, compared in `==` and folded into `hashCode`, and `high`, `medium`
+  and `low` render and announce identically. Both are pinned by
+  `test/api/api_consistency_test.dart`, which fails the day either is wired up.
 - Invariants are assertions, so they are debug-only. A release build with a
   contradictory descriptor renders something, it just may not make sense.
 

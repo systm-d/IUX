@@ -208,19 +208,29 @@ When `currentStep` changes, focus moves to the new step's heading, whose node
 carries the position, the title and the body as **one utterance**. That is the
 announcement — there is no separate live region.
 
-This is the sixth focus decision in this library, and it agrees with the fifth.
+This is the seventh focus decision in this library, and it agrees with the
+sixth.
 
 | Pattern | Moves focus? | Because |
 | --- | --- | --- |
 | `IuxEmptyState` (IUX-028) | no | it happened *to* the user |
 | `IuxErrorRecovery` (IUX-029) | no | same |
 | `IuxLoadingRetry` (IUX-030) | no | same |
+| `IuxPermissionRationale` (IUX-031) | no | focus arms the next Enter, and the armed control opens the OS prompt |
 | `IuxForm` (IUX-012) | yes | the user pressed something and is waiting |
 | `IuxGuidedForm` (IUX-033) | yes | same |
 | `IuxOnboardingFlow` (IUX-036) | **yes** | the user pressed Back or the forward control and is waiting to learn where they now are |
 
-IUX-033 reconciled the five with one test — *did the user ask for this?* A step
+IUX-033 reconciled the six with one test — *did the user ask for this?* A step
 change here is unambiguously asked for: nothing else can cause one.
+
+IUX-039 measured that reconciliation across all seven and found it sound
+everywhere except the two forms, where the question is asked once and then
+never asked again: an accepted submission leaves a pending focus move armed
+indefinitely, so a later unrelated rejection moves focus although the user
+asked for nothing. See the caveat under the same table in
+`docs/patterns/stepped-form.md`. `IuxOnboardingFlow` is unaffected — it moves
+focus only on a `currentStep` change and holds nothing pending.
 
 **Not on the first build.** Focus is moved by a *change*, never by arrival, and
 here that is a decision rather than a mechanism. The first step is on screen

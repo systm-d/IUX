@@ -110,7 +110,7 @@ The heading is a focusable node carrying the position, the title and the
 description as one utterance — "Step 2 of 5. Delivery address. We only deliver
 within the city." Arriving there *is* the announcement.
 
-This is the fourth focus decision in this library, and the four disagree on
+This is the fifth focus decision in this library, and the five disagree on
 purpose. The test each applies is the same: **did the user ask for this?**
 
 | Pattern | On the event | Why |
@@ -118,8 +118,23 @@ purpose. The test each applies is the same: **did the user ask for this?**
 | `IuxEmptyState` (IUX-028) | focus not moved | the emptiness may always have been there; the user did not ask |
 | `IuxErrorRecovery` (IUX-029) | focus not moved | a failure can arrive while the user is typing elsewhere — and landing on a retry arms it |
 | `IuxLoadingRetry` (IUX-030) | focus not moved | a load resolving happens *to* the user, hands elsewhere |
+| `IuxPermissionRationale` (IUX-031) | focus not moved | focus arms the next Enter, and the armed control opens the OS prompt |
 | `IuxValidationSummary` via `IuxForm` (IUX-012) | focus moves to the summary | it answers a button the user just pressed and is waiting on |
 | `IuxGuidedForm` (this) | focus moves to the step heading | the user pressed Back or Continue and is waiting to find out where they now are |
+
+Two corrections to this table, both measured at IUX-039 rather than reasoned.
+`IUX-031` was missing from it, so the count above said "fourth" while the
+permission pattern's own evidence entry also claimed fourth; that pattern
+decided focus first and belongs here.
+
+And the `IuxForm` row states an intention the code does not hold to. An
+*accepted* submission increments the pending-attempt counter and never brings
+it level again, so from then on any parent rebuild carrying a rejected field
+moves focus to the summary — including an ordinary blur check, arbitrarily
+later, while the user is typing somewhere else. Measured in
+`test/patterns/iux_form_test.dart`, "DEFECT: an accepted submission arms an
+unbounded focus move", and again in the guided form's own test. Until that is
+bounded, the row above describes the intended rule and not the shipped one.
 
 A step change is the same shape as a refused submission: the user acted, and is
 standing still expecting an answer. Not moving focus would be the failure the

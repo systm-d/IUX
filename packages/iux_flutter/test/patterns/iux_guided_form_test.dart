@@ -319,6 +319,51 @@ void main() {
 
       expect(find.byType(IuxValidationSummary), findsNothing);
     });
+
+    // IUX-039. The same defect as IuxForm's, and it survives here for the same
+    // reason: `_moveFocusToSummary` brings `_focusedAttempt` level with
+    // `_attempt`, but `_handleSubmit` only calls it when the form already
+    // knows something is wrong. An accepted submission therefore leaves the
+    // two apart, and every later `didUpdateWidget` that finds a rejection
+    // moves focus.
+    //
+    // `IuxGuidedForm` is partly shielded — a step change consumes the pending
+    // attempt at didUpdateWidget, deliberately — but on the last step, which
+    // is where submit lives, there is no step change to consume it.
+    //
+    // 'a rejection arriving after the submission still refuses it' above
+    // covers the intended case, where the parent's answer follows the
+    // submission immediately. It does not put the user anywhere in between,
+    // which is what makes the difference visible.
+    testWidgets(
+        'DEFECT: an accepted submission arms an unbounded focus move '
+        '(IUX-039)', (WidgetTester tester) async {
+      final _Host host = await pumpGuidedForm(tester, step: 2);
+
+      await tap(tester, 'Place the order');
+      expect(host.state.submissions, 1);
+      expect(find.byType(IuxValidationSummary), findsNothing);
+      host.requests.clear();
+
+      // The user carries on filling in the step they are standing on.
+      host.state.focusNodes[4].requestFocus();
+      await tester.pumpAndSettle();
+      expect(host.state.focusNodes[4].hasPrimaryFocus, isTrue);
+
+      // A rejection lands for a field two steps back — not on screen, and not
+      // an answer to anything the user just did.
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      expect(
+        host.state.focusNodes[4].hasPrimaryFocus,
+        isFalse,
+        reason: 'pinning the defect. Correct behaviour is that the caret stays '
+            'in the field the user is typing in; when that lands, this flips '
+            'to isTrue and the expectation below to isFalse.',
+      );
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
   });
 
   group('the summary reaches across steps', () {
