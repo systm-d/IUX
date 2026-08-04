@@ -13,13 +13,23 @@ import '../../semantics/iux_semantic_colors.dart';
 import '../../themes/extensions/iux_typography_theme.dart';
 import 'iux_place_map_model.dart';
 
-/// What share of the height it is given the map region may take.
+/// What share of the height it is given the map region may take, at 100% text.
 ///
 /// Two fifths. Chosen so that on the smallest screen this library targets —
 /// 320x640 — the map keeps 256 logical pixels, enough to read a street layout,
 /// while the list keeps the majority. The number is a hypothesis, not a
 /// measured optimum; what is measured is that no text scale from 100% to 300%
-/// overflows or puts a row out of reach at either share.
+/// overflows or puts a row out of reach.
+///
+/// The share is **divided by the user's text scale**, and that was a
+/// measurement rather than a preference. Held fixed, this share leaves the list
+/// 304 logical pixels on a 320x640 screen, and at 300% text a single place's
+/// title alone is 144 pixels tall: **not one row was fully visible until the
+/// user scrolled**, behind a 256-pixel map whose own street labels do not scale
+/// and are therefore harder to read for the same person. Dividing applies the
+/// pattern's asymmetry continuously instead of only at the cliff edge below —
+/// the list is the equivalent of the map, so when the two compete the list
+/// takes the space.
 const double _kMapHeightShare = 0.4;
 
 /// The height below which a map region is not worth drawing.
@@ -200,7 +210,7 @@ bool _debugSelectionExists(List<IuxPlace> places, IuxMapSelection? selection) {
 ///
 /// ## The list is a peer, not a fallback
 ///
-/// It is on screen, always, beside the map — not behind a disclosure and not
+/// It is on screen, always, below the map — not behind a disclosure and not
 /// behind a mode. Three arrangements were considered and two rejected:
 ///
 /// - **A switch ("accessible view").** The user has to know it exists, and
@@ -215,22 +225,34 @@ bool _debugSelectionExists(List<IuxPlace> places, IuxMapSelection? selection) {
 ///   pinch — a criterion bought rather than met. Collapsed, it shows one row,
 ///   which is a disclosure wearing a different shape.
 /// - **Both on screen**, which is what this does. The cost is real and
-///   measured: on 320x640 the map takes 256 pixels and the list keeps the
-///   rest, so at 200% text about two rows are visible at a time and the rest
-///   are a scroll away. Two rows of eight is a worse overview than a sheet
-///   dragged to full height would give. It is a worse overview that is always
-///   there.
+///   measured. On 320x640 with a round of eight, counting a row only when its
+///   title can be hit at its centre: **two of eight rows at 100% and at 150%,
+///   one at 200% and at 300%**, with the rest a scroll away. Two rows of eight
+///   is a worse overview than a sheet dragged to full height would give. It is
+///   a worse overview that is always there, that nobody has to discover, and
+///   that costs no gesture.
 ///
 /// ## The map yields, the list never does
 ///
-/// The map region takes two fifths of the height this widget is given, capped
-/// at 360 logical pixels. If that leaves it under 120 the map is not drawn at
-/// all and the list takes everything.
+/// The map region takes two fifths of the height this widget is given **divided
+/// by the user's text scale**, capped at 360 logical pixels. If that leaves it
+/// under 120 the map is not drawn at all and the list takes everything — and
+/// the zoom controls go with it, because controls for a camera nobody can see
+/// are two dead targets in the thumb zone.
 ///
 /// The asymmetry is the point: **the list is the equivalent of the map, and
-/// the map is not the equivalent of the list.** When only one of the two can
-/// be shown, it is the one everybody can read. A 90-pixel band of tiles is not
-/// a map anyone can navigate by, so nothing is lost that was working.
+/// the map is not the equivalent of the list.** When the two compete for the
+/// same pixels, the space goes to the one everybody can read. A 90-pixel band
+/// of tiles is not a map anyone can navigate by, so nothing is lost that was
+/// working.
+///
+/// On 320x640 that produces 256 logical pixels of map at 100%, 171 at 150%,
+/// 128 at 200%, and no map at all at 300%. The last one looks drastic and is
+/// the case the rule exists for: held at a fixed share, the list had **304
+/// pixels for rows whose titles alone are 144 pixels tall at 300%**, so not one
+/// place was fully visible until the user scrolled — behind a map whose own
+/// street labels do not scale and are therefore *harder* to read for the same
+/// person.
 ///
 /// Given an unbounded height — inside a `ListView`, a `SingleChildScrollView`,
 /// an `IuxPage` — there is no share to take a fraction of, so the map is given
@@ -306,6 +328,15 @@ bool _debugSelectionExists(List<IuxPlace> places, IuxMapSelection? selection) {
 /// The words carry it instead: the status line above the list is visible as
 /// well as announced.
 ///
+/// The two semantic expressions of "chosen" that IUX already owns were both
+/// weighed and both refused here. `IuxListItem.selectable` announces `checked`,
+/// which is checkbox vocabulary for a single choice, and tapping the current
+/// row would announce an unchecking that means nothing. `IuxSemantics.selection`
+/// with `IuxSelectionRole.radio` is the expression IUX-NAV-002 settled on for
+/// one-of-many, and it sets `excludeSemantics: true` — which would delete the
+/// address and the distance from every row, and those are the two things that
+/// make a place findable without the map.
+///
 /// **Focus never moves.** Not when the selection changes, not when the list
 /// rebuilds, not when a row is activated. Selecting a place in the list is a
 /// user action and the user is already standing on the row they used; moving
@@ -343,6 +374,18 @@ bool _debugSelectionExists(List<IuxPlace> places, IuxMapSelection? selection) {
 /// stop 3 is, carries "3", meets 3:1 against the tiles behind it (SC 1.4.11)
 /// and is large enough to hit is entirely the caller's — it is drawn by the
 /// caller's map. The division is tabulated in `docs/patterns/place-map.md`.
+///
+/// **The map disappears over a cliff, not a ramp.** Dividing the share by the
+/// text scale means that on 320x640 the map is drawn at 200% and gone at 210%.
+/// A cliff is what a minimum height produces, and the alternative — letting the
+/// map shrink below the height at which it stops being one — is a band of tiles
+/// occupying space the list needs and showing nobody anything.
+///
+/// **A long [IuxPlace.ordinal] steals height from every row.** It is capped at
+/// the width of a touch target and wraps inside its own box rather than
+/// squeezing the name — the failure IUX-LISTITEM-TRAILING-001 recorded at the
+/// other end of the row — but a ten-character ordinal makes every row taller.
+/// Keep it short; that is what it is for.
 ///
 /// **A live region is a request, not a guarantee.** Whether the platform
 /// speaks the selection, and when, is the platform's decision; a widget test
@@ -449,8 +492,17 @@ class IuxPlaceMap extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final bool bounded = constraints.hasBoundedHeight;
+          final IuxAccessibility accessibility = IuxAccessibility.of(context);
           final double? mapHeight = bounded
-              ? _mapHeightWithin(constraints.maxHeight)
+              ? _mapHeightWithin(
+                  constraints.maxHeight,
+                  // Read through the runtime, never from MediaQuery directly —
+                  // component standard §2. Expressed as a ratio because that
+                  // is what the share is divided by.
+                  accessibility.scaleText(16) / 16,
+                )
+              // Unbounded means the two are not competing for anything: the
+              // page scrolls, so the map costs the list nothing but a swipe.
               : _kMinimumMapHeight;
           final IuxMapSelection? current = selection;
 
@@ -515,8 +567,10 @@ class IuxPlaceMap extends StatelessWidget {
   /// The height the map region takes, or null when it is not drawn.
   ///
   /// See "The map yields, the list never does" in the class documentation.
-  static double? _mapHeightWithin(double available) {
-    final double share = available * _kMapHeightShare;
+  /// [textScale] divides the share, which is the same asymmetry applied
+  /// continuously rather than only at the cliff edge.
+  static double? _mapHeightWithin(double available, double textScale) {
+    final double share = available * _kMapHeightShare / textScale;
     final double height =
         share < _kMaximumMapHeight ? share : _kMaximumMapHeight;
     return height < _kMinimumMapHeight ? null : height;

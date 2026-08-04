@@ -574,6 +574,11 @@ void main() {
           'IuxPermissionMoment',
           'IuxRecoveryRoute',
           'IuxWayBack',
+          // Added by IuxPlaceMap: whether the map zooms, and if it does, how
+          // somebody zooms it without a pinch. Follows the convention this
+          // census exists to hold — `const factory IuxMapZoom.controls` and
+          // `const factory IuxMapZoom.fixed`.
+          'IuxMapZoom',
         },
       );
       expect(

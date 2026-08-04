@@ -2325,6 +2325,64 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - The 6 px residual at 300% is pinned at its real number in the pilot's own
   suite, so a regression is visible and nobody records this as closed.
 
+### IUX-MAP-001 — A map without its list equivalent is unconstructible
+
+- **Level**: standard
+- **Scope**: IUX map pattern onward
+- **Sources**: WCAG 2.2 SC 1.1.1, SC 2.1.1, SC 2.5.1
+- **Status**: implemented. `places` is required, the widget renders the rows
+  itself, and **there is no parameter that hides them** — no `showList`, no
+  `accessibleMode`, no `listBuilder` that could return something else. An empty
+  round is refused, naming all four `IuxEmptyStateCause` members.
+- **Why a described map is not the answer**: a `semanticLabel` says how many
+  places there are and never which. A screen-reader user does not read a map;
+  they read what is on it, in an order that serves them.
+- **The trade that closes the loop, and neither half stands alone**: because
+  the list is guaranteed, the map subtree is removed from the semantics tree
+  outright. Hiding a map with no list would be a deletion; a list beside a
+  half-announced map would be two competing accounts of the same places.
+- **Rejected, argued in the doc**: a `semanticLabel` on the map; an optional
+  `places` defaulting to none (the default *is* the failure); a shell plus a
+  separate list the caller composes (composition can silently omit a half); a
+  lint; documentation.
+- **Peer, never a fallback.** The list is always on screen. A switch was
+  refused because until it is found the default state is the one SC 1.1.1
+  forbids; a draggable sheet was refused because dragging it open is a
+  path-based gesture, so SC 2.5.1 gets *bought* rather than met.
+- **The map yields; the list never does.** Two fifths of the height **divided
+  by the text scale**, capped at 360, dropped below 120.
+- **That division was forced by measurement, not chosen.** With a fixed share,
+  at 300% on 320x640 the list had 304 px for rows whose titles alone are 144 px
+  tall — **zero rows fully visible**, behind a 256 px map whose own street
+  labels do not scale. The cost is recorded: the map vanishes over a cliff
+  between about 200% and 210%.
+- **Zoom**: `IuxMapZoom` is sealed with no default, so `IuxZoomFixed` is a
+  claim somebody made — the `IuxNoWayBack` idiom. The controls sit **under**
+  the map, never over it: a control floating over tiles has no determinate
+  contrast ratio.
+- **Markers, stated precisely rather than promised**: guaranteed is that every
+  place carries a non-empty, non-colour ordinal, drawn in the list and
+  announced before the name. Not guaranteed is that it was painted on the
+  marker, its 3:1 against real tiles, its size or its position.
+
+### IUX-MAP-002 — The first component whose visual half cannot be verified here
+
+- **Level**: standard
+- **Status**: **open by nature, not by neglect.** No test and no emulator draws
+  a tile. Unverified and needing a device: that markers exist, sit where they
+  should, carry the ordinal, clear 3:1 against real tiles and are hittable;
+  that pinch actually zooms and that `IuxZoomFixed` is true when claimed; that
+  TalkBack speaks the live region and when; **that hiding the map subtree is
+  right against a real `GoogleMap`** rather than the single-node stand-in the
+  tests use — a real SDK may expose nodes worth keeping, and this pattern
+  removes them; that 128 px of map at 200% is usable; and the pan-versus-scroll
+  drag conflict, which needs a platform view.
+- **The strings are denser than anywhere else measured**: 9 of 18 public fields
+  are caller-supplied strings, and **three of those nine never appear on
+  screen**. A round of eight with every field supplied is 37 strings, three of
+  them invisible to the developer testing the screen — against the pilot's 17
+  of 99.
+
 ## Deferred to later missions
 
 | Subject | Mission |
