@@ -94,19 +94,63 @@ spacing compensates; IUX keeps both.
 This is the concern IUX-005 explicitly deferred when it delivered the target
 floor.
 
-**It cannot hold a full-width child** (`IUX-EXPAND-CRASH-001`). Being a `Wrap`
-on both axes, it offers its children unbounded width, so
-`IuxButton(expand: true)` inside it throws *BoxConstraints forces an infinite
-width*. Two stacked full-width buttons is the commonest thing anyone writes and
-it is exactly what fails. `Column` plus `IuxGap` works and gives up the floor
-this widget exists to provide; see
-[button variants](../components/button-variants.md#size).
+It holds full-width children, and that took fixing (`IUX-EXPAND-CRASH-001`).
+It used to be a `Wrap` on **both** axes; a vertical `Wrap` offers its children
+no width, so `IuxButton(expand: true)` inside it threw *BoxConstraints forces
+an infinite width*. Two stacked full-width buttons is the commonest thing
+anyone writes and it was exactly what failed, which pushed every caller onto a
+hand-written `Column` and an `IuxGap` — an arrangement that lays out and
+guarantees nothing.
 
-## Wrapping beats clipping
+```dart
+// Two full-width buttons, 8 px apart, at any text scale.
+IuxTargetSpacing(
+  children: <Widget>[
+    IuxButton(label: 'Save', expand: true, /* … */),
+    IuxButton(label: 'Discard', expand: true, /* … */),
+  ],
+)
+```
 
-`IuxTargetSpacing` and `IuxSectionHeader` use `Wrap`, not `Row`. At a large
-text scale a row of controls stops fitting, and moving to a second line is
-better than clipping a label the user cannot then read.
+Measured on a 320-wide surface at 100, 150, 200 and 300% text: both controls
+take the full 320, and 16 px separates the hit areas — the floor plus the 4 px
+the focus ring reserves on each side, which is not interactive. The same holds
+for `IuxAsyncActionButton` and `IuxDestructiveFlow`, which pass `expand`
+straight through.
+
+**Why not the alternatives.**
+
+- *Make `expand` fall back to shrink-wrapping under unbounded constraints.* It
+  removes the exception and keeps the trap: the caller asked for full width and
+  silently got the width of the label, so at 100% "Save" comes out at 89 px and
+  "Discard" at 132 — a stack of mismatched buttons with no error to explain it.
+  Preventing errors outranks developer ergonomics (`PROJECT_PROMPT.md` §5), and
+  §22 asks components to *detect* invalid configurations rather than absorb
+  them.
+- *Assert that the combination is illegal.* Precise, and it leaves the caller
+  exactly where they started: on the `Column` and the `IuxGap`. Measured with
+  bare 120×48 targets, `Column` + `IuxGap(IuxSpacingStep.xxs)` puts 4 px
+  between them and `IuxTargetSpacing` puts 8. The workaround does not merely
+  fail to state the floor, it goes under it.
+- *Add a dedicated stacking widget.* A second widget meaning "adjacent targets
+  keep the floor" is the drift this primitive exists to prevent, it needs a new
+  export, and it leaves the trap in `IuxTargetSpacing` open for whoever does
+  not find it (§19: does a similar API already exist? It does).
+
+## Wrapping beats clipping, except downwards
+
+`IuxSectionHeader` and the **horizontal** axis of `IuxTargetSpacing` use
+`Wrap`, not `Row`. At a large text scale a row of controls stops fitting, and
+moving to a second line is better than clipping a label the user cannot then
+read.
+
+The vertical axis is a `Column`, because wrapping protects nothing there. A
+page scrolls, so the height is usually unbounded and a vertical `Wrap` never
+wraps at all; and where the height *is* bounded, wrapping moves the overflow
+**sideways and in silence**. Measured in a 320-wide box: the third of three
+targets landed at x 256.8–388.5, 68 px past the right edge, with no exception
+reported. A `Column` overflows loudly instead — a bug somebody fixes, rather
+than a control nobody can reach and no test can see.
 
 ## Layout classes
 

@@ -71,6 +71,15 @@ class IuxGap extends StatelessWidget {
 ///   children: <Widget>[cancel, confirm],
 /// )
 /// ```
+///
+/// A `Column` and an [IuxGap] look like the same thing and are not. The gap is
+/// a step from the scale, and the smallest step is 4 — half the floor — so the
+/// hand-written arrangement can be written correctly on Monday and edited
+/// below the floor on Tuesday with nothing to notice. Only this widget raises
+/// what it is given.
+///
+/// The two axes are laid out by different widgets, because they are asked
+/// different questions; see [build].
 class IuxTargetSpacing extends StatelessWidget {
   /// Separates [children] by at least [kIuxMinimumTargetSpacing].
   const IuxTargetSpacing({
@@ -89,20 +98,52 @@ class IuxTargetSpacing extends StatelessWidget {
   /// A larger separation. Values below the floor are raised to it.
   final double? spacing;
 
+  /// Lays the children out, one widget per axis.
+  ///
+  /// **Horizontal: a `Wrap`, not a `Row`.** At a large text scale a row of
+  /// controls stops fitting, and moving to a second line is better than
+  /// clipping a label the user then cannot read. The run spacing is the same
+  /// floor, so the controls stay separated on whichever line they land.
+  ///
+  /// **Vertical: a `Column`, not a `Wrap`.** This axis was a `Wrap` too, and
+  /// that is why two full-width controls could not be stacked here at all
+  /// (IUX-EXPAND-CRASH-001): a vertical `Wrap` offers its children no width,
+  /// so anything asking for one — an `IuxButton` with `expand` — forced an
+  /// infinite width and threw. The caller was pushed onto a hand-written
+  /// `Column` and an [IuxGap], which lays out and guarantees nothing. Two
+  /// stacked full-width buttons is the most ordinary thing anyone writes, so
+  /// the primitive that exists for it must not be the one arrangement that
+  /// crashes.
+  ///
+  /// The wrapping given up on this axis protected nothing. A page scrolls, so
+  /// the height is usually unbounded and a vertical `Wrap` never wraps; and
+  /// where the height *is* bounded it moved the overflow **sideways, in
+  /// silence** — measured on a 320-wide box, a third target landed at
+  /// x 256.8–388.5, 68 px past the right edge, with no exception reported. A
+  /// `Column` overflows loudly instead: a bug somebody fixes, rather than a
+  /// target nobody can reach.
+  ///
+  /// The cross alignment is `start`, which is what a vertical `Wrap` gave, so
+  /// a child that does not ask for the width keeps the size it had.
   @override
   Widget build(BuildContext context) {
     final double resolved = math.max(
       spacing ?? IuxGeometryTheme.of(context).spacingXs,
       kIuxMinimumTargetSpacing,
     );
-    // Wrap rather than Row: at a large text scale a row of controls stops
-    // fitting, and overflowing is worse than moving to a second line.
-    return Wrap(
-      direction: axis,
-      spacing: resolved,
-      runSpacing: resolved,
-      children: children,
-    );
+    return switch (axis) {
+      Axis.horizontal => Wrap(
+          spacing: resolved,
+          runSpacing: resolved,
+          children: children,
+        ),
+      Axis.vertical => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: resolved,
+          children: children,
+        ),
+    };
   }
 }
 

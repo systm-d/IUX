@@ -121,35 +121,32 @@ content, so a button inside a `Center` or an `Expanded` stays the size of a
 button. Where no width is on offer — an unbounded row — `expand: true` fails
 loudly rather than quietly ignoring what the caller asked for.
 
-**`IuxTargetSpacing` is such a place, and it is the one most callers reach for**
-(`IUX-EXPAND-CRASH-001`). It is a `Wrap` on both axes, so it offers unbounded
-width, and two stacked full-width buttons — the most obvious thing anyone
-writes — throw *BoxConstraints forces an infinite width*:
+**To stack full-width buttons, use `IuxTargetSpacing`.** Its vertical axis lays
+out in a column, which has a width to give, and it keeps the target-separation
+floor between the two — which a `Column` and an `IuxGap` do not:
 
 ```dart
-// Throws.
 IuxTargetSpacing(
   children: <Widget>[
     IuxButton(label: 'Save', expand: true, /* … */),
     IuxButton(label: 'Discard', expand: true, /* … */),
   ],
 )
-
-// Works, and gives up the 8 px target floor that IuxTargetSpacing provides.
-Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
-  children: <Widget>[
-    IuxButton(label: 'Save', expand: true, /* … */),
-    const IuxGap.small(),
-    IuxButton(label: 'Discard', expand: true, /* … */),
-  ],
-)
 ```
 
-There is no arrangement today that gives both full-width buttons and the
-guaranteed separation. Choose deliberately: with buttons this large the seam a
-finger might miss is small, but the guarantee is genuinely gone rather than
-merely unstated. Both arrangements are on screen in the catalog.
+This was `IUX-EXPAND-CRASH-001`: the primitive was a `Wrap` on both axes, a
+vertical `Wrap` offers its children no width, and the commonest layout anyone
+writes was the one that threw. Measured on a 320-wide surface at 100, 150, 200
+and 300% text, the pair now lays out with both buttons at the full 320 and
+16 px between the hit areas. See
+[layout](../layout/overview.md#spacing-between-targets) for why a `Column` and
+an `IuxGap` is not the same thing — with bare targets it measures 4 px, half
+the floor.
+
+Where there is genuinely no width — a `Row` without an `Expanded`, a
+horizontally scrolling view — `expand: true` still fails, and the message now
+names the arrangement that works instead of only the constraint that was
+invalid.
 
 ## API
 

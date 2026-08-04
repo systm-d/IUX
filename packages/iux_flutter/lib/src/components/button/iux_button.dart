@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// For RenderProxyBox, which _IuxExpandedWidth needs to replace a SizedBox
+// whose only failure message named a line number in this file.
+import 'package:flutter/rendering.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
@@ -135,6 +138,14 @@ class IuxButton extends StatelessWidget {
   ///
   /// It takes the width only. Height always follows the content, so a button
   /// in a `Center` or an `Expanded` stays the size of a button.
+  ///
+  /// The parent has to have a width to give. To stack full-width buttons, put
+  /// them in an `IuxTargetSpacing`: its vertical axis lays out in a column,
+  /// which has one, and keeps the minimum separation between the two targets.
+  /// Where there is genuinely no width — a `Row`, a horizontally scrolling
+  /// view — this fails and says so, rather than quietly shrinking back to the
+  /// width of the label and leaving a caller wondering why one button in a
+  /// stack is narrower than the other.
   final bool expand;
 
   @override
@@ -413,8 +424,8 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
     visual = widget.expand
         // Asks for the width and nothing else. Where no width is on offer —
         // an unbounded row — this fails loudly rather than quietly ignoring
-        // what the caller asked for.
-        ? SizedBox(width: double.infinity, child: visual)
+        // what the caller asked for, and says where to go instead.
+        ? _IuxExpandedWidth(child: visual)
         : IntrinsicWidth(child: visual);
 
     return IuxFocusNodeOwner(
@@ -471,6 +482,65 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
   void _setHovered(bool value) {
     if (_hovered == value) return;
     setState(() => _hovered = value);
+  }
+}
+
+/// All the width the parent has, and a legible failure when it has none.
+///
+/// A `SizedBox(width: double.infinity)` does the same job in one line and
+/// fails with *BoxConstraints forces an infinite width*, naming a line inside
+/// this file. That tells a caller what broke and not one word about what to do
+/// instead — and what they had written was almost always the obvious thing,
+/// two full-width buttons stacked. So the message is worth the widget.
+///
+/// It also reports its child's intrinsic width rather than an infinite one,
+/// which is the other thing the `SizedBox` did badly: an infinite intrinsic
+/// width is no answer at all to a parent asking how wide this wants to be.
+class _IuxExpandedWidth extends SingleChildRenderObjectWidget {
+  const _IuxExpandedWidth({required Widget super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderIuxExpandedWidth();
+}
+
+class _RenderIuxExpandedWidth extends RenderProxyBox {
+  @override
+  void performLayout() {
+    assert(() {
+      if (constraints.hasBoundedWidth) return true;
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary('IuxButton(expand: true) was given no width to fill.'),
+        ErrorDescription(
+          'expand asks the parent for all of its width. This parent offered '
+          'an unbounded maximum, so there is no width to take. A Row, a '
+          'horizontally scrolling view, and anything laying out in a column '
+          'without a width of its own all do that.',
+        ),
+        ErrorHint(
+          'To stack full-width controls, use IuxTargetSpacing: its vertical '
+          'axis lays out in a column with a bounded width, and it keeps the '
+          'minimum separation between the targets — which a Column and an '
+          'IuxGap do not. Inside a Row, wrap the button in an Expanded. Or '
+          'drop expand, and the button takes the width of its label.',
+        ),
+        DiagnosticsProperty<BoxConstraints>(
+          'The offending constraints were',
+          constraints,
+        ),
+      ]);
+    }());
+
+    final RenderBox? child = this.child;
+    if (child == null) {
+      size = constraints.constrain(const Size(double.infinity, 0));
+      return;
+    }
+    child.layout(
+      constraints.tighten(width: constraints.constrainWidth(double.infinity)),
+      parentUsesSize: true,
+    );
+    size = child.size;
   }
 }
 

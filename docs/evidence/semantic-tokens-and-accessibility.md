@@ -1820,7 +1820,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Status**: open. Cancelling a destructive confirmation costs four Tab
   presses to recover; Flutter's own dialog restores focus at cost zero.
 
-### IUX-EXPAND-CRASH-001 — `expand: true` inside `IuxTargetSpacing` throws (OPEN)
+### IUX-EXPAND-CRASH-001 — `expand: true` inside `IuxTargetSpacing` (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxButton`, `IuxTargetSpacing`
@@ -1830,7 +1830,32 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `iux_button.dart:417`, because `IuxTargetSpacing` is a `Wrap` on both axes.
 - **The workaround costs the guarantee**: `Column` plus `IuxGap` works and
   gives up the 8 px target floor that `IuxTargetSpacing` exists to provide.
-  Both arrangements are now on screen in the catalog.
+  Measured: bare 120x48 targets with `IuxGap(IuxSpacingStep.xxs)` come out
+  **4 px** apart; `IuxTargetSpacing` comes out **8**.
+- **Fixed**: `IuxTargetSpacing` now lays its two axes out with two different
+  widgets. Horizontal stays a `Wrap`; vertical becomes a `Column`, which gives
+  a bounded cross-axis width for `expand` to take.
+- **The measurement that decided the shape is better than the crash it fixes.**
+  The vertical `Wrap`'s wrapping **protected nothing and cost a target**. A
+  page scrolls, so height is normally unbounded and a vertical `Wrap` never
+  wraps at all; and where height *is* bounded it moved the overflow
+  **sideways, in silence** — in a 320-wide box the third of three targets
+  landed at x 256.8–388.5, **68 px off the right edge with zero exceptions
+  reported**. An unreachable control no test could see. The `Column` reports
+  `RenderFlex overflowed by 84 pixels` instead.
+- **Alternatives rejected, argued in `docs/layout/overview.md`**: letting
+  `expand` shrink-wrap under unbounded constraints removes the exception and
+  keeps the trap (a mismatched 89 px / 132 px stack with no error); asserting
+  the combination illegal leaves the caller on the arrangement that measurably
+  goes under the floor; a dedicated stacking widget is the drift this
+  primitive exists to prevent.
+- `IuxButton.expand` now fails through a private `_IuxExpandedWidth` that
+  names the way out, instead of a bare `SizedBox` and a line number.
+- **A caveat worth keeping**: the 8 px between two `IuxButton`s is partly
+  accidental — `IuxFocusRing` reserves 4 px of non-interactive padding per
+  side. The floor only bites for targets without that padding, which is
+  exactly where the 4 px workaround failure was measured. The guarantee is
+  real; the button's headroom is a coincidence of a different feature.
 
 ### IUX-OVERLAY-001 — the scroll loss also disposes the opener (WORSE THAN RECORDED)
 

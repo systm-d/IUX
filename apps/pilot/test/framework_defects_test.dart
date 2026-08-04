@@ -31,8 +31,8 @@ void main() {
       );
 
   testWidgets(
-      'IUX-EXPAND-CRASH-001: two full-width buttons in IuxTargetSpacing throw',
-      (WidgetTester tester) async {
+      'IUX-EXPAND-CRASH-001 is fixed: two full-width buttons stack, and keep '
+      'the separation floor', (WidgetTester tester) async {
     await tester.pumpWidget(
       host(
         1,
@@ -59,12 +59,22 @@ void main() {
       ),
     );
 
-    // `BoxConstraints forces an infinite width`, from the SizedBox at
-    // iux_button.dart:417, because IuxTargetSpacing is a Wrap on both axes.
-    // Workaround: lib/job_detail_screen.dart uses a Column and an IuxGap,
-    // which lays out and gives up the 8px target-separation guarantee that
-    // IuxTargetSpacing exists to provide.
-    expect(tester.takeException(), isNotNull);
+    // This test was written asserting the crash, so that a fix would fail
+    // loudly rather than land unnoticed. It has done its job: IuxTargetSpacing
+    // now lays its vertical axis out with a Column, which gives `expand`
+    // a bounded width to take.
+    //
+    // The assertion that matters is not merely that nothing throws — it is
+    // that the arrangement keeps the guarantee the workaround gave up. The
+    // Column-plus-IuxGap the pilot used instead measures 4px between bare
+    // targets; this measures the floor.
+    expect(tester.takeException(), isNull);
+
+    final Rect one = tester.getRect(find.byType(IuxButton).first);
+    final Rect two = tester.getRect(find.byType(IuxButton).last);
+    expect(two.top - one.bottom, greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
+        reason: 'the whole point of IuxTargetSpacing is that adjacent targets '
+            'cannot end up closer than the floor');
   });
 
   testWidgets(
