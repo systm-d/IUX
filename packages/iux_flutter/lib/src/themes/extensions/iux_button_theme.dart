@@ -37,8 +37,16 @@ enum IuxButtonVariant {
 ///
 /// Focus is deliberately absent. A focus indicator must be visible whatever
 /// else is true — including while pressed or loading — so it cannot be a value
-/// in a list where one wins. It is carried separately by
-/// [IuxButtonTokens.focused] and drawn additively by the runtime.
+/// in a list where one wins. It is drawn additively by [IuxFocusable], outside
+/// the container, and never resolved here.
+///
+/// A finished operation is absent for a different reason. `success` and `error`
+/// members existed until IUX-038 and nothing painted them: a result on the
+/// container would be a colour and nothing else, which the component standard
+/// refuses for exactly the user it fails. They also sat above [hovered] in the
+/// resolver's precedence, so a settled button silently stopped answering the
+/// pointer. A result belongs in wording — see `IuxAsyncActionButton`, which
+/// shows the failure message the operation supplied.
 enum IuxButtonState {
   /// Resting and available.
   enabled,
@@ -54,12 +62,6 @@ enum IuxButtonState {
 
   /// Its operation is running.
   loading,
-
-  /// Its operation finished successfully.
-  success,
-
-  /// Its operation failed.
-  error,
 }
 
 /// Everything needed to paint a button, and nothing about how to paint it.
@@ -79,11 +81,9 @@ final class IuxButtonTokens {
     required this.radius,
     required this.padding,
     required this.minimumSize,
-    required this.elevation,
     required this.iconSize,
     required this.iconGap,
     required this.textStyle,
-    required this.focused,
   });
 
   /// The state these tokens were resolved for.
@@ -110,9 +110,6 @@ final class IuxButtonTokens {
   /// The smallest permitted interactive dimension.
   final double minimumSize;
 
-  /// Shadow depth. Zero under a reduced visual stimulation preference.
-  final double elevation;
-
   /// Icon edge length.
   final double iconSize;
 
@@ -122,13 +119,14 @@ final class IuxButtonTokens {
   /// The label style, already carrying [foreground].
   final TextStyle textStyle;
 
-  /// Whether the focus ring must be drawn.
-  ///
-  /// Independent of [state] on purpose: focus must remain visible while
-  /// pressed, while loading and while showing a result. A design where
-  /// pressing hides the focus ring is a design a keyboard user loses their
-  /// place in.
-  final bool focused;
+  // There is no `focused` field, and adding one would be a regression rather
+  // than a feature. These tokens are resolved in `build`, above the
+  // `IuxFocusable` that owns the focus state, so feeding one back in would mean
+  // tracking focus twice. And a token-driven ring could only be painted by the
+  // container's own decoration — *inside* the control, covering the content it
+  // identifies, which is the failure WCAG 2.2 SC 2.4.11 was added for and the
+  // reason `IuxFocusRing` draws outside. One channel, and it is the correct
+  // one. (IUX-BUTTON-DEAD-001.)
 
   @override
   bool operator ==(Object other) =>
@@ -142,11 +140,9 @@ final class IuxButtonTokens {
           other.radius == radius &&
           other.padding == padding &&
           other.minimumSize == minimumSize &&
-          other.elevation == elevation &&
           other.iconSize == iconSize &&
           other.iconGap == iconGap &&
-          other.textStyle == textStyle &&
-          other.focused == focused;
+          other.textStyle == textStyle;
 
   @override
   int get hashCode => Object.hashAll(<Object>[
@@ -158,11 +154,9 @@ final class IuxButtonTokens {
         radius,
         padding,
         minimumSize,
-        elevation,
         iconSize,
         iconGap,
         textStyle,
-        focused,
       ]);
 }
 
@@ -177,7 +171,6 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   const IuxButtonTheme({
     this.variant = IuxButtonVariant.filled,
     this.shape = IuxButtonShape.medium,
-    this.elevateFilled = false,
     this.iconSize = 20,
   });
 
@@ -187,13 +180,17 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   /// The corner treatment.
   final IuxButtonShape shape;
 
-  /// Whether a filled button casts a shadow.
-  ///
-  /// Off by default. A filled button is already separated from its background
-  /// by colour, and the shadow disappears entirely under a reduced visual
-  /// stimulation preference — so relying on it would mean the button reads
-  /// differently for users who asked for a calmer interface.
-  final bool elevateFilled;
+  // There is no `elevateFilled`, and no elevation in the resolved tokens.
+  // One existed until IUX-038 and no widget ever read it: setting it produced
+  // a byte-identical decoration while the resolver reported a shadow it had
+  // computed, which is worse than a missing switch because it looks like it
+  // works. Wiring it up instead was refused. PROJECT_PROMPT §20 names
+  // `elevation:` as the archetype of a parameter a button should not take;
+  // `IuxSurface`, `IuxCard`, `IuxContentGroup` and `IuxAppBar` all rest
+  // hierarchy on colour and resolve elevation to zero; and a shadow vanishes
+  // under a reduced visual stimulation preference, so any separation resting
+  // on it is separation some users never receive. A filled button is already
+  // distinguished from its background by a contrast-measured fill.
 
   /// Icon edge length, in logical pixels before text scaling.
   final double iconSize;
@@ -209,13 +206,11 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
   IuxButtonTheme copyWith({
     IuxButtonVariant? variant,
     IuxButtonShape? shape,
-    bool? elevateFilled,
     double? iconSize,
   }) =>
       IuxButtonTheme(
         variant: variant ?? this.variant,
         shape: shape ?? this.shape,
-        elevateFilled: elevateFilled ?? this.elevateFilled,
         iconSize: iconSize ?? this.iconSize,
       );
 
@@ -230,7 +225,6 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
       // variant.
       variant: t < 0.5 ? variant : other.variant,
       shape: t < 0.5 ? shape : other.shape,
-      elevateFilled: t < 0.5 ? elevateFilled : other.elevateFilled,
       iconSize: iconSize + (other.iconSize - iconSize) * t,
     );
   }
@@ -241,11 +235,10 @@ final class IuxButtonTheme extends ThemeExtension<IuxButtonTheme> {
       other is IuxButtonTheme &&
           other.variant == variant &&
           other.shape == shape &&
-          other.elevateFilled == elevateFilled &&
           other.iconSize == iconSize;
 
   @override
-  int get hashCode => Object.hash(variant, shape, elevateFilled, iconSize);
+  int get hashCode => Object.hash(variant, shape, iconSize);
 }
 
 /// Corner treatments a button may take.
@@ -279,12 +272,18 @@ abstract final class IuxButtonStateResolver {
   /// 2. `loading` — the operation is what the user is waiting on;
   /// 3. `pressed` — activation feedback must never be swallowed, otherwise
   ///    the user cannot tell their tap registered;
-  /// 4. `error`, then `success` — a result outranks a pointer position;
-  /// 5. `hovered`;
-  /// 6. `enabled`.
+  /// 4. `hovered`;
+  /// 5. `enabled`.
   ///
-  /// Focus is not in this list. It must stay visible in every one of these
-  /// states, so it is reported separately.
+  /// A finished operation is not a rung. `error` and `success` used to sit
+  /// above `hovered` on the stated grounds that "a result outranks a pointer
+  /// position", and both resolved to the resting palette — so the only thing
+  /// the rungs achieved was to stop a settled button responding to hover at
+  /// all. Ranking above something requires having something to say.
+  ///
+  /// Focus is not in this list either, but for the opposite reason: it must
+  /// stay visible in every one of these states, so it cannot be a value where
+  /// one wins. `IuxFocusable` draws it outside the container.
   static IuxButtonState resolve(
     IuxActionDescriptor action, {
     bool hovered = false,
@@ -297,12 +296,6 @@ abstract final class IuxButtonStateResolver {
       return IuxButtonState.loading;
     }
     if (pressed) return IuxButtonState.pressed;
-    if (action.operation == IuxActionOperation.failed) {
-      return IuxButtonState.error;
-    }
-    if (action.operation == IuxActionOperation.succeeded) {
-      return IuxButtonState.success;
-    }
     if (hovered) return IuxButtonState.hovered;
     return IuxButtonState.enabled;
   }
@@ -319,7 +312,6 @@ abstract final class IuxButtonResolver {
     IuxButtonVariant? variant,
     bool hovered = false,
     bool pressed = false,
-    bool focused = false,
     bool hasLabel = true,
   }) {
     final IuxButtonTheme theme = IuxButtonTheme.of(context);
@@ -383,11 +375,9 @@ abstract final class IuxButtonResolver {
               vertical: geometry.spacingXs,
             ),
       minimumSize: geometry.minimumTouchTarget,
-      elevation: _elevation(resolvedVariant, state, theme, geometry),
       iconSize: theme.iconSize,
       iconGap: geometry.spacingXs,
       textStyle: typography.label.copyWith(color: palette.foreground),
-      focused: focused,
     );
   }
 
@@ -488,18 +478,6 @@ abstract final class IuxButtonResolver {
           state == IuxButtonState.disabled ? geometry.borderWidth : 0,
         IuxButtonVariant.text || IuxButtonVariant.icon => 0,
       };
-
-  static double _elevation(
-    IuxButtonVariant variant,
-    IuxButtonState state,
-    IuxButtonTheme theme,
-    IuxGeometryTheme geometry,
-  ) {
-    if (!theme.elevateFilled) return 0;
-    if (variant != IuxButtonVariant.filled) return 0;
-    if (state == IuxButtonState.disabled) return 0;
-    return geometry.elevationRaised;
-  }
 }
 
 @immutable

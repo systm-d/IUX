@@ -80,14 +80,19 @@ Availability, interaction and operation are three separate things. Focus,
 press and hover stay inside the widget because they belong to this instance and
 to nothing else.
 
-**`IuxButton` cannot show a result.** Component standard §6 asks a component
-that cannot express one of its states to say so rather than leave the caller to
-discover it, so: an `IuxActionDescriptor` carrying
-`IuxActionOperation.succeeded` or `IuxActionOperation.failed` renders a button
-byte-identical to one that has not run, and announces the same node. The
-resolver has `IuxButtonState.success` and `IuxButtonState.error` and a
-documented precedence between them; neither reaches the screen. Measured in
-IUX-008.9 and pinned in `test/components/iux_button_qa_test.dart`.
+**`IuxButton` cannot show a result, and that is deliberate.** Component
+standard §6 asks a component that cannot express one of its states to say so
+rather than leave the caller to discover it, so: an `IuxActionDescriptor`
+carrying `IuxActionOperation.succeeded` or `IuxActionOperation.failed` renders
+a button byte-identical to one that has not run, and announces the same node. A
+result painted on the container would be a colour and nothing else — WCAG 2.2
+SC 1.4.1, and §6 asks an error state for "a message, never a colour alone".
+
+The resolver used to carry `IuxButtonState.success` and `IuxButtonState.error`
+with a documented precedence above `hovered`. Neither reached the screen, and
+because they outranked `hovered` a settled button silently stopped responding
+to the pointer. Both were removed at IUX-038; the hover behaviour is pinned in
+`test/components/iux_button_qa_test.dart`.
 
 A failure the user can see is `IuxAsyncActionButton`, which renders the message
 the operation supplied beneath the control — never a colour alone, and never a
@@ -221,12 +226,6 @@ Row(children: [IuxButton(action: primaryA), IuxButton(action: primaryB)])
   worth showing belongs on `IuxAsyncActionButton`, which puts the wording
   beneath the control — and even that shows nothing for
   `IuxAsyncFailure.raised`, which has no wording to show.
-- **`IuxButtonTokens.focused` is never set and never read.**
-  `IuxButtonResolver.resolve` accepts a `focused` argument and stores it; no
-  button widget passes one, and nothing consumes the field. The ring comes from
-  `IuxFocusable`. The equivalent token on the text field *is* consumed, so the
-  shape reads as intentional and is not — anyone building a control from the
-  resolver gets a token that silently means nothing.
 - **`IuxActionSemantics.unavailabilityReason` is read only while the action is
   unavailable.** Setting it on an enabled action discards it silently.
 - `expand` fills the width but does not cap it; use `IuxReadableWidth` when

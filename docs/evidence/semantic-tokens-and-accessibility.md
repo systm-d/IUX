@@ -1022,7 +1022,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: `expanded` is null rather than false by default, so an ordinary
   button is never announced as "collapsed" — a state it does not have.
 
-### IUX-A11Y-FOCUS-001 — Every IUX control was missing its focus semantics (FIXED)
+### IUX-A11Y-FOCUS-001 — Focus semantics, fixed for the button and nothing else (PARTIAL)
 
 - **Level**: standard
 - **Scope**: every component built on `IuxSemantics.action`, since IUX-005
@@ -1047,9 +1047,16 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   reader since IUX-005); it deletes the focus state too.
 - **Not a regression**: `IuxBottomNavigation` destinations do carry
   `[tap, focus]`, because they do not route through the helper.
-- **Fixed at IUX-038**, and verified by re-probing rather than by reading the
-  diff. An IUX button now reports `isFocused: Tristate.isTrue` when it holds
+- **Fixed for `IuxButton` at IUX-038**, verified by re-probing rather than by
+  reading the diff: it now reports `isFocused: Tristate.isTrue` when it holds
   focus and offers `[tap, focus]`, matching Flutter's own.
+- **STILL OPEN EVERYWHERE ELSE, and my first write-up of this overclaimed.**
+  `IuxFocusNodeOwner` has exactly **one** call site.
+  `_IuxDisclosureControl`, `IuxValidationSummary` entries and both
+  transient-layer controls still report `isFocused: Tristate.none` with
+  `actions=[tap]` — and driving `performAction(SemanticsAction.focus)` on the
+  disclosure control does nothing at all. Found by IUX-038 auditing the fix it
+  had just landed.
 - **The mechanism of the fix**: `IuxSemantics.action` now publishes the focus
   state and the `focus` action itself, naming the *same* `FocusNode` that
   `IuxFocusable` holds. A private `IuxFocusNodeOwner` supplies that node —
@@ -1361,10 +1368,26 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   has no equivalent for the busy case — a Flutter button never stops being
   focusable merely because work is in flight.
 
-### IUX-BUTTON-DEAD-001 — Three public switches with nothing behind them (OPEN)
+### IUX-BUTTON-DEAD-001 — Three public switches with nothing behind them (FIXED)
 
 - **Level**: standard (PROJECT_PROMPT §19)
-- **Status**: open, all three measured.
+- **Status**: fixed at IUX-038, **all three removed rather than wired**, with
+  the reasoning written where each field was: §20 names `elevation:` as the
+  archetype a button must not take, and every other IUX surface rests
+  hierarchy on colour; a `focused` token would have to be painted inside the
+  container's own decoration, which is the SC 2.4.11 failure `IuxFocusRing`
+  exists to avoid; and a result painted on the container is a colour-only
+  signal (SC 1.4.1) that `IuxAsyncActionButton` already carries as a message.
+- **The finding this entry did not have: `success` and `error` were not inert
+  — they swallowed hover.** They sat *above* `hovered` in the precedence and
+  returned the resting palette, so an idle filled button moves
+  `#1560B0` → `#0F4289` on hover while a `succeeded` or `failed` one does not
+  move at all. Removing them repairs an observable defect rather than merely
+  deleting dead API.
+- **Pinned mechanically**: `component_standard_test.dart` now asserts that
+  every field of every `Iux*Tokens` class is read outside its declaring file.
+  It rediscovered `elevation` independently across all eighteen token classes,
+  and was proved by re-adding a dead field.
   - `IuxButtonTheme.elevateFilled` — `IuxButtonTokens.elevation` has zero
     consumers in the library. `true` and `false` produce byte-identical
     decorations while the resolver still reports `elevation > 0`. The theme
@@ -1445,7 +1468,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   and with the parent owning the state, exclusivity is one line for anyone who
   genuinely wants it.
 
-### IUX-DISCLOSURE-004 — The disclosure control exists twice (OPEN)
+### IUX-DISCLOSURE-004 — The disclosure control exists twice, and merging is worse (WONTFIX)
 
 - **Level**: standard (PROJECT_PROMPT §19)
 - **Status**: open, reported by IUX-035 and not fixed, since it does not own
@@ -1462,6 +1485,18 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   revealed form section is all three, and every guarantee specific to the
   pattern falls out of that one difference. `IuxContextualHelp`'s `help` being
   a `String` is what stops a help panel becoming a destination.
+- **IUX-038 measured the two side by side and found no drift**: identical
+  label, `expanded` tristate, `button: true`, `header: false`, one `tap`
+  action, identical resolved label style; the rects differ only by the glyph's
+  width. It then declined to merge them, with three reasons. The proposed end
+  state **inverts the layer direction** — there are zero `components/` →
+  `patterns/` imports today and eight or more the other way. Extracting
+  downward leaves **eight fields** of the *exported* `IuxContextualHelpTokens`
+  unread, which the new mechanical dead-token test would then fail on. And
+  passing them through yields an eleven-parameter widget — the shape §20 names
+  as bad — traded for forty lines of entirely private duplication.
+- **Closed as wontfix on that evidence**, rather than left open to look like
+  neglected debt.
 
 ### IUX-DESTRUCTIVE-FLOW-001 — Proportionality asks one question a caller cannot get wrong
 
@@ -1605,12 +1640,22 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   at all, and §19 forbids public API whose only effect is an unverified
   announcement. Pinned by a test, so the day Flutter implements it is visible.
 
-### IUX-TEXTFIELD-GAPS-001 — Three additive gaps in the text field (OPEN)
+### IUX-TEXTFIELD-GAPS-001 — Two gaps closed, one refused (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxTextField`
-- **Status**: open, found by IUX-034 and not fixed across an ownership
-  boundary. All three are additive.
+- **Status**: closed at IUX-038. `IuxTextContent.search` now maps to
+  `SemanticsInputType.search`, and `onSubmitted` exists — but **no
+  `textInputAction` parameter**: the action key is resolved from `content`
+  (search → search, multiline → null, otherwise done), keeping the platform
+  type out of the API exactly as the existing private extension already does.
+  `onSubmitted` on a multiline field asserts, because its action key *is* the
+  newline key, so the callback could never fire.
+- **The trailing-control slot is refused, not deferred**: a control inside the
+  box is a second interactive element inside a node announced as one text
+  field, and the target floor settles it — a target meeting the minimum leaves
+  too little of a small-screen field for text, and one that fits is below the
+  minimum. IUX-034 reached the same conclusion from the other side.
   - No `textInputAction` and no `onSubmitted`, so a search that runs when the
     user presses the keyboard's action key **cannot be built** on it.
   - `IuxTextContent` has no `search` member, so `SemanticsInputType.search` is
@@ -1656,7 +1701,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   failure `IuxValidationSummary` avoids by *not* being a live region. Position
   is one required function of step and count, so the two cannot drift.
 
-### IUX-QA-VACUOUS-002 — A second test that proves nothing (OPEN)
+### IUX-QA-VACUOUS-002 — A second test that proves nothing (FIXED)
 
 - **Level**: standard
 - **Scope**: `test/patterns/iux_form_test.dart`
@@ -1669,8 +1714,13 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Measured**: a text field scrolls itself; a checkbox does not — 512 px down
   a 200 px viewport. The fix is to make one field in that harness a
   non-self-scrolling control, which is what IUX-033's own harness does.
-- This is the third vacuous test found in this project, and the second found
-  by an agent auditing somebody else's file.
+- **Fixed at IUX-038** in the harness, not in `IuxForm`. Field two is now an
+  `IuxCheckbox`; proved by commenting out `Scrollable.ensureVisible`, which
+  puts the field bottom at 444 against a 200 px viewport.
+- **A second vacuity surfaced while fixing the first**: at 200 px the summary
+  entry sat at y = **−82**, and `tester.tap` only *warns* on a miss — so the
+  first rewrite was measuring a form nobody had touched. The test now calls
+  `ensureVisible` and asserts `hasPrimaryFocus` to prove activation happened.
 
 ### IUX-ONBOARDING-001 — Skip is required on every step, including the last
 
@@ -1721,6 +1771,54 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   an entry.
 - Consolidation starts at the two `_spoken` getters and needs edits to
   `iux_guided_form.dart`, which IUX-036 does not own.
+
+### IUX-A11Y-REACH-001 — Two patterns lose their only control under scaling (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxEmptyState`, `IuxPermissionRationale`, `IuxSearchResults`
+- **Sources**: WCAG 2.2 SC 1.4.4, SC 1.4.10; measured at 320 px
+- **Status**: **open, and the most serious thing IUX-038 found.**
+  - `IuxEmptyState` at 200%: the reset button lands at y 904–1008 against a
+    640 px fold, `hitTestable = 0`, tap yields **zero** activations — and there
+    are **no scrollables on the page**. It is the only control on screen.
+  - `IuxPermissionRationale` at **150%**: decline taps, ask does not. **The
+    user can refuse but cannot accept.**
+  - `IuxSearchResults` at 200%: its only way out is off-screen, and *both*
+    documented placements fail — the mandated bounded height clips, and a
+    `SingleChildScrollView` makes the `ready` branch throw on unbounded
+    constraints.
+- Reported and deliberately not fixed: an audit that edits what it audits
+  cannot be trusted, and this needs a decision about who owns scrolling in a
+  pattern, not a patch.
+
+### IUX-QA-VACUOUS-003 — Two more, and the mechanism that makes them possible (OPEN)
+
+- **Level**: standard
+- **Status**: open. `iux_permission_rationale_test.dart` and
+  `iux_empty_state_test.dart` both wrap the pattern in a
+  `SingleChildScrollView`, which gives the `Column` unbounded extent, so
+  `expect(tester.takeException(), isNull)` **cannot fail**. Rebuilt without it:
+  `RenderFlex overflowed by 584 pixels`.
+- **The methodology note is worth more than the two tests**:
+  `DebugOverflowIndicatorMixin` reports a render object's overflow **once per
+  lifetime**, so any loop that reuses the element tree and asserts
+  `takeException()` is null passes vacuously after the first case. Insert
+  `pumpWidget(const SizedBox.shrink())` between cases.
+- Fifth and sixth vacuous tests found in this project.
+
+### IUX-GUIDED-FORM-LIVE-001 — The collision it refused a progress bar to avoid (OPEN)
+
+- **Level**: standard
+- **Status**: open. `IuxGuidedForm` puts a live region in the same frame as its
+  focus move — which is precisely the failure it declined to ship a progress
+  bar in order to prevent.
+
+### IUX-DESTRUCTIVE-FOCUS-001 — Cancelling drops focus to the page root (OPEN)
+
+- **Level**: standard
+- **Sources**: WCAG 2.2 SC 2.4.3
+- **Status**: open. Cancelling a destructive confirmation costs four Tab
+  presses to recover; Flutter's own dialog restores focus at cost zero.
 
 ## Deferred to later missions
 

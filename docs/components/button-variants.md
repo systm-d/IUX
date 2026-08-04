@@ -192,22 +192,15 @@ D-pad traversal.
   an operation runs, and the container does not recolour for a result either:
   `succeeded` and `failed` resolve to the same palette as `idle`. Measured in
   IUX-008.9 — see [button.md](button.md) *States*.
-- **Elevation is resolved and not painted.** `IuxButtonTokens.elevation` is
-  computed and no widget in the library reads it, so `IuxButtonTheme(
-  elevateFilled: true)` is a public switch with nothing behind it: the button's
-  decoration is identical either way, and no assertion tells the caller their
-  theme was ignored. The semantic layer models no shadow colour, so painting
-  one would mean inventing a colour nobody measured — but the switch should
-  either work or not exist (§19). Pinned in
-  `test/components/iux_button_qa_test.dart`.
-- **`IuxButtonTokens.focused` is never set by a button.** No button passes
-  `focused:` to `IuxButtonResolver.resolve`, so the field is false for every
-  button ever built. The indicator itself is real and comes from `IuxFocusable`
-  drawing an `IuxFocusRing` outside the container. IUX-BUTTON-002 describes the
-  token as the carrier; only the runtime half is wired.
-- **A running control leaves focus traversal**, under the default
-  `IuxActionRepeatPolicy.ignoreWhileInProgress`, and is not brought back when
-  the run ends. Measured in IUX-008.9.
+- **There is no elevation, and no switch that offers one.** `elevateFilled`
+  and `IuxButtonTokens.elevation` were removed at IUX-038 (§19): the value was
+  computed, travelled, and was read by nothing, so the theme could ask for a
+  shadow and be ignored in silence. See [theme.md](../buttons/theme.md).
+- **There is no `focused` token, and the ring is drawn outside.** The
+  indicator comes from `IuxFocusable` drawing an `IuxFocusRing` around the
+  container. `IuxButtonTokens.focused` existed until IUX-038 and no button ever
+  set it; re-adding it would mean painting the ring in the container's own
+  decoration, over the content it identifies.
 - **`IuxButtonShape.full` rounds against the target floor**, not against the
   button's actual height, so a button enlarged by text scaling is rounded
   rather than fully stadium-shaped. Inherited from IUX-008.4.

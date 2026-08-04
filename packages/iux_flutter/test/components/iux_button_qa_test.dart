@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -353,14 +354,14 @@ void main() {
     });
   });
 
-  group('open defect — an operation that finished is invisible on IuxButton',
-      () {
+  group('a settled operation is a message, not a colour on the container', () {
     testWidgets('succeeded and failed render exactly like idle',
         (WidgetTester tester) async {
-      // IuxButtonStateResolver publishes IuxButtonState.success and .error and
-      // documents a precedence for them ("a result outranks a pointer
-      // position"). Neither reaches the screen: _resolveColors only branches
-      // on pressed and hovered, so the three palettes are the same object.
+      // Unchanged from IUX-008.9, but no longer filed as a defect. A result
+      // painted onto the container would be a colour-only signal — WCAG 2.2
+      // SC 1.4.1, and the component standard §6 asks an error state for "a
+      // message, never a colour alone". The message exists, in the widget that
+      // owns the lifecycle; see the next test.
       final Map<IuxActionOperation, BoxDecoration> painted =
           <IuxActionOperation, BoxDecoration>{};
       final Map<IuxActionOperation, String> announced =
@@ -389,9 +390,6 @@ void main() {
       expect(
         painted[IuxActionOperation.failed],
         equals(painted[IuxActionOperation.idle]),
-        reason: 'DEFECT: a failed action is pixel-identical to one that has '
-            'not run. Component standard §6 asks an error state for "a '
-            'message, never a colour alone"; this is not even a colour.',
       );
       expect(
         painted[IuxActionOperation.succeeded],
@@ -400,12 +398,49 @@ void main() {
       expect(
         announced[IuxActionOperation.failed],
         equals(announced[IuxActionOperation.idle]),
-        reason: 'DEFECT: and nothing reaches a screen reader either.',
       );
       expect(
         announced[IuxActionOperation.succeeded],
         equals(announced[IuxActionOperation.idle]),
       );
+    });
+
+    testWidgets('a settled action still answers the pointer',
+        (WidgetTester tester) async {
+      // IUX-038. The dead IuxButtonState.success/.error were not inert: they
+      // sat *above* `hovered` in the resolver's precedence and returned a
+      // palette identical to resting, so a succeeded or failed button stopped
+      // responding to hover altogether. The states painted nothing and
+      // swallowed something. Measured before the fix: an idle button moved
+      // from #1560B0 to #0F4289 on hover, a succeeded one did not move at all.
+      Future<BoxDecoration> hovered(IuxActionOperation operation) async {
+        await host(
+          tester,
+          IuxButton(
+            label: 'Save',
+            variant: IuxButtonVariant.filled,
+            action: idle.copyWith(operation: operation),
+            onActivate: () {},
+          ),
+        );
+        final BoxDecoration resting = decorationOf(tester);
+        final TestGesture pointer =
+            await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await pointer.addPointer(location: Offset.zero);
+        await tester.pump();
+        await pointer.moveTo(tester.getCenter(find.byType(IuxButton)));
+        await tester.pumpAndSettle();
+        final BoxDecoration engaged = decorationOf(tester);
+        await pointer.removePointer();
+        await tester.pumpAndSettle();
+        expect(engaged, isNot(equals(resting)),
+            reason: 'a $operation button gave the pointer no feedback');
+        return engaged;
+      }
+
+      final BoxDecoration onIdle = await hovered(IuxActionOperation.idle);
+      expect(await hovered(IuxActionOperation.succeeded), equals(onIdle));
+      expect(await hovered(IuxActionOperation.failed), equals(onIdle));
     });
 
     testWidgets('IuxAsyncActionButton is where a failure becomes visible',
@@ -444,91 +479,18 @@ void main() {
     });
   });
 
-  group('open defect — elevation is a public knob with nothing behind it', () {
-    testWidgets('turning elevateFilled on changes nothing a user can perceive',
+  group(
+      'fixed — the button theme has no switch that does nothing '
+      '(IUX-BUTTON-DEAD-001)', () {
+    // Three public switches were removed rather than wired: the theme's
+    // `elevateFilled`, the resolved `IuxButtonTokens.elevation` it fed, and
+    // `IuxButtonTokens.focused`. Each argument is written where the field used
+    // to be, in `iux_button_theme.dart`. What survives here is the observable
+    // half — that the container is still not where focus or a shadow is
+    // expressed, so nobody re-adds one thinking it was an oversight.
+
+    testWidgets('focus is drawn outside the container, never in its decoration',
         (WidgetTester tester) async {
-      // IuxButtonTheme.elevateFilled is settable, IuxButtonResolver computes
-      // IuxButtonTokens.elevation from it, and no widget in the library reads
-      // that field. §19: an API nobody needs is a defect, and one that looks
-      // like it works is worse than one that is missing.
-      final ThemeData flat = IuxTheme.light();
-      final ThemeData raised = flat.copyWith(
-        extensions: <ThemeExtension<Object?>>{
-          ...flat.extensions.values.cast<ThemeExtension<Object?>>(),
-          const IuxButtonTheme(elevateFilled: true),
-        },
-      );
-
-      Future<BoxDecoration> render(ThemeData theme) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: theme,
-            home: Scaffold(
-              body: Center(
-                child: IuxButton(
-                  label: 'Save',
-                  action: idle,
-                  variant: IuxButtonVariant.filled,
-                  onActivate: () {},
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        return decorationOf(tester);
-      }
-
-      final BoxDecoration off = await render(flat);
-      final BoxDecoration on = await render(raised);
-
-      expect(on.boxShadow, isNull);
-      expect(
-        on,
-        equals(off),
-        reason: 'DEFECT: elevateFilled: true and elevateFilled: false produce '
-            'the same decoration. The theme asked for a shadow and got '
-            'nothing, silently.',
-      );
-    });
-
-    testWidgets('and the resolver still reports an elevation it computed',
-        (WidgetTester tester) async {
-      late IuxButtonTokens tokens;
-      final ThemeData flat = IuxTheme.light();
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: flat.copyWith(
-            extensions: <ThemeExtension<Object?>>{
-              ...flat.extensions.values.cast<ThemeExtension<Object?>>(),
-              const IuxButtonTheme(elevateFilled: true),
-            },
-          ),
-          home: Builder(
-            builder: (BuildContext context) {
-              tokens = IuxButtonResolver.resolve(context, idle);
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        tokens.elevation,
-        greaterThan(0),
-        reason: 'the value exists and travels; only its consumer is missing',
-      );
-    });
-  });
-
-  group('open defect — IuxButtonTokens.focused is never set by a button', () {
-    testWidgets('the focus indicator comes from the runtime, not the tokens',
-        (WidgetTester tester) async {
-      // IUX-BUTTON-002 records that focus is "carried separately by
-      // IuxButtonTokens.focused and drawn additively by the runtime". Only the
-      // second half happens: no button passes `focused:` to the resolver, so
-      // the field is false for every button ever built. The ring is real and
-      // comes from IuxFocusable; the token is dead weight on a public type.
       final FocusNode node = FocusNode(debugLabel: 'ring');
       addTearDown(node.dispose);
 
@@ -550,11 +512,16 @@ void main() {
       expect(
         decorationOf(tester),
         equals(resting),
-        reason: 'the container is untouched by focus — which is correct, but '
-            'it is also why nothing would notice if the token disappeared',
+        reason: 'the container decoration changed on focus. A ring painted '
+            'there sits *inside* the control, over the content it identifies '
+            '— the failure WCAG 2.2 SC 2.4.11 was added for. It belongs to '
+            'IuxFocusRing, which reserves space outside.',
       );
-      // The ring itself is present, drawn outside the container.
-      expect(find.byType(IuxFocusRing), findsOneWidget);
+      expect(
+        tester.widget<IuxFocusRing>(find.byType(IuxFocusRing)).focused,
+        isTrue,
+        reason: 'and the ring the user sees is genuinely on',
+      );
     });
   });
 

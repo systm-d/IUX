@@ -68,6 +68,25 @@ enum IuxTextContent {
   /// A web address.
   url,
 
+  /// A query the user composes to find something.
+  ///
+  /// The only value whose effect is mostly in the semantic tree: it is what
+  /// reaches assistive technology as `SemanticsInputType.search`, which is how
+  /// a screen reader can say "search field" rather than "text field" and how a
+  /// voice-access user can name it. Nothing else in this enum could produce
+  /// that, so a search box built on this widget used to be indistinguishable
+  /// from any other box (IUX-TEXTFIELD-GAPS-001).
+  ///
+  /// Autocorrect is off. A query is a name, a code or half a word far more
+  /// often than it is a dictionary word, and a search that silently corrects
+  /// what was typed answers a question the user did not ask — while the
+  /// results give them no clue that it happened.
+  ///
+  /// For a complete search box, with the clear control and the announcement
+  /// rules that go with it, use `IuxSearchField`. This value is for a caller
+  /// composing their own.
+  search,
+
   /// Several lines of prose.
   ///
   /// The only value that changes the shape of the field rather than only the
@@ -87,6 +106,10 @@ extension _IuxTextContentResolution on IuxTextContent {
         IuxTextContent.email => TextInputType.emailAddress,
         IuxTextContent.phone => TextInputType.phone,
         IuxTextContent.url => TextInputType.url,
+        // Deliberately the plain text keyboard. There is no "search keyboard"
+        // — what changes for a search is the action key, resolved from this
+        // same value in `submitAction`.
+        IuxTextContent.search => TextInputType.text,
         IuxTextContent.multiline => TextInputType.multiline,
       };
 
@@ -97,7 +120,8 @@ extension _IuxTextContentResolution on IuxTextContent {
         IuxTextContent.name => TextCapitalization.words,
         IuxTextContent.email ||
         IuxTextContent.phone ||
-        IuxTextContent.url =>
+        IuxTextContent.url ||
+        IuxTextContent.search =>
           TextCapitalization.none,
       };
 
@@ -106,14 +130,21 @@ extension _IuxTextContentResolution on IuxTextContent {
         IuxTextContent.name ||
         IuxTextContent.email ||
         IuxTextContent.phone ||
-        IuxTextContent.url =>
+        IuxTextContent.url ||
+        IuxTextContent.search =>
           false,
       };
 
   /// The platform autofill hints, which spare a user with a motor impairment
   /// an entire address typed one character at a time.
   List<String>? get autofillHints => switch (this) {
-        IuxTextContent.text || IuxTextContent.multiline => null,
+        IuxTextContent.text ||
+        IuxTextContent.multiline ||
+        // A query is not a saved credential, and offering to autofill one
+        // would put whatever the platform has stored into a box whose contents
+        // are frequently sent somewhere.
+        IuxTextContent.search =>
+          null,
         IuxTextContent.name => const <String>[AutofillHints.name],
         IuxTextContent.email => const <String>[AutofillHints.email],
         IuxTextContent.phone => const <String>[AutofillHints.telephoneNumber],
@@ -130,10 +161,33 @@ extension _IuxTextContentResolution on IuxTextContent {
         IuxTextContent.email => SemanticsInputType.email,
         IuxTextContent.phone => SemanticsInputType.phone,
         IuxTextContent.url => SemanticsInputType.url,
+        IuxTextContent.search => SemanticsInputType.search,
         IuxTextContent.text ||
         IuxTextContent.name ||
         IuxTextContent.multiline =>
           SemanticsInputType.text,
+      };
+
+  /// Which key the software keyboard offers in place of Enter.
+  ///
+  /// Resolved from the content rather than taken as a parameter, for the same
+  /// reason as everything else in this extension: `TextInputAction` is a
+  /// platform type, and a call site holding one could ask for the search key on
+  /// a phone-number field. Null means "whatever the platform does by default",
+  /// which is what a field with nothing to submit to should have.
+  ///
+  /// [IuxTextContent.multiline] never appears here — the multiline action key
+  /// *is* the newline key, and a field that cannot accept a paragraph break is
+  /// not a multiline field.
+  TextInputAction? get submitAction => switch (this) {
+        IuxTextContent.search => TextInputAction.search,
+        IuxTextContent.text ||
+        IuxTextContent.name ||
+        IuxTextContent.email ||
+        IuxTextContent.phone ||
+        IuxTextContent.url =>
+          TextInputAction.done,
+        IuxTextContent.multiline => null,
       };
 }
 
@@ -181,6 +235,19 @@ extension _IuxTextContentResolution on IuxTextContent {
 /// not be one. An API that accepts a colour has already lost the contrast
 /// guarantee: the theme can no longer be held responsible for something a call
 /// site overrode.
+///
+/// **There is no trailing-control slot either, and that is a decision rather
+/// than an omission** (IUX-TEXTFIELD-GAPS-001, weighed and refused at
+/// IUX-038). A control *inside* the box would be a second interactive element
+/// inside something the semantic tree announces as one text field: it needs its
+/// own name, its own focus stop and its own target floor, and the floor is what
+/// settles it — a target that meets the minimum leaves too little of a
+/// small-screen field for the text, and one that fits is below the minimum. It
+/// also takes a `Widget`, which hands back the colour guarantee the paragraph
+/// above refuses to give up. IUX-034 reached the same conclusion from the other
+/// direction and put `IuxSearchField`'s clear control *beside* the box. A
+/// caller who needs a control next to a field can place one; the field does not
+/// have to own it.
 class IuxTextField extends StatefulWidget {
   /// Creates a text field.
   const IuxTextField({
@@ -193,10 +260,19 @@ class IuxTextField extends StatefulWidget {
     this.variant,
     this.autofocus = false,
     this.focusNode,
-  }) : assert(
+    this.onSubmitted,
+  })  : assert(
           placeholder == null || placeholder.length > 0,
           'An empty placeholder is not a placeholder. Pass null instead, so '
           'the field does not fade an empty string in and out.',
+        ),
+        assert(
+          onSubmitted == null || content != IuxTextContent.multiline,
+          'A multiline field cannot report a submission. Its action key is the '
+          'newline key — that is what makes it multiline — so onSubmitted '
+          'would never fire, and the caller would be left waiting for a '
+          'callback the platform is never going to send. Put the action in a '
+          'button the user can see.',
         );
 
   /// What the field is, what may be done to it, and what is known about its
@@ -259,6 +335,29 @@ class IuxTextField extends StatefulWidget {
   /// Pass one when something outside the field has to move focus into it — a
   /// form sending the user to the first field that failed, for instance.
   final FocusNode? focusNode;
+
+  /// Called with the current text when the user presses the keyboard's action
+  /// key.
+  ///
+  /// Which key that is follows [content]: a search offers "search", everything
+  /// else offers "done". There is no `textInputAction` parameter, because a
+  /// call site holding one could ask for the search key on a phone-number
+  /// field, and the point of [content] is that the five settings it implies
+  /// cannot contradict each other.
+  ///
+  /// **It is never the only way to do the thing.** A software keyboard's
+  /// action key does not exist for a user on a hardware keyboard, a switch
+  /// device or a screen reader that intercepts Enter, and it is invisible to
+  /// anyone who has not opened the keyboard. Whatever this runs must also be
+  /// reachable from a control on screen. This is a shortcut, not a route.
+  ///
+  /// Not accepted on [IuxTextContent.multiline], which asserts: there the
+  /// action key is the newline key and this would never fire.
+  ///
+  /// Added at IUX-038 (IUX-TEXTFIELD-GAPS-001) — without it a search that runs
+  /// when the user presses the keyboard's action key could not be built on this
+  /// widget at all.
+  final ValueChanged<String>? onSubmitted;
 
   @override
   State<IuxTextField> createState() => _IuxTextFieldState();
@@ -379,6 +478,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
                     content: widget.content,
                     controller: widget.controller,
                     onChanged: widget.onChanged,
+                    onSubmitted: widget.onSubmitted,
                     placeholder: widget.placeholder,
                     focusNode: _focusNode,
                     autofocus: widget.autofocus,
@@ -525,6 +625,7 @@ class _IuxFieldRow extends StatelessWidget {
     required this.content,
     required this.controller,
     required this.onChanged,
+    required this.onSubmitted,
     required this.placeholder,
     required this.focusNode,
     required this.autofocus,
@@ -536,6 +637,7 @@ class _IuxFieldRow extends StatelessWidget {
   final IuxTextContent content;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onSubmitted;
   final String? placeholder;
   final FocusNode focusNode;
   final bool autofocus;
@@ -555,6 +657,11 @@ class _IuxFieldRow extends StatelessWidget {
       enabled: input.availability != IuxInputAvailability.disabled,
       readOnly: !editable,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      // The action key follows the declared content, so a search offers
+      // "search" and a phone number cannot. Null on multiline, where the
+      // platform's own newline key is the right one.
+      textInputAction: content.submitAction,
       style: tokens.valueStyle,
       // The caret takes the colour of the text it sits in, which is the one
       // colour already measured against this background. It thickens with the

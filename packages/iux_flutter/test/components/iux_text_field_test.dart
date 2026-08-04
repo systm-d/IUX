@@ -29,6 +29,7 @@ void main() {
     bool autofocus = false,
     FocusNode? focusNode,
     List<String>? changes,
+    ValueChanged<String>? onSubmitted,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -60,6 +61,7 @@ void main() {
                   variant: variant,
                   autofocus: autofocus,
                   focusNode: focusNode,
+                  onSubmitted: onSubmitted,
                 ),
               ),
             ),
@@ -670,6 +672,98 @@ void main() {
       expect(field.maxLines, isNull);
       expect(field.minLines, greaterThan(1));
       expect(field.keyboardType, TextInputType.multiline);
+    });
+
+    testWidgets(
+        'search is the only content that reaches assistive '
+        'technology as a search', (WidgetTester tester) async {
+      // IUX-038 (IUX-TEXTFIELD-GAPS-001). SemanticsInputType.search was
+      // unreachable from any IUX field: the private resolution extension
+      // mapped every other member of the enum and there was no member to map.
+      // A screen reader could only say "text field" for a box the user had been
+      // told was a search.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      for (final IuxTextContent content in IuxTextContent.values) {
+        await pump(tester, content: content);
+        expect(
+          tester.getSemantics(find.byType(TextField)).inputType,
+          content == IuxTextContent.search
+              ? SemanticsInputType.search
+              : isNot(SemanticsInputType.search),
+          reason: '$content resolved the wrong input type',
+        );
+      }
+      handle.dispose();
+    });
+
+    testWidgets('search turns off autocorrect and offers nothing to autofill',
+        (WidgetTester tester) async {
+      await pump(tester, content: IuxTextContent.search);
+
+      final TextField field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.autocorrect, isFalse);
+      expect(field.textCapitalization, TextCapitalization.none);
+      expect(field.autofillHints, isNull);
+      expect(field.maxLines, 1);
+    });
+  });
+
+  group('the keyboard action key follows the content', () {
+    testWidgets('a search offers the search key, everything else offers done',
+        (WidgetTester tester) async {
+      // IUX-038 (IUX-TEXTFIELD-GAPS-001). There was no textInputAction and no
+      // onSubmitted, so a search that runs when the user presses the
+      // keyboard's action key could not be built on this widget at all.
+      for (final IuxTextContent content in IuxTextContent.values) {
+        await pump(tester, content: content);
+        final TextField field =
+            tester.widget<TextField>(find.byType(TextField));
+        expect(
+          field.textInputAction,
+          switch (content) {
+            IuxTextContent.search => TextInputAction.search,
+            // The multiline action key is the newline key; taking it away is
+            // what would make a multiline field unable to hold a paragraph.
+            IuxTextContent.multiline => isNull,
+            _ => TextInputAction.done,
+          },
+          reason: '$content offered the wrong action key',
+        );
+      }
+    });
+
+    testWidgets('the action key reports the text the user had typed',
+        (WidgetTester tester) async {
+      final List<String> submitted = <String>[];
+      final TextEditingController controller = controllerFor('');
+      await pump(
+        tester,
+        controller: controller,
+        content: IuxTextContent.search,
+        onSubmitted: submitted.add,
+      );
+
+      await tester.enterText(find.byType(TextField), 'invoices');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(submitted, <String>['invoices']);
+    });
+
+    test('a multiline field refuses to pretend it can be submitted', () {
+      // PROJECT_PROMPT §22: prevent the incoherent state rather than document
+      // it. onSubmitted on a multiline field would never fire, and the caller
+      // would be left waiting for a callback the platform never sends.
+      expect(
+        () => IuxTextField(
+          input: email,
+          controller: TextEditingController(),
+          onChanged: (String _) {},
+          content: IuxTextContent.multiline,
+          onSubmitted: (String _) {},
+        ),
+        throwsAssertionError,
+      );
     });
   });
 

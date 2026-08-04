@@ -168,6 +168,36 @@ class IuxContextualHelp extends StatelessWidget {
 /// second is decisive — a button cannot announce that it is expanded, and a
 /// disclosure that does not announce its state is a control a screen-reader
 /// user has to press to discover.
+///
+/// ## This is `_IuxDisclosureControl` a second time, and it stays that way
+///
+/// IUX-DISCLOSURE-004. `lib/src/patterns/disclosure/` holds the same widget
+/// minus the leading glyph. IUX-038 measured the two side by side rather than
+/// reading them: same label, same `expanded` tristate, `button: true`,
+/// `header: false`, the same single `tap` action, the same resolved label
+/// style, and rects that differ only by the glyph's width. They have not
+/// drifted.
+///
+/// Merging them was weighed and declined, for three measured reasons.
+///
+/// 1. The obvious end state — this component composing
+///    `IuxProgressiveDisclosure` — points the wrong way. Nothing under
+///    `lib/src/components/` imports `lib/src/patterns/`; eight or more files go
+///    the other way. A component that composed a pattern would be the first
+///    edge of its kind, and patterns are what compose components.
+/// 2. Moving the control below both and letting it resolve its own tokens —
+///    which it could, since both resolutions are already identical
+///    expression-for-expression — would leave eight fields of
+///    [IuxContextualHelpTokens] with no reader. That class is exported, so
+///    that is a public break, and the §19 dead-token test in
+///    `component_standard_test.dart` would then fail on it.
+/// 3. Passing those eight values in as parameters instead produces an
+///    eleven-parameter internal widget, which is the shape PROJECT_PROMPT §20
+///    names as the sign of a bad API — traded for forty lines of duplication
+///    that is entirely private and costs no caller anything.
+///
+/// What would change the answer: the two drifting. That is what the measurement
+/// above is for.
 class _IuxHelpDisclosureControl extends StatelessWidget {
   const _IuxHelpDisclosureControl({
     required this.label,

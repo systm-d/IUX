@@ -126,6 +126,66 @@ void main() {
     );
   });
 
+  group('a resolved token nobody reads is a defect (§19)', () {
+    // Added at IUX-038, after IUX-BUTTON-DEAD-001 found three public switches
+    // with nothing behind them. Two of the three were fields on a resolved
+    // token class, and the thing that made them survive so long is that
+    // nothing *looks* wrong: the value is computed, stored, compared in `==`
+    // and hashed. It simply never reaches a pixel.
+    //
+    // So this is decided by a machine now. For every `Iux*Tokens` class, each
+    // declared field must be read as `.field` somewhere outside the file that
+    // declares it. A hit does not prove correct use — two token classes may
+    // share a field name, and then one hides behind the other. **Zero hits
+    // proves the field is dead**, which is the direction that matters.
+    //
+    // The known false negative is why `focused` needed its own widget test:
+    // `IuxInputTokens.focused` is genuinely read, so it covered for
+    // `IuxButtonTokens.focused`, which was not. If you add a token field, add
+    // the widget test that watches it paint.
+    test('every field of every Iux*Tokens class is read by something', () {
+      final List<File> sources = Directory('lib/src')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((File f) => f.path.endsWith('.dart'))
+          .toList();
+      final Map<String, String> bodies = <String, String>{
+        for (final File f in sources) f.path: f.readAsStringSync(),
+      };
+
+      final RegExp classHead = RegExp(r'final class (Iux\w*Tokens) \{');
+      final RegExp declaration =
+          RegExp(r'^  final [\w<>?, ]+ (\w+);$', multiLine: true);
+
+      final List<String> dead = <String>[];
+      for (final File file in sources) {
+        final String body = bodies[file.path]!;
+        for (final RegExpMatch head in classHead.allMatches(body)) {
+          final int end = body.indexOf('\n}', head.end);
+          final String classBody =
+              body.substring(head.end, end < 0 ? body.length : end);
+          for (final RegExpMatch field in declaration.allMatches(classBody)) {
+            final String name = field.group(1)!;
+            final RegExp read = RegExp('\\.$name\\b');
+            final bool used = bodies.entries.any(
+              (MapEntry<String, String> other) =>
+                  other.key != file.path && read.hasMatch(other.value),
+            );
+            if (!used) dead.add('${head.group(1)}.$name');
+          }
+        }
+      }
+
+      expect(
+        dead,
+        isEmpty,
+        reason: 'these resolved token fields are computed and never read. '
+            'Either paint them or delete them — PROJECT_PROMPT §19. A knob '
+            'that looks like it works is worse than a missing one.',
+      );
+    });
+  });
+
   group('the public API keeps its shape', () {
     final String barrel = File('lib/iux_flutter.dart').readAsStringSync();
     final List<String> exports = barrel

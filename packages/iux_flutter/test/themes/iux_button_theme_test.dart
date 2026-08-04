@@ -13,7 +13,6 @@ void main() {
     IuxButtonVariant variant = IuxButtonVariant.filled,
     bool hovered = false,
     bool pressed = false,
-    bool focused = false,
     IuxThemeConfiguration configuration = const IuxThemeConfiguration(),
   }) async {
     late IuxButtonTokens tokens;
@@ -28,7 +27,6 @@ void main() {
               variant: variant,
               hovered: hovered,
               pressed: pressed,
-              focused: focused,
             );
             return const SizedBox.shrink();
           },
@@ -73,21 +71,38 @@ void main() {
       );
     });
 
-    test('a result outranks a pointer position', () {
+    test('a settled result does not outrank a pointer position', () {
+      // Flipped at IUX-038 (IUX-BUTTON-DEAD-001). It used to, and the rung was
+      // never worth what it cost: `error` and `success` resolved to the resting
+      // palette, so outranking `hovered` only meant a settled button stopped
+      // answering the pointer. The operation still exists on the descriptor;
+      // it is the button's unpainted mirror of it that is gone.
       expect(
         IuxButtonStateResolver.resolve(
           idle.copyWith(operation: IuxActionOperation.failed),
           hovered: true,
         ),
-        IuxButtonState.error,
+        IuxButtonState.hovered,
       );
       expect(
         IuxButtonStateResolver.resolve(
           idle.copyWith(operation: IuxActionOperation.succeeded),
           hovered: true,
         ),
-        IuxButtonState.success,
+        IuxButtonState.hovered,
       );
+    });
+
+    test('a finished operation resolves to plain enabled', () {
+      for (final IuxActionOperation settled in <IuxActionOperation>[
+        IuxActionOperation.succeeded,
+        IuxActionOperation.failed,
+      ]) {
+        expect(
+          IuxButtonStateResolver.resolve(idle.copyWith(operation: settled)),
+          IuxButtonState.enabled,
+        );
+      }
     });
 
     test('every state is reachable', () {
@@ -99,38 +114,65 @@ void main() {
             idle.copyWith(availability: IuxActionAvailability.disabled)),
         IuxButtonStateResolver.resolve(
             idle.copyWith(operation: IuxActionOperation.inProgress)),
-        IuxButtonStateResolver.resolve(
-            idle.copyWith(operation: IuxActionOperation.succeeded)),
-        IuxButtonStateResolver.resolve(
-            idle.copyWith(operation: IuxActionOperation.failed)),
       };
       expect(reached, hasLength(IuxButtonState.values.length));
     });
   });
 
   group('focus survives every other state', () {
-    testWidgets('the ring is requested even while pressed or loading',
+    testWidgets('the ring is drawn even while pressed or loading',
         (WidgetTester tester) async {
       // A design where pressing hides the focus ring is one a keyboard user
       // loses their place in.
-      for (final IuxActionDescriptor action in <IuxActionDescriptor>[
-        const IuxActionDescriptor(semantics: label),
-        const IuxActionDescriptor(
-          semantics: label,
-          operation: IuxActionOperation.inProgress,
-        ),
-        const IuxActionDescriptor(
-          semantics: label,
-          operation: IuxActionOperation.failed,
-        ),
+      //
+      // Rewritten at IUX-038. This used to read `IuxButtonTokens.focused`,
+      // which no button ever set — so it asserted a value the test itself had
+      // just passed in, and would have gone on passing with the focus ring
+      // deleted. It now measures the ring the user would actually see, on a
+      // real focused button.
+      final FocusNode node = FocusNode(debugLabel: 'ring');
+      addTearDown(node.dispose);
+
+      for (final IuxActionOperation operation in <IuxActionOperation>[
+        IuxActionOperation.idle,
+        IuxActionOperation.inProgress,
+        IuxActionOperation.failed,
+        IuxActionOperation.succeeded,
       ]) {
-        final IuxButtonTokens tokens = await resolve(
-          tester,
-          action: action,
-          focused: true,
-          pressed: true,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.light(),
+            home: Scaffold(
+              body: Center(
+                child: IuxButton(
+                  label: 'Save',
+                  focusNode: node,
+                  busyHint: 'Saving',
+                  action: IuxActionDescriptor(
+                    semantics: label,
+                    operation: operation,
+                  ),
+                  onActivate: () {},
+                ),
+              ),
+            ),
+          ),
         );
-        expect(tokens.focused, isTrue, reason: '${tokens.state} lost focus');
+        node.requestFocus();
+        await tester.pumpAndSettle();
+        // Held down, so the press state is live at the moment we measure.
+        final TestGesture press =
+            await tester.startGesture(tester.getCenter(find.byType(IuxButton)));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<IuxFocusRing>(find.byType(IuxFocusRing)).focused,
+          isTrue,
+          reason: 'a $operation button being pressed lost its focus ring',
+        );
+
+        await press.up();
+        await tester.pumpAndSettle();
       }
     });
   });
@@ -319,13 +361,46 @@ void main() {
       expect(high.borderWidth, greaterThan(standard.borderWidth));
     });
 
-    testWidgets('no shadow by default', (WidgetTester tester) async {
-      final IuxButtonTokens defaults = await resolve(
-        tester,
-        action: const IuxActionDescriptor(semantics: label),
-      );
-      expect(defaults.elevation, 0,
-          reason: 'a filled button is already separated by colour');
+    testWidgets('no button ever paints a shadow', (WidgetTester tester) async {
+      // Rewritten at IUX-038. This used to assert `tokens.elevation == 0` on a
+      // field no widget read, so it could not have caught a shadow appearing.
+      // It now measures the decoration a button actually paints, for every
+      // variant — the guarantee being that hierarchy rests on contrast-measured
+      // colour and never on a shadow that a reduced visual stimulation
+      // preference removes.
+      for (final IuxButtonVariant variant in IuxButtonVariant.values) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.light(),
+            home: Scaffold(
+              body: Center(
+                child: variant == IuxButtonVariant.icon
+                    ? IuxIconButton(
+                        icon: Icons.close,
+                        action: const IuxActionDescriptor(semantics: label),
+                        onActivate: () {},
+                      )
+                    : IuxButton(
+                        label: 'Save',
+                        variant: variant,
+                        action: const IuxActionDescriptor(semantics: label),
+                        onActivate: () {},
+                      ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final BoxDecoration painted = tester
+            .widget<AnimatedContainer>(find.byType(AnimatedContainer))
+            .decoration! as BoxDecoration;
+        expect(
+          painted.boxShadow,
+          isNull,
+          reason: '$variant cast a shadow; a filled button is already '
+              'separated from its background by colour',
+        );
+      }
     });
   });
 
@@ -333,7 +408,7 @@ void main() {
     test('defaults are the cautious ones', () {
       const IuxButtonTheme theme = IuxButtonTheme();
       expect(theme.variant, IuxButtonVariant.filled);
-      expect(theme.elevateFilled, isFalse);
+      expect(theme.shape, IuxButtonShape.medium);
     });
 
     test('copyWith and equality cover every field', () {

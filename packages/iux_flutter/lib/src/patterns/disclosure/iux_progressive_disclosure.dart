@@ -270,6 +270,13 @@ class IuxProgressiveDisclosure extends StatelessWidget {
 /// button where a section heading belongs; and, decisively, a button cannot
 /// announce that it is expanded, so a disclosure built from one is a control a
 /// screen-reader user has to press in order to understand.
+///
+/// `_IuxHelpDisclosureControl` is this widget plus a leading glyph, and
+/// IUX-038 declined to merge the two. The argument is written out once, beside
+/// that copy, in `lib/src/components/help/iux_contextual_help.dart` —
+/// IUX-DISCLOSURE-004. The short version: the merge points a component at a
+/// pattern, which is the wrong direction, and every way round that costs more
+/// than the duplication does. If the two ever diverge, reopen it.
 class _IuxDisclosureControl extends StatelessWidget {
   const _IuxDisclosureControl({
     required this.summary,

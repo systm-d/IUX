@@ -77,16 +77,30 @@ button.
 
 **Focus is not in this list.** It must stay visible while pressed, while
 loading and while showing a result, so it cannot be a value where one wins. It
-is carried separately by `IuxButtonTokens.focused` and drawn additively. A
-design where pressing hides the focus ring is one a keyboard user loses their
-place in.
+is drawn additively by `IuxFocusable`, *outside* the container. There is no
+`focused` field on `IuxButtonTokens`: one existed, no button ever set it, and
+adding one back would mean a ring painted in the container's own decoration —
+over the content it identifies, which is the failure WCAG 2.2 SC 2.4.11 was
+added for. A design where pressing hides the focus ring is one a keyboard user
+loses their place in.
 
-## No shadow by default
+**A finished operation is not in this list either.** `success` and `error`
+members existed until IUX-038 and nothing painted them, while they outranked
+`hovered` — so the only thing they achieved was to stop a settled button
+answering the pointer. A result belongs in wording; see
+`IuxAsyncActionButton`.
 
-`elevateFilled` is off. A filled button is already separated from its
-background by colour, and elevation resolves to zero under a reduced visual
-stimulation preference — so relying on a shadow would mean the button reads
-differently for users who asked for a calmer interface.
+## No shadow, and no switch that offers one
+
+There is no `elevateFilled` and no `IuxButtonTokens.elevation`. Both existed
+until IUX-038 and no widget ever read the value: setting the switch produced a
+byte-identical decoration while the resolver reported a shadow it had computed.
+Wiring it up was refused rather than merely dropped — PROJECT_PROMPT §20 names
+`elevation:` as the archetype of a parameter a button should not take, every
+other IUX surface rests hierarchy on colour, and a shadow vanishes under a
+reduced visual stimulation preference, so any separation resting on it is
+separation some users never receive. A filled button is already separated from
+its background by a contrast-measured fill.
 
 A disabled filled button keeps an outline: its fill sits close to the surface
 behind it, and without one the control stops being identifiable as a control.

@@ -13,7 +13,20 @@ import 'package:iux_flutter/iux_flutter.dart';
 
 /// Three questions, which is enough for "the second one is wrong" to be a
 /// different sentence from "the first one is wrong".
-const List<String> _kLabels = <String>['Email address', 'Postcode', 'Country'];
+const List<String> _kLabels = <String>[
+  'Email address',
+  'Postcode',
+  'Contact me by email',
+];
+
+/// The one field that is not a text box.
+///
+/// IUX-QA-VACUOUS-002. Every field here used to be an [IuxTextField], and an
+/// `EditableText` scrolls *itself* into view when it takes focus — so the test
+/// below passed with `Scrollable.ensureVisible` deleted from `IuxForm`, and
+/// would not have caught its removal. A checkbox does not self-scroll, so it
+/// measures what the form does rather than what Flutter does for it.
+const int _kCheckboxField = 2;
 
 void main() {
   group('validation timing', () {
@@ -77,7 +90,7 @@ void main() {
       expect(host.requests, <String>[
         'Email address:submit',
         'Postcode:submit',
-        'Country:submit',
+        'Contact me by email:submit',
       ]);
     });
 
@@ -137,7 +150,7 @@ void main() {
         (WidgetTester tester) async {
       final _Host host = await pumpForm(tester);
       host.state
-        ..reject(2, 'Choose a country')
+        ..reject(2, 'Choose whether we may email you')
         ..reject(0, 'Enter an email address');
       await tester.pumpAndSettle();
 
@@ -148,7 +161,7 @@ void main() {
           .entries
           .map((IuxValidationSummaryEntry e) => e.label)
           .toList();
-      expect(listed, <String>['Email address', 'Country']);
+      expect(listed, <String>['Email address', 'Contact me by email']);
     });
 
     testWidgets('the count in the sentence comes from the caller',
@@ -210,7 +223,7 @@ void main() {
       final _Host host = await pumpForm(tester, withSummary: false);
       host.state
         ..reject(1, 'Enter a postcode')
-        ..reject(2, 'Choose a country');
+        ..reject(2, 'Choose whether we may email you');
       await tester.pumpAndSettle();
 
       await submit(tester);
@@ -278,14 +291,14 @@ void main() {
     testWidgets('activating an entry focuses the field it names',
         (WidgetTester tester) async {
       final _Host host = await pumpForm(tester);
-      host.state.reject(2, 'Choose a country');
+      host.state.reject(2, 'Choose whether we may email you');
       await tester.pumpAndSettle();
       await submit(tester);
 
       await tester.tap(
         find.descendant(
           of: find.byType(IuxValidationSummary),
-          matching: find.text('Country'),
+          matching: find.text('Contact me by email'),
         ),
       );
       await tester.pumpAndSettle();
@@ -307,23 +320,50 @@ void main() {
 
     testWidgets('an entry brings its field on screen',
         (WidgetTester tester) async {
-      final _Host host = await pumpForm(tester, size: const Size(360, 320));
-      host.state.reject(2, 'Choose a country');
+      // Rewritten at IUX-038 (IUX-QA-VACUOUS-002). This test passed with
+      // `Scrollable.ensureVisible` removed from `IuxForm._navigateTo`, because
+      // the field it measured was an `IuxTextField` and an `EditableText`
+      // brings *itself* into view when it takes focus. It proved Flutter's
+      // behaviour, not the form's. The field is now a checkbox, which does not.
+      //
+      // The viewport is short enough that the summary and the field it names
+      // cannot both be on screen, which is the situation the scroll exists for.
+      final _Host host = await pumpForm(tester, size: const Size(360, 200));
+      host.state.reject(2, 'Choose whether we may email you');
       await tester.pumpAndSettle();
       await submit(tester);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(IuxValidationSummary),
-          matching: find.text('Country'),
-        ),
+      final Finder entry = find.descendant(
+        of: find.byType(IuxValidationSummary),
+        matching: find.text('Contact me by email'),
       );
+      // The user has to be able to reach the entry before activating it, and
+      // `submit` left the window at the bottom of the form. Without this the
+      // tap lands on nothing — and `tester.tap` only *warns* when it misses, so
+      // the assertions below would then be measuring a form nobody touched.
+      await tester.ensureVisible(entry);
       await tester.pumpAndSettle();
 
-      final Rect field = tester.getRect(find.byType(IuxTextField).at(2));
       final Rect window = tester.getRect(find.byType(SingleChildScrollView));
-      expect(field.top, greaterThanOrEqualTo(window.top - 1));
-      expect(field.top, lessThanOrEqualTo(window.bottom));
+      expect(
+        tester.getRect(find.byType(IuxCheckbox)).top,
+        greaterThan(window.bottom),
+        reason: 'the field has to start off screen for this to measure '
+            'anything at all',
+      );
+
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+
+      expect(host.state.focusNodes[2].hasPrimaryFocus, isTrue,
+          reason: 'the entry was activated, not merely tapped at');
+
+      // The whole box, not merely its top edge: a field whose label is on
+      // screen and whose control is below the fold is a field the user has
+      // been sent to and still cannot use.
+      final Rect field = tester.getRect(find.byType(IuxCheckbox));
+      expect(field.top, greaterThanOrEqualTo(window.top));
+      expect(field.bottom, lessThanOrEqualTo(window.bottom));
     });
   });
 
@@ -366,12 +406,14 @@ void main() {
         (WidgetTester tester) async {
       final SemanticsHandle handle = tester.ensureSemantics();
       final _Host host = await pumpForm(tester);
-      host.state.reject(2, 'Choose a country');
+      host.state.reject(2, 'Choose whether we may email you');
       await tester.pumpAndSettle();
       await submit(tester);
 
       final SemanticsNode entry = tester.getSemantics(
-        find.bySemanticsLabel('Country. Choose a country'),
+        find.bySemanticsLabel(
+          'Contact me by email. Choose whether we may email you',
+        ),
       );
       // ignore: deprecated_member_use
       tester.binding.pipelineOwner.semanticsOwner!
@@ -887,6 +929,7 @@ class _FormHostState extends State<_FormHost> {
 
   int submissions = 0;
   int blocked = 0;
+  IuxSelectionState checkbox = IuxSelectionState.unselected;
 
   /// The parent rejecting a value, which is the only place that ever happens.
   void reject(int index, String message) => setState(() {
@@ -946,12 +989,24 @@ class _FormHostState extends State<_FormHost> {
                 edited: widget.edited,
                 onValidationRequested: (IuxValidationTrigger trigger) =>
                     widget.requests.add('${_kLabels[i]}:${trigger.name}'),
-                child: IuxTextField(
-                  input: inputs[i],
-                  controller: controllers[i],
-                  focusNode: focusNodes[i],
-                  onChanged: (String _) {},
-                ),
+                child: i == _kCheckboxField
+                    ? IuxCheckbox(
+                        label: _kLabels[i],
+                        input: inputs[i],
+                        value: checkbox,
+                        focusNode: focusNodes[i],
+                        onChanged: (bool next) => setState(
+                          () => checkbox = next
+                              ? IuxSelectionState.selected
+                              : IuxSelectionState.unselected,
+                        ),
+                      )
+                    : IuxTextField(
+                        input: inputs[i],
+                        controller: controllers[i],
+                        focusNode: focusNodes[i],
+                        onChanged: (String _) {},
+                      ),
               ),
           ],
         ),
