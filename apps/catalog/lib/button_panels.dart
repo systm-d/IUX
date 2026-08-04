@@ -435,15 +435,21 @@ class _OperationPanel extends StatelessWidget {
             ),
           ),
           const CatalogNote(
-            'A running action with the default repeat policy is not '
-            'activatable, so the button is published as disabled and drops out '
-            'of focus traversal — while looking exactly like an available one. '
-            'A keyboard user standing on it when the operation starts loses '
-            'their place, and a screen-reader user is told the control is '
-            'disabled rather than busy. IuxAsyncActionButton avoids this by '
-            'swapping the label and supplying busyHint; a plain IuxButton '
-            'given operation: inProgress does not.',
-            finding: true,
+            'A running action is not activatable under the default repeat '
+            'policy — the readout says so: enabled yes, activatable no. That '
+            'is the truth rather than a defect. The policy really does decline '
+            'a second activation, so withholding the tap is honest; claiming '
+            'the control was unavailable was not.\n\n'
+            'It used to claim exactly that. One flag fed both the semantics '
+            'and the focus node, so a running button announced itself as '
+            'disabled and dropped out of focus traversal — a keyboard user '
+            'standing on it when the operation started lost their place, and '
+            'busyHint was attached to a node they had just been moved off. '
+            'The two were one flag and are now two.\n\n'
+            'What is still worth knowing: this button looks exactly like an '
+            'available one. Nothing but the hint distinguishes busy from idle '
+            'to a sighted user, which is why IuxAsyncActionButton swaps the '
+            'visible label and a plain IuxButton does not.',
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('inProgress, with a busy hint supplied'),
@@ -460,8 +466,10 @@ class _OperationPanel extends StatelessWidget {
             ),
           ),
           const CatalogNote(
-            'The hint arrives, and the control is still published as disabled. '
-            'The hint is the only thing distinguishing busy from unavailable.',
+            'The hint arrives, and the control keeps its focus and announces '
+            'itself as enabled. It offers the focus action but not tap, which '
+            'is the shape that says "working" rather than "unavailable". '
+            'Compare the readout above with this one.',
           ),
         ],
       ),
