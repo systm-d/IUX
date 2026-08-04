@@ -1772,7 +1772,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - Consolidation starts at the two `_spoken` getters and needs edits to
   `iux_guided_form.dart`, which IUX-036 does not own.
 
-### IUX-A11Y-REACH-001 — Two patterns lose their only control under scaling (OPEN)
+### IUX-A11Y-REACH-001 — Two patterns lost their only control under scaling (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxEmptyState`, `IuxPermissionRationale`, `IuxSearchResults`
@@ -1787,9 +1787,44 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
     documented placements fail — the mandated bounded height clips, and a
     `SingleChildScrollView` makes the `ready` branch throw on unbounded
     constraints.
-- Reported and deliberately not fixed: an audit that edits what it audits
-  cannot be trusted, and this needs a decision about who owns scrolling in a
-  pattern, not a patch.
+- **Fixed for `IuxEmptyState` and `IuxPermissionRationale`.** The block
+  scrolls itself when, and only when, it is given a **bounded height**. One
+  `LayoutBuilder`, `constraints.hasBoundedHeight` decides, no new parameter,
+  no new public API.
+- **Why that discriminator and not a flag.** It is not a heuristic — it *is*
+  the question IUX-028 was asking. Every vertical scroll view in Flutter hands
+  its children an unbounded height; that is what makes it a scroll view. So a
+  block inside a caller's `ListView`, `SingleChildScrollView`,
+  `CustomScrollView` or `IuxPage` sees unbounded height and adds nothing, and
+  **IUX-028's rule now holds structurally rather than by convention**. A block
+  given a bounded height was told the size of a box by something that will not
+  scroll it — the dead-screen case.
+- **The alternatives, rejected with reasons.** A `placement:` flag is the
+  right behaviour by the wrong mechanism: a fact the constraints already state,
+  restated as a parameter a caller can get wrong — and it fails in the case
+  that matters most, because the caller who never read the docs is exactly the
+  one who leaves it at its wrong default. Laying out so the control cannot
+  leave the viewport needs shrinking text or pinning the control, and still
+  fails at 300% where the *text* needs the scrolling too. An assertion would be
+  a false-positive machine: unbounded-and-not-scrolling is a legitimate
+  `Column` that fits.
+- **Measured on 320x640.** Empty state reset button: unreachable at 200%
+  (136 px overflow) and 300% (1016 px); now one scrollable and one drag away.
+  Permission ask button: at **150%** the refusal takes its tap and the request
+  does not — IUX-038's asymmetry reproduced exactly — and both tap after the
+  fix. Scrollable count is **1** standalone and **1** inside all four nesting
+  hosts. Never two.
+- **IUX-QA-VACUOUS-003 was demonstrated rather than assumed**: with the fix
+  removed, the same loop with and without the `SizedBox.shrink()` teardown
+  catches the overflow at 200% either way, and **at 300% only with it**.
+- **The lesson worth sweeping for**: the pre-existing "survives 200% text"
+  tests in both files assert `findsOneWidget` on the control labels — presence,
+  not reachability. That is the assertion the defect walked past.
+  `findsOneWidget` is not evidence a control can be pressed.
+- **Open follow-up**: the seven-line `LayoutBuilder` is duplicated across the
+  two patterns because `lib/src/layout/` belonged to a concurrent mission, and
+  `IuxSearchResults` has the same defect and will need the same shape — which
+  would make three. It wants to be one layout primitive.
 
 ### IUX-QA-VACUOUS-003 — Two more, and the mechanism that makes them possible (OPEN)
 

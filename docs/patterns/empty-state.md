@@ -286,6 +286,58 @@ There is **no loading state and no error state.** Those are separate patterns,
 and the boundary is stated in "Do not use when" rather than blurred by a fourth
 enum value here.
 
+## Reaching the way out
+
+**A way out the user cannot reach is not a way out.** The exit is last, under the
+sentences that explain it, so it is the first thing to leave a short viewport.
+Measured on a 320×640 screen, with a glyph, a title and a one-line guidance, in a
+`Center` with nothing else on the page:
+
+| Text scale | Exit at | Hit-testable | Activations | Overflow |
+| --- | --- | --- | --- | --- |
+| 100% | y 406–462 | 1 | 1 | none |
+| 150% | y 529–585 | 1 | 1 | none |
+| 200% | y 712–776 | **0** | **0** | 136 px |
+| 300% | y 1512–1656 | **0** | **0** | 1016 px |
+
+That is WCAG 2.2 SC 1.4.4 and SC 1.4.10 failing on the only control on the
+screen, and the mitigation — put it inside something scrollable — was documented
+and was not the default. Nothing made it the default, which is the defect.
+
+So the block scrolls itself **when, and only when, it is given a bounded
+height**. That is the whole rule, and it is read off the constraints rather than
+asked for in a parameter:
+
+- Every vertical scroll view in Flutter hands its children an unbounded height —
+  that is what makes it a scroll view. A block embedded in a list, a page or a
+  sheet that already scrolls therefore sees an unbounded height and adds nothing,
+  so the rule that it must not introduce a second scroll view holds structurally
+  rather than by convention. There is no flag to forget and none to get wrong.
+- A block given a bounded height has been told the size of the box it may occupy
+  by something that is not going to scroll it. That is where the difference is a
+  reachable control or a dead screen.
+
+```dart
+// Scrolls itself: nothing above is going to.
+Center(child: IuxEmptyState(...))
+
+// Adds nothing: the page is the scroll view, and one is the right number.
+IuxPage(child: IuxEmptyState(...))
+ListView(children: <Widget>[IuxEmptyState(...)])
+CustomScrollView(slivers: <Widget>[SliverToBoxAdapter(child: IuxEmptyState(...))])
+```
+
+**Nothing moves where nothing was wrong.** A `SingleChildScrollView` sizes itself
+to its child up to the height it was given, so a block that fits keeps its size
+and its position — it is still centred by whatever centres it — and reports no
+scroll extent, so it accepts no drag and the gesture goes to whatever is above
+it.
+
+**It does not make a 900-pixel block fit in 640 pixels.** Reaching the exit at
+200% still means scrolling to it; SC 1.4.10 asks for one direction of scrolling,
+not for none. What changed is that scrolling to it is possible: at every scale
+above, the exit is now hit-testable after one drag and takes its tap.
+
 ## Accessibility
 
 - **The message is one stop.** The title and the guidance are merged into a
@@ -349,10 +401,15 @@ is no colour, radius or duration parameter, and there will not be one.
   carries the flag and no more, so TalkBack remains a manual check. Nothing
   essential depends on the announcement — the same words are on screen either
   way.
-- **The block does not scroll.** A very long guidance at a large text scale in a
-  short viewport is the caller's to place inside something scrollable. This
-  pattern imposes no scroll view, because a block embedded in a list that
-  already scrolls must not introduce a second one.
+- **One case is left standing.** The block scrolls only where it was given a
+  bounded height, so a caller who places it in an unbounded, non-scrolling
+  context — a `Column` inside a fixed-height box — still owns that overflow,
+  because a scroll view cannot be built in an unbounded height at all. Flutter
+  reports it as a flex overflow, which is the same report every other widget in
+  that column gets.
+- **Intrinsic dimensions are not available.** The constraints are read through a
+  layout builder, so a caller wrapping the block in an `IntrinsicHeight` is told
+  so by Flutter rather than given a wrong number.
 - **No count is offered.** "0 of 42 invoices" is a sentence the caller writes,
   for the same reason the validation summary's count is a function: plural forms
   differ by language and IUX composes no user-facing text.
@@ -375,13 +432,15 @@ is no colour, radius or duration parameter, and there will not be one.
 | Meaning is never carried by colour alone | Standard | WCAG 2.2 SC 1.4.1 |
 | Every control is named and its state announced | Standard | WCAG 2.2 SC 4.1.2 |
 | Text stays readable when enlarged | Standard | WCAG 2.2 SC 1.4.4 |
+| Content stays reachable at 320 px with one direction of scrolling | Standard | WCAG 2.2 SC 1.4.10 (Reflow) |
+| Reading the constraints rather than taking a "I already scroll" flag | Brand choice | IUX governance, `PROJECT_PROMPT.md` §20, §22 — a default nobody has to remember |
 | Four causes rather than three or five | Brand choice | IUX governance; see "Search and filter are one situation" |
 | Refusing a dead end on an assertion | Brand choice | IUX governance, PROJECT_PROMPT.md §22 |
 | `afterAChange` as the default arrival | Hypothesis | reasoned from the asymmetry of the two failures; needs TalkBack validation |
 
 ## Sources
 
-- WCAG 2.2 — SC 1.1.1, 1.4.1, 1.4.4, 2.4.7, 4.1.2, 4.1.3.
+- WCAG 2.2 — SC 1.1.1, 1.4.1, 1.4.4, 1.4.10, 2.4.7, 4.1.2, 4.1.3.
 - Android accessibility guidance, live regions and `announceForAccessibility`
   deprecation.
 - Nielsen Norman Group, on empty states, blank slates and no-results pages.

@@ -1023,6 +1023,197 @@ void main() {
     });
   });
 
+  group('both answers stay reachable', () {
+    /// The scales the audit measures, and the screen it measures them on.
+    const List<double> scales = <double>[1, 1.5, 2, 3];
+    const Size small = Size(320, 640);
+
+    /// A block carrying what a real one carries, so the controls sit where a
+    /// real one puts them: under a glyph, a title, a reason and a guidance.
+    IuxPermissionRationale block({
+      required VoidCallback onAsk,
+      required VoidCallback onDecline,
+    }) =>
+        IuxPermissionRationale(
+          moment: IuxBeforeAsking(
+            ask: ask(onActivate: onAsk),
+            decline: decline(onActivate: onDecline),
+          ),
+          title: _kTitle,
+          reason: _kReason,
+          guidance: _kGuidance,
+          illustration: Icons.photo_camera_outlined,
+        );
+
+    /// One drag from the middle of the viewport, which is what a user does and
+    /// is never on top of either control.
+    ///
+    /// Far enough to reach the end of any of these blocks; the physics clamp
+    /// it.
+    Future<void> dragToTheEnd(WidgetTester tester) async {
+      await tester.dragFrom(const Offset(160, 320), const Offset(0, -3000));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+        'the fold does not leave the user able to refuse and unable to '
+        'accept', (WidgetTester tester) async {
+      // The measured defect, at the scale it was measured on. The refusal is
+      // laid out first, so when the block outgrows the viewport the fold falls
+      // between the two controls: on 320×640 at 150% the refusal took its tap
+      // and the request did not, which is a screen offering one answer.
+      int asks = 0;
+      int refusals = 0;
+      await pump(
+        tester,
+        block(onAsk: () => asks++, onDecline: () => refusals++),
+        textScale: 1.5,
+        size: small,
+      );
+
+      final Finder refusal = find.byType(IuxButton).at(0);
+      final Finder request = find.byType(IuxButton).at(1);
+
+      // The refusal is where it always was: reachable without moving anything.
+      expect(refusal.hitTestable(), findsOneWidget);
+      await tester.tap(refusal);
+      await tester.pump();
+      expect(refusals, 1);
+
+      // And the request is reachable too, because there is now something to
+      // drag. Without it this is the point at which the user's only remaining
+      // answer is no.
+      await dragToTheEnd(tester);
+      expect(request.hitTestable(), findsOneWidget);
+      await tester.tap(request);
+      await tester.pump();
+      expect(asks, 1);
+    });
+
+    testWidgets(
+        'both controls can be reached and pressed at 100, 150, 200 and '
+        '300 per cent', (WidgetTester tester) async {
+      for (final double scale in scales) {
+        int asks = 0;
+        int refusals = 0;
+        await pump(
+          tester,
+          block(onAsk: () => asks++, onDecline: () => refusals++),
+          textScale: scale,
+          size: small,
+        );
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so this assertion is only worth anything because
+        // every case ends by tearing the tree down (IUX-QA-VACUOUS-003).
+        expect(tester.takeException(), isNull, reason: 'at ${scale}x');
+        expect(find.byType(Scrollable), findsOneWidget, reason: 'at ${scale}x');
+
+        // The request is the lower of the two, so it is the one the fold takes
+        // first; reaching it means the refusal above it is reachable as well.
+        await dragToTheEnd(tester);
+        final Finder request = find.byType(IuxButton).at(1);
+        expect(request.hitTestable(), findsOneWidget, reason: 'at ${scale}x');
+        await tester.tap(request);
+        await tester.pump();
+        expect(asks, 1, reason: 'at ${scale}x');
+
+        final Finder refusal = find.byType(IuxButton).at(0);
+        await tester.ensureVisible(refusal);
+        await tester.pumpAndSettle();
+        expect(refusal.hitTestable(), findsOneWidget, reason: 'at ${scale}x');
+        await tester.tap(refusal);
+        await tester.pump();
+        expect(refusals, 1, reason: 'at ${scale}x');
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets(
+        'a caller who already scrolls does not get a second scroll '
+        'view', (WidgetTester tester) async {
+      // Every vertical scroll view hands its children an unbounded height, so
+      // the block sees one and adds nothing. A sheet or a list that already
+      // scrolls keeps exactly one scrollable region.
+      final Map<String, Widget Function(Widget)> hosts =
+          <String, Widget Function(Widget)>{
+        'an IuxPage': (Widget child) => IuxPage(child: child),
+        'a single-child scroll view': (Widget child) =>
+            SingleChildScrollView(child: child),
+        'a list': (Widget child) => ListView(children: <Widget>[child]),
+        'a sliver list': (Widget child) => CustomScrollView(
+              slivers: <Widget>[SliverToBoxAdapter(child: child)],
+            ),
+      };
+
+      for (final MapEntry<String, Widget Function(Widget)> host
+          in hosts.entries) {
+        await pump(
+          tester,
+          host.value(block(onAsk: () {}, onDecline: () {})),
+          textScale: 2,
+          size: small,
+        );
+
+        expect(tester.takeException(), isNull, reason: 'inside ${host.key}');
+        expect(
+          find.byType(Scrollable),
+          findsOneWidget,
+          reason: 'inside ${host.key} there must be one scroll view, the '
+              "caller's — a second one is a nested scrollable, which is its "
+              'own defect',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('a block that fits is not moved and takes no gesture', (
+      WidgetTester tester,
+    ) async {
+      // The fix has to be invisible where there was nothing wrong.
+      await pump(
+        tester,
+        block(onAsk: () {}, onDecline: () {}),
+        size: small,
+      );
+
+      expect(
+        tester
+            .state<ScrollableState>(find.byType(Scrollable))
+            .position
+            .maxScrollExtent,
+        0,
+      );
+      // And it still hugs its content rather than filling the box it was
+      // given: this block is in a Center, and it is still centred.
+      expect(
+        tester.getRect(find.byType(IuxPermissionRationale)).center.dy,
+        moreOrLessEquals(320, epsilon: 1),
+      );
+    });
+
+    testWidgets('a block that does not fit reports something to scroll', (
+      WidgetTester tester,
+    ) async {
+      await pump(
+        tester,
+        block(onAsk: () {}, onDecline: () {}),
+        textScale: 2,
+        size: small,
+      );
+
+      expect(
+        tester
+            .state<ScrollableState>(find.byType(Scrollable))
+            .position
+            .maxScrollExtent,
+        greaterThan(0),
+      );
+    });
+  });
+
   group('layout under pressure', () {
     testWidgets('a long reason wraps rather than clipping', (
       WidgetTester tester,
@@ -1048,9 +1239,11 @@ void main() {
     testWidgets('it survives 200% text on a small screen', (
       WidgetTester tester,
     ) async {
-      // Placed inside a scroll view, which is the documented contract: the
-      // pattern imposes none of its own, because a block embedded in a list
-      // that already scrolls must not introduce a second one.
+      // Placed inside a scroll view, which is the case where the block adds
+      // none of its own: a block embedded in a list that already scrolls must
+      // not introduce a second one. See "both answers stay reachable" for the
+      // standalone case, and for why finding a control is not the same as
+      // being able to press it.
       await pump(
         tester,
         SingleChildScrollView(

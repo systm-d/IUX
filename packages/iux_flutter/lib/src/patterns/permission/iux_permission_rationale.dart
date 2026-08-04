@@ -193,6 +193,41 @@ const String _kDeadEnd =
 /// remove. It emits no feedback: a component emits feedback only when the
 /// parent supplies the event.
 ///
+/// ## Reaching both controls
+///
+/// **The refusal is first, so the refusal is the one that survives a short
+/// viewport.** That ordering is right for a keyboard and right for a screen
+/// reader, and it has one consequence nobody chose: when the block is taller
+/// than the fold, the fold falls *between* the two controls before it falls
+/// above both. Measured on 320×640 at 150% text, with a glyph, a reason and a
+/// guidance — the refusal took its tap and the ask did not. **The user could
+/// refuse and could not accept**, which is the asymmetry this pattern refused to
+/// build deliberately, arriving through layout instead.
+///
+/// So the block scrolls itself **when, and only when, it is given a bounded
+/// height**. That is the entire rule, and it is read off the constraints rather
+/// than asked for in a parameter, because the constraints already answer the
+/// question the parameter would have asked:
+///
+/// - Every vertical scroll view in Flutter hands its children an unbounded
+///   height — that is what makes it a scroll view. A block placed in a sheet or
+///   a list that already scrolls therefore sees an unbounded height, adds
+///   nothing, and the rule that it must not introduce a second scroll view holds
+///   structurally instead of by convention. There is no flag to forget.
+/// - A block given a bounded height has been told the size of the box it may
+///   occupy by something that is not going to scroll it. That is the case where
+///   the difference is a choice the user can make or only half of one.
+///
+/// Nothing moves when the content fits. A `SingleChildScrollView` sizes itself
+/// to its child up to the height it was given, so a block that fits keeps its
+/// position and its size, and its scroll view accepts no drag because there is
+/// nothing to scroll.
+///
+/// What this cannot do is make a 900-pixel block fit in 640 pixels. Reaching the
+/// lower control still means scrolling to it — WCAG SC 1.4.10 asks for one
+/// direction of scrolling, not for none — and what changed is that both answers
+/// are reachable, which is the only state in which the question is honest.
+///
 /// ## Accessibility
 ///
 /// **The request is announced, unconditionally.** The title, the reason and the
@@ -261,10 +296,16 @@ const String _kDeadEnd =
 /// is why [IuxPermissionMoment.decline] is required: it is the signal a caller
 /// records in order to stop.
 ///
-/// **The block does not scroll.** A long reason at a large text scale in a
-/// short viewport is the caller's to place inside something scrollable, because
-/// a block embedded in a list that already scrolls must not introduce a second
-/// one.
+/// **The block scrolls only where it was given a bounded height.** See
+/// "Reaching both controls". One case is left standing: a caller who places it
+/// in an unbounded, non-scrolling context — a `Column` inside a fixed-height
+/// box — still owns that overflow, because a scroll view cannot be built in an
+/// unbounded height at all. Flutter reports it as a flex overflow, which is the
+/// same report every other widget in that column gets.
+///
+/// **Intrinsic dimensions are not available** through the layout builder that
+/// reads the constraints, so a caller wrapping the block in an `IntrinsicHeight`
+/// will be told so by Flutter rather than given a wrong number.
 ///
 /// **One permission, one block.** A feature needing three of them is three
 /// conversations, and stacking three of these is a screen that asks for
@@ -402,7 +443,7 @@ class IuxPermissionRationale extends StatelessWidget {
       ),
     );
 
-    return IuxSemantics.contentContainer(
+    final Widget block = IuxSemantics.contentContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -427,6 +468,19 @@ class IuxPermissionRationale extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    // See "Reaching both controls". The constraints decide, not a parameter: a
+    // bounded height means nobody above is going to scroll this block, and an
+    // unbounded height is what every vertical scroll view hands its children,
+    // so a block that is already inside one adds nothing.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (!constraints.hasBoundedHeight) return block;
+        // Sizes itself to the block up to the height it was given, so a block
+        // that fits keeps its size and takes no gesture.
+        return SingleChildScrollView(child: block);
+      },
     );
   }
 

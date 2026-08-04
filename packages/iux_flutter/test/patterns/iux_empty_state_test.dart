@@ -624,12 +624,144 @@ void main() {
     });
   });
 
+  group('the way out stays reachable', () {
+    /// The scales the audit measures, and the screen it measures them on.
+    const List<double> scales = <double>[1, 1.5, 2, 3];
+    const Size small = Size(320, 640);
+
+    /// A block with everything a real one carries, so the control sits where a
+    /// real one puts it: below a glyph, a title and a sentence.
+    IuxEmptyState block(VoidCallback onActivate) => IuxEmptyState(
+          cause: IuxNoMatches(reset: wayOut(onActivate: onActivate)),
+          title: _kTitle,
+          guidance: _kGuidance,
+          illustration: Icons.filter_alt_outlined,
+        );
+
+    /// One drag from the middle of the viewport, which is what a user does and
+    /// is never on top of the control being reached.
+    ///
+    /// Far enough to hit the end of any of these blocks; the physics clamp it.
+    Future<void> dragToTheEnd(WidgetTester tester) async {
+      await tester.dragFrom(const Offset(160, 320), const Offset(0, -3000));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+        'the reset can be reached and pressed at 100, 150, 200 and 300 '
+        'per cent', (WidgetTester tester) async {
+      for (final double scale in scales) {
+        int activations = 0;
+        await pump(
+          tester,
+          block(() => activations++),
+          textScale: scale,
+          size: small,
+        );
+
+        // DebugOverflowIndicatorMixin reports an overflow once per render
+        // object lifetime, so this assertion is only worth anything because
+        // every case ends by tearing the tree down (IUX-QA-VACUOUS-003).
+        expect(tester.takeException(), isNull, reason: 'at ${scale}x');
+
+        // The block supplies the one scroll view, because on this screen
+        // nothing else does. Without it the control below is not reachable at
+        // all: measured at 200%, zero hit-testable controls and zero
+        // activations.
+        expect(find.byType(Scrollable), findsOneWidget, reason: 'at ${scale}x');
+
+        final Finder reset = find.byType(IuxButton);
+        await dragToTheEnd(tester);
+
+        expect(reset.hitTestable(), findsOneWidget, reason: 'at ${scale}x');
+        await tester.tap(reset);
+        await tester.pump();
+        expect(activations, 1, reason: 'at ${scale}x');
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets(
+        'a caller who already scrolls does not get a second scroll '
+        'view', (WidgetTester tester) async {
+      // Every vertical scroll view hands its children an unbounded height, so
+      // the block sees one and adds nothing. This is IUX-028's rule, and it now
+      // holds structurally rather than by convention.
+      final Map<String, Widget Function(Widget)> hosts =
+          <String, Widget Function(Widget)>{
+        'an IuxPage': (Widget child) => IuxPage(child: child),
+        'a single-child scroll view': (Widget child) =>
+            SingleChildScrollView(child: child),
+        'a list': (Widget child) => ListView(children: <Widget>[child]),
+        'a sliver list': (Widget child) => CustomScrollView(
+              slivers: <Widget>[SliverToBoxAdapter(child: child)],
+            ),
+      };
+
+      for (final MapEntry<String, Widget Function(Widget)> host
+          in hosts.entries) {
+        await pump(
+          tester,
+          host.value(block(() {})),
+          textScale: 2,
+          size: small,
+        );
+
+        expect(tester.takeException(), isNull, reason: 'inside ${host.key}');
+        expect(
+          find.byType(Scrollable),
+          findsOneWidget,
+          reason: 'inside ${host.key} there must be one scroll view, the '
+              "caller's — a second one is a nested scrollable, which is its "
+              'own defect and the reason IUX-028 refused to impose one',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('a block that fits is not moved and takes no gesture',
+        (WidgetTester tester) async {
+      // The fix has to be invisible where there was nothing wrong. A scroll
+      // view whose content fits reports no scroll extent, so it accepts no
+      // drag and the gesture goes to whatever is above it.
+      await pump(tester, block(() {}), size: small);
+
+      final ScrollableState scrollable =
+          tester.state<ScrollableState>(find.byType(Scrollable));
+      expect(scrollable.position.maxScrollExtent, 0);
+
+      // And it still hugs its content rather than filling the box it was
+      // given, so the parent's alignment is still the parent's: this block is
+      // in a Center, and it is still centred.
+      expect(
+        tester.getRect(find.byType(IuxEmptyState)).center.dy,
+        moreOrLessEquals(320, epsilon: 1),
+      );
+    });
+
+    testWidgets('a block that does not fit reports something to scroll',
+        (WidgetTester tester) async {
+      await pump(tester, block(() {}), textScale: 2, size: small);
+
+      expect(
+        tester
+            .state<ScrollableState>(find.byType(Scrollable))
+            .position
+            .maxScrollExtent,
+        greaterThan(0),
+      );
+    });
+  });
+
   group('layout under pressure', () {
     testWidgets('long text wraps rather than clipping at 200%',
         (WidgetTester tester) async {
-      // Placed inside a scroll view, which is the documented contract: the
-      // pattern imposes none of its own, because a block embedded in a list
-      // that already scrolls must not introduce a second one.
+      // Placed inside a scroll view, which is the case where the block adds
+      // none of its own: a region embedded in a list that already scrolls must
+      // not introduce a second one. See "the way out stays reachable" for the
+      // standalone case, which the block now scrolls itself.
       await pump(
         tester,
         SingleChildScrollView(

@@ -362,6 +362,62 @@ There is **no loading state and no error state.** Those are separate patterns,
 and the boundary is stated in "Do not use when" rather than blurred by an extra
 value here.
 
+## Reaching both answers
+
+**The refusal is laid out first, so the refusal is the one that survives a short
+viewport.** That ordering is right for a keyboard and right for a screen reader,
+and it has one consequence nobody chose: when the block outgrows the viewport,
+the fold falls *between* the two controls before it falls above both.
+
+Measured on a 320×640 screen, with a glyph, a title, a reason and a guidance, in
+a `Center` with nothing else on the page:
+
+| Text scale | Request at | Refusal taps | Request taps | Overflow |
+| --- | --- | --- | --- | --- |
+| 100% | y 474–538 | yes | yes | none |
+| 150% | y 648–732 | **yes** | **no** | 92 px |
+| 200% | y 1032–1176 | no | no | 536 px |
+| 300% | y 2308–2512 | no | no | 1872 px |
+
+The 150% row is the one that matters. **The user could refuse and could not
+accept** — an asymmetry between the two answers, produced by layout rather than
+by any parameter, on a pattern that has no parameter capable of producing it and
+holds "refusing is always as reachable as agreeing" in its own evidence table. A
+one-sided choice is not a choice, and it is the deceptive pattern this block was
+built to make unrepresentable.
+
+So the block scrolls itself **when, and only when, it is given a bounded
+height**. That is the whole rule, and it is read off the constraints rather than
+asked for in a parameter:
+
+- Every vertical scroll view in Flutter hands its children an unbounded height —
+  that is what makes it a scroll view. A block placed in a sheet, a page or a
+  list that already scrolls therefore sees an unbounded height and adds nothing,
+  so the rule that it must not introduce a second scroll view holds structurally
+  rather than by convention. There is no flag to forget and none to get wrong.
+- A block given a bounded height has been told the size of the box it may occupy
+  by something that is not going to scroll it. That is where the difference is a
+  choice the user can make or only half of one.
+
+```dart
+// Scrolls itself: nothing above is going to.
+Center(child: IuxPermissionRationale(...))
+
+// Adds nothing: the sheet or the page is the scroll view, and one is right.
+IuxPage(child: IuxPermissionRationale(...))
+ListView(children: <Widget>[IuxPermissionRationale(...)])
+```
+
+**Nothing moves where nothing was wrong.** A `SingleChildScrollView` sizes itself
+to its child up to the height it was given, so a block that fits keeps its size
+and its position and reports no scroll extent, which means it accepts no drag and
+the gesture goes to whatever is above it.
+
+**It does not make a 900-pixel block fit in 640 pixels.** Reaching the lower
+control at 200% still means scrolling to it; WCAG SC 1.4.10 asks for one
+direction of scrolling, not for none. What changed is that both answers are
+reachable, which is the only state in which the question is honest.
+
 ## Accessibility
 
 - **The request is announced, unconditionally.** The title, the reason and the
@@ -479,9 +535,15 @@ parameter, and there will not be one.
   it, and when, is the platform's decision. A widget test can assert the node
   carries the flag and no more, so TalkBack remains a manual check. Nothing
   essential depends on it — the same words are on screen either way.
-- **The block does not scroll.** A long reason at a large text scale in a short
-  viewport is the caller's to place inside something scrollable, because a block
-  embedded in a list that already scrolls must not introduce a second one.
+- **The block scrolls only where it was given a bounded height.** See "Reaching
+  both answers". One case is left standing: a caller who places it in an
+  unbounded, non-scrolling context — a `Column` inside a fixed-height box —
+  still owns that overflow, because a scroll view cannot be built in an unbounded
+  height at all. Flutter reports it as a flex overflow, which is the same report
+  every other widget in that column gets.
+- **Intrinsic dimensions are not available.** The constraints are read through a
+  layout builder, so a caller wrapping the block in an `IntrinsicHeight` is told
+  so by Flutter rather than given a wrong number.
 - **One permission, one block.** A feature needing three of them is three
   conversations, and stacking three of these is a screen that asks for everything
   at once — which is the pattern users learn to refuse wholesale. Ask for each
@@ -504,6 +566,8 @@ parameter, and there will not be one.
 | Text stays readable when enlarged | Standard | WCAG 2.2 SC 1.4.4 |
 | Decorative imagery is hidden rather than described | Standard | WCAG 2.2 SC 1.1.1 |
 | Adjacent targets keep spacing as well as size | Standard | WCAG 2.2 SC 2.5.8 |
+| Content stays reachable at 320 px with one direction of scrolling | Standard | WCAG 2.2 SC 1.4.10 (Reflow) |
+| Reading the constraints rather than taking a "I already scroll" flag | Brand choice | IUX governance, `PROJECT_PROMPT.md` §20, §22 — a default nobody has to remember |
 | No time limit is imposed, so there is none to adjust | Standard | WCAG 2.2 SC 2.2.1 |
 | SC 3.3.1 does not bind a permission refusal | Standard, read narrowly | WCAG 2.2 SC 3.3.1 — see the section above |
 | A permission is requested in context, when the feature is used | Strong guidance | Android developer guidance on requesting permissions; NN/g *(to verify)* |
@@ -523,7 +587,7 @@ them rather than inherit them as settled.
 
 ## Sources
 
-- WCAG 2.2 — SC 1.1.1, 1.4.1, 1.4.4, 2.2.1, 2.5.8, 3.3.1, 4.1.2, 4.1.3.
+- WCAG 2.2 — SC 1.1.1, 1.4.1, 1.4.4, 1.4.10, 2.2.1, 2.5.8, 3.3.1, 4.1.2, 4.1.3.
 - Android accessibility guidance, live regions and the
   `announceForAccessibility` deprecation.
 - Android developer guidance on requesting runtime permissions and on
