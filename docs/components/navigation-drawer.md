@@ -107,9 +107,18 @@ parent's flag saying it was still open, and the next frame would put it back.
 
 ## How to place it
 
-`IuxModalLayer` has slots for a dialog and a sheet, and **no slot for a
-drawer**. Until it has one, the parent builds the stack, and the shape is not a
-matter of taste:
+`IuxModalLayer` has a `drawer` slot, added with this component at IUX-027 and
+mutually exclusive with the dialog and sheet slots. **Use it**, and the rest of
+this section explains what it is protecting you from:
+
+```dart
+IuxModalLayer(
+  drawer: isOpen ? IuxNavigationDrawer(/* … */) : null,
+  child: page,
+)
+```
+
+If you assemble the stack yourself instead, the shape is not a matter of taste:
 
 ```dart
 // Wrong.
@@ -422,11 +431,15 @@ IuxNavigationDestination(label: 'Reports', icon: ...),
 
 ## Limits
 
-- **No `IuxModalLayer` slot.** The parent assembles the `Stack`, and can
-  assemble it in the shape that breaks the semantics of the page behind. A
-  `drawer` slot on `IuxModalLayer`, typed `IuxNavigationDrawer?` and mutually
-  exclusive with the other two, would make the correct shape the only shape.
-  That change is on `IuxModalLayer`, which this mission does not own.
+- ~~**No `IuxModalLayer` slot.**~~ **Closed at IUX-027.** The `drawer` slot
+  exists, typed `IuxNavigationDrawer?` and mutually exclusive with the other
+  two, so the correct shape is the only one a caller can express. See
+  [How to place it](#how-to-place-it).
+- **A longer dismiss label overflows the header** (`IUX-DRAWER-LABEL-001`).
+  `dismissLabel: 'Close the menu'` overflows by 7.5 px at **100%** text on 800-
+  and 1200-wide surfaces, where `'Close'` does not — the panel caps near 280 px
+  whatever the screen. It only stacks past about 130% text, so enlarging the
+  text fixes it and leaving it alone does not. Keep the label short.
 - **IUX-OVERLAY-001.** Opening the drawer rebuilds the page's subtree, so a
   scrolled list behind it loses its position. The accessible alternative is
   worse; see *How to place it*.

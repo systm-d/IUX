@@ -8,6 +8,11 @@ the wait, the results and their count, nothing matching, or the failure and the
 way out of it — one of those at a time, and exactly one thing announced per
 search.
 
+The example below places the results in an `Expanded`, which is required and
+which means **this composition cannot sit inside an `IuxPage`**. Read
+[Known limitations](#known-limitations) before using it: on the framework's own
+page widget the first non-empty result throws.
+
 ```dart
 Column(
   children: <Widget>[
@@ -359,12 +364,32 @@ indicator.
 
 ## Known limitations
 
-**The results region must be given a bounded height.** The results branch puts
-`builder`'s widget in an `Expanded` below the status line, because a result list
-scrolls and a scrolling list has to be told how tall it is. Given unbounded
-height it fails on Flutter's own unbounded-constraints assertion, which names
-the problem, rather than laying out silently wrongly. Place it inside an
-`Expanded` or a `SizedBox`.
+**The results region must be given a bounded height, and this rules out
+`IuxPage`** (`IUX-SEARCH-RESULTS-001`). The results branch puts `builder`'s
+widget in an `Expanded` below the status line, because a result list scrolls and
+a scrolling list has to be told how tall it is. Given unbounded height it fails
+on Flutter's own unbounded-constraints assertion — which names the problem
+rather than laying out silently wrongly, but still throws.
+
+**`IuxPage` scrolls by default, so it supplies exactly the unbounded height this
+pattern cannot take.** The first non-empty result throws *RenderFlex children
+have non-zero flex but incoming height constraints are unbounded*. The
+documented remedy — place it inside an `Expanded` or a `SizedBox` — therefore
+means giving up `IuxPage`, which is the only thing in the framework that knows
+the page insets and the reading width. There is no arrangement that keeps both.
+
+**It has one empty branch where a list usually needs two.** `IuxSearchResults`
+hard-codes `IuxNoMatches` and **requires** a `reset`, so a collection that has
+never held anything is reported as "no matches, clear the search" beside an
+empty search box. "Nothing exists yet" and "your filter excluded everything" are
+two of the four situations `IuxEmptyStateCause` exists to keep apart, and this
+pattern can express one of them.
+
+**Consequence for a real screen.** A searchable list on an `IuxPage`, which is
+the ordinary case, cannot use this pattern at all today. Compose
+`IuxSearchField`, `IuxEmptyState` and the list directly; the cost is the status
+line, whose count lives in a private widget and has to be reimplemented. Worked
+example in `apps/pilot/lib/jobs_screen.dart`.
 
 **Nothing scrolls.** A very long summary at a large text scale wraps rather than
 truncating, and takes the height it needs from the results below it — in a short

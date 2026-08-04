@@ -1,6 +1,13 @@
 name: iux_flutter
 description: Human-centred foundations and UX patterns for Flutter applications.
-version: 0.1.0-dev.9
+# The one place a version number is decided. `CHANGELOG.md` at the repository
+# root repeats it in its top heading, and `CHANGELOG.md` beside this file names
+# it once. `dart pub publish --dry-run` warns when the second of those drifts,
+# which is how the previous three-way disagreement — this file at 0.1.0-dev.9,
+# the package changelog at 0.1.0-dev.1, the repository changelog at
+# 0.1.0-dev.11 — was visible for three missions before anyone reconciled it.
+# See CONTRIBUTING.md, "Versioning".
+version: 0.2.0-dev.1
 
 # The package is not publishable yet, and this line is the guard rather than an
 # oversight. The repository's LICENSE is a placeholder that grants no

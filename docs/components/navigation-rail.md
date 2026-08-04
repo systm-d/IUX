@@ -441,9 +441,16 @@ the application when the user turns the device.
 
 ## Limits
 
-- **It needs a bounded box.** Given an unbounded width or height it refuses to
-  choose a rail and the layout fails loudly rather than silently. Put it in
-  `Scaffold.body`, not inside a scroll view. Asserted.
+- **It needs a bounded box, and nothing checks that it has one.** This page
+  previously claimed the failure was asserted. **It is not.** The private width
+  check returns false for an unbounded constraint, so the widget **silently
+  picks the bar** — a caller who puts it inside a scroll view gets the phone
+  arrangement on a tablet, with no warning at all. Put it in `Scaffold.body`,
+  not inside a scroll view, and verify by looking.
+- **The rail can be wider than its own window** (`IUX-RAIL-OVERFLOW-001`). At
+  300% in a 360x320 box the leftover is negative and the `Row` overflows by
+  36 px. The rule weighs *how much is left over* for the content and never asks
+  whether the rail itself fits.
 - **Widths here are measured in a test font that is wider than Roboto.** Real
   rails are narrower, so the arrangement flips to the rail slightly earlier on
   a device than the tables above suggest. Nothing in the rule depends on the

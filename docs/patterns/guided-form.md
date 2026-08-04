@@ -155,6 +155,68 @@ Where no summary is configured (`summary: null`), focus falls back to the first
 rejected field. Being moved somewhere useful beats being left where the failure
 is invisible.
 
+### How long a submission is allowed to move focus
+
+**Decision: pressing submit opens a bounded window, and focus arriving in a
+field closes it.**
+
+Two requirements pull against each other, and both are right.
+
+- A rejection that arrives *after* the submission was sent must still move
+  focus. The parent's check runs over a network; the user pressed the control
+  and is standing still waiting for the answer, and this is it.
+- A rejection that arrives because the user tabbed out of a field ten minutes
+  later must not. They asked for nothing, and a caret leaving the box they are
+  typing in is a change of context on input — WCAG 2.2 SC 3.2.2.
+
+Until IUX-039 measured it, the code satisfied the first and not the second.
+`_handleSubmit` incremented the attempt counter, and on the *accepted* path
+never called the focus move, so the counter that says "a submission is waiting"
+was never brought level again. From the first successful submission onward,
+every parent rebuild carrying any rejected field moved focus, forever
+(`IUX-FORM-FOCUS-001`). The obvious repair — bringing the counter level in
+`_handleSubmit` — fixes the second requirement by deleting the first, which
+IUX-039 verified by doing exactly that.
+
+So the window has to be bounded by something, and the framework has four
+candidates. It cannot use the only one most people reach for first:
+
+| Bound | Why not |
+| --- | --- |
+| **elapsed time** | The framework cannot see wall-clock time and should not want to. A screen-reader user working slowly through a long form is not a different user from a fast one, and a window measured in seconds moves focus for whoever was quick and refuses it to whoever was not. |
+| **an outcome the parent reports** — `IuxActionOperation`, a `closeSubmission()` callback, a generation the parent ends | A window the parent closes is a window the parent can forget to close, and a parent that forgets gets `IUX-FORM-FOCUS-001` back with nothing on screen to say so. That is `PROJECT_PROMPT.md` §22 exactly: the failure has to be impossible, not merely documented. It is also new public API for something the widget can already observe (§19). |
+| **the next rebuild after the submission** | Deletes the asynchronous case, which is the case the window exists for. A window one frame wide only ever catches a rejection the parent raised synchronously. |
+| **the user going somewhere** | Chosen. |
+
+The window opens when the user asks to submit and closes on the first of two
+events: **the failure is shown**, or **focus arrives in one of the form's own
+fields**. The form is already listening to every field node — that is how blur
+validation works — so this asks nothing of the parent and adds no parameter.
+
+**Only an arrival closes it, never a departure**, and the asymmetry is the rule
+rather than a detail of it. What the window protects is a caret in a box the
+user is standing in, and a user can only stand in a box they arrived in. A
+departure leaves them at the enclosing scope with no caret to take — and a
+refusal that moved nothing is a refusal a screen-reader user is never told
+about. Closing on a departure would buy no protection and cost the
+announcement.
+
+The two rules differ in exactly one sequence — in a field, submit, leave the
+field without entering another — and there the arrival rule moves focus,
+deliberately. Asking to submit is not itself a departure: `IuxButton` does not
+take focus when it is activated and a focused field keeps focus through the
+tap, measured rather than assumed.
+
+Four tests hold the four edges, and each was proved by breaking the code the
+way it is meant to catch:
+
+| Test | Fails when |
+| --- | --- |
+| `a rejection long after an accepted submission moves nothing` | the arrival hook is removed (the shipped defect) |
+| `a rejection that arrives after the submission still moves it` | the window is never opened, or the accepted path closes its own |
+| `leaving a field does not close the window an arrival closes` | a departure closes it too |
+| `the window is not spent by rebuilds that carry no answer` | the first rebuild closes it, answer or not |
+
 ### Why the summary is not a live region
 
 It is announced because focus lands on it. A live region on top of that would
@@ -362,10 +424,12 @@ frame is a screen-reader user hearing half of each.
   and keyboard-avoidance problems and one parameter cannot answer both.
 - **The form does not scroll.** The page owns scrolling; a form that brought its
   own scroll view would nest one inside the page's.
-- **A late rejection takes focus.** If the parent rejects a field long after the
-  submission was sent, focus moves to the summary at that moment — right if the
-  user was waiting, an interruption if they had gone back to reading the form.
-  The form cannot tell the two apart.
+- **A submission the parent never answers keeps its window open.** If the user
+  presses submit, touches nothing afterwards, and a rejection arrives a long
+  time later, focus moves — right for a user still waiting, wrong for one who
+  walked away from the screen. The form cannot tell those apart without a
+  report the parent has to remember to send, which is the trade the window
+  section argues against.
 - **`edited` is the parent's word.** The form takes it on trust. A parent that
   never sets it gets submit-only checking, which is safe and less helpful.
 - **Sections do not group the summary.** Entries are one flat list in field

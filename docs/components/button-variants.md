@@ -121,6 +121,36 @@ content, so a button inside a `Center` or an `Expanded` stays the size of a
 button. Where no width is on offer — an unbounded row — `expand: true` fails
 loudly rather than quietly ignoring what the caller asked for.
 
+**`IuxTargetSpacing` is such a place, and it is the one most callers reach for**
+(`IUX-EXPAND-CRASH-001`). It is a `Wrap` on both axes, so it offers unbounded
+width, and two stacked full-width buttons — the most obvious thing anyone
+writes — throw *BoxConstraints forces an infinite width*:
+
+```dart
+// Throws.
+IuxTargetSpacing(
+  children: <Widget>[
+    IuxButton(label: 'Save', expand: true, /* … */),
+    IuxButton(label: 'Discard', expand: true, /* … */),
+  ],
+)
+
+// Works, and gives up the 8 px target floor that IuxTargetSpacing provides.
+Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: <Widget>[
+    IuxButton(label: 'Save', expand: true, /* … */),
+    const IuxGap.small(),
+    IuxButton(label: 'Discard', expand: true, /* … */),
+  ],
+)
+```
+
+There is no arrangement today that gives both full-width buttons and the
+guaranteed separation. Choose deliberately: with buttons this large the seam a
+finger might miss is small, but the guarantee is genuinely gone rather than
+merely unstated. Both arrangements are on screen in the catalog.
+
 ## API
 
 | Parameter | Widget | Required | Note |

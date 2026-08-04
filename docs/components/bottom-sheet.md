@@ -70,16 +70,20 @@ PopScope(
 )
 ```
 
-### Why not `IuxModalLayer`
+### Use `IuxModalLayer.sheet`
 
-It should be `IuxModalLayer`, and today it cannot be: that widget's slot is
-typed `IuxDialog?`, deliberately, so an arbitrary widget cannot be dropped into
-a place reserved for something that traps focus and names a route. A sheet
-qualifies, but the type does not know it yet.
+`IuxModalLayer` gained a `sheet` slot at IUX-020, with an assertion refusing a
+dialog and a sheet at once. **Use it.** The plain `Stack` this page used to
+prescribe is no longer necessary, and assembling the stack by hand is how a
+covered page keeps its semantics node and goes on offering a screen reader
+controls the user cannot touch.
 
-Until the layer gains a sheet slot, place the sheet in a plain `Stack` as
-above — a sibling of the page, painted after it. The required change is small
-and stated in [Limits](#limits).
+```dart
+IuxModalLayer(
+  sheet: isOpen ? IuxBottomSheet(/* … */) : null,
+  child: page,
+)
+```
 
 ## The keyboard
 
@@ -315,11 +319,10 @@ act on; report progress inside the content, or on the action's own descriptor.
 Known, stated rather than hidden. The first three are changes this component
 wanted and could not make within its own files.
 
-- **`IuxModalLayer` cannot hold it.** Its slot is `IuxDialog?`. The fix is a
-  second slot — `IuxBottomSheet? sheet` — with `assert(dialog == null || sheet
-  == null)` (a dialog stacked over a sheet is the stacked-modal problem the
-  layer exists to prevent) and a paint order of `[child, sheet, dialog]`. Until
-  then, callers use a `Stack`.
+- ~~**`IuxModalLayer` cannot hold it.**~~ **Closed at IUX-020.** The `sheet`
+  slot exists, with `assert(dialog == null || sheet == null)` and a paint order
+  of `[child, sheet, dialog]`, exactly as this limit proposed. See
+  [Use `IuxModalLayer.sheet`](#use-iuxmodallayersheet).
 - **The keyboard inset is read straight from the ambient `MediaQuery`**, via
   `dependOnInheritedWidgetOfExactType`, because the Component Standard forbids
   `MediaQuery.…Of(` inside a component and the contract test enforces it by

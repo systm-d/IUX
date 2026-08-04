@@ -13,21 +13,44 @@ The package is experimental. Its public API is not stable, and it does not
 claim WCAG conformance for any application built with it: it measures the
 contrast of the palettes it ships and states what it has not verified.
 
+**Read the known-issues list before building on this.** Twenty-two entries in
+the repository's evidence registry are open, several severe enough to leave an
+end user unable to reach a control, and no accessibility validation has been
+performed on real hardware. `docs/MISSION_042_RELEASE_CANDIDATE.md` ranks them
+by what they cost a user.
+
+## Install
+
+`publish_to: none`, and the repository has no licence, so there is no pub.dev
+install yet. Depend on it by path:
+
+```yaml
+dependencies:
+  iux_flutter:
+    path: path/to/packages/iux_flutter
+```
+
 ## Use
+
+Two ancestors matter, and both throw rather than degrading when missing: an IUX
+theme, which every component resolves its colours through, and
+`IuxFeedbackScope`, which anything emitting feedback resolves through.
 
 ```dart
 import 'package:iux_flutter/iux_flutter.dart';
 
-MaterialApp(
-  theme: IuxTheme.light(),
-  darkTheme: IuxTheme.dark(),
-  home: IuxPage(
-    child: IuxButton(
-      label: 'Save',
-      action: const IuxActionDescriptor.primary(
-        semantics: IuxActionSemantics(label: 'Save'),
+IuxFeedbackScope(
+  child: MaterialApp(
+    theme: IuxTheme.light(),
+    darkTheme: IuxTheme.dark(),
+    home: IuxPage(
+      child: IuxButton(
+        label: 'Save',
+        action: const IuxActionDescriptor.primary(
+          semantics: IuxActionSemantics(label: 'Save'),
+        ),
+        onActivate: save,
       ),
-      onActivate: save,
     ),
   ),
 )

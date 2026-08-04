@@ -347,8 +347,30 @@ IuxAppBar(title: l10n.orders, actions: <IuxIconButton>[deleteThisOrder])
 - **A very long title with no controls can push the content most of the way down
   a small screen.** Nothing clips, which is the guarantee; whether a title that
   long is a good title is the caller's decision.
-- **Not exported from the barrel.** `lib/iux_flutter.dart` belongs to whoever
-  owns it; the export lines are listed in the mission report.
+- **Composed with `IuxPage`, three things go wrong** (`IUX-APPBAR-PAGE-001`),
+  and this is the most-repeated composition any application writes.
+  - **The top inset is applied twice, and nothing asserts.** The bar's
+    `SafeArea` removes the inset for its own subtree only; a sibling `IuxPage`
+    on the default `IuxPageInsets.handled` consumes it again. Measured with a
+    40 px inset: content starts at y 152 instead of y 112. `IuxPageInsets`
+    cannot express the fix — `none` also drops the landscape side insets, and
+    there is no `exceptTop` — so the working remedy is
+    `MediaQuery.removePadding(removeTop: true)` around the page. See
+    `apps/pilot/lib/screen_frame.dart`.
+  - **The chrome does not fit at a large text scale, and no component owns the
+    total.** On 320x640 with three destinations: at 100% the bar and bottom
+    navigation take 56 and 92 px and leave 492; at 300% they take 260 and 408
+    and leave **−28**, and the frame overflows. `IuxBottomNavigation` honours
+    its own documented degradation and takes its share first; nothing then
+    defends the content.
+  - **The standard fix is structurally unavailable.** Fill-viewport-or-scroll
+    needs `IntrinsicHeight`, which throws with *LayoutBuilder does not support
+    returning intrinsic dimensions* — `IuxAppBar` uses a `LayoutBuilder`
+    internally to decide whether the title shares a row with the controls. **No
+    IUX screen containing an app bar can take part in `IntrinsicHeight`,
+    `IntrinsicWidth` or intrinsic `Table` sizing.** What is left is to scroll
+    the whole screen, bar included, and the cost is that the title is not
+    pinned at any text scale.
 
 ## Evidence level
 

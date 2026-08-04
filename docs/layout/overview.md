@@ -94,6 +94,14 @@ spacing compensates; IUX keeps both.
 This is the concern IUX-005 explicitly deferred when it delivered the target
 floor.
 
+**It cannot hold a full-width child** (`IUX-EXPAND-CRASH-001`). Being a `Wrap`
+on both axes, it offers its children unbounded width, so
+`IuxButton(expand: true)` inside it throws *BoxConstraints forces an infinite
+width*. Two stacked full-width buttons is the commonest thing anyone writes and
+it is exactly what fails. `Column` plus `IuxGap` works and gives up the floor
+this widget exists to provide; see
+[button variants](../components/button-variants.md#size).
+
 ## Wrapping beats clipping
 
 `IuxTargetSpacing` and `IuxSectionHeader` use `Wrap`, not `Row`. At a large

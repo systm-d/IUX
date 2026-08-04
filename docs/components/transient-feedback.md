@@ -63,6 +63,44 @@ no parameter turns one into the other.
 missing ones are the design: there is no `error` and no `warning`, so a failure
 cannot be placed in this channel at all.
 
+## Where the layer goes, when there is navigation
+
+**`IuxTransientLayer` goes *inside* `IuxAdaptiveNavigation`; `IuxModalLayer`
+goes outside it.** The order is not a preference, and getting it wrong is
+`IUX-TRANSIENT-COVER-001` — the worst defect the pilot application found.
+
+```dart
+IuxModalLayer(                 // outside: a dialog must cover the navigation
+  dialog: controller.dialog,
+  child: IuxAdaptiveNavigation(
+    // …
+    child: IuxTransientLayer(  // inside: a notice must not
+      message: notice,
+      onDismissed: dismiss,
+      child: screen,
+    ),
+  ),
+)
+```
+
+A dialog is a question, and a user who can change section while it is open
+answers it about a screen they have left — so it covers the navigation. A notice
+is not a question, and covering the navigation with one is a reachability
+failure rather than a modal one.
+
+**This layer pins its message to the bottom of whatever it wraps and reserves no
+layout space for it.** Wrapped around the whole shell it therefore lands on top
+of the bottom navigation bar. Measured on a 360x800 window: the notice occupies
+y 712–760, the three destinations sit at y 740–786, and **all three report
+`hitTestable = 0` for the whole dwell**. The dwell is a minimum of four seconds
+and by design cannot be shortened, so on that arrangement every "Draft saved"
+costs the user their ability to change section — a WCAG 2.2 SC 2.2.1 failure
+produced by composition, with neither component at fault on its own.
+
+A pushed route cannot reach the layers beneath it, so **every route that shows a
+notice or a dialog places its own pair.** See `apps/pilot/lib/main.dart` and
+`apps/pilot/lib/job_detail_screen.dart`.
+
 ## Do not use when
 
 - **The message answers a question the user asked.** They are waiting for it;

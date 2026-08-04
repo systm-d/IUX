@@ -320,23 +320,32 @@ over this, because every fix is a focus movement of the kind it has just argued
 against, onto a node that would itself vanish when the content arrived — two
 interruptions in place of one.
 
+> **Fixed at IUX-038** (`IUX-BUTTON-BUSY-001`). The paragraphs below describe
+> the behaviour as it was and are kept because the reasoning still explains the
+> shape of the fix. A running `IuxButton` now **keeps the focus the user put on
+> it**, reports `enabled: Tristate.isTrue`, carries its `busyHint`, and offers
+> `[focus]` but not `tap`. Withholding the tap is the truth — the repeat policy
+> really does decline a second activation — while calling the control disabled
+> was not. The two were one flag and are now two.
+
 Leaving the region failed and driving `IuxRetryRoute.isRunning` instead *should*
-have been the answer, since the control stays mounted. **It is not, and a probe
-rather than a reading established that.** `IuxButton` passes
+have been the answer, since the control stays mounted. **It was not, and a probe
+rather than a reading established that.** `IuxButton` passed
 `IuxActionDescriptor.isActivatable` to its focus node's `canRequestFocus`, and
 that getter is false while an action is in progress under the default repeat
-policy, so a running control leaves the focus order and drops the focus it held.
-The same getter feeds the announced enabled state, so a running retry is
+policy, so a running control left the focus order and dropped the focus it held.
+The same getter fed the announced enabled state, so a running retry was
 announced as **unavailable** rather than as busy, and `busyHint` — which exists
-so a running control is not silent — lands on a node the user has just been
+so a running control is not silent — landed on a node the user had just been
 moved off.
 
-Both are `IuxButton`'s to fix. Availability and operation are orthogonal in the
-action model, and `IuxActionDescriptor` even asserts that a disabled action
-cannot be in progress; the button collapses them anyway. Until it is fixed,
-prefer returning the region to a wait: it is the simpler flow, it keeps one
-state on screen, and the alternative currently buys nothing. Two tests pin the
-current behaviour so the day it changes is visible.
+Both were `IuxButton`'s to fix, and both are fixed. Availability and operation
+are orthogonal in the action model, and `IuxActionDescriptor` even asserts that
+a disabled action cannot be in progress; the button used to collapse them
+anyway. Returning the region to a wait remains the recommendation: it is the
+simpler flow and it keeps one state on screen. The two tests that pinned the
+defective behaviour were flipped rather than deleted, which is what they were
+written for.
 
 **A live region is a request, not a guarantee.** Whether the platform speaks it,
 and when, is the platform's decision. A widget test can assert that the node

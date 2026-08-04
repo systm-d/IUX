@@ -1,5 +1,279 @@
 # Changelog
 
+The version in `packages/iux_flutter/pubspec.yaml` decides; the heading below
+repeats it. See CONTRIBUTING.md, "Versioning".
+
+## 0.2.0-dev.1 — IUX-008.8, 008.9, 029 to 041
+
+Eight patterns, three audits, and the first application built on the framework
+end to end. The `0.1.0-dev` line ends at `0.1.0-dev.11`: the pubspec's
+`0.1.0-dev.9` and the package changelog's `0.1.0-dev.1` were lags, never
+releases, and the three files are reconciled here.
+
+**This is not a release candidate, and calling it one would be the first thing
+this project has claimed without evidence.** Twenty-two entries in
+`docs/evidence/semantic-tokens-and-accessibility.md` are open. Several are
+severe enough to lock an end user out of a control they need — the assessment,
+with the argument for what blocks a release and what does not, is in
+`docs/MISSION_042_RELEASE_CANDIDATE.md`.
+
+### Added
+
+Eight patterns, sixteen libraries, in `src/patterns/`.
+
+- **`IuxErrorRecovery`** with a sealed `IuxRecoveryRoute` — `IuxRetryRoute`,
+  `IuxAlternativeRoute`, `IuxUnrecoverable` (IUX-029). An error with no way
+  forward has to be *declared*, not shipped by omission. `IuxRetryRoute`
+  accepts no `IuxActionDescriptor` at all: a parent out of retry budget swaps
+  the route rather than greying the control, which removing the parameter turns
+  from advice into a rule. Nothing retries on its own — verified by pumping 30
+  seconds for zero attempts — so the pattern sets no time limit and SC 2.2.1
+  has nothing to bind.
+- **`IuxLoadingRetry<T>`** over a sealed `IuxLoadState<T>` — `IuxLoadInProgress`,
+  `IuxLoadReady`, `IuxLoadFailed` (IUX-030). **There is no `.empty`.** An empty
+  result is *ready with an empty value*, so the builder can name which of
+  `IuxEmptyStateCause`'s four situations it is; a fourth enum value would put
+  "add your first invoice" one step away from "a filter hid forty". One
+  traversal of the indeterminate bar is 1800 ms, which is why a load resolving
+  in 80 ms shows under a twentieth of one crossing and reads as a rendering
+  fault rather than as work.
+- **`IuxPermissionRationale`** with a sealed `IuxPermissionMoment` —
+  `IuxBeforeAsking`, `IuxAfterRefusal`, `IuxSystemWillNotAsk` (IUX-031). Before
+  and after cannot be confused because they are different types.
+  `IuxSystemWillNotAsk` has **no ask parameter**: a control offering to request
+  a permission the system will refuse to request reads as a broken app.
+  `decline` is required on all three — it is the only signal an application
+  gets that the user said no to *being asked*, and a pattern without it can
+  only nag. The refusal comes first in reading order, so the control that opens
+  the OS prompt is never under the first Enter, and both answers are real
+  buttons: the asymmetry, not the wording, is the manipulation.
+- **`IuxDestructiveFlow`** and `IuxDestructiveFlowController`, with
+  `IuxDestructiveScope` and a sealed, required `IuxWayBack` — `IuxUndoOffer` or
+  `IuxNoWayBack` (IUX-032). Proportionality asks one question a caller cannot
+  get wrong: *could the user list what they are about to lose?* Two values, not
+  four, because there are exactly two safeguards to allocate. `everything` plus
+  an undo offer is refused — an undo only protects somebody who can tell they
+  need it, and a user who deleted an account cannot inspect what went.
+- **`IuxGuidedForm`** with `IuxGuidedFormStep` (IUX-033). Forward progress is
+  never blocked and no step can be locked: a step that refuses is worse than a
+  button that does, because the question at fault is not on screen. `summary`
+  is required here where `IuxForm` allows null, since focusing the first
+  rejected field is impossible when that field is unmounted.
+- **`IuxSearchField`** and `IuxSearchResults<T>` (IUX-034). Two widgets rather
+  than one, because on Android the box very often lives in the app bar and the
+  results in the body. The results take an `IuxLoadState<List<T>>` — a search
+  is a load, so there is no second state machine. Exactly one announcement per
+  settled search: measured, a five-character undebounced query produces ten
+  live regions, and with one pause, two.
+- **`IuxProgressiveDisclosure`** over a sealed `IuxDisclosureState` —
+  `collapsed`, `expanded`, `heldOpen` (IUX-035). Four rules are stated for what
+  may never be disclosed and **exactly one is enforced by a type**; the docs say
+  which, because a guarantee that is a guess is worse than none. Nothing
+  animates, and the absence is proved rather than described.
+- **`IuxOnboardingFlow`** with `IuxOnboardingStep` (IUX-036). Skip is required
+  on every step including the last: an onboarding a user cannot leave is a wall.
+- `IuxTextContent.search` and `IuxTextField.onSubmitted` (IUX-038), closing two
+  of the three gaps IUX-034 recorded. No `textInputAction` parameter — the
+  action key is resolved from `content` — and `onSubmitted` on a multiline field
+  asserts, because its action key *is* the newline key.
+- A catalog covering every barrel export, at text scales to 300% with a
+  worst-case preset in one tap (IUX-008.8, IUX-037), and `apps/pilot` — a
+  four-screen application whose deliverable is its friction log (IUX-041).
+
+### Changed
+
+**Breaking**, all in the button theme (IUX-038). Five members removed rather
+than wired, with the reasoning left where each field was: `elevateFilled`,
+`IuxButtonTokens.elevation`, `IuxButtonTokens.focused`, `IuxButtonState.success`
+and `.error`.
+
+`success` and `error` were not merely inert — **they swallowed hover.** They sat
+above `hovered` in the resolver's precedence and returned the resting palette,
+so an idle filled button moves `#1560B0` → `#0F4289` on hover while a succeeded
+or failed one does not move at all. Removing them repairs an observable defect.
+
+`component_standard_test.dart` now asserts that every field of every
+`Iux*Tokens` class is read outside its declaring file. It rediscovered
+`elevation` independently across all eighteen token classes, and was proved by
+re-adding a dead field.
+
+### Fixed
+
+- **Assistive technology could not move focus onto an IUX control.**
+  `IuxSemantics.action` set `excludeSemantics` to control the announced name,
+  which deleted the focus state the `IuxFocusable` subtree contributed: an IUX
+  button reported `isFocused: Tristate.none` with actions `[tap]` where
+  Flutter's own reports `Tristate.isFalse` and `[tap, focus]`. `IuxButton` now
+  matches Flutter. This is the third thing that one mechanism had silently
+  deleted — it took `onTap` first, at IUX-005, and every IUX button was
+  unusable with a screen reader for six missions. **Still open everywhere
+  else**; see *Known open*.
+- **A running button announced itself as unavailable and threw away the user's
+  focus.** `_IuxActionSurface` fed one `isActivatable` value to both
+  `canRequestFocus` and the semantics `enabled` flag, so a keyboard user who
+  pressed "Try again" was thrown back to the enclosing scope, Android announced
+  "unavailable" for something that was working, and `busyHint` landed on a node
+  the user had just been moved off. A running button now keeps its focus,
+  reports enabled, carries its hint, and offers `[focus]` but not `tap` —
+  withholding the tap is the truth, since the repeat policy really does decline
+  a second activation, while claiming the control was disabled was not.
+  IUX-008.9 proved the conflation by measuring the same running action keeping
+  focus under `repeatPolicy: allow` and losing it under `ignoreWhileInProgress`.
+- **A generic sealed type broke equality silently** (IUX-030). All three
+  subclasses of `IuxLoadState<T>` compared with a type test while `hashCode`
+  folded `T` in. Dart generics are covariant, so `loose == tight` was true and
+  `tight == loose` false: a value a `Set` holds twice and a `Map` never finds.
+  First generic sealed type in the project, which is why the pattern used
+  correctly everywhere else was wrong here.
+- **The lint the project relied on had never run** (IUX-040). The root
+  `analysis_options.yaml` raised the *severity* of `public_member_api_docs`
+  without adding it to `linter.rules` — a no-op, for forty-two missions.
+  Enabling it surfaced 41 undocumented public members in the foundations file
+  alone, now written. The package lint set goes from 8 rules to 160.
+- **Two tests that had never tested anything**, each now proved by breaking the
+  code (IUX-008.9). *"A disabled button is skipped by focus traversal"* read
+  `find.byType(Focus).first` — a `MaterialApp` puts nine `Focus` widgets in the
+  tree and the button's own is the last, so the behaviour was entirely
+  unguarded and passed with `canRequestFocus: true` hardcoded. A third
+  (IUX-QA-VACUOUS-002) was repaired in its harness at IUX-038, where a fourth
+  surfaced underneath it: at 200 px the summary entry sat at y = −82, and
+  `tester.tap` only *warns* on a miss.
+- `IuxRetryRoute.alternative` was a public field nothing could read, which also
+  contradicted the doc twelve lines below it (IUX-029).
+
+### Measured, and stated so nobody optimises on a hunch
+
+- **Resolvers are not hot** (IUX-PERF-002). 200k calls each after a 20k warm-up:
+  `IuxButtonResolver` 710 ns, the slowest (`IuxNavigationDrawerResolver`)
+  1,557 ns. One 60 Hz frame is 16,667,000 ns, so the worst is 0.009% of one.
+  The per-frame contrast maths that does exist — two `computeLuminance()` calls
+  for a scrim — costs 37 ns. Nothing to optimise.
+- **The Flutter lower bound is now evidence rather than habit.**
+  `flutter: '>=3.35.0'` is where `MediaQuery.supportsAnnounceOf` first appears
+  in a stable tag, and all 202 Flutter types referenced by `lib/` exist there.
+  Only Flutter 3.44.8 / Dart 3.12.2 has actually run the suite.
+- **The cost of composing no user-facing strings, measured for the first time**
+  (IUX-041): 99 declarations, 19% of the pilot's `lib/`. The finding is not the
+  total but that **17 of the 99 never appear on screen** — they exist only for
+  assistive technology, no design mock contains them, and the easiest to forget
+  are exactly the ones only a screen-reader user would miss. The decision stays
+  right; the cost is now honest.
+
+### Corrected
+
+- **`IUX-A11Y-FOCUS-001` had been recorded as fixed for every IUX control. It
+  was fixed for one.** `IuxFocusNodeOwner` has exactly one call site; the
+  disclosure control, validation-summary entries and both transient-layer
+  controls still report `isFocused: Tristate.none`. Found by IUX-038 auditing
+  the fix it had just landed.
+- **IUX-033 proposed *"did the user ask for this?"* as the single line behind
+  seven independent focus decisions. Measured across all seven, five hold**
+  (IUX-039). The two form patterns do not, and the reason is a real defect
+  (IUX-FORM-FOCUS-001). The test was a good description of the intent and not
+  of the code.
+- **IUX-038's eleven-parameter argument was weaker than it looked** (IUX-039).
+  Across all 59 public widget constructors exactly one reaches eleven
+  parameters, and none of its eleven is a styling knob. Its other two reasons
+  for declining the disclosure-control merge stand.
+- IUX-037 recorded that `src/patterns/onboarding/` was "not exported and
+  therefore not public API yet", and so did not give it a catalog panel. The
+  onboarding exports had landed 21 minutes earlier, at IUX-036.
+  **`IuxOnboardingFlow` is public API with no catalog coverage.**
+- `IUX-PUBLISH-001` records "47 broken dartdoc references … that render as
+  literal text on pub.dev". Both halves are true of different things: the
+  `comment_references` lint reports 48 (47 `lib`, 1 `test`), while `dart doc`
+  reports **4** unresolved references — those four are what actually renders as
+  literal text. The remediation is four one-line fixes, not forty-seven.
+- Two doc pages claimed a running button announces "In progress"; that literal
+  was removed at IUX-008.6 precisely because it shipped English into every
+  non-English application (IUX-008.9).
+
+### Refused, and recorded rather than deferred
+
+Accordion exclusivity and the group widget with it (IUX-035). A leading-glyph
+parameter with no caller (IUX-035). Suggestions — `SemanticsRole.comboBox`
+**throws** on Flutter 3.44.8, so a list could ship only with no role at all, and
+a test pins the day that changes (IUX-034). The onboarding dot row: probed
+first, and four decorated `Container`s produce a node with an empty label and
+zero children, so it announces nothing (IUX-036). A four-rung proportionality
+ladder, and any default undo window (IUX-032). A framework timeout, and a
+debounce — one tuned to a fast typist fires after every character for a slow
+one, and slow typists are disproportionately the screen-reader and
+switch-access population (IUX-029, 030, 034). `prefer_is_empty`, because a
+probe shows `assert(label.isNotEmpty)` in a `const` constructor fails, so the
+lint would take `const` off every widget that refuses an empty label (IUX-040).
+
+A guard making `IuxButton` refuse a confirmation policy it cannot honour was
+**written, tested and reverted**, and the record kept so the next person does
+not spend the same hour: it cannot be an initialiser assertion because the
+constructors are `const`, and past that it breaks two legitimate callers.
+
+### Known open
+
+Twenty-two entries, **as of commit `80bdcc9`**. Four of them were being fixed by
+other missions while this entry was being written — `IUX-EXPAND-CRASH-001`,
+`IUX-A11Y-REACH-001`, `IUX-FORM-FOCUS-001` and `IUX-TRANSIENT-COVER-001` — so
+check the evidence registry before relying on any of those four still being
+open. The full text, with measurements, is in
+`docs/evidence/semantic-tokens-and-accessibility.md`; the release argument is in
+`docs/MISSION_042_RELEASE_CANDIDATE.md`. The ones that reach an end user:
+
+- **`IUX-BUTTON-CONFIRM-001`.** `IuxButton(action:
+  IuxActionDescriptor.destructive(...))` compiles, asserts nothing and runs
+  `onActivate` on the **first tap** — measured, `runs == 1`. The `destructive`
+  factory *defaults* to `IuxConfirmBeforeExecution`, so the trap sits on the
+  shortest path a caller can write for a deletion. `IuxConfirmByHold` is worse:
+  nothing anywhere honours it.
+- **`IUX-A11Y-REACH-001`.** `IuxEmptyState` at 200% on a 320 px screen puts its
+  only control at y 904–1008 against a 640 px fold, with **no scrollable on the
+  page**; tapping yields zero activations. `IuxPermissionRationale` at **150%**
+  lets the user refuse but not accept. The pilot showed the documented
+  mitigation works — both sit inside `IuxPage`, which scrolls — so the defect is
+  that nothing makes it the default.
+- **`IUX-TRANSIENT-COVER-001`.** A notice pins over the bottom navigation and
+  the layer reserves no space: on 360x800, notice at y 712–760, destinations at
+  y 740–786, all three `hitTestable = 0` for a dwell of at least four seconds
+  that by design cannot be shortened. The fix — transient layer *inside* the
+  navigation, modal layer outside — is written in the pilot and nowhere in the
+  framework.
+- **`IUX-APPBAR-PAGE-001`.** Three defects in the most-repeated composition
+  there is. The top inset is applied twice and nothing asserts. The chrome does
+  not fit: on 320x640 at 300% the bar and navigation take 260 and 408 px and
+  leave the content **−28**, because no component owns the total. And the
+  standard fix is unavailable — `IuxAppBar` uses a `LayoutBuilder`, so no IUX
+  screen containing one can take part in `IntrinsicHeight`.
+- **`IUX-EXPAND-CRASH-001`.** Two stacked full-width buttons inside
+  `IuxTargetSpacing` throw. The workaround gives up the 8 px target floor that
+  `IuxTargetSpacing` exists to provide.
+- **`IUX-SEARCH-RESULTS-001`.** The ready branch throws on an `IuxPage`, and the
+  pattern hard-codes `IuxNoMatches`, so a collection that never held anything is
+  reported as "no matches, clear the search" beside an empty box.
+- **`IUX-OVERLAY-001`**, worse than previously recorded: opening a modal does
+  not merely lose a scroll position, it **disposes** the panel that was scrolled
+  to, so its callback throws `setState() called after dispose()`.
+- **`IUX-FORM-FOCUS-001`.** An accepted submission arms an unbounded focus move,
+  so a later blur check rips the caret into the summary. Needs a bounded
+  pending-submission window, which is a decision.
+- **`IUX-LISTITEM-TRAILING-001`.** `IuxListItem.tappable` with an
+  `IuxStatusIndicator` overflows 68 px at 200% and 214 px at 300% on 320 px.
+  Neither component overflows alone.
+- **`IUX-A11Y-FOCUS-001` (partial)**, `IUX-DESTRUCTIVE-FOCUS-001`,
+  `IUX-GUIDED-FORM-LIVE-001`, `IUX-PROGRESS-LABEL-001` (a 45% bar can announce
+  "90%"), `IUX-RAIL-OVERFLOW-001`, `IUX-DRAWER-LABEL-001`, `IUX-SURFACE-001`.
+
+Not defects but open all the same: `IUX-API-DEAD-001` (`importance` read by
+zero call sites, `IuxElevation` an exported enum with no references),
+`IUX-API-NAMING-001` (`summary` names three unrelated types;
+`IuxInlineFeedbackAction` and `IuxTransientAction` are field-for-field
+identical), `IUX-QA-VACUOUS-003`, `IUX-ONBOARDING-003`, `IUX-PERF-001`
+(opening a keyboard rebuilds 106 elements against Material's 14, none of which
+can change a pixel), and `IUX-PUBLISH-001`.
+
+**The manual validation register is still empty.** No TalkBack, Voice Access,
+physical keyboard, D-pad, on-device display scaling or platform high-contrast
+run has been performed on hardware, at any point in forty-two missions. Every
+accessibility claim in this changelog rests on widget tests.
+
 ## 0.1.0-dev.11 — IUX-025, 026, 027, 028
 
 Navigation completed across three arrangements, plus the first of the
