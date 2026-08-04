@@ -66,3 +66,12 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  # This package draws Material glyphs (Icons.check and Icons.remove are the
+  # selection controls' marks, and IuxIcon takes arbitrary IconData), so it
+  # declares the font itself. Flutter aggregates this flag across an app and
+  # its dependencies, which is what stops every consumer from having to know.
+  #
+  # Its absence is silent and total: no exception, no warning, every glyph
+  # simply blank — a radio that changes state with an invisible mark reads as
+  # a radio that does not work.
+  uses-material-design: true
