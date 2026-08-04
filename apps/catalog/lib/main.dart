@@ -329,18 +329,34 @@ class _ConditionsPanel extends StatelessWidget {
   void _updateProfile(IuxAccessibilityProfile profile) =>
       onConfigurationChanged(configuration.copyWith(profile: profile));
 
+  // The worst-case conditions, in one place. The button applies these and the
+  // sentence beneath it is computed from the same values, so the two cannot
+  // disagree — the mistake a hand-written caption makes the first time
+  // somebody changes the preset and forgets the prose.
+  static const Brightness _stressBrightness = Brightness.dark;
+  static const IuxContrast _stressContrast = IuxContrast.high;
+  static const IuxDensity _stressDensity = IuxDensity.compact;
+  static const double _stressTextScale = 3;
+  static const bool _stressLongLabels = true;
+
+  static String get _stressDescription =>
+      'Applies ${_stressBrightness.name}, ${_stressContrast.name} contrast, '
+      '${_stressDensity.name} density, '
+      '${_stressTextScale.toStringAsFixed(0)}00% text and long labels. '
+      'The text is meant to be that large: it is where most defects show.';
+
   void _applyStress() {
     onConfigurationChanged(
       configuration.copyWith(
-        brightness: Brightness.dark,
+        brightness: _stressBrightness,
         profile: _profile.copyWith(
-          contrast: IuxContrast.high,
-          density: IuxDensity.compact,
+          contrast: _stressContrast,
+          density: _stressDensity,
         ),
       ),
     );
-    onTextScaleChanged(3);
-    onLongLabelsChanged(true);
+    onTextScaleChanged(_stressTextScale);
+    onLongLabelsChanged(_stressLongLabels);
   }
 
   void _applyDefaults() {
@@ -379,11 +395,10 @@ class _ConditionsPanel extends StatelessWidget {
           children: <Widget>[
             IuxButton(
               label: 'Worst case',
-              action: const IuxActionDescriptor(
+              action: IuxActionDescriptor(
                 semantics: IuxActionSemantics(
                   label: 'Apply the worst-case conditions',
-                  hint: 'Dark, high contrast, compact, 300% text, long '
-                      'labels',
+                  hint: _stressDescription,
                 ),
               ),
               onActivate: _applyStress,
@@ -401,6 +416,8 @@ class _ConditionsPanel extends StatelessWidget {
             ),
           ],
         ),
+        SizedBox(height: geometry.spacingXxs),
+        Text(_stressDescription, style: type.body),
         SizedBox(height: geometry.spacingSm),
         CatalogChoice<Brightness>(
           label: 'Brightness',
