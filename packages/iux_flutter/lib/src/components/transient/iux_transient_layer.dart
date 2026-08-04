@@ -31,6 +31,29 @@ const String _kNonPositiveDwell =
 /// )
 /// ```
 ///
+/// **Where it goes when the application has navigation.** Inside it, always —
+/// this layer wraps the *page*, never the frame. See
+/// [debugCheckNotPlacedOver], which refuses the other arrangement, and
+/// `docs/components/transient-feedback.md` for the measurement that put the
+/// check there.
+///
+/// ```dart
+/// IuxModalLayer(                       // outside: a dialog covers navigation
+///   dialog: state.dialog,
+///   child: IuxAdaptiveNavigation(
+///     label: l10n.mainNavigation,
+///     selectedIndex: section.index,
+///     destinations: destinations,
+///     onDestinationSelected: controller.goTo,
+///     child: IuxTransientLayer(        // inside: a notice must not
+///       message: state.notice,
+///       onDismissed: controller.clearNotice,
+///       child: IuxPage(child: body),
+///     ),
+///   ),
+/// )
+/// ```
+///
 /// This is what other libraries call a snack bar or a toast. IUX names it for
 /// the property that decides whether you may use it — that it disappears —
 /// rather than for its shape, because the shape is not what goes wrong.
@@ -118,6 +141,111 @@ class IuxTransientLayer extends StatelessWidget {
   /// the reading time derived from the message are ignored, and there is
   /// deliberately no parameter anywhere that can shorten a dwell.
   final Duration? minimumDwell;
+
+  /// Refuses a component this layer would pin a message over.
+  ///
+  /// Call it from `build`, and only inside an `assert`:
+  ///
+  /// ```dart
+  /// @override
+  /// Widget build(BuildContext context) {
+  ///   assert(IuxTransientLayer.debugCheckNotPlacedOver(context));
+  ///   // …
+  /// }
+  /// ```
+  ///
+  /// Returns true when no [IuxTransientLayer] frames [context], and throws a
+  /// [FlutterError] naming `context.widget.runtimeType` when one does — which is
+  /// why it belongs in `build` rather than in a builder callback, where it would
+  /// name the builder. The whole body is inside an assertion, so a release build
+  /// carries none of it; the ancestor walk is O(depth) and runs once per build
+  /// of the component that asks.
+  ///
+  /// **What it is for.** This layer pins its message to the bottom edge of
+  /// whatever it wraps and reserves no layout space for it. That is the
+  /// contract, and it is safe over a page. It is not safe over a *frame*: a
+  /// bottom navigation bar sits at the same edge, so a layer wrapped around the
+  /// navigation puts every notice on top of the destinations and takes the
+  /// user's ability to change section away for the length of the dwell. The
+  /// dwell is at least four seconds and there is deliberately no parameter that
+  /// can shorten it — see `IuxTransientTiming` — which turns what looks like a
+  /// cosmetic overlap into a failure of WCAG 2.2 SC 2.2.1.
+  ///
+  /// IUX-041 measured it on a 360 × 800 window with the layer wrapped around
+  /// `IuxAdaptiveNavigation`: the notice occupied y 712–760, the three
+  /// destinations sat at y 740–786, and all three reported `hitTestable = 0`.
+  /// Neither component was wrong on its own. Only the arrangement was, and
+  /// nothing said so — which is why this is a thrown error rather than another
+  /// paragraph in a document.
+  ///
+  /// **Why ancestry is almost the whole test.** A message is painted over
+  /// exactly the subtree this layer wraps, so a navigation component that is a
+  /// descendant is one a message can land on and one that is not, is not.
+  ///
+  /// **And why a scroll view ends the walk.** A notice is pinned to the bottom
+  /// of the *viewport*; content inside a scroll view moves past that edge and is
+  /// not at it. Navigation never scrolls — `docs/components/navigation-rail.md`
+  /// and `docs/components/bottom-navigation.md` both say to put it in
+  /// `Scaffold.body` and not in a scroll view — so a navigation component found
+  /// on the far side of one is not acting as navigation. It is a specimen: a
+  /// component gallery, a design-system page, a screenshot harness. IUX ships
+  /// one of those in `apps/catalog`, where three of these components are
+  /// rendered live inside a `ListView` under the catalog's own transient layer,
+  /// and a notice drifting over a specimen costs a reader nothing. Refusing that
+  /// would be refusing the library's own documentation of itself.
+  ///
+  /// The hole this leaves is an application that puts its real navigation inside
+  /// a scroll view. That arrangement is already broken for a louder reason — an
+  /// unbounded height makes `IuxAdaptiveNavigation` choose the bar without ever
+  /// measuring the window — and buying a warning for it at the price of refusing
+  /// every catalog in existence is the wrong trade.
+  static bool debugCheckNotPlacedOver(BuildContext context) {
+    assert(() {
+      bool covered = false;
+      context.visitAncestorElements((Element element) {
+        final Widget widget = element.widget;
+        // Content, not a frame: the walk stops before it can find a layer.
+        if (widget is Scrollable) return false;
+        if (widget is! IuxTransientLayer) return true;
+        covered = true;
+        return false;
+      });
+      if (!covered) return true;
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary(
+          '${context.widget.runtimeType} is inside an IuxTransientLayer.',
+        ),
+        ErrorDescription(
+          'The layer pins its message to the bottom edge of whatever it wraps '
+          'and reserves no layout space for it, so every message it shows '
+          'lands on top of the navigation and swallows the taps meant for it. '
+          'Measured on a 360x800 window: the notice at y 712-760, the '
+          'destinations at y 740-786, all of them hitTestable = 0. A dwell is '
+          'at least four seconds and no parameter can shorten it, so this is a '
+          'time limit on the ability to change section - WCAG 2.2 SC 2.2.1.',
+        ),
+        ErrorHint(
+          'The transient layer goes inside the navigation and the modal layer '
+          'stays outside it. A dialog must cover the navigation, because it is '
+          'a question about the screen underneath; a notice must not, because '
+          'it is not.\n'
+          '\n'
+          'IuxModalLayer(\n'
+          '  dialog: state.dialog,\n'
+          '  child: IuxAdaptiveNavigation(\n'
+          '    ...,\n'
+          '    child: IuxTransientLayer(\n'
+          '      message: state.notice,\n'
+          '      onDismissed: controller.clearNotice,\n'
+          '      child: IuxPage(child: body),\n'
+          '    ),\n'
+          '  ),\n'
+          ')',
+        ),
+      ]);
+    }());
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {

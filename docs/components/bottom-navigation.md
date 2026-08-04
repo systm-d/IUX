@@ -244,6 +244,54 @@ The interactive region is also the full height of the bar, not the box the glyph
 and name happen to need. There is no band above the shortest destination that
 looks tappable and is not.
 
+## Nothing may be pinned over it
+
+**The bar refuses to build underneath an `IuxTransientLayer`**, on every build,
+through `IuxTransientLayer.debugCheckNotPlacedOver` — and so do
+`IuxNavigationRail` and `IuxAdaptiveNavigation`.
+
+A transient message is pinned to the bottom edge of whatever its layer wraps and
+reserves no layout space for it. The bar is on that same edge. So a layer
+wrapped around the navigation puts every notice on top of the destinations, and
+IUX-041 measured what that costs on a 360×800 window: the notice at y 712–760,
+the destinations at y 740–786, **all three `hitTestable = 0`** — for a dwell of
+at least four seconds that by design cannot be shortened. That is a time limit
+on the ability to change section, which is WCAG 2.2 SC 2.2.1, produced by
+composition with neither component at fault on its own.
+
+```dart
+// Right: the layer is a sibling of the bar, not an ancestor of it.
+Scaffold(
+  body: IuxTransientLayer(message: notice, onDismissed: clear, child: page),
+  bottomNavigationBar: IuxBottomNavigation(...),
+)
+
+// Right: the frame owns both, and the layer is inside it.
+IuxAdaptiveNavigation(
+  child: IuxTransientLayer(message: notice, onDismissed: clear, child: page),
+  ...,
+)
+
+// Refused: everything the layer wraps is something a notice can cover.
+IuxTransientLayer(
+  message: notice,
+  onDismissed: clear,
+  child: IuxAdaptiveNavigation(child: page, ...),
+)
+```
+
+The `Scaffold` arrangement at the top of this page is safe for a reason worth
+saying out loud: `Scaffold.body` and `Scaffold.bottomNavigationBar` are
+siblings, so a layer around the body cannot reach the bar. The check knows the
+difference and does not fire there.
+
+**A scroll view between the layer and the bar also ends the check.** A notice is
+pinned to the bottom of the viewport and scrolled content moves past that edge
+rather than standing on it, so a bar found inside a scroll view is not acting as
+navigation — it is a specimen, which is exactly what `apps/catalog` renders. See
+`docs/components/transient-feedback.md` for the exemption and the one hole it
+leaves.
+
 ## Behavior
 
 | Gesture | Result |

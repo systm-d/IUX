@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_accessibility.dart';
+import '../transient/iux_transient_layer.dart';
 import 'iux_bottom_navigation.dart';
 import 'iux_navigation_destination.dart';
 import 'iux_navigation_rail.dart';
@@ -46,6 +47,39 @@ const double _minimumContentWidth = 320;
 /// It is not a `Scaffold` replacement. Put it in `Scaffold.body`, and do not
 /// also fill `Scaffold.bottomNavigationBar` — the bar would then exist twice on
 /// a phone and once in the wrong place on a tablet.
+///
+/// ## Where the two overlay layers go
+///
+/// `IuxModalLayer` **outside** this component, `IuxTransientLayer` **inside**
+/// it, in [child]. The two are not symmetric and the asymmetry is the rule: a
+/// dialog is a question about the screen underneath, so a user who can change
+/// section while it is open answers it about a screen they have left — it must
+/// cover the navigation. A notice is something the user is allowed to miss, so
+/// it must cost them nothing, and a notice over the navigation costs them every
+/// destination for the length of its dwell.
+///
+/// ```dart
+/// Scaffold(
+///   body: IuxModalLayer(
+///     dialog: state.dialog,
+///     child: IuxAdaptiveNavigation(
+///       label: l10n.mainNavigation,
+///       selectedIndex: section.index,
+///       destinations: destinations,
+///       onDestinationSelected: controller.goTo,
+///       child: IuxTransientLayer(
+///         message: state.notice,
+///         onDismissed: controller.clearNotice,
+///         child: IuxPage(child: body),
+///       ),
+///     ),
+///   ),
+/// )
+/// ```
+///
+/// The other order is refused rather than described: see
+/// `IuxTransientLayer.debugCheckNotPlacedOver`, which this component asserts on
+/// every build.
 ///
 /// ## How the arrangement is chosen
 ///
@@ -109,12 +143,16 @@ const double _minimumContentWidth = 320;
 class IuxAdaptiveNavigation extends StatelessWidget {
   /// Creates navigation that adapts to the window it is given.
   ///
-  /// No assertions of its own. Both arrangements refuse exactly the same
+  /// No assertions on the arguments. Both arrangements refuse exactly the same
   /// configurations — three to five destinations, distinct names, a current one
   /// inside the set — so whichever is built rejects an invalid set, and the
   /// failure does not depend on the size of the window the developer happened
   /// to be testing on. Restating the rules here would be a third copy that can
   /// disagree with the other two.
+  ///
+  /// The one check `build` does make is about the tree rather than the
+  /// arguments, which is why it cannot live here: whether this component was
+  /// placed underneath an `IuxTransientLayer`.
   const IuxAdaptiveNavigation({
     super.key,
     required this.label,
@@ -149,13 +187,19 @@ class IuxAdaptiveNavigation extends StatelessWidget {
   /// same index. A parent never has to ask which one it is talking to.
   final ValueChanged<int> onDestinationSelected;
 
-  /// The screen the navigation belongs to.
+  /// The screen the navigation belongs to, and anything painted over it.
   ///
   /// Positioned beside the rail or above the bar. It receives the space
   /// navigation did not take, which is why this component owns the frame rather
   /// than being dropped into a slot: the two arrangements put the content in
   /// different places, and a caller that had to place it themselves would be
   /// making the adaptive decision a second time.
+  ///
+  /// **This is where `IuxTransientLayer` goes.** Placed here, a notice is laid
+  /// out inside the box navigation left over, so it can cover the page and
+  /// cannot reach the destinations. Placed around this component it covers them
+  /// for the length of a dwell, which is asserted against rather than
+  /// documented — see the class comment above.
   ///
   /// Nothing to configure if it is an `IuxPage`: leave it on the default
   /// `IuxPageInsets.handled`. Each arrangement consumes the display inset on
@@ -167,73 +211,82 @@ class IuxAdaptiveNavigation extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          if (_prefersRail(context, constraints)) {
-            final bool startIsLeft =
-                Directionality.of(context) == TextDirection.ltr;
-            return Row(
-              // Stretched, so the rail runs the full height of the window
-              // rather than the height of its five destinations. A rail that
-              // stopped halfway down leaves its own edge line stopping with it,
-              // and the boundary between navigation and content disappears
-              // exactly where the content is longest.
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                IuxNavigationRail(
-                  label: label,
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onDestinationSelected,
-                ),
-                Expanded(
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    // The rail already stands on the start inset, so for the
-                    // content that inset no longer exists. Left in place it
-                    // would be applied twice from one cutout — once by the rail
-                    // that is covering it and once by a page that still
-                    // believes it is exposed — and the content would sit a
-                    // notch's width away from a rail it is supposed to touch.
-                    removeLeft: startIsLeft,
-                    removeRight: !startIsLeft,
-                    child: child,
-                  ),
-                ),
-              ],
-            );
-          }
-          return Column(
+  Widget build(BuildContext context) {
+    // Checked here as well as in the two arrangements, so the error names the
+    // component the caller actually wrote. Reached through the bar it would
+    // report a widget this call site never mentions — and on a wide window it
+    // would report the rail instead, so one mistake would be described two
+    // different ways depending on the device it was found on.
+    assert(IuxTransientLayer.debugCheckNotPlacedOver(context));
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (_prefersRail(context, constraints)) {
+          final bool startIsLeft =
+              Directionality.of(context) == TextDirection.ltr;
+          return Row(
+            // Stretched, so the rail runs the full height of the window
+            // rather than the height of its five destinations. A rail that
+            // stopped halfway down leaves its own edge line stopping with it,
+            // and the boundary between navigation and content disappears
+            // exactly where the content is longest.
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              IuxNavigationRail(
+                label: label,
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+              ),
               Expanded(
-                // The bar consumes the bottom inset itself, so the content
-                // above is no longer exposed to it. Same double-inset,
-                // different edge.
                 child: MediaQuery.removePadding(
                   context: context,
-                  removeBottom: true,
+                  // The rail already stands on the start inset, so for the
+                  // content that inset no longer exists. Left in place it
+                  // would be applied twice from one cutout — once by the rail
+                  // that is covering it and once by a page that still
+                  // believes it is exposed — and the content would sit a
+                  // notch's width away from a rail it is supposed to touch.
+                  removeLeft: startIsLeft,
+                  removeRight: !startIsLeft,
                   child: child,
-                ),
-              ),
-              ConstrainedBox(
-                // Bounded by the window, which is what lets the bar's own
-                // degradation happen: given unbounded height a scrolling bar
-                // simply takes all of it, and the content above would be laid
-                // out at zero height without ever being told why. This is also
-                // what `Scaffold` does with its own navigation slot.
-                constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-                child: IuxBottomNavigation(
-                  label: label,
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onDestinationSelected,
                 ),
               ),
             ],
           );
-        },
-      );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(
+              // The bar consumes the bottom inset itself, so the content
+              // above is no longer exposed to it. Same double-inset,
+              // different edge.
+              child: MediaQuery.removePadding(
+                context: context,
+                removeBottom: true,
+                child: child,
+              ),
+            ),
+            ConstrainedBox(
+              // Bounded by the window, which is what lets the bar's own
+              // degradation happen: given unbounded height a scrolling bar
+              // simply takes all of it, and the content above would be laid
+              // out at zero height without ever being told why. This is also
+              // what `Scaffold` does with its own navigation slot.
+              constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+              child: IuxBottomNavigation(
+                label: label,
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   /// Whether the rail is the arrangement this window can afford.
   ///

@@ -6,6 +6,7 @@ import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../layout/iux_content_width.dart';
+import '../transient/iux_transient_layer.dart';
 import 'iux_navigation_destination.dart';
 import 'iux_navigation_tokens.dart';
 
@@ -255,6 +256,16 @@ class IuxNavigationRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The bar's check, and the rail takes it for the reason it takes the bar's
+    // assertions: a rule enforced in one of two arrangements has stopped being
+    // one. A message is centred on the reading measure, so on a wide window at
+    // 100% text it clears a rail on the start edge and the overlap looks like
+    // something that cannot happen here — until the reading measure grows past
+    // the window at 200%, or the rail scrolls and puts a destination on the
+    // bottom edge. A defect that appears only once the user enlarges their text
+    // is worse than one that is always there.
+    assert(IuxTransientLayer.debugCheckNotPlacedOver(context));
+
     final IuxBottomNavigationTokens tokens =
         IuxBottomNavigationResolver.resolve(context);
     final bool leadingEdgeIsLeft =

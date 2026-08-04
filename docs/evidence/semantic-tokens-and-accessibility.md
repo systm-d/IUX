@@ -2030,7 +2030,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   Its other two reasons — the inverted layer direction and the eight unread
   exported token fields — stand.
 
-### IUX-TRANSIENT-COVER-001 — A notice makes the navigation unreachable for four seconds (OPEN)
+### IUX-TRANSIENT-COVER-001 — A notice made the navigation unreachable for four seconds (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxTransientLayer` composed with `IuxAdaptiveNavigation`
@@ -2043,9 +2043,46 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `hitTestable = 0`**. The dwell is a minimum of four seconds and by design
   cannot be shortened, so every "added" message costs the user their ability
   to change section.
-- **The fix an application must find for itself**: the transient layer goes
-  *inside* the navigation and the modal layer stays outside — a dialog must
-  cover the navigation, a notice must not. Nothing in the framework says so.
+- **Fixed by refusing the arrangement at build time.**
+  `IuxTransientLayer.debugCheckNotPlacedOver` is called from
+  `IuxBottomNavigation`, `IuxNavigationRail` and `IuxAdaptiveNavigation`; it
+  walks ancestors and throws a `FlutterError` naming the caller's widget,
+  carrying IUX-041's measurement and printing the corrected arrangement.
+  Entirely inside an `assert`, so a release build carries none of it.
+- **Why an ancestor test is the right test**: a message is painted over exactly
+  the subtree the layer wraps, so a destination that is a descendant is one a
+  message can cover and one that is not, cannot be. No configuration of either
+  component changes the answer.
+- **The alternatives, rejected with reasons.** Reserving the strip contradicts
+  the component's central contract — a transient message is *defined by not
+  occupying layout* — and would move the navigation bar 48 to 360 px under the
+  user's thumb every time a notice appears: an unreachable target traded for a
+  moving one. Exposing the notice height fails the §19 test outright, since the
+  caller must first know a defect exists. A notice slot on the navigation
+  cannot make the correct nesting the only expressible one, because
+  `IuxTransientLayer` remains a public widget with a public `child`.
+- **Measured, sixteen cases** across 320x640 and 360x800 at 100/150/200/300%,
+  one line and wrapped: **3 of 3 destinations reachable at every scale**, each
+  verified by a real tap reporting the right index. The same sixteen on the
+  refused arrangement: **0 of 3 in six cases, 1 of 3 in two** — and no overflow
+  exception in any of them, because the `Stack` clips the notice rather than
+  reporting.
+- **The exemption was found by the check, not designed in advance.** A
+  `Scrollable` between the two ends the walk. The strict version broke four
+  catalog tests, and inspection showed why: a navigation bar inside a gallery's
+  `ListView` is a **specimen, not a frame**. A notice drifting over a demo bar
+  costs a reader nothing, and a check that refused it would refuse every
+  component gallery — including the library's documentation of itself. It is
+  principled rather than convenient: a notice is pinned to the *viewport*, and
+  scrolled content moves past that edge.
+- **The hole that exemption leaves, recorded**: an application putting its
+  *real* navigation inside a scroll view gets no warning. That arrangement is
+  already broken more loudly, since unbounded height makes
+  `IuxAdaptiveNavigation` pick the bar without measuring the window.
+- **The cost this fix charges, stated rather than hidden**: the notice now has
+  the page's height instead of the window's, so a long message runs off the top
+  of its box earlier. What is lost is the top of a sentence nobody needed,
+  against a navigation bar everybody does.
 
 ### IUX-APPBAR-PAGE-001 — Three defects in one composition (OPEN)
 

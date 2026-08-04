@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
+import '../transient/iux_transient_layer.dart';
 import 'iux_navigation_destination.dart';
 import 'iux_navigation_tokens.dart';
 
@@ -214,6 +215,13 @@ class IuxBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The one thing about this bar that cannot be decided from its arguments:
+    // whether anything is going to be painted over it. A transient message is
+    // pinned to the bottom edge and reserves no space, so a bar underneath one
+    // is a bar whose destinations stop responding for the length of a dwell.
+    // The measurement is on `IuxTransientLayer.debugCheckNotPlacedOver`.
+    assert(IuxTransientLayer.debugCheckNotPlacedOver(context));
+
     final IuxBottomNavigationTokens tokens =
         IuxBottomNavigationResolver.resolve(context);
 

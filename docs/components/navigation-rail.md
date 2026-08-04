@@ -283,6 +283,34 @@ Row(
 )
 ```
 
+## Where the overlay layers go
+
+`IuxModalLayer` **outside** `IuxAdaptiveNavigation`, `IuxTransientLayer`
+**inside** it, in `child`. A dialog is a question about the screen underneath,
+so it must cover the navigation; a notice is something the user is allowed to
+miss, so it must not.
+
+The other order is refused: this component, `IuxBottomNavigation` and
+`IuxAdaptiveNavigation` all run
+`IuxTransientLayer.debugCheckNotPlacedOver(context)` on every build and throw
+when a transient layer is above them. `docs/components/bottom-navigation.md` has
+the measurement — a notice over the bar leaves all three destinations at
+`hitTestable = 0` for at least four seconds.
+
+**The rail is checked even though the overlap is intermittent there**, and that
+is the reason it is checked. A notice is centred on the reading measure, so on a
+wide window at 100% text it clears a rail on the start edge and the mistake
+looks like something that cannot happen in this arrangement. At 200% the measure
+is wider than the window, and a rail whose destinations have started scrolling
+has one on the bottom edge. A defect that appears only after the user enlarges
+their text, on the arrangement the developer tested last, is worse than one that
+is always there — the same argument this page already makes for keeping the
+bar's assertions here rather than in the adaptive component.
+
+A scroll view between the layer and the navigation ends the check: content that
+scrolls past the bottom edge is not standing on it, so a rail inside one is a
+specimen rather than navigation. `apps/catalog` renders exactly that.
+
 ## Behavior
 
 | Gesture | Result |

@@ -69,6 +69,26 @@ cannot be placed in this channel at all.
 goes outside it.** The order is not a preference, and getting it wrong is
 `IUX-TRANSIENT-COVER-001` — the worst defect the pilot application found.
 
+**The other order is now refused rather than described.** Every component that
+owns a navigation destination checks, on every build, that no
+`IuxTransientLayer` frames it, and throws when one does. The check is
+`IuxTransientLayer.debugCheckNotPlacedOver`, it lives entirely inside an
+`assert`, and the error it throws names the widget you wrote and prints the
+arrangement below as the fix. So the paragraphs that follow explain a mistake
+you can no longer ship in a debug build; they are here because knowing *why*
+survives a refactor and an error message does not.
+
+**A scroll view between the two ends the check**, and that exemption is not a
+convenience. A notice is pinned to the bottom of the *viewport*; content inside
+a scroll view moves past that edge rather than standing on it. Navigation never
+scrolls — both navigation pages say to put it in `Scaffold.body` and not in a
+scroll view — so a navigation component found on the far side of one is not
+acting as navigation. It is a specimen: a component gallery, a design-system
+page, a screenshot harness. `apps/catalog` is exactly that, and renders three of
+these components live inside a `ListView` under its own transient layer. A
+notice drifting over a specimen costs a reader nothing, and a check that refused
+it would be refusing the library's own documentation of itself.
+
 ```dart
 IuxModalLayer(                 // outside: a dialog must cover the navigation
   dialog: controller.dialog,
@@ -100,6 +120,41 @@ produced by composition, with neither component at fault on its own.
 A pushed route cannot reach the layers beneath it, so **every route that shows a
 notice or a dialog places its own pair.** See `apps/pilot/lib/main.dart` and
 `apps/pilot/lib/job_detail_screen.dart`.
+
+### What the working arrangement measures
+
+Placed inside the navigation, the notice is laid out in the box the navigation
+left over, so its bottom edge is the bar's top edge at worst. Three destinations,
+a message long enough to wrap, `hitTestable` on every destination and a tap that
+changes section — the way the defect was found:
+
+| Window | Text | Bar | Notice | Destinations reachable |
+| --- | --- | --- | --- | --- |
+| 320×640 | 100% | 548–640 | 252–516 | 3 / 3 |
+| 320×640 | 150% | 460–640 | −148–428 | 3 / 3 |
+| 320×640 | 200% | 424–640 | −616–392 | 3 / 3 |
+| 320×640 | 300% | 312–640 | −1880–280 | 3 / 3 |
+| 360×800 | 100% | 708–800 | 484–676 | 3 / 3 |
+| 360×800 | 150% | 620–800 | 156–588 | 3 / 3 |
+| 360×800 | 200% | 584–800 | −216–552 | 3 / 3 |
+| 360×800 | 300% | 472–800 | −1360–280 | 3 / 3 |
+
+Against the same eight cases on the arrangement that is now refused: **0 / 3
+reachable in six of them and 1 / 3 in the other two**, the one that survives
+being the first destination on the rows where a one-line notice happens to sit
+between two stacked ones.
+
+The negative tops are the cost, and it is the one this fix charges: the notice
+now has the page's height rather than the window's, so a long message at an
+enlarged text size runs off the top of its box sooner than it used to and is
+clipped there. That is the limit already recorded below — *a long message at
+200% text on a small screen can exceed the space above the bottom edge* — moved
+earlier by the height of the bar. It is clipping rather than an overflow, the
+`Stack` absorbs it, and what is lost is the top of a sentence nobody needed
+against a navigation bar everybody does. Keep the sentence short.
+
+Both are in
+`packages/iux_flutter/test/components/iux_transient_navigation_test.dart`.
 
 ## Do not use when
 
@@ -139,6 +194,7 @@ IuxTransientLayer(
 | `IuxTransientTone` | `neutral`, `success` — and nothing else |
 | `IuxTransientAction` | one thing the user may do; attaching it removes the timer |
 | `IuxTransientLayer` | the layer a parent places; owns the clock |
+| `IuxTransientLayer.debugCheckNotPlacedOver` | the composition check every navigation component runs; debug only |
 | `IuxTransientTiming` | how long a message stays, and when it must not expire |
 | `IuxTransientTokens` / `IuxTransientResolver` | the resolved appearance |
 
@@ -415,8 +471,47 @@ onDismissed: () { commitDeletion(); clearNotice(); }
 onDismissed: clearNotice;   // commitDeletion() runs on the parent's schedule
 ```
 
+```dart
+// Wrong: the layer wraps the frame, so every notice lands on the navigation.
+// Refused in debug; it used to render, and used to cost the user four seconds
+// of navigation per message.
+IuxTransientLayer(
+  message: state.notice,
+  onDismissed: controller.clearNotice,
+  child: IuxAdaptiveNavigation(child: page, ...),
+)
+
+// Right: the layer wraps the page, which is all it was ever for.
+IuxAdaptiveNavigation(
+  child: IuxTransientLayer(
+    message: state.notice,
+    onDismissed: controller.clearNotice,
+    child: page,
+  ),
+  ...,
+)
+```
+
 ## Limits
 
+- **The check is an ancestor test, so it sees composition and nothing else.** It
+  catches the arrangement that puts a message over a navigation destination,
+  which is the whole of `IUX-TRANSIENT-COVER-001`. It does not know what else is
+  at the bottom of the page: a call site that puts its own primary action there
+  can still have it covered for a dwell, and nothing warns. The navigation case
+  is enforced because navigation is permanent, is always on that edge, and is
+  the same edge in every application; a page's own bottom content is none of
+  those things.
+- **It is an assertion, so a release build has none of it.** That is the right
+  trade — the wrong arrangement cannot survive a single run in development, and
+  the alternative was a runtime cost on every navigation build forever — but it
+  does mean the guarantee is "you cannot develop this mistake", not "you cannot
+  run it".
+- **The scroll-view exemption leaves one hole**: an application that puts its
+  *real* navigation inside a scroll view, under a transient layer, is not
+  warned. That arrangement is already broken for a louder reason — an unbounded
+  height makes `IuxAdaptiveNavigation` choose the bar without ever measuring the
+  window — and closing the hole would mean refusing every component gallery.
 - **A message with an action never leaves on its own.** If the parent never
   clears it and the user never touches it, it occupies the bottom of the screen
   indefinitely. That is the deliberate cost of not losing the action; the
