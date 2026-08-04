@@ -538,3 +538,38 @@ device-validation mission (B12) and a composition mission owning B4, B5 and B8
 together, since all three are failures of *what owns the frame* rather than
 defects in any one component.
 
+
+
+---
+
+# Addendum — les quatre bloquants d'accessibilité sont fermés
+
+Écrit après le rapport ci-dessus, qui date explicitement son état. Quatre des
+douze bloquants ont été corrigés depuis, chacun avec sa mesure et une preuve
+par cassage délibéré.
+
+| Bloquant | État |
+| --- | --- |
+| B3 — contrôle inatteignable sous mise à l'échelle | **fermé** (`d3ad7a7`) |
+| B4 — notice couvrant la navigation | **fermé** (`434db4a`) |
+| B8 — plantage `expand: true` | **fermé** (`8c759f6`) |
+| B10 — déplacement de focus non borné | **fermé** (`3ca5126`) |
+
+**Le verdict ne change pas**, et l'évaluation le disait d'avance : B1 seul est
+dirimant. La licence n'accorde toujours aucun droit d'usage, de copie ou de
+distribution, et c'est une décision qui appartient au propriétaire du projet.
+
+Restent également ouverts : la politique de confirmation honorée par un widget
+sur quatre (B2), la composition barre + page cassée de trois façons (B5), le
+focus d'accessibilité absent sur quatre types de contrôle (B6), les résultats
+de recherche qui lèvent dans `IuxPage` (B7), le modal qui dispose son ouvreur
+(B9), la ligne de liste qui déborde de 214 px à 300 % (B11) — et surtout
+**B12**, le registre de validation manuelle vide.
+
+B12 mérite d'être répété parce qu'aucune des quatre corrections ne l'entame :
+personne n'a jamais lancé TalkBack, Voice Access ou un D-pad sur un appareil
+réel. Tout ce que ce dépôt affirme sur l'accessibilité est mesuré sur un arbre
+sémantique en test unitaire. C'est beaucoup, et ce n'est pas la même chose.
+
+Suite complète après les quatre corrections : **1976 tests du paquet, 36 du
+catalogue, 29 du pilote**, analyze propre sous le jeu de 160 règles.
