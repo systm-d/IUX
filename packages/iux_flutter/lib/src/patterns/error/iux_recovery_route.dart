@@ -204,7 +204,7 @@ final class IuxRetryRoute extends IuxRecoveryRoute {
   /// | `intent`/`importance` | primary, high | it is the only control in the block |
   /// | `confirmation` | none | nothing here presents a question |
   ///
-  /// [operation] follows [isRunning], so `IuxButton` announces the busy state
+  /// `operation` follows [isRunning], so `IuxButton` announces the busy state
   /// and `IuxActionPolicy` refuses the repeat, with no second implementation of
   /// either rule living here.
   IuxActionDescriptor get descriptor => IuxActionDescriptor(

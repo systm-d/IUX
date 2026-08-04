@@ -410,7 +410,7 @@ abstract final class IuxSemantics {
         child: child,
       );
 
-  /// Groups [children] so they are read as one unit.
+  /// Groups the widgets in `child` so they are read as one unit.
   ///
   /// Without this, a row of label and value is announced as two unrelated
   /// fragments, and the relationship between them is lost.

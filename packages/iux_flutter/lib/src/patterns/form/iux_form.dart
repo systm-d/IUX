@@ -212,10 +212,10 @@ final class IuxFormSubmit {
 ///
 /// ## What happens when a submission is refused
 ///
-/// The user presses the submit control. If a field is already rejected, nothing
-/// is sent. Otherwise every field is asked for a check and [IuxFormSubmit
-/// .onSubmit] runs; if the parent then rejects a field, the form is in the same
-/// state as if it had known.
+/// The user presses the submit control. If a field is already rejected,
+/// nothing is sent. Otherwise every field is asked for a check and
+/// [IuxFormSubmit.onSubmit] runs; if the parent then rejects a field, the form
+/// is in the same state as if it had known.
 ///
 /// In both cases three things happen, and they are the answer to "refused, why,
 /// and where":

@@ -386,7 +386,7 @@ final class IuxNoMatches extends IuxEmptyStateCause {
 ///
 /// **This presents the consequence, not the request.** It does not ask the
 /// operating system for anything, does not know whether a permission was
-/// declined once or permanently, and holds no rationale copy — [onActivate] is
+/// declined once or permanently, and holds no rationale copy — `onActivate` is
 /// the parent's, and what it opens is the parent's decision. Explaining *why*
 /// an application needs a permission before asking for it is a flow of its own
 /// (IUX-031) and a different moment in the user's day: this one is what the
