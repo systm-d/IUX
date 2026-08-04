@@ -931,6 +931,138 @@ void main() {
     });
   });
 
+  group('the header holds whatever label the caller wrote', () {
+    // IUX-DRAWER-LABEL-001. `dismissLabel: 'Close the menu'` overflowed the
+    // header by 9.5 px at 100% text on 360-, 800- and 1200-wide surfaces and by
+    // 34 px on a 320-wide one, with the heading squeezed to a box zero pixels
+    // wide, while `'Close'` did not — and *enlarging* the text to 150% repaired
+    // it, because the arrangement was chosen from the text scale rather than
+    // from the label.
+    //
+    // The panel caps near the width the destination names need whatever the
+    // screen is, so a wider screen does not help. Every case below is measured
+    // in its own element tree: `DebugOverflowIndicatorMixin` reports an
+    // overflow once per render-object lifetime, so a loop that kept the tree
+    // would see the first case and be silent for the fifteen after it. The
+    // `SizedBox.shrink()` between cases is what throws those render objects
+    // away.
+    const List<double> widths = <double>[320, 360, 800, 1200];
+    const List<double> scales = <double>[1, 1.5, 2, 3];
+
+    /// Runs [body] once per width and text scale, each in a fresh tree.
+    Future<void> everywhere(
+      WidgetTester tester,
+      String dismissLabel,
+      void Function(double width, double scale) body,
+    ) async {
+      for (final double width in widths) {
+        for (final double scale in scales) {
+          await pump(
+            tester,
+            open: true,
+            size: Size(width, 800),
+            textScale: scale,
+            dismissLabel: dismissLabel,
+          );
+          body(width, scale);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpAndSettle();
+        }
+      }
+    }
+
+    for (final String label in <String>['Close', 'Close the menu']) {
+      testWidgets('"$label" overflows nothing, at any width and text size',
+          (WidgetTester tester) async {
+        await everywhere(tester, label, (double width, double scale) {
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'the header overflowed at $width wide, $scale text',
+          );
+        });
+      });
+
+      testWidgets('"$label" never squeezes the heading below the way out',
+          (WidgetTester tester) async {
+        // The measurement that mattered was not the exception. Before the fix
+        // the heading was handed a box **zero pixels wide** at 100% text, and
+        // an overflow assertion alone would have called 320 and 1200 the same
+        // kind of healthy. The heading is what says which drawer this is.
+        await everywhere(tester, label, (double width, double scale) {
+          final double heading = tester.getSize(find.text(title)).width;
+          final double wayOut = tester.getSize(find.text(label)).width;
+
+          expect(heading, greaterThan(0),
+              reason: 'the heading has no width at $width wide, $scale text');
+          expect(
+            heading,
+            greaterThanOrEqualTo(wayOut),
+            reason: 'the heading is narrower than the way out beside it at '
+                '$width wide, $scale text',
+          );
+        });
+      });
+    }
+
+    testWidgets('the arrangement follows the label, not the text scale',
+        (WidgetTester tester) async {
+      // The whole defect in one assertion. Both cases are 100% text on the
+      // same 800-wide surface, so a decision taken from the text scale cannot
+      // tell them apart — and it did not: the long label stayed on the shared
+      // line and overflowed it.
+      await pump(
+        tester,
+        open: true,
+        size: const Size(800, 800),
+        dismissLabel: 'Close the menu',
+      );
+      expect(
+        tester.getRect(find.text('Close the menu')).top,
+        greaterThan(tester.getRect(find.text(title)).bottom),
+        reason: 'a label this long does not fit beside the heading, so it '
+            'belongs below it',
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+
+      await pump(
+        tester,
+        open: true,
+        size: const Size(800, 800),
+        drawerTitle: 'Menu',
+        dismissLabel: 'Close',
+      );
+      expect(
+        tester.getRect(find.text('Close')).top,
+        lessThan(tester.getRect(find.text('Menu')).bottom),
+        reason: 'a short heading and a short label fit on one line, and a rule '
+            'that always stacked would be no more measured than one that never '
+            'did',
+      );
+    });
+
+    testWidgets('a panel with room keeps the line the narrow one gave up',
+        (WidgetTester tester) async {
+      // Enlarging the text widens the panel, so at 150% on a wide screen there
+      // is more room than at 100%, not less. The old rule read the scale and
+      // stacked; this one measures and does not.
+      await pump(
+        tester,
+        open: true,
+        size: const Size(1200, 800),
+        textScale: 1.5,
+      );
+
+      expect(
+        tester.getRect(find.text('Close')).top,
+        lessThan(tester.getRect(find.text(title)).bottom),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('it survives the conditions it will actually meet', () {
     testWidgets('the panel sits at the edge the reading direction starts at',
         (WidgetTester tester) async {

@@ -1313,7 +1313,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - The tests IUX-008.9 wrote to pin the defective behaviour were flipped, not
   deleted, which is what they were written for.
 
-### IUX-BUTTON-CONFIRM-001 — A confirmation policy is honoured by one widget in four (OPEN)
+### IUX-BUTTON-CONFIRM-001 — A confirmation policy is honoured by one widget in four (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxButton`, `IuxIconButton`, `IuxAsyncActionButton`
@@ -1350,8 +1350,35 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   is derived and never published, so a caller of `IuxDestructiveFlow` never
   holds a confirming descriptor — and said plainly that this is a local
   closure and not a fix.
-- **What this means**: the rule "whoever honours the policy strips it before
-  delegating" is sound and half-adopted already, but making it enforceable
+- **FIXED, and the reverted attempt's own conclusion was wrong.** That attempt
+  ended by saying the destructive trigger *cannot* strip, because "the policy
+  must survive to the button". Measured: **nothing inside a button reads
+  `confirmation`.** `IuxButtonResolver` does not, `IuxSemantics.action` does
+  not, `isActivatable` does not — the field reaches no pixel and no
+  announcement. The honourer is the *controller*, which keeps its own
+  undisturbed copy and evaluates it with `confirmed: false`; the descriptor the
+  trigger receives only has to describe the control, and the truthful
+  description is "activating this does something immediately". What it does is
+  open the question.
+- **The shipped rule, both halves enforced**: an honourer strips before
+  delegating, and anything that cannot present a question refuses one. Three
+  callers changed — the public getter, the dialog's choices, the async
+  controller's constructor *and* `updateAction`, because one guarded door is
+  not a guard. The trigger needed no edit: it reads the getter.
+- **Release behaviour is deliberately unchanged.** The check fires at build on
+  the first frame rather than flipping `confirmed:`, because flipping it would
+  turn a caller's mistake into a control that does nothing when tapped.
+- **Proved by five deliberate breaks**, the largest telling: removing the
+  dialog's strip fails **33 tests**, because that file's shared fixture *is* a
+  destructive descriptor. And stripping on the way *in* rather than out fails
+  ten or more — the strip must be outbound only.
+- **Two residuals, documented rather than hidden.** `IuxFormSubmit.action` is
+  caller-supplied and unconstrained, so a confirming submit is now diagnosed
+  one layer late. And a trigger wired to the wrong callback still bypasses the
+  pattern — no type can catch that, since the callback is the caller's own
+  function.
+- **Historical note**: the rule "whoever honours the policy strips it before
+  delegating" was sound and half-adopted already, but making it enforceable
   needs a decision about *where* a policy is evaluated, not an assertion. That
   is design work, and it is recorded here rather than half-applied. The
   reverted attempt is on record so the next person does not spend the same

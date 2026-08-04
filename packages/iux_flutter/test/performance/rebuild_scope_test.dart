@@ -199,13 +199,19 @@ void main() {
   }
 
   group('a change nothing depends on', () {
-    // `IuxAccessibility.of` resolves six platform values through
+    // `IuxAccessibility.of` resolves six platform values, and it resolves them
+    // one `MediaQuery` aspect at a time. It used to resolve them through
     // `MediaQuery.of`, which registers a dependency on *every* aspect of the
-    // media query rather than on the six it reads. These two widgets read the
-    // same six values and differ in nothing else.
+    // media query rather than on the six it reads — IUX-PERF-001. These two
+    // widgets read the same six values and differ in nothing else, so any
+    // difference between them is that dependency and nothing else.
     //
-    // Measured: 20 of 20 against 0 of 20 for viewInsets, padding and size;
-    // 20 of 20 for both on textScaler, which is one of the six.
+    // Measured before the narrowing: 20 of 20 through the runtime against 0 of
+    // 20 through the aspects, for viewInsets, padding and size alike.
+    // Measured after: 0 of 20 either way. Text scale is one of the six, so it
+    // was and remains 20 of 20 for both — which is what keeps the three
+    // expectations below from being satisfied by a probe that simply never
+    // rebuilds.
     Future<int> rebuilt(
       WidgetTester tester,
       Widget probe,
@@ -245,17 +251,18 @@ void main() {
 
     for (final MapEntry<String, MediaQueryData> stimulus
         in irrelevant.entries) {
-      testWidgets('${stimulus.key} rebuilds every reader of the runtime', (
+      testWidgets('${stimulus.key} rebuilds no reader of the runtime', (
         WidgetTester tester,
       ) async {
         expect(
           await rebuilt(tester, const _ReadsRuntime(), stimulus.value),
-          20,
-          reason: 'IuxAccessibility.of resolves through MediaQuery.of, which '
-              'depends on every aspect. None of the six values it reads has '
-              'changed. This is a known cost, not an intended behaviour: if '
-              'it ever reports 0, the runtime has been narrowed to aspects '
-              'and this expectation should become the new one.',
+          0,
+          reason: 'None of the six values IuxAccessibility.of reads has '
+              'changed, so nothing reading it may be rebuilt. Reported 20 of '
+              '20 while the runtime resolved through MediaQuery.of, which '
+              'depends on every aspect — IUX-PERF-001. Any figure above zero '
+              'means a value has gone back to being read through the whole '
+              'media query.',
         );
       });
 
@@ -294,13 +301,21 @@ void main() {
   });
 
   group('a whole screen', () {
-    // Measured on 2026-08-04, Flutter 3.44.8: 106 elements for the keyboard,
-    // 93 for the notch, 122 for the rotation, 132 for the text scale. The
-    // same screen built from Material widgets, identical in element count
-    // (518), rebuilds 14, 6, 30 and 112. The ceilings below sit well above
-    // the measurement so that a Flutter upgrade does not fail the suite for
-    // no reason; halving them would be the sign that the runtime has been
-    // narrowed.
+    // Measured on this harness, Flutter 3.44.8, before and after IUX-PERF-001
+    // was closed: the keyboard went from 114 elements to 8, a reported notch
+    // from 101 to 8, a rotation from 130 to 26. Enlarging the text is 140
+    // either way, because every one of those rebuilds is a rebuild the change
+    // genuinely requires.
+    //
+    // The same screen built from Material widgets, tuned to the same element
+    // count, rebuilds 14, 6, 30 and 112. Three of the four are now at or below
+    // the Material figure, and the fourth — text scale — is the one where IUX
+    // does more work on purpose.
+    //
+    // The ceilings sit above the measurement so that a Flutter upgrade does
+    // not fail the suite for no reason, and far below the old numbers so that
+    // resolving a platform value through `MediaQuery.of` again fails here as
+    // well as in the A/B above.
     testWidgets('the keyboard opening stays under its ceiling', (
       WidgetTester tester,
     ) async {
@@ -309,7 +324,7 @@ void main() {
         () => const _Screen(),
         base.copyWith(viewInsets: const EdgeInsets.only(bottom: 300)),
       );
-      expect(n, lessThan(160), reason: 'measured 106');
+      expect(n, lessThan(30), reason: 'measured 8, was 114');
       expect(n, greaterThan(0));
     });
 
@@ -321,7 +336,20 @@ void main() {
         () => const _Screen(),
         base.copyWith(padding: const EdgeInsets.only(top: 24)),
       );
-      expect(n, lessThan(160), reason: 'measured 93');
+      expect(n, lessThan(30), reason: 'measured 8, was 101');
+    });
+
+    testWidgets('a rotation stays under its ceiling', (
+      WidgetTester tester,
+    ) async {
+      // Higher than the other two on purpose: the width decides the layout
+      // class, so a rotation genuinely changes what several widgets resolve.
+      final int n = await built(
+        tester,
+        () => const _Screen(),
+        base.copyWith(size: const Size(800, 400)),
+      );
+      expect(n, lessThan(60), reason: 'measured 26, was 130');
     });
 
     testWidgets('enlarging text stays under its ceiling', (
@@ -335,7 +363,7 @@ void main() {
       expect(
         n,
         lessThan(220),
-        reason: 'measured 132, and every one of them '
+        reason: 'measured 140 before and after, and every one of them '
             'is a rebuild the change genuinely requires',
       );
     });

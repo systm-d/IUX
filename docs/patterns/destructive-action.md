@@ -177,6 +177,30 @@ application. A pattern that opened its own overlay from wherever the button
 happened to sit would be deciding layering, which is how two modals end up open
 at once with the way out of neither visible.
 
+## The controller is the honourer, so it strips before delegating
+
+This controller is the one type in the package that evaluates a confirmation
+policy — `activate()` asks `IuxActionPolicy` with `confirmed: false`. It keeps
+the policy for itself and publishes it to nobody:
+
+| Value | Carries the policy | Why |
+| --- | --- | --- |
+| the descriptor you passed in | yes | it is the statement being honoured |
+| `controller.action` | **no** | it goes to a control, and no control presents a question |
+| `controller.dialog`'s confirming choice | **no** | that choice *is* the answer |
+
+`controller.action` used to publish the policy, and handing it to a plain
+`IuxButton` reproduced `IUX-BUTTON-CONFIRM-001` from inside the pattern that
+exists to prevent it — the second reachable path, found by IUX-032. The
+stripped descriptor is also the truthful one for a trigger: activating that
+control does something immediately, and what it does is open the question.
+
+Nothing is lost. The policy reaches no pixel and no announcement — `IuxButton`
+reads availability, operation, semantics and repeat policy, and never this
+field — so the trigger renders and announces identically either way, measured.
+To ask whether an answer is owed, read `prompt`, which is non-null exactly when
+one is, or `isConfirming` for whether it has been asked.
+
 ## What it refuses to present
 
 `IuxConfirmationPolicy` had four values, and this pattern refused two of them on
@@ -287,8 +311,9 @@ never signalled by colour alone — the wording carries it.
 ## Anti-patterns
 
 ```dart
-// No. IuxButton evaluates with confirmed: true, so the descriptor asks to be
-// confirmed, the code compiles, and nobody is ever asked.
+// No. IuxButton cannot present a question, and now refuses one: this fails a
+// debug check on the first frame it is built. It used to compile, assert
+// nothing and delete on the first tap (IUX-BUTTON-CONFIRM-001).
 IuxButton(label: 'Delete', action: confirmingAction, onActivate: model.delete)
 ```
 
@@ -340,6 +365,14 @@ content.
   trigger looks inert. Nothing detects this, because nothing can from where the
   button sits. It is the price of not owning layering, and it is stated rather
   than hidden.
+- **A trigger wired to the wrong callback still bypasses the pattern.**
+  `controller.action` is now published with its confirmation policy stripped,
+  so handing it to a plain `IuxButton` no longer reproduces the defect — the
+  descriptor is truthful about that control, whose tap opens the question — but
+  only if the button's `onActivate` is `controller.activate`. Wiring it to
+  `model.delete` instead is the "the action's own callback bypasses the
+  controller" mistake above, and no type can catch it: the callback is the
+  caller's own function.
 - **Hold and double activation are not presented.** See above.
 - **No undo is modelled.** The pattern refuses to let a confirmation stand in
   for an undo, and documents the recipe, but does not implement the offer — the

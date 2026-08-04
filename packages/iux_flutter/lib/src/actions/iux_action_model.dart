@@ -196,6 +196,29 @@ enum IuxActionReversibility {
 /// honoured by something; a member that is not honoured is a promise of safety
 /// the user does not receive, which is why two of them were removed.
 ///
+/// ## Whoever honours a policy strips it before delegating
+///
+/// A policy on a descriptor is a *statement*, and a statement needs somebody to
+/// act on it. Exactly one type presents a confirmation —
+/// `IuxDestructiveActionController` — and the rule that keeps the statement
+/// from being lost between there and the screen has two halves, both enforced:
+///
+/// - **An honourer strips.** Once the question has been asked, the descriptor
+///   handed to any control is `copyWith(confirmation:
+///   IuxConfirmationPolicy.none)`. The controller's `action` getter does it for
+///   the trigger, `IuxDialog` does it for the choice that answers the question
+///   it is itself asking.
+/// - **Everything that cannot present one refuses it.** `IuxButton`,
+///   `IuxIconButton`, `IuxAsyncActionController` and `IuxEmptyStateAction` all
+///   fail a debug check rather than dropping the policy, so a descriptor that
+///   still asks for an answer has provably not been honoured by anybody.
+///
+/// The direction matters: dropping the policy in silence leaves a call site
+/// that reads as though the user were being asked while the action runs on the
+/// first tap, which is the worst way for the mistake to go (PROJECT_PROMPT §5,
+/// §22). Until this rule was applied everywhere, one widget of four honoured
+/// it — recorded as `IUX-BUTTON-CONFIRM-001`.
+///
 /// Destructive does not imply confirmation. A confirmation on every delete
 /// trains users to dismiss confirmations, which is how the one that mattered
 /// gets dismissed too. Weigh reversibility instead.

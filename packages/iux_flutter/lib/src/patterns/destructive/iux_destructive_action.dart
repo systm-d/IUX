@@ -205,11 +205,30 @@ class IuxDestructiveActionController extends ChangeNotifier {
   FocusNode get _triggerFocusNode =>
       _trigger ??= FocusNode(debugLabel: 'IuxDestructiveAction trigger');
 
-  /// What the action is, and whether it may currently run.
+  /// What the action is, and whether it may currently run — with the
+  /// confirmation policy already honoured.
   ///
-  /// Hand this to the control that triggers it. [IuxDestructiveAction] does so
-  /// already.
-  IuxActionDescriptor get action => _action;
+  /// Hand this to the control that triggers it, wired to [activate].
+  /// [IuxDestructiveAction] does both already.
+  ///
+  /// **The policy is stripped on the way out**, and this getter is where
+  /// IUX-032 found the defect it closes: what it used to return still carried
+  /// [IuxConfirmBeforeExecution], so handing it to a plain `IuxButton`
+  /// reproduced the trap from inside the very pattern that exists to prevent
+  /// it. The controller is the honourer — [activate] evaluates `_action`, the
+  /// undisturbed original, with `confirmed: false` — and an honourer strips
+  /// before delegating. The stripped descriptor is also the *truthful* one for
+  /// a trigger: activating that control does something immediately, and what
+  /// it does is open the question.
+  ///
+  /// Nothing is lost by the strip. The policy reaches no pixel and no
+  /// announcement — `IuxButton` reads availability, operation, semantics and
+  /// repeat policy, and never this field — so the trigger renders and announces
+  /// identically either way. A caller who wants to know whether an answer is
+  /// owed reads [prompt], which is non-null exactly when one is, or
+  /// [isConfirming] for whether it has been asked.
+  IuxActionDescriptor get action =>
+      _action.copyWith(confirmation: IuxConfirmationPolicy.none);
 
   /// The wording of the confirmation, or null when the action asks for none.
   IuxConfirmationPrompt? get prompt => _prompt;
@@ -224,11 +243,11 @@ class IuxDestructiveActionController extends ChangeNotifier {
   /// the dialog keeps its own state because it stays in the same position in
   /// the tree.
   ///
-  /// The confirming choice carries this action's descriptor with its
-  /// confirmation policy cleared — it *is* the confirmation, and an action that
-  /// asked to be confirmed again inside its own confirmation would never run.
-  /// Everything else is kept, so a disabled or already-running action is
-  /// disabled or already-running here too.
+  /// The confirming choice carries [action] — this action's descriptor with its
+  /// confirmation policy cleared, since the choice *is* the confirmation and an
+  /// action that asked to be confirmed again inside its own confirmation would
+  /// never run. Everything else is kept, so a disabled or already-running
+  /// action is disabled or already-running here too.
   IuxDialog? get dialog {
     final IuxConfirmationPrompt? prompt = _prompt;
     if (!_confirming || prompt == null) return null;
@@ -240,7 +259,11 @@ class IuxDestructiveActionController extends ChangeNotifier {
       actions: <IuxDialogAction>[
         IuxDialogAction(
           label: prompt.confirmLabel,
-          action: _action.copyWith(confirmation: IuxConfirmationPolicy.none),
+          // The same stripped descriptor the trigger gets, from the same
+          // getter. This line used to strip on its own, which is how the
+          // library came to honour the policy in one of the two places it hands
+          // this descriptor out and not the other.
+          action: action,
           onActivate: confirm,
         ),
       ],
@@ -377,14 +400,15 @@ class IuxDestructiveActionController extends ChangeNotifier {
 /// without a confirmation. The call site is the same either way; the
 /// descriptor decides.
 ///
-/// **Why not just an `IuxButton`.** Because an `IuxButton` handed a descriptor
-/// that asks to be confirmed runs the action anyway: it evaluates the action
-/// with `confirmed: true` and leaves obtaining the answer to a pattern. That is
-/// the correct division of labour and it is also a quiet trap — the descriptor
-/// says "confirm me", the code compiles, and nobody is ever asked. This widget
-/// is the other half: it routes activation through
+/// **Why not just an `IuxButton`.** Because an `IuxButton` cannot present a
+/// question, and now says so: handed a descriptor that asks to be confirmed it
+/// fails a debug check at build rather than running the action unasked, which
+/// is what it did until this widget's controller became the one place a policy
+/// is honoured. This widget is the other half — it routes activation through
 /// [IuxDestructiveActionController.activate], which asks with `confirmed:
-/// false`.
+/// false` — and the descriptor it hands down is
+/// [IuxDestructiveActionController.action], stripped of the policy the
+/// controller itself keeps.
 ///
 /// **There is no `autofocus`, and there will not be one.** A control that
 /// deletes something and takes focus on arrival is one Enter press away from
@@ -475,6 +499,10 @@ class IuxDestructiveAction extends StatelessWidget {
         listenable: controller,
         builder: (BuildContext context, Widget? child) => IuxButton(
           label: label,
+          // Already stripped of its confirmation policy by the getter, because
+          // the controller is what honours it. The trigger does not strip a
+          // second time: one honourer, one strip, and no chance of the two
+          // disagreeing about which descriptor a control was given.
           action: controller.action,
           icon: icon,
           variant: variant,

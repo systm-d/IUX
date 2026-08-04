@@ -383,6 +383,102 @@ void main() {
     });
   });
 
+  group('the dialog is the confirmation, so it honours the policy and strips',
+      () {
+    // IUX-BUTTON-CONFIRM-001. `IuxButton` now refuses a descriptor that still
+    // asks to be confirmed, and this dialog is one of the two callers that used
+    // to hand it one — legitimately, because its choice *is* the answer to the
+    // question it is itself asking. It therefore strips before delegating,
+    // which is the rule the whole library follows.
+    //
+    // `deleteAction` above is `IuxActionDescriptor.destructive(semantics: ...)`
+    // with the factory's own default, `IuxConfirmBeforeExecution`. Every test
+    // in this file already runs through it, so removing the strip breaks the
+    // file rather than only this group.
+    testWidgets('a choice that arrives still asking is drawn and works',
+        (WidgetTester tester) async {
+      expect(
+        deleteAction.requiresConfirmation,
+        isTrue,
+        reason: 'sanity: the shared choice carries the policy this group is '
+            'about. IuxActionDescriptor.destructive defaults to it.',
+      );
+
+      final _Scenario scenario = await pump(tester, open: true);
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'the caller wrote the shortest descriptor there is for a '
+            'deletion and the dialog accepted it. Refusing here would push '
+            'every call site into writing confirmation: none by hand on the '
+            'one control that is allowed to carry the policy.',
+      );
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(scenario.chosen, <String>['Delete'], reason: 'end to end');
+    });
+
+    testWidgets('the choice button is handed the stripped descriptor',
+        (WidgetTester tester) async {
+      await pump(tester, open: true);
+
+      final IuxButton choice = tester.widget<IuxButton>(
+        find.ancestor(
+          of: find.text('Delete'),
+          matching: find.byType(IuxButton),
+        ),
+      );
+
+      expect(
+        choice.action.requiresConfirmation,
+        isFalse,
+        reason: 'the policy has been honoured by this dialog and must not '
+            'travel further. A control that asked to be confirmed inside its '
+            'own confirmation would never run.',
+      );
+      expect(
+        choice.action,
+        deleteAction.copyWith(confirmation: IuxConfirmationPolicy.none),
+        reason: 'and nothing else about the descriptor moved: the intent, the '
+            'role, the reversibility, the availability and the announced name '
+            'are the caller\'s',
+      );
+    });
+
+    testWidgets('an unavailable choice is still unavailable after the strip',
+        (WidgetTester tester) async {
+      // The strip is one field, not a reset. A disabled choice that came back
+      // enabled would be the worst possible outcome of a safety fix.
+      await pump(
+        tester,
+        open: true,
+        choice: const IuxActionDescriptor.destructive(
+          semantics: IuxActionSemantics(
+            label: 'Delete the March invoice',
+            unavailabilityReason: 'The invoice is already paid',
+          ),
+          availability: IuxActionAvailability.disabled,
+        ),
+      );
+
+      final IuxButton choice = tester.widget<IuxButton>(
+        find.ancestor(
+          of: find.text('Delete'),
+          matching: find.byType(IuxButton),
+        ),
+      );
+
+      expect(choice.action.isActivatable, isFalse);
+      expect(
+        choice.action.semantics.unavailabilityReason,
+        'The invoice is already paid',
+      );
+    });
+  });
+
   group('assistive technology is told a dialog appeared', () {
     testWidgets('it scopes and names a route', (WidgetTester tester) async {
       await pump(tester, open: true);

@@ -319,6 +319,32 @@ surface, so the surface still reaches the physical edge. Never the trailing
 inset: nothing of the panel is there, and padding for an obstacle that is not
 there is a column of empty space between the names and the page.
 
+## The header
+
+The heading and the way out share a line while the heading still has room to be
+read there, and the way out moves below it when it does not. **The decision is
+taken by measuring the two, not by reading the text scale** — the same rule
+`IuxAppBar` applies to a title beside its controls, because it is the same
+question and two answers would be one too many.
+
+The heading keeps the shared line while the width the way out leaves it is at
+least the smaller of: the heading on one line, and roughly a dozen characters
+at the heading's size. Below that a wrapped heading is a column of syllables,
+which is harder to read than the same words on their own line.
+
+Reading order is the heading, then the way out, in both arrangements and in
+both directions: the heading says what the drawer is, and the way out is the
+first *control* a Tab, a D-pad press or a screen reader swipe reaches.
+
+This replaced a rule that stacked past about 130% text and shared the line
+below it. That rule answered a question about the *user's* text size with a
+decision that depends on the *caller's* label, and `IUX-DRAWER-LABEL-001` is
+what it cost: `dismissLabel: 'Close the menu'` overflowed the header by 9.5 px
+at 100% text with the heading squeezed to nothing, and was *repaired* by
+enlarging the text to 150% — the wrong way round for an accessibility setting.
+A one-word label was moved below at 150% on a 1200-wide screen where it fitted
+beside the heading three times over; it now stays on the line.
+
 ## Targets
 
 Every destination's interactive region is at least
@@ -435,11 +461,16 @@ IuxNavigationDestination(label: 'Reports', icon: ...),
   exists, typed `IuxNavigationDrawer?` and mutually exclusive with the other
   two, so the correct shape is the only one a caller can express. See
   [How to place it](#how-to-place-it).
-- **A longer dismiss label overflows the header** (`IUX-DRAWER-LABEL-001`).
-  `dismissLabel: 'Close the menu'` overflows by 7.5 px at **100%** text on 800-
-  and 1200-wide surfaces, where `'Close'` does not — the panel caps near 280 px
-  whatever the screen. It only stacks past about 130% text, so enlarging the
-  text fixes it and leaving it alone does not. Keep the label short.
+- ~~**A longer dismiss label overflows the header.**~~ **Closed**
+  (`IUX-DRAWER-LABEL-001`). `dismissLabel: 'Close the menu'` overflowed by
+  9.5 px at **100%** text on 360-, 800- and 1200-wide surfaces and by 34 px on
+  a 320-wide one, with the heading squeezed into a box zero pixels wide, where
+  `'Close'` did not — the panel caps near 280 px whatever the screen, so a
+  wider screen did not help. It only stacked past about 130% text, so
+  *enlarging* the text repaired it and leaving it alone did not. The
+  arrangement is now measured rather than read off the text scale; see
+  [The header](#the-header). Zero overflow at 100/150/200/300% on 320, 360,
+  800 and 1200 wide, pinned by the component's own suite.
 - **IUX-OVERLAY-001.** Opening the drawer rebuilds the page's subtree, so a
   scrolled list behind it loses its position. The accessible alternative is
   worse; see *How to place it*.

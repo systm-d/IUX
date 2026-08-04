@@ -405,6 +405,34 @@ void main() {
       fixture.completer.complete(const IuxAsyncOutcome.succeeded());
     });
 
+    test('nor may it start asking for a confirmation nobody presents', () {
+      // IUX-BUTTON-CONFIRM-001. The constructor refuses a confirming
+      // descriptor; updateAction is the other door into this controller, and
+      // one guarded door is not a guard. The descriptor this controller
+      // publishes goes straight to a button, which would then refuse it — one
+      // frame later, on a widget that did nothing wrong.
+      final ({
+        IuxAsyncActionController controller,
+        Completer<IuxAsyncOutcome> completer,
+        List<IuxAsyncActionSignal> signals,
+      }) fixture = controlled();
+
+      expect(
+        () => fixture.controller.updateAction(
+          pay.copyWith(confirmation: const IuxConfirmBeforeExecution()),
+        ),
+        throwsA(
+          isA<AssertionError>().having(
+            (AssertionError e) => e.message.toString(),
+            'message',
+            contains('IuxDestructiveActionController'),
+          ),
+        ),
+      );
+
+      fixture.completer.complete(const IuxAsyncOutcome.succeeded());
+    });
+
     test('replacing the description notifies, so a view can follow it', () {
       int notifications = 0;
       final ({

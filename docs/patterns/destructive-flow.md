@@ -253,15 +253,21 @@ or `reversibility: reversible` on something nothing reverses.
 | `confirmation` | none / `IuxConfirmBeforeExecution` | the same |
 | `availability`, `operation`, `semantics` | the caller's | only the parent can know them |
 
-It is also **not exposed**, and that is load-bearing rather than tidy. A public
-descriptor carrying `IuxConfirmBeforeExecution` can be handed to a plain
-`IuxButton`, which evaluates with `confirmed: true` and runs the action on the
-first tap with nobody asked — the open defect recorded as
-`IUX-BUTTON-CONFIRM-001`. A caller of this flow never holds such a descriptor,
-so **within this pattern the trap is unreachable rather than merely
-documented**. It remains reachable elsewhere, including through
-`IuxDestructiveActionController.action`; closing it in general is a decision
-about where a policy is evaluated, and that is not this pattern's to make.
+It is also **not exposed**, and that was load-bearing rather than tidy. A
+public descriptor carrying `IuxConfirmBeforeExecution` used to be handed to a
+plain `IuxButton`, which evaluated with `confirmed: true` and ran the action on
+the first tap with nobody asked — the defect recorded as
+`IUX-BUTTON-CONFIRM-001`. A caller of this flow never held such a descriptor,
+so **within this pattern the trap was unreachable rather than merely
+documented**.
+
+It is now closed everywhere, by a rule this pattern was already following:
+whoever honours a policy strips it before delegating, and whatever cannot
+present one refuses it. `IuxDestructiveActionController.action` — the other
+reachable path, found by IUX-032 — strips, `IuxDialog` strips, and `IuxButton`,
+`IuxIconButton` and `IuxAsyncActionController` refuse. Not exposing the
+descriptor remains right for the reasons above; it is no longer the only thing
+standing between a caller and a silent deletion.
 
 The `IuxTransientMessage` is derived for the same reason. Two of its fields are
 fixed and neither is the caller's:

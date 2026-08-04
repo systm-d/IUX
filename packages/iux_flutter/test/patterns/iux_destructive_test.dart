@@ -351,6 +351,164 @@ void main() {
     });
   });
 
+  group('the honourer strips before delegating', () {
+    // IUX-BUTTON-CONFIRM-001, and the path IUX-032 found into it: this
+    // controller is the one thing in the package that evaluates a confirmation
+    // policy, and it used to publish a descriptor that still carried one. A
+    // plain `IuxButton` given that descriptor reproduced the defect from inside
+    // the pattern that exists to prevent it.
+    IuxDestructiveActionController controllerFor(
+      IuxActionDescriptor action, {
+      IuxConfirmationPrompt? prompt,
+      VoidCallback? onConfirmed,
+    }) {
+      final IuxDestructiveActionController controller =
+          IuxDestructiveActionController(
+        action: action,
+        prompt: prompt,
+        onConfirmed: onConfirmed ?? () {},
+      );
+      addTearDown(controller.dispose);
+      return controller;
+    }
+
+    test('the public getter no longer publishes a confirming descriptor', () {
+      final IuxDestructiveActionController controller =
+          controllerFor(_confirming, prompt: _prompt);
+
+      expect(
+        _confirming.requiresConfirmation,
+        isTrue,
+        reason: 'sanity: the descriptor going in is the one that asks',
+      );
+      expect(
+        controller.action.requiresConfirmation,
+        isFalse,
+        reason: 'the descriptor coming out must not. Anything holding it can '
+            'only hand it to a control, and no control presents a question — '
+            'the controller does, and it has kept the policy for itself.',
+      );
+      expect(
+        controller.action.confirmation,
+        IuxConfirmationPolicy.none,
+        reason: 'and it says so with the member that means it, not by '
+            'accident',
+      );
+    });
+
+    test('nothing else about the descriptor is disturbed', () {
+      // A safety fix that quietly re-enabled a disabled deletion would be
+      // worse than the defect it closed.
+      final IuxDestructiveActionController controller = controllerFor(
+        _confirming.copyWith(
+          availability: IuxActionAvailability.disabled,
+          operation: IuxActionOperation.idle,
+        ),
+        prompt: _prompt,
+      );
+
+      expect(
+        controller.action,
+        _confirming.copyWith(
+          availability: IuxActionAvailability.disabled,
+          confirmation: IuxConfirmationPolicy.none,
+        ),
+        reason: 'one field moved and no other',
+      );
+      expect(controller.action.semantics, _semantics);
+      expect(controller.action.intent, IuxActionIntent.destructive);
+      expect(
+          controller.action.reversibility, IuxActionReversibility.irreversible);
+      expect(controller.action.isActivatable, isFalse);
+    });
+
+    test('the controller keeps the policy it stripped, and still asks', () {
+      // The strip is on the way *out*. Were it applied to the stored
+      // descriptor, `activate()` would evaluate an action that asks for
+      // nothing and the deletion would run unasked — the defect, moved one
+      // file over.
+      int runs = 0;
+      final IuxDestructiveActionController controller = controllerFor(
+        _confirming,
+        prompt: _prompt,
+        onConfirmed: () => runs++,
+      );
+
+      expect(
+        controller.activate().blockedReason,
+        IuxActionBlockedReason.awaitingConfirmation,
+      );
+      expect(runs, 0);
+      expect(controller.dialog, isNotNull);
+    });
+
+    test('an update carrying a policy is stripped on the way out too', () {
+      // update() is the second way a descriptor reaches this controller, and a
+      // getter that stripped only what the constructor was given would leak on
+      // the first availability change.
+      final IuxDestructiveActionController controller =
+          controllerFor(_immediate)
+            ..update(action: _confirming, prompt: _prompt);
+
+      expect(controller.action.requiresConfirmation, isFalse);
+      expect(
+        controller.activate().blockedReason,
+        IuxActionBlockedReason.awaitingConfirmation,
+        reason: 'and the controller is still honouring the updated policy',
+      );
+    });
+
+    testWidgets('the stripped descriptor is what a plain IuxButton will accept',
+        (WidgetTester tester) async {
+      // The composition IuxDestructiveAction performs, written by hand: this is
+      // what a caller reading `action`\'s docstring builds, and it is the exact
+      // call site IUX-032 measured the defect on.
+      int runs = 0;
+      final IuxDestructiveActionController controller = controllerFor(
+        _confirming,
+        prompt: _prompt,
+        onConfirmed: () => runs++,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.light(),
+          home: Scaffold(
+            body: ListenableBuilder(
+              listenable: controller,
+              builder: (BuildContext context, Widget? child) => IuxButton(
+                label: 'Delete',
+                action: controller.action,
+                onActivate: controller.activate,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'a descriptor published by the honourer is one a button may '
+            'be given. If this throws, the getter has started leaking again '
+            'and the refusal in IuxButton has caught it.',
+      );
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(
+        runs,
+        0,
+        reason: 'and the tap opened the question rather than running the '
+            'deletion — the button accepted the activation, the controller '
+            'refused it',
+      );
+      expect(controller.isConfirming, isTrue);
+    });
+  });
+
   group('the control, in a page', () {
     Future<_Host> pump(
       WidgetTester tester, {
@@ -447,6 +605,63 @@ void main() {
       expect(find.text(_prompt.title), findsOneWidget);
       expect(find.text(_prompt.consequence), findsOneWidget);
       expect(find.text(_prompt.keepLabel), findsOneWidget);
+    });
+
+    testWidgets(
+        'the trigger is given the stripped descriptor and announces '
+        'exactly what it did before', (WidgetTester tester) async {
+      // The second legitimate caller of IUX-BUTTON-CONFIRM-001, and the one the
+      // reverted attempt concluded could not be fixed: this trigger's tap is
+      // what *opens* the question, so the policy looked load-bearing here.
+      //
+      // It is not. Nothing in IuxButton reads the field — not the resolver, not
+      // the semantics, not isActivatable — so the policy reaches no pixel and
+      // no announcement, and the honourer that does read it is the controller
+      // this button calls into. Measured rather than assumed: the announced
+      // node is unchanged, and the tap below still opens the dialog.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final _Host host = await pump(tester);
+
+      final IuxButton trigger = tester.widget<IuxButton>(
+        find.ancestor(
+          of: find.text('Delete'),
+          matching: find.byType(IuxButton),
+        ),
+      );
+
+      expect(
+        trigger.action.requiresConfirmation,
+        isFalse,
+        reason: 'the trigger is delegated to, not an honourer',
+      );
+      expect(
+        trigger.action,
+        _confirming.copyWith(confirmation: IuxConfirmationPolicy.none),
+        reason: 'and one field is all that moved',
+      );
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel(_semantics.label)),
+        matchesSemantics(
+          // The fuller announced name still comes from the descriptor, and the
+          // node is byte-identical to the one the unstripped descriptor
+          // produced: nothing in IuxButton ever read the policy.
+          label: _semantics.label,
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+      );
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(host.runs, 0, reason: 'end to end: the question opened');
+      expect(find.byType(IuxDialog), findsOneWidget);
+      handle.dispose();
     });
 
     testWidgets('the confirming choice runs the action once and closes',

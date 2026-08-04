@@ -111,13 +111,17 @@ const String _kNoOfferOutstanding =
 /// | `availability`, `operation`, `semantics` | the caller's | only the parent can know them |
 ///
 /// It is also not exposed. A public descriptor carrying
-/// [IuxConfirmBeforeExecution] can be handed to a plain `IuxButton`, which
-/// evaluates with `confirmed: true` and runs the action on the first tap with
-/// nobody asked — the open defect recorded as `IUX-BUTTON-CONFIRM-001`. A
-/// caller of this flow never holds such a descriptor, so within this pattern
-/// that trap is unreachable rather than merely documented. It remains
-/// reachable elsewhere; closing it in general is a decision about where a
-/// policy is evaluated, and that is not this mission's.
+/// [IuxConfirmBeforeExecution] used to be handed to a plain `IuxButton`, which
+/// evaluated with `confirmed: true` and ran the action on the first tap with
+/// nobody asked — the defect recorded as `IUX-BUTTON-CONFIRM-001`. A caller of
+/// this flow never held such a descriptor, so within this pattern that trap was
+/// unreachable rather than merely documented.
+///
+/// It is now closed everywhere, by the rule this flow was already following:
+/// whoever honours a policy strips it before delegating, and whatever cannot
+/// present one refuses it. Not publishing the descriptor stays right for the
+/// reasons above — it is simply no longer the only thing between a caller and a
+/// silent deletion.
 ///
 /// ## Where the two layers go
 ///

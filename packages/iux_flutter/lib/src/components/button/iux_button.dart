@@ -13,6 +13,32 @@ import '../../motion/iux_motion_policy.dart';
 import '../../motion/iux_motion_role.dart';
 import '../../themes/extensions/iux_button_theme.dart';
 
+/// Why a button refuses a descriptor that asks to be confirmed.
+///
+/// The rule the whole library now follows: **whoever honours a confirmation
+/// policy strips it before delegating.** A control that cannot present a
+/// question refuses one that arrives still asking, so the two halves cannot
+/// both assume the other did it.
+const String _kUnhonourablePolicy =
+    'This action declares a confirmation policy, and a button presents none. A '
+    'button holds no dialog, no armed state and nowhere to put a second '
+    'question, so the policy would be dropped in silence: the call site reads '
+    'as though the user were being asked, and the action runs on the first '
+    'tap. That is the worst direction for the mistake to take, and it sits on '
+    'the shortest path anybody can write for a deletion — '
+    'IuxActionDescriptor.destructive defaults to IuxConfirmBeforeExecution.\n'
+    '\n'
+    'Use IuxDestructiveAction with an IuxDestructiveActionController. It '
+    'evaluates the policy with confirmed: false, opens the confirmation, and '
+    'runs the action only once it has been answered.\n'
+    '\n'
+    'If the answer has already been obtained above this button — if this '
+    'button *is* the answer — then strip the policy before handing the '
+    'descriptor down: action.copyWith(confirmation: '
+    'IuxConfirmationPolicy.none). Every honourer in this library does exactly '
+    'that, so a descriptor that still carries a policy here has not been '
+    'honoured by anybody.';
+
 /// A textual action.
 ///
 /// ```dart
@@ -42,6 +68,14 @@ import '../../themes/extensions/iux_button_theme.dart';
 /// not be one. An API that accepts a colour has already lost the contrast
 /// guarantee: the theme can no longer be held responsible for something a call
 /// site overrode.
+///
+/// **A descriptor that asks to be confirmed is refused**, in debug, at build.
+/// This widget cannot present a question, and dropping the policy in silence
+/// left the shortest path to a deletion —
+/// `IuxActionDescriptor.destructive(semantics: ...)`, which defaults to
+/// `IuxConfirmBeforeExecution` — reading as though the user would be asked
+/// while the action ran on the first tap. Use [IuxDestructiveAction], or strip
+/// the policy where it is honoured. See [_kUnhonourablePolicy].
 ///
 /// Availability, interaction and operation are three separate things. The
 /// action carries availability and operation; focus, press and hover stay
@@ -217,6 +251,11 @@ class IuxButton extends StatelessWidget {
 /// Also avoid it for a destructive action reached without confirmation: an
 /// unlabelled control is the easiest one to hit by accident.
 ///
+/// It refuses a descriptor that asks to be confirmed for the same reason
+/// [IuxButton] does, and through the same check — see [_kUnhonourablePolicy].
+/// There is no icon-only form of [IuxDestructiveAction], so an icon action that
+/// needs an answer needs a label first.
+///
 /// **Accessibility.** There is no `label` parameter and no way to omit the
 /// accessible name: it comes from [IuxActionSemantics.label], which the action
 /// model already requires to be non-empty. An icon-only control without a name
@@ -346,17 +385,44 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
     // component about whether a busy action accepts a second tap.
     final IuxActionOutcome outcome = IuxActionPolicy.evaluate(
       widget.action,
-      // Confirmation is a pattern's job (IUX-008.7). A core button treats a
-      // confirmable action as ready, and the pattern wrapping it decides
-      // otherwise.
+      // Confirmation is a pattern's job, and the build-time check above is what
+      // makes that division safe: by the time an activation is possible, the
+      // descriptor is known to carry no policy, so this argument decides
+      // nothing in debug.
+      //
+      // It stays `true` for the release build the assertion is compiled out of.
+      // Flipping it there would turn a caller's mistake into a control that
+      // does nothing when tapped, which this library refuses everywhere else —
+      // it is indistinguishable from one that is broken, and it would be a
+      // behaviour change nothing announced. The check fires on the *first
+      // frame* the control is built, not on activation, so no debug run, widget
+      // test or catalog page can reach a release build without seeing it.
       confirmed: true,
     );
     if (!outcome.isAccepted) return;
     widget.onActivate();
   }
 
+  /// Checks that the descriptor carries no promise this widget cannot keep.
+  ///
+  /// A debug check at build rather than an assertion on the constructor,
+  /// because the button constructors are `const` and Dart rejects reading a
+  /// parameter's field inside a `const` constructor's assertion outright — the
+  /// constraint `IuxEmptyStateAction` writes up at length. The shape is
+  /// `IuxDestructiveActionController._debugCoherent`'s and
+  /// `IuxEmptyState._debugWayForward`'s.
+  ///
+  /// Returns true so it can sit inside an `assert`; it never returns false,
+  /// because the failure is worth a sentence rather than a line number.
+  static bool _debugPolicyIsHonoured(IuxActionDescriptor action) {
+    assert(action.confirmation is IuxNoConfirmation, _kUnhonourablePolicy);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    assert(_debugPolicyIsHonoured(widget.action));
+
     final IuxButtonTokens tokens = IuxButtonResolver.resolve(
       context,
       widget.action,

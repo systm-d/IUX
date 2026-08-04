@@ -526,17 +526,21 @@ void main() {
   });
 
   group(
-      'open defect — a confirmation policy is honoured by exactly one of '
-      'the four things that accept a descriptor', () {
+      'fixed — a confirmation policy is now honoured or refused by every '
+      'one of the four things that accept a descriptor', () {
+    // Flipped, not deleted. Each of these asserted the defect
+    // IUX-BUTTON-CONFIRM-001 and named the flip it was waiting for. The rule
+    // that closed it: whoever honours a policy strips it before delegating, and
+    // whatever cannot present one refuses it.
     testWidgets(
-        'a plain IuxButton runs a confirm-before-execution action on '
-        'the first tap', (WidgetTester tester) async {
+        'a plain IuxButton refuses a confirm-before-execution action rather '
+        'than deleting', (WidgetTester tester) async {
       // IuxActionDescriptor.destructive defaults to IuxConfirmBeforeExecution.
-      // So this call site — which is the shortest one a caller can write for a
-      // deletion — reads as though the user will be asked, compiles, raises
-      // nothing, and deletes on the first tap. PROJECT_PROMPT §22 asks
-      // components to prevent incoherent states; this one is not merely
-      // permitted, it is the default shape of the destructive factory.
+      // So this call site — the shortest one a caller can write for a deletion
+      // — used to read as though the user would be asked, compile, raise
+      // nothing, and delete on the first tap. PROJECT_PROMPT §22 asks
+      // components to prevent incoherent states; this one was not merely
+      // permitted, it was the default shape of the destructive factory.
       int runs = 0;
       await host(
         tester,
@@ -549,36 +553,73 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byType(IuxButton));
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull, reason: 'nothing objected');
+      expect(
+        tester.takeException(),
+        isA<AssertionError>().having(
+          (AssertionError e) => e.message.toString(),
+          'message',
+          allOf(
+            contains('IuxDestructiveAction'),
+            contains('copyWith(confirmation: IuxConfirmationPolicy.none)'),
+          ),
+        ),
+        reason: 'the refusal has to name both ways out: the pattern that asks '
+            'the question, and the strip an honourer performs. A refusal that '
+            'only says "no" leaves the caller with a compiling call site and '
+            'no next step.',
+      );
       expect(
         runs,
-        1,
-        reason: 'DEFECT: the descriptor asked to be confirmed and the action '
-            'ran unasked. IuxDestructiveAction is the only widget that routes '
-            'activation through a policy evaluated with confirmed: false.',
+        0,
+        reason: 'and it refuses at build, before any gesture can reach it — '
+            'the check fires on the first frame the control exists, so no '
+            'debug run can miss it while waiting for somebody to tap.',
       );
     });
 
-    testWidgets('IuxAsyncActionController makes the same assumption',
+    testWidgets('IuxIconButton refuses it through the same check',
         (WidgetTester tester) async {
-      int runs = 0;
-      final IuxAsyncActionController controller = IuxAsyncActionController(
-        action: const IuxActionDescriptor.destructive(
-          semantics: IuxActionSemantics(label: 'Delete everything'),
+      // The shared surface is where the check lives, so the labelled button and
+      // the icon-only one cannot come to disagree about it — and the icon-only
+      // one is the worse case, being the easiest control to hit by accident.
+      await host(
+        tester,
+        IuxIconButton(
+          icon: Icons.delete_outline,
+          action: const IuxActionDescriptor.destructive(
+            semantics: IuxActionSemantics(label: 'Delete everything'),
+          ),
+          onActivate: () {},
         ),
-        operation: (IuxAsyncActionSignal signal) async {
-          runs++;
-          return const IuxAsyncOutcome.succeeded();
-        },
       );
-      addTearDown(controller.dispose);
 
-      expect(controller.activate().isAccepted, isTrue);
-      await tester.pump();
-      expect(runs, 1);
+      expect(tester.takeException(), isA<AssertionError>());
+    });
+
+    testWidgets('IuxAsyncActionController refuses one too',
+        (WidgetTester tester) async {
+      // It evaluates with confirmed: true and presents nothing, so it made the
+      // same assumption IuxButton did — one layer up, where a safe button
+      // would have been handed the policy again through `descriptor`.
+      expect(
+        () => IuxAsyncActionController(
+          action: const IuxActionDescriptor.destructive(
+            semantics: IuxActionSemantics(label: 'Delete everything'),
+          ),
+          operation: (IuxAsyncActionSignal signal) async =>
+              const IuxAsyncOutcome.succeeded(),
+        ),
+        throwsA(
+          isA<AssertionError>().having(
+            (AssertionError e) => e.message.toString(),
+            'message',
+            contains('IuxDestructiveActionController'),
+          ),
+        ),
+        reason: 'and it names the composition that works, rather than leaving '
+            'the caller to discover that a confirmation cannot be attached to '
+            'an asynchronous action at all',
+      );
     });
 
     testWidgets('IuxDestructiveAction is the one that asks',

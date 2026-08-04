@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../actions/iux_action_descriptor.dart';
@@ -31,6 +33,30 @@ import 'iux_navigation_drawer_tokens.dart';
 /// to show. On the narrowest screen IUX supports this leaves 64 logical pixels
 /// of page, which is above the smallest strip Material considers usable.
 const double _kMaximumScreenFraction = 0.8;
+
+/// Assumed heading size when a theme supplies a title style without one.
+///
+/// Only used to work out how much room the heading needs before it is laid
+/// out. An IUX theme always sets a size; this keeps a hand-built theme from
+/// crashing the layout decision.
+const double _kAssumedHeadingSize = 16;
+
+/// The shortest heading fragment worth leaving on a shared line.
+///
+/// Below roughly a dozen characters a wrapping heading turns into a column of
+/// syllables, which is harder to read than the same words on their own line.
+/// A hypothesis, not a measurement — and the same one `IuxAppBar` makes, on
+/// purpose: a heading beside a control is one question, and the two surfaces
+/// that ask it must not answer it differently.
+const int _kMinimumHeadingCharacters = 12;
+
+/// Roughly half the font size per character, for a proportional Latin face.
+///
+/// The same crude conversion `IuxContentWidthResolver` and `IuxAppBar` use,
+/// and crude for the same reason: an exact measurement would need the actual
+/// font, and being generous is safer than clipping. It will be wrong for CJK
+/// and for monospace.
+const double _kAverageCharacterWidthRatio = 0.5;
 
 /// A modal panel at the leading edge, holding the places the user can go.
 ///
@@ -616,6 +642,16 @@ class _IuxNavigationDrawerState extends State<IuxNavigationDrawer>
   /// reader swipe reaches before any destination. A way out found only after
   /// twelve swipes is a way out most users never find — and in a drawer the
   /// alternative to finding it is choosing a destination the user did not want.
+  ///
+  /// Whether the two share a line is decided by measuring them, not by reading
+  /// the text scale. That distinction is IUX-DRAWER-LABEL-001: the panel caps
+  /// near the width the destination names need whatever the screen is, so what
+  /// decides the arrangement is how wide *this* label is, and the text scale
+  /// answers a different question. Branching on the scale left
+  /// `dismissLabel: 'Close the menu'` overflowing by 9.5 px at 100% text —
+  /// 34 px on a 320-wide screen — with the heading squeezed to nothing, and
+  /// left it *repaired* by enlarging the text to 150%, which is the wrong way
+  /// round for an accessibility setting.
   Widget _header(BuildContext context, IuxNavigationDrawerTokens tokens) {
     final Widget title = IuxSemantics.header(
       label: widget.title,
@@ -640,26 +676,25 @@ class _IuxNavigationDrawerState extends State<IuxNavigationDrawer>
       onActivate: widget.onDismiss,
     );
 
-    if (IuxReadableText.shouldStack(context)) {
-      // Past roughly 130% text a heading and a button stop sharing a line in a
-      // panel this narrow, and the row would either overflow or squeeze the
-      // heading into a column two characters wide.
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[title, const IuxGap.tight(), dismiss],
-      );
-    }
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
 
-    return Row(
-      // Aligned to the top, so a heading that wraps to three lines does not
-      // drag the button down to the middle of them.
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: title),
-        const IuxGap.horizontal(IuxSpacingStep.md),
-        dismiss,
-      ],
+    return _IuxDrawerHeader(
+      metrics: _IuxDrawerHeaderMetrics(
+        // The same two steps the row and the column used to take from the
+        // spacing scale, so the arrangement changed and the rhythm did not.
+        betweenOnOneLine: geometry.spacingMd,
+        belowHeading: geometry.spacing(IuxSpacingStep.xs),
+        // Resolved here, where the text scale in force is readable, because
+        // the render object below is deliberately given numbers rather than a
+        // `BuildContext`.
+        readableHeading: IuxAccessibility.of(context).scaleText(
+              tokens.titleStyle.fontSize ?? _kAssumedHeadingSize,
+            ) *
+            _kAverageCharacterWidthRatio *
+            _kMinimumHeadingCharacters,
+      ),
+      heading: title,
+      dismiss: dismiss,
     );
   }
 
@@ -675,6 +710,339 @@ class _IuxNavigationDrawerState extends State<IuxNavigationDrawer>
   /// an exception.
   static double _panelWidth({required double box, required double cap}) =>
       box.isFinite ? math.min(box * _kMaximumScreenFraction, cap) : cap;
+}
+
+/// The two things in a drawer header, in reading order.
+enum _IuxDrawerHeaderSlot {
+  /// What the drawer is. Always present.
+  heading,
+
+  /// The way out. Always present.
+  dismiss,
+}
+
+/// The resolved numbers the header arrangement needs, and nothing else.
+///
+/// A render object has no `BuildContext`, which is the point rather than an
+/// inconvenience: everything the layout depends on is resolved once, in
+/// `build`, from the same theme and runtime every other IUX component reads.
+/// The layout below cannot reach around them because it has nothing to reach
+/// with.
+@immutable
+class _IuxDrawerHeaderMetrics {
+  const _IuxDrawerHeaderMetrics({
+    required this.betweenOnOneLine,
+    required this.belowHeading,
+    required this.readableHeading,
+  });
+
+  /// Between the heading and the way out while they share a line.
+  final double betweenOnOneLine;
+
+  /// Between the heading and the way out once it has moved below.
+  final double belowHeading;
+
+  /// The narrowest width in which a wrapped heading is still words.
+  final double readableHeading;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _IuxDrawerHeaderMetrics &&
+          other.betweenOnOneLine == betweenOnOneLine &&
+          other.belowHeading == belowHeading &&
+          other.readableHeading == readableHeading;
+
+  @override
+  int get hashCode =>
+      Object.hash(betweenOnOneLine, belowHeading, readableHeading);
+}
+
+/// The header's two arrangements, chosen by measurement at layout time.
+///
+/// A render object rather than a `LayoutBuilder`, for the reason `IuxAppBar`
+/// records: a `LayoutBuilder` has to build before it knows anything, so it can
+/// never answer *how tall would you be at this width* — which is what
+/// `IntrinsicHeight`, `IntrinsicWidth` and an intrinsic `Table` column all ask,
+/// and a header that cannot answer excludes the whole drawer from them.
+class _IuxDrawerHeader extends SlottedMultiChildRenderObjectWidget<
+    _IuxDrawerHeaderSlot, RenderBox> {
+  const _IuxDrawerHeader({
+    required this.metrics,
+    required this.heading,
+    required this.dismiss,
+  });
+
+  final _IuxDrawerHeaderMetrics metrics;
+  final Widget heading;
+  final Widget dismiss;
+
+  @override
+  Iterable<_IuxDrawerHeaderSlot> get slots => _IuxDrawerHeaderSlot.values;
+
+  @override
+  Widget childForSlot(_IuxDrawerHeaderSlot slot) => switch (slot) {
+        _IuxDrawerHeaderSlot.heading => heading,
+        _IuxDrawerHeaderSlot.dismiss => dismiss,
+      };
+
+  @override
+  _RenderIuxDrawerHeader createRenderObject(BuildContext context) =>
+      _RenderIuxDrawerHeader(
+        metrics: metrics,
+        textDirection: Directionality.of(context),
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderIuxDrawerHeader renderObject,
+  ) {
+    renderObject
+      ..metrics = metrics
+      ..textDirection = Directionality.of(context);
+  }
+}
+
+/// Lays the heading and the way out into one line or two.
+///
+/// The decision: the heading keeps the shared line while it either fits there
+/// on one line or still gets enough width to wrap into readable ones. The way
+/// out is measured rather than estimated, so the label the caller actually
+/// passed is the label the arrangement is chosen for.
+class _RenderIuxDrawerHeader extends RenderBox
+    with SlottedContainerRenderObjectMixin<_IuxDrawerHeaderSlot, RenderBox> {
+  _RenderIuxDrawerHeader({
+    required _IuxDrawerHeaderMetrics metrics,
+    required TextDirection textDirection,
+  })  : _metrics = metrics,
+        _textDirection = textDirection;
+
+  _IuxDrawerHeaderMetrics get metrics => _metrics;
+  _IuxDrawerHeaderMetrics _metrics;
+  set metrics(_IuxDrawerHeaderMetrics value) {
+    if (_metrics == value) return;
+    _metrics = value;
+    markNeedsLayout();
+  }
+
+  TextDirection get textDirection => _textDirection;
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  RenderBox get _heading => childForSlot(_IuxDrawerHeaderSlot.heading)!;
+  RenderBox get _dismiss => childForSlot(_IuxDrawerHeaderSlot.dismiss)!;
+
+  /// Painted, hit tested and visited in reading order, which is also the order
+  /// the semantics compiler will announce them in once it has sorted the two
+  /// by where they ended up.
+  ///
+  /// Written against the nullable slots rather than [_heading] and [_dismiss]:
+  /// the mixin walks this during `attach`, which happens once per slot as each
+  /// child arrives, so for one call the second slot is genuinely still empty.
+  @override
+  Iterable<RenderBox> get children {
+    final RenderBox? heading = childForSlot(_IuxDrawerHeaderSlot.heading);
+    final RenderBox? dismiss = childForSlot(_IuxDrawerHeaderSlot.dismiss);
+    return <RenderBox>[
+      if (heading != null) heading,
+      if (dismiss != null) dismiss,
+    ];
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! BoxParentData) child.parentData = BoxParentData();
+  }
+
+  /// Whether the way out has to leave the heading's line.
+  ///
+  /// Measured, not assumed. Branching on the text scale alone — the way
+  /// `IuxReadableText.shouldStack` does, and the way this header used to —
+  /// answers a question about the *user's* text size with a decision that
+  /// depends on the *caller's* label. A one-word label fitted at any scale and
+  /// was moved below anyway; a four-word one did not fit at any scale and was
+  /// left on the line to overflow.
+  bool _stacked({
+    required double available,
+    required double controls,
+    required double headingOneLine,
+  }) =>
+      available - controls < math.min(headingOneLine, metrics.readableHeading);
+
+  /// Mirrors an offset measured from the leading edge under a right-to-left
+  /// directionality, so the heading starts where the user starts reading.
+  Offset _place(double start, double top, double width, double available) =>
+      Offset(
+        textDirection == TextDirection.ltr ? start : available - start - width,
+        top,
+      );
+
+  /// The whole layout, shared by [performLayout] and [computeDryLayout].
+  ///
+  /// `positionChild` is null for the dry pass, which is what keeps the two from
+  /// drifting: one description of the arrangement, measured twice.
+  Size _arrange(
+    BoxConstraints constraints,
+    ChildLayouter layoutChild, {
+    void Function(RenderBox child, Offset offset)? positionChild,
+  }) {
+    final RenderBox heading = _heading;
+    final RenderBox dismiss = _dismiss;
+
+    final BoxConstraints room = BoxConstraints(
+      maxWidth:
+          constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity,
+    );
+    final Size dismissSize = layoutChild(dismiss, room);
+    final double controls = dismissSize.width + metrics.betweenOnOneLine;
+    final double headingOneLine = heading.getMaxIntrinsicWidth(double.infinity);
+    // An unbounded width has nothing to be short of, so the header takes the
+    // width its content asks for and keeps the shared line.
+    final double available = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : controls + headingOneLine;
+
+    if (!_stacked(
+      available: available,
+      controls: controls,
+      headingOneLine: headingOneLine,
+    )) {
+      // Takes what the way out left, and never less than nothing: the heading
+      // is the only thing here allowed to wrap, so it is the only thing that
+      // gives ground.
+      final double headingWidth = math.max(0, available - controls);
+      final Size headingSize =
+          layoutChild(heading, BoxConstraints.tightFor(width: headingWidth));
+      final double height = math.max(headingSize.height, dismissSize.height);
+      if (positionChild != null) {
+        // Both aligned to the top, so a heading that wraps to three lines does
+        // not drag the button down to the middle of them.
+        positionChild(heading, _place(0, 0, headingWidth, available));
+        positionChild(
+          dismiss,
+          _place(
+              available - dismissSize.width, 0, dismissSize.width, available),
+        );
+      }
+      return Size(available, height);
+    }
+
+    // Stacked: the heading takes the full width and wraps over as many lines as
+    // it needs; the way out sits below it at the leading edge, at its own
+    // width — re-measured against the whole width, so a long label wraps inside
+    // the button rather than past the edge of the panel.
+    final Size headingSize =
+        layoutChild(heading, BoxConstraints(maxWidth: available));
+    final Size stackedDismiss =
+        layoutChild(dismiss, BoxConstraints(maxWidth: available));
+    final double dismissTop = headingSize.height + metrics.belowHeading;
+
+    if (positionChild != null) {
+      positionChild(heading, _place(0, 0, headingSize.width, available));
+      positionChild(
+        dismiss,
+        _place(0, dismissTop, stackedDismiss.width, available),
+      );
+    }
+    return Size(available, dismissTop + stackedDismiss.height);
+  }
+
+  /// The same arrangement, measured through the intrinsic protocol.
+  ///
+  /// Separate from [_arrange] because nothing may be laid out during an
+  /// intrinsic pass. The two agree by construction: the same decision, the same
+  /// gap, the same widths handed to the same children.
+  double _intrinsicHeight(double width) {
+    final RenderBox heading = _heading;
+    final RenderBox dismiss = _dismiss;
+
+    final double dismissWidth = dismiss.getMaxIntrinsicWidth(double.infinity);
+    final double controls = dismissWidth + metrics.betweenOnOneLine;
+    final double headingOneLine = heading.getMaxIntrinsicWidth(double.infinity);
+    final double available = width.isFinite ? width : controls + headingOneLine;
+
+    if (!_stacked(
+      available: available,
+      controls: controls,
+      headingOneLine: headingOneLine,
+    )) {
+      return math.max(
+        dismiss.getMaxIntrinsicHeight(dismissWidth),
+        heading.getMaxIntrinsicHeight(math.max(0, available - controls)),
+      );
+    }
+    return heading.getMaxIntrinsicHeight(available) +
+        metrics.belowHeading +
+        dismiss.getMaxIntrinsicHeight(math.min(dismissWidth, available));
+  }
+
+  /// The width the header asks for when nothing constrains it: the way out, the
+  /// gap, and the heading.
+  double _intrinsicWidth(double headingWidth) =>
+      _dismiss.getMaxIntrinsicWidth(double.infinity) +
+      metrics.betweenOnOneLine +
+      headingWidth;
+
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      _intrinsicWidth(_heading.getMinIntrinsicWidth(double.infinity));
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _intrinsicWidth(_heading.getMaxIntrinsicWidth(double.infinity));
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.constrain(
+        _arrange(constraints, ChildLayoutHelper.dryLayoutChild),
+      );
+
+  @override
+  void performLayout() {
+    size = constraints.constrain(
+      _arrange(
+        constraints,
+        ChildLayoutHelper.layoutChild,
+        positionChild: (RenderBox child, Offset offset) =>
+            (child.parentData! as BoxParentData).offset = offset,
+      ),
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    for (final RenderBox child in children) {
+      context.paintChild(
+        child,
+        (child.parentData! as BoxParentData).offset + offset,
+      );
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    for (final RenderBox child in children) {
+      final BoxParentData parentData = child.parentData! as BoxParentData;
+      final bool hit = result.addWithPaintOffset(
+        offset: parentData.offset,
+        position: position,
+        hitTest: (BoxHitTestResult result, Offset transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
+  }
 }
 
 /// One destination: a target, a glyph, a name, and at most one badge.

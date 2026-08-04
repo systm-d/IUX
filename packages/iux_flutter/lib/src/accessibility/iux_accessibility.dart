@@ -33,22 +33,43 @@ final class IuxAccessibility {
   ///
   /// Falls back to platform values alone when no IUX theme is installed, so
   /// this stays usable during incremental adoption.
+  ///
+  /// **One accessor per value, never `MediaQuery.of`.** The two resolve the
+  /// same six values; they differ in what the caller is then rebuilt for.
+  /// `MediaQuery.of` registers a dependency on *every* aspect of the media
+  /// query, so a caller reading it was rebuilt by the software keyboard
+  /// opening, by a notch being reported and by the device rotating — none of
+  /// which can change any value here, and all of which are frequent.
+  ///
+  /// Measured on a realistic screen, one frame after the change
+  /// (IUX-PERF-001): a keyboard rebuilt 114 elements through `MediaQuery.of`
+  /// and rebuilds **8** now, a notch 101 and **8**, a rotation 130 and **26**.
+  /// Enlarging the text is 140 either way, because text scale is one of the six
+  /// and every one of those rebuilds is required. Every resolved value is
+  /// identical either way — the dependency narrowed, the answer did not — and
+  /// both halves of that are pinned by
+  /// `test/performance/rebuild_scope_test.dart`.
   static IuxAccessibility of(BuildContext context) {
-    final MediaQueryData media = MediaQuery.of(context);
     final IuxAccessibilityProfile requested =
         Theme.of(context).extension<IuxAccessibilityTheme>()?.profile ??
             const IuxAccessibilityProfile();
 
     return IuxAccessibility(
-      contrast: _strongerContrast(requested.contrast, media.highContrast),
-      motion: _strongerMotion(requested.motion, media.disableAnimations),
+      contrast: _strongerContrast(
+        requested.contrast,
+        MediaQuery.highContrastOf(context),
+      ),
+      motion: _strongerMotion(
+        requested.motion,
+        MediaQuery.disableAnimationsOf(context),
+      ),
       density: requested.density,
       touchTarget: requested.touchTarget,
       visualStimulation: requested.visualStimulation,
-      textScaler: media.textScaler,
-      boldText: media.boldText,
-      invertColors: media.invertColors,
-      screenReaderExpected: media.accessibleNavigation,
+      textScaler: MediaQuery.textScalerOf(context),
+      boldText: MediaQuery.boldTextOf(context),
+      invertColors: MediaQuery.invertColorsOf(context),
+      screenReaderExpected: MediaQuery.accessibleNavigationOf(context),
     );
   }
 

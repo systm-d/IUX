@@ -66,9 +66,26 @@ put in one did not need to interrupt.
   asserts this.
 
 `IuxConfirmationPolicy` is modelled on the action, not here. A dialog is *one*
-way to obtain a confirmation — hold-to-confirm, double activation and a typed
-confirmation phrase are others, and nothing in the action model imposes this
-one.
+way to obtain a confirmation — a typed confirmation phrase and a second screen
+are others, and nothing in the action model imposes this one.
+
+## The dialog is the confirmation, so it strips the policy
+
+A choice may arrive carrying `IuxConfirmBeforeExecution` — the example above
+does, because `IuxActionDescriptor.destructive` defaults to it — and that is
+correct at the call site: the caller hands over the descriptor they already
+have. This widget honours the policy *by presenting it*, then clears it before
+drawing the choice, `choice.action.copyWith(confirmation:
+IuxConfirmationPolicy.none)`.
+
+Two things would go wrong without the strip. An action asking to be confirmed
+again inside its own confirmation would never run. And the choice is drawn with
+an `IuxButton`, which refuses a policy it cannot present — see
+[button.md](button.md) and `IUX-BUTTON-CONFIRM-001`.
+
+Nothing else about the descriptor moves. A disabled choice is still disabled
+here, with its `unavailabilityReason` intact, and a choice whose action is
+already running still says so.
 
 ## It is a layer, not a route
 
@@ -243,6 +260,14 @@ IuxDialogAction(onActivate: controller.confirmDelete)
 // Wrong: confirming an action the user can simply undo.
 IuxDialog(title: 'Archive this?', ...)   // archiving is reversible
 // Right: archive it, and offer undo.
+```
+
+```dart
+// Not wrong, and worth saying: a choice carrying a confirmation policy.
+IuxDialogAction(action: IuxActionDescriptor.destructive(semantics: ...))
+// The dialog is the question, so it strips the policy and draws the answer.
+// The same descriptor on a plain IuxButton is refused, because nothing there
+// would have asked.
 ```
 
 ## States

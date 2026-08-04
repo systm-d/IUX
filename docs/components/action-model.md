@@ -125,9 +125,33 @@ from the source and fails if any member has an empty right one, so a fifth
 policy cannot be added without something reading it.
 
 The second column is also the answer to the wider trap recorded as
-IUX-BUTTON-CONFIRM-001: a policy on a descriptor is a *statement*, not an
-enforcement, and handing such a descriptor to a plain `IuxButton` runs the
-action on the first tap.
+IUX-BUTTON-CONFIRM-001: a policy on a descriptor is a *statement*, and a
+statement needs somebody to act on it. Handing such a descriptor to a plain
+`IuxButton` used to run the action on the first tap. It no longer can, because
+the statement now has a rule attached.
+
+## Whoever honours a policy strips it before delegating
+
+One type presents a confirmation — `IuxDestructiveActionController` — and the
+policy has to survive from the descriptor to that type without being quietly
+lost on the way. Two halves, both enforced rather than documented:
+
+| Half | Who | What it does |
+| --- | --- | --- |
+| honour, then strip | `IuxDestructiveActionController.action` | evaluates the policy on its own copy, publishes the descriptor with `confirmation: none` |
+| honour, then strip | `IuxDialog` | it *is* the question, so its choices are drawn from `choice.action.copyWith(confirmation: none)` |
+| refuse | `IuxButton`, `IuxIconButton` | a debug check at `build`; a button holds no dialog and no armed state |
+| refuse | `IuxAsyncActionController` | asserted on the constructor and on `updateAction`; it starts work, it does not ask about it |
+| refuse | `IuxEmptyStateAction` | asserted on construction; an empty state has nowhere to put a second question |
+
+The direction matters. Dropping a policy in silence leaves a call site that
+reads as though the user were being asked while the action runs on the first
+tap, which is the worst way for that mistake to go (PROJECT_PROMPT §5, §22).
+Refusing costs a caller one line and tells them which line.
+
+A descriptor that still carries a policy has therefore *provably* not been
+honoured by anybody, and a control that receives one says so instead of
+deleting.
 
 Nothing here imposes a dialog.
 

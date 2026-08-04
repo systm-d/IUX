@@ -50,6 +50,19 @@ final class IuxDialogAction {
   /// the same action can be disabled, named for a screen reader, and marked
   /// irreversible in one object — and so a dialog button behaves exactly like
   /// the same action anywhere else in the application.
+  ///
+  /// **Its confirmation policy is cleared before the choice is drawn**, and
+  /// that is not a convenience. The dialog *is* the confirmation: this control
+  /// is the answer to a question the user has already been asked and has in
+  /// front of them. An action that asked to be confirmed again inside its own
+  /// confirmation would never run, and one that arrived here still asking
+  /// would be handed to an [IuxButton] that refuses it. So a caller may write
+  /// the descriptor they already have — including
+  /// `IuxActionDescriptor.destructive(...)`, which defaults to
+  /// `IuxConfirmBeforeExecution` — and this widget honours the policy by
+  /// presenting it, then strips it. Everything else about the descriptor is
+  /// kept: a disabled or already-running choice is disabled or already-running
+  /// here too.
   final IuxActionDescriptor action;
 
   /// Called once when the user takes this choice.
@@ -87,7 +100,6 @@ final class IuxDialogAction {
 ///       label: 'Delete',
 ///       action: const IuxActionDescriptor.destructive(
 ///         semantics: IuxActionSemantics(label: 'Delete the March invoice'),
-///         confirmation: IuxConfirmationPolicy.none,
 ///       ),
 ///       onActivate: controller.confirmDelete,
 ///     ),
@@ -498,7 +510,12 @@ class _IuxDialogState extends State<IuxDialog>
         for (final IuxDialogAction choice in widget.actions)
           IuxButton(
             label: choice.label,
-            action: choice.action,
+            // The policy is honoured here — by this dialog, which is the
+            // question — and stripped before it reaches a control that could
+            // not present one. See [IuxDialogAction.action].
+            action: choice.action.copyWith(
+              confirmation: IuxConfirmationPolicy.none,
+            ),
             onActivate: choice.onActivate,
           ),
       ],

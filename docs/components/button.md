@@ -162,7 +162,7 @@ translation produces. **Worst case** sets all of them in one tap.
 | Where the operation is | the four lifecycle values side by side — see Limits |
 | Room to wrap | natural, expanded, squeezed to 140px, sharing a row, inside a `Center` |
 | An action that takes time | the busy state with no spinner; outcome, cancellation and repeat policy switchable |
-| An action worth being careful about | confirmation versus undo, and the plain button that runs a confirming action anyway |
+| An action worth being careful about | confirmation versus undo, and the plain button that now refuses a confirming action |
 | What the API refuses | the assertions, and the fact that a release build has none of them |
 
 Three of those panels print the semantics node the framework actually
@@ -199,21 +199,36 @@ Row(children: [IuxButton(action: primaryA), IuxButton(action: primaryB)])
   [button-variants.md](button-variants.md).
 - No asynchronous handling of its own. `IuxAsyncActionButton` is that widget;
   see [async-actions.md](async-actions.md).
-- **A confirmation policy on the descriptor is ignored here.** `IuxButton`
-  evaluates the action with `confirmed: true`, because obtaining an answer is a
-  pattern's job. That is the correct division of labour and it is also a trap
-  worth stating plainly: `IuxActionDescriptor.destructive` defaults to
-  `IuxConfirmBeforeExecution`, so
+- **A confirmation policy on the descriptor is refused here, not ignored.**
+  Obtaining an answer is a pattern's job, and this widget now says so rather
+  than dropping the policy in silence:
 
   ```dart
-  // Compiles, asserts nothing, and deletes on the first tap.
+  // Fails a debug check on the first frame it is built.
   IuxButton(label: l10n.delete, action: IuxActionDescriptor.destructive(...))
   ```
 
-  reads at the call site as though the user will be asked, and they will not.
+  That call site used to compile, assert nothing and delete on the first tap —
+  `IuxActionDescriptor.destructive` defaults to `IuxConfirmBeforeExecution`, so
+  the trap sat on the shortest path anybody could write for a deletion
+  (`IUX-BUTTON-CONFIRM-001`). It reads as though the user will be asked, and
+  they were not.
+
+  The check is at `build`, not on the constructor, because the constructors are
+  `const` and Dart forbids reading a parameter's field in a `const` assertion.
+  It fires on the first frame the control exists, before any gesture, so no
+  debug run or widget test can reach a release build without seeing it. The
+  release build behaves exactly as it did before — the assertion is compiled
+  out, and flipping the evaluation there would turn a caller's mistake into a
+  control that does nothing when tapped.
+
   Use `IuxDestructiveAction`, which routes activation through a policy asked
   with `confirmed: false`. See
-  [destructive-action.md](../patterns/destructive-action.md).
+  [destructive-action.md](../patterns/destructive-action.md). If something
+  above the button has already obtained the answer, strip the policy before
+  handing the descriptor down — `copyWith(confirmation:
+  IuxConfirmationPolicy.none)` — which is what every honourer in the library
+  does. See [action-model.md](action-model.md).
 - **`IuxActionCancellation` is ignored here too.** `IuxAsyncActionButton`
   asserts that `IuxActionCancellation.required` comes with a `cancelLabel`;
   `IuxButton` draws no exit and says nothing. An operation long enough to need

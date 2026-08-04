@@ -4,6 +4,27 @@ import '../feedback/iux_feedback_event.dart';
 import 'iux_action_descriptor.dart';
 import 'iux_action_model.dart';
 
+/// Why an asynchronous action that asks to be confirmed is refused.
+///
+/// This controller evaluates with `confirmed: true` and presents nothing, so a
+/// policy reaching it would be dropped in silence — the same trap
+/// `IuxButton` refuses, one layer up, where it would otherwise be re-entered by
+/// a controller handing its `descriptor` to a button that had just been made
+/// safe.
+const String _kConfirmingAsyncAction =
+    'This action declares a confirmation policy, and this controller presents '
+    'none: it starts the operation, it does not ask about it. The policy would '
+    'be dropped in silence, the call site would read as though the user were '
+    'being asked, and the work would start on the first tap.\n'
+    '\n'
+    'The composition that does work is already documented: put an '
+    'IuxDestructiveActionController in front, and drive this controller from '
+    'its onConfirmed callback. The question is then asked once, by the one '
+    'type that presents it, and the operation starts only after it has been '
+    'answered. Feed this controller\'s descriptor back through '
+    'IuxDestructiveActionController.update to show the run on the same '
+    'control.';
+
 /// What an operation reported about itself when it finished.
 ///
 /// Returned by the operation, never deduced by the framework. This is the
@@ -351,6 +372,10 @@ class IuxAsyncActionController extends ChangeNotifier
           'overwritten on the first activation. Remove the operation argument '
           'from the descriptor.',
         ),
+        assert(
+          action.confirmation is IuxNoConfirmation,
+          _kConfirmingAsyncAction,
+        ),
         _action = action,
         _operation = operation;
 
@@ -386,9 +411,10 @@ class IuxAsyncActionController extends ChangeNotifier
   /// A blocked attempt names its reason rather than doing nothing, because a
   /// control that appears inert is indistinguishable from one that is broken.
   ///
-  /// Confirmation is treated as already given. Presenting a confirmation is a
-  /// pattern's job, not a controller's, and the core components make the same
-  /// assumption so the two cannot disagree.
+  /// Confirmation is treated as already given, and the constructor is what
+  /// makes that safe: a descriptor that still asks for one never reaches here.
+  /// Presenting a confirmation is a pattern's job, not a controller's — see
+  /// [_kConfirmingAsyncAction] for the composition that does it.
   IuxActionOutcome activate() {
     assert(
       !_disposed,
@@ -481,6 +507,7 @@ class IuxAsyncActionController extends ChangeNotifier
       'cannot be started cannot be the one that is running, and the descriptor '
       'refuses that combination. Wait for the run to end, or cancel it first.',
     );
+    assert(action.confirmation is IuxNoConfirmation, _kConfirmingAsyncAction);
     if (_disposed || action == _action) return;
     _action = action;
     notifyListeners();

@@ -80,6 +80,13 @@ final class IuxActionDescriptor {
   /// overridable: archiving is destructive and reversible, and confirming
   /// every deletion trains users to dismiss confirmations.
   ///
+  /// Because of that default, this is the shortest path anybody can write for a
+  /// deletion — which is why it is also where the confirmation rule bites.
+  /// Something has to honour the policy: hand this descriptor to an
+  /// `IuxDestructiveActionController`, which presents the question, or to an
+  /// `IuxDialog` choice, which *is* one. A plain `IuxButton` refuses it rather
+  /// than deleting unasked. See [IuxConfirmationPolicy].
+  ///
   /// Its importance is [IuxActionImportance.high] — not because deleting
   /// things is desirable, but because importance now chooses the container an
   /// action is drawn in, and a control that destroys data must be identifiable

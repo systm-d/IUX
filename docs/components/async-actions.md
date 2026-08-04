@@ -93,8 +93,10 @@ network, an export, a sync.
 - **You want the button to decide the result.** It will not, and no parameter
   will make it.
 - **You need a confirmation before the work starts.** Confirmation is a
-  pattern, IUX-008.7. The controller treats a confirmable action as already
-  confirmed, exactly as the core buttons do, so the two cannot disagree.
+  pattern, IUX-008.7. This controller starts work; it does not ask about it, so
+  it *refuses* a descriptor carrying a confirmation policy rather than treating
+  it as already answered. Put an `IuxDestructiveActionController` in front and
+  drive this one from its `onConfirmed`.
 
 ## A second activation is dropped
 
@@ -305,13 +307,16 @@ plus the busy label, the cancel affordance and the feedback relay.
 - **`expand` and `cancelLabel` are mutually exclusive**, asserted. A full-width
   button leaves no room beside it; place the cancel affordance in your own
   layout and drive it with `requestCancellation()`.
-- **No confirmation flow.** `IuxAsyncActionController.activate()` evaluates the
-  action with `confirmed: true`, so a descriptor carrying
+- **No confirmation flow, and the controller says so.** `activate()` evaluates
+  the action with `confirmed: true`, so a descriptor carrying
   `IuxConfirmBeforeExecution` — the default of
-  `IuxActionDescriptor.destructive` — starts the operation on the first
-  activation with nothing asked and nothing asserted. Obtain the answer with
-  `IuxDestructiveActionController` and drive this controller from its
-  `onConfirmed`.
+  `IuxActionDescriptor.destructive` — used to start the operation on the first
+  activation with nothing asked and nothing asserted. It is now refused, on
+  the constructor and on `updateAction`, with the composition that works named
+  in the message: obtain the answer with `IuxDestructiveActionController` and
+  drive this controller from its `onConfirmed`, feeding `descriptor` back
+  through `update` so the run shows on the same control. Recorded as
+  `IUX-BUTTON-CONFIRM-001`.
 - **Activating with the keyboard costs the user their place.** The button stops
   being focusable while the operation runs, because `canRequestFocus` follows
   `action.isActivatable`. Measured: pressing Enter moves focus to the control

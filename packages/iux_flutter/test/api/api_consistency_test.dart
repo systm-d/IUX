@@ -278,8 +278,11 @@ void main() {
       // tap. IUX-039 removed both.
       //
       // This was adjacent to IUX-BUTTON-CONFIRM-001 but not the same finding:
-      // that one is a policy one widget honours and three ignore, and it stays
-      // open. These two were honoured by *zero*.
+      // that one was a policy one widget honoured and three ignored. These two
+      // were honoured by *zero*. Both are now closed, and by opposite moves —
+      // these two left the type, while the surviving member got the rule that
+      // whoever honours it strips it before delegating, and whatever cannot
+      // present it refuses it rather than dropping it in silence.
       //
       // The guarantee is now structural, so a fifth member cannot be added
       // without something reading it. Source-level rather than rendered,
