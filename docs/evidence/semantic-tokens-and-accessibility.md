@@ -1937,6 +1937,93 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   Its other two reasons — the inverted layer direction and the eight unread
   exported token fields — stand.
 
+### IUX-TRANSIENT-COVER-001 — A notice makes the navigation unreachable for four seconds (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxTransientLayer` composed with `IuxAdaptiveNavigation`
+- **Sources**: WCAG 2.2 SC 2.2.1; measured on 360x800
+- **Status**: **open, and the worst thing the pilot application found.** The
+  transient layer must sit at page level while the navigation owns the frame,
+  so the reading that follows from both doc pages pins every notice on top of
+  the navigation bar — and the layer reserves **no layout space**. Measured:
+  notice at y 712–760, destinations at y 740–786, **all three
+  `hitTestable = 0`**. The dwell is a minimum of four seconds and by design
+  cannot be shortened, so every "added" message costs the user their ability
+  to change section.
+- **The fix an application must find for itself**: the transient layer goes
+  *inside* the navigation and the modal layer stays outside — a dialog must
+  cover the navigation, a notice must not. Nothing in the framework says so.
+
+### IUX-APPBAR-PAGE-001 — Three defects in one composition (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxAppBar` composed with `IuxPage` — the most-repeated
+  composition in any application
+- **Status**: open, all three measured by IUX-041.
+  - **Double top inset.** The bar's `SafeArea` removes the inset for its own
+    subtree only, and the sibling page consumes it again. With a 40 px inset,
+    content top lands at y 152 instead of y 112, and nothing asserts.
+    `IuxPageInsets` cannot express the fix: `none` also drops the landscape
+    side insets and there is no `exceptTop`.
+  - **The chrome does not fit.** On 320x640 with three destinations:
+    100% → 56 + 92 leaves 492; 200% → 120 + 240 leaves 280; 250% → 148 + 316
+    leaves 176; **300% → 260 + 408 leaves −28**, and the frame overflows.
+    `IuxBottomNavigation` documents its own degradation and takes its 408 px
+    first. **No component owns the total.**
+  - **The standard fix is unavailable.** Fill-viewport-or-scroll needs
+    `IntrinsicHeight`, which throws because `IuxAppBar` uses a `LayoutBuilder`
+    internally. **No IUX screen containing an app bar can take part in
+    `IntrinsicHeight`, `IntrinsicWidth` or intrinsic `Table` sizing**, so the
+    pilot had to scroll the whole screen and lose its pinned title at every
+    text scale.
+
+### IUX-SEARCH-RESULTS-001 — Unusable for a searchable list, two ways (OPEN)
+
+- **Level**: standard
+- **Status**: open. Its ready branch wraps the caller's list in an `Expanded`
+  while `IuxPage` scrolls by default, so the first non-empty result throws
+  *RenderFlex children have non-zero flex but incoming height constraints are
+  unbounded*. The documented placement means giving up `IuxPage` — the only
+  thing that knows the page insets and the reading width. And it hard-codes
+  `IuxNoMatches` and **requires** a `reset`, so a collection that never held
+  anything is reported as "no matches, clear the search" beside an empty
+  search box. `IuxEmptyStateCause` exists precisely to keep those apart, and
+  this pattern can express one of the four.
+
+### IUX-LISTITEM-TRAILING-001 — Two components that only overflow together (OPEN)
+
+- **Level**: standard
+- **Sources**: WCAG 2.2 SC 1.4.4
+- **Status**: open. `IuxListItem.tappable` with an `IuxStatusIndicator` in
+  `trailingAction` on a 320 px screen: clean at 100% and 150%, **68 px over at
+  200%, 214 px at 300%**. The row lays the trailing control out as a
+  non-flexible `Row` child, so it takes its full intrinsic width and the
+  `Expanded` holding the text absorbs a negative remainder. **Neither
+  component overflows alone**, which is why no component test found it.
+
+### IUX-A11Y-REACH-001 — refined by the pilot: the mitigation works, the default does not
+
+- The two severe reachability defects (`IuxEmptyState` at 200%,
+  `IuxPermissionRationale` at 150%) **did not bite the pilot application**,
+  because both sit inside `IuxPage`, which scrolls. That is worth as much as
+  the original finding: the documented mitigation is real, and the defect is
+  that nothing makes it the default.
+
+### The measured cost of composing no user-facing strings
+
+- **99 declarations, 362 of 1889 `lib/` lines (19%), 113 literals, 2815
+  characters** in the pilot application — its string file is its largest file.
+- **The finding is the composition, not the total: 17 of the 99 never appear
+  on screen.** They exist only for assistive technology or to satisfy an
+  assertion. A developer who has not read the docs will not know they are
+  owed, and no design mock contains them.
+- Six had to be **functions** rather than constants, for counts and plurals.
+- The decision remains right — an invented English "Back" shipped
+  untranslated is worse — but the honest cost is that one control routinely
+  costs one to six entries, and **the easiest to forget are exactly the ones
+  only a screen-reader user would miss**. The framework's assertions are the
+  existing mitigation; the gap is the strings no assertion can demand.
+
 ## Deferred to later missions
 
 | Subject | Mission |

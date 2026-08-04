@@ -2,12 +2,12 @@
 mission_id: IUX-041
 title: Pilot Application Integration
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: agent/iux-041-pilot
+last_updated_at: 2026-08-04
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:

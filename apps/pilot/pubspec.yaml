@@ -1,0 +1,20 @@
+name: iux_pilot
+description: A pilot application built entirely on IUX, to find out what using it feels like.
+publish_to: none
+version: 0.1.0-dev.1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  iux_flutter:
+    path: ../../packages/iux_flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
