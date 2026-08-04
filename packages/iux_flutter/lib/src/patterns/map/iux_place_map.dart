@@ -453,12 +453,30 @@ class IuxPlaceMap extends StatelessWidget {
               ? _mapHeightWithin(constraints.maxHeight)
               : _kMinimumMapHeight;
           final IuxMapSelection? current = selection;
-          final Widget list = _IuxPlaceList(
-            places: places,
-            listLabel: listLabel,
-            selection: current,
-            onPlaceSelected: onPlaceSelected,
-            placeActionHint: placeActionHint,
+
+          // The status line travels with the list rather than sitting above
+          // the scrolling region, and that is a measurement rather than a
+          // preference. Everything above the list is a fixed height the map
+          // has to fit inside; a selection sentence at 300% text wraps to four
+          // lines, and on a short viewport — a phone in landscape — those
+          // lines are the difference between a list with room for a row and a
+          // Column that overflows.
+          final Widget listBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (current != null) ...<Widget>[
+                _IuxSelectedPlaceStatus(announcement: current.announcement),
+                const IuxGap.tight(),
+              ],
+              _IuxPlaceList(
+                places: places,
+                listLabel: listLabel,
+                selection: current,
+                onPlaceSelected: onPlaceSelected,
+                placeActionHint: placeActionHint,
+              ),
+            ],
           );
 
           return Column(
@@ -472,24 +490,23 @@ class IuxPlaceMap extends StatelessWidget {
                   // the list below. See the class documentation.
                   child: IuxSemantics.decorative(child: map),
                 ),
+                // Inside the branch that draws the map, so a map too short to
+                // be worth showing does not leave a pair of controls behind
+                // for a camera nobody can see.
                 if (zoom case final IuxZoomControls controls) ...<Widget>[
                   const IuxGap.tight(),
                   _IuxZoomControlBar(controls: controls),
                 ],
                 const IuxGap.standard(),
               ],
-              if (current != null) ...<Widget>[
-                _IuxSelectedPlaceStatus(announcement: current.announcement),
-                const IuxGap.tight(),
-              ],
               // Bounded: the list scrolls inside the space left over, so the
               // map stays put and every row is reachable. Unbounded: the
               // caller's scroll view already does it, and a second one here
               // would be the nested-scrolling defect IUX-028 records.
               if (bounded)
-                Expanded(child: SingleChildScrollView(child: list))
+                Expanded(child: SingleChildScrollView(child: listBlock))
               else
-                list,
+                listBlock,
             ],
           );
         },

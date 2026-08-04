@@ -1948,10 +1948,25 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   `Row` overflows by 36 px. IUX-025's rule weighs *how much is left over* and
   never asks whether the rail fits at all.
 
-### IUX-DRAWER-LABEL-001 — a longer dismiss label overflows, and text scale fixes it (OPEN)
+### IUX-DRAWER-LABEL-001 — a longer dismiss label overflows, and text scale fixes it (FIXED)
 
 - **Level**: context_dependent
-- **Status**: open. `dismissLabel: 'Close the menu'` overflows the drawer
+- **Status**: **fixed**, and the measurement was worse than recorded. The
+  header is now a slotted render object that measures the way out and keeps
+  the shared line only while the heading still gets `min(one line, twelve
+  characters)` — `IuxAppBar`'s rule verbatim, whose own comment already named
+  `IuxReadableText.shouldStack` as the wrong tool for this decision.
+- **What the re-measurement found**: 9.5 px at 360, 800 and 1200 confirms the
+  corrected figure, but **34 px at 320**, which no entry mentioned — and in all
+  four cases the heading box was **0.0 px wide**. The `Expanded` heading
+  absorbed the entire shortfall before the row gave up, so the visible
+  overflow was the smaller half of the defect.
+- Zero overflow across all thirty-two cases after, and the heading is never
+  narrower than the control beside it.
+- **Still open elsewhere**: `IuxReadableText.shouldStack` decides the same kind
+  of label-and-control arrangement in `iux_progress.dart` and
+  `iux_bottom_sheet.dart`, unmeasured.
+- Originally recorded: `dismissLabel: 'Close the menu'` overflows the drawer
   header by **9.5 px** — the 7.5 first recorded was measured on a different
   label — at **100%** text on 800- and 1200-wide surfaces, while
   `'Close'` does not — the panel caps near 280 px whatever the screen. It only
@@ -2190,7 +2205,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   only a screen-reader user would miss**. The framework's assertions are the
   existing mitigation; the gap is the strings no assertion can demand.
 
-### IUX-PERF-001 — Opening a keyboard rebuilds 7.6x what Material does (OPEN)
+### IUX-PERF-001 — Opening a keyboard rebuilds 7.6x what Material does (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxAccessibility.of`, 34 call sites across 25 files
@@ -2207,9 +2222,19 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   30. Where IUX genuinely depends on the change it is level with or cheaper —
   text scale 132 vs 112, theme flip 132 vs 170. So the cost is precisely the
   rebuilds that cannot alter a pixel.
-- Not fixed: it is a rebuild-behaviour change in a file the audit did not own.
-  It cannot weaken a guarantee — identical resolved values, narrower
-  dependency — so §5 does not block it.
+- **Fixed.** `IuxAccessibility.of` now reads each of the six values through its
+  own aspect accessor. Measured after: the A/B goes **20 of 20 to 0 of 20** for
+  keyboard, notch and rotation, and text scale stays 20 of 20 both ways —
+  correctly, since it is the one change that must rebuild. On the realistic
+  screen: keyboard **114 → 8**, notch 101 → 8, rotation 130 → 26, text scale
+  140 unchanged. Material on the same screen is 14 / 6 / 30 / 112, so **three
+  of four are now at or below it**.
+- **Nothing observable changed**, verified rather than argued: 672 resolutions
+  — seven theme cases × thirty-two platform-input combinations × three text
+  scales — dumped before and after with sixteen values each including every
+  derived getter, byte-identical. One honest caveat: `hashCode` had to be
+  excluded, because `Object.hash` is seeded per run and differed between two
+  runs of the *unchanged* code. That was checked, not assumed.
 
 ### IUX-PERF-002 — Resolvers are not hot, stated so nobody optimises them
 

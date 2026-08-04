@@ -49,6 +49,38 @@ platform does not.
 `motion` is never `system` once resolved: the platform has been consulted by
 the time an `IuxAccessibility` exists.
 
+## One accessor per value, never `MediaQuery.of`
+
+`IuxAccessibility.of` reads each platform value through its own aspect
+accessor — `MediaQuery.textScalerOf`, `MediaQuery.highContrastOf`,
+`MediaQuery.disableAnimationsOf`, `MediaQuery.boldTextOf`,
+`MediaQuery.invertColorsOf`, `MediaQuery.accessibleNavigationOf`.
+
+The two ways of reading resolve the same six values. They differ in what the
+caller is then rebuilt *for*: `MediaQuery.of` registers a dependency on every
+aspect of the media query, so everything reading the runtime was rebuilt by the
+software keyboard opening, by a notch being reported and by the device
+rotating — none of which can change any value here.
+
+Measured on a realistic screen, one frame after the change (`IUX-PERF-001`):
+
+| Change | Through `MediaQuery.of` | One aspect at a time | The same screen in Material |
+| --- | --- | --- | --- |
+| keyboard opens | 114 | **8** | 14 |
+| notch reported | 101 | **8** | 6 |
+| device rotates | 130 | **26** | 30 |
+| text enlarged | 140 | **140** | 112 |
+
+Text scale is one of the six, so it rebuilds everything that reads it — which
+is correct, and is what stops the other three rows being explained by a runtime
+that simply stopped reacting. A controlled A/B over 20 identical widgets
+differing only in how they read the same six values reports 0 of 20 for the
+first three changes and 20 of 20 for the fourth, both ways.
+
+Pinned by `test/performance/rebuild_scope_test.dart`. Nothing resolved changed:
+every value, over the full cross of the platform inputs and six application
+profiles, is identical before and after.
+
 ## Without an IUX theme
 
 Resolution falls back to platform values alone. The runtime stays usable during
