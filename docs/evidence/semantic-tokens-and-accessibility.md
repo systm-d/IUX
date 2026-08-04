@@ -1672,6 +1672,56 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - This is the third vacuous test found in this project, and the second found
   by an agent auditing somebody else's file.
 
+### IUX-ONBOARDING-001 — Skip is required on every step, including the last
+
+- **Level**: strong_guidance
+- **Scope**: IUX-036 onward
+- **Status**: implemented, borrowing IUX-031's `decline` and its reasoning
+  wholesale: an onboarding a user cannot leave is a wall, and making the exit
+  required is a structure rather than advice. Same derived descriptor —
+  `dismiss` plus `secondary`.
+- `finish` is an `IuxInlineFeedbackAction` rather than an `IuxFormSubmit`,
+  because nothing commits here and there is therefore no busy state to model.
+
+### IUX-ONBOARDING-002 — No dot row, and it was probed before being refused
+
+- **Level**: standard
+- **Scope**: IUX-036 onward
+- **Sources**: WCAG 2.2 SC 1.4.1
+- **Status**: refused. Probed rather than assumed: four decorated `Container`s
+  produce a node with an **empty label and zero children**, so a dot row
+  announces nothing at all. A position signal that only exists visually fails
+  SC 1.4.1, and §19 forbids public API whose only effect is an unverified
+  role. Same precedent as IUX-034 shipping no suggestions because
+  `SemanticsRole.comboBox` throws.
+- No auto-advance and no `PageView` either — SC 2.2.1 and SC 2.2.2 — pinned by
+  reading the source back rather than by prose.
+- Focus moves to the heading on a step change but **not on first build**: the
+  user asked for nothing, which is the IUX-028 case. This is the sixth pattern
+  to decide focus and the line held is still IUX-033's — *did the user ask?*
+
+### IUX-ONBOARDING-003 — The heading is duplicated from the stepped form, measured (OPEN)
+
+- **Level**: standard (PROJECT_PROMPT §19)
+- **Status**: open, quantified rather than asserted. With comments stripped,
+  `_IuxOnboardingHeading` is 51 code lines against `_IuxStepHeading`'s 58, and
+  **40 of the 51 are byte-identical**. `IuxFocusable`,
+  `Semantics(header: true)`, `IuxSemantics.decorative`, the position-first
+  column, the join and `softWrap` are the same lines in the same order.
+  `IuxStepPositionDescription` is the *same typedef*, imported rather than
+  copied.
+- **The whole difference is one field**: the guided form's optional
+  `description` in supporting style against a required `body` in body style,
+  because in onboarding the prose is the substance of the screen rather than a
+  note above questions.
+- **Why composition was refused, and defensibly**: `IuxGuidedForm` requires
+  `IuxFormSection`s, `IuxValidationSummaryLabels` and `IuxFormSubmit`, so
+  composing would invent a summary that summarises nothing — and every
+  screen-reader user would be told about an error summary that can never have
+  an entry.
+- Consolidation starts at the two `_spoken` getters and needs edits to
+  `iux_guided_form.dart`, which IUX-036 does not own.
+
 ## Deferred to later missions
 
 | Subject | Mission |

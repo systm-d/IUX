@@ -2,12 +2,12 @@
 mission_id: IUX-036
 title: Onboarding Foundations
 priority: high
-status: ready
-started_at:
-started_by:
-last_updated_at: 2026-08-01
-completion_status: pending
-validation_status: not_started
+status: completed
+started_at: 2026-08-03
+started_by: agent/IUX-036 (resumed after an interrupted first attempt)
+last_updated_at: 2026-08-04
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev
 compatibility: additive
 depends_on:
@@ -105,3 +105,61 @@ Présenter audit, solution, API, états, accessibilité, evidence/ADR, fichiers,
 ## 29. Instruction finale
 Commencer par l’audit. Implémenter uniquement cette mission après validation des dépendances ; ne pas commencer la suivante.
 
+
+
+---
+
+# Rapport final
+
+## L'onboarding est-il le formulaire par étapes avec du contenu ?
+
+**Oui, et c'est mesuré au lieu d'être affirmé.** Commentaires retirés,
+`_IuxOnboardingHeading` fait 51 lignes de code contre 58 pour
+`_IuxStepHeading`, et **40 des 51 sont identiques au bit près**. Même typedef
+importé, pas recopié.
+
+Toute la différence tient en un champ : la `description` optionnelle du
+formulaire, en style secondaire, contre un `body` requis en style principal —
+parce qu'en onboarding la prose *est* la substance de l'écran, pas une note
+au-dessus de questions.
+
+La composition a pourtant été refusée, et défendablement : `IuxGuidedForm`
+exige des `IuxFormSection`, des libellés de résumé de validation et un
+`IuxFormSubmit`. Composer inventerait donc **un résumé qui ne résume rien** —
+et chaque utilisateur de lecteur d'écran s'entendrait annoncer un résumé
+d'erreurs qui ne peut jamais avoir d'entrée.
+
+La dette est consignée avec sa mesure et son point de départ.
+
+## La sortie est requise partout, y compris à la dernière étape
+
+Emprunté à IUX-031 et à son raisonnement : un onboarding dont on ne peut pas
+sortir est un mur, et rendre la sortie obligatoire est une structure, pas un
+conseil.
+
+## Pas de rangée de points, et c'est sondé avant d'être refusé
+
+Quatre `Container` décorés produisent un nœud à **libellé vide et zéro
+enfant** : une rangée de points n'annonce rien du tout. Un signal de position
+qui n'existe que visuellement échoue SC 1.4.1, et §19 interdit une API
+publique dont le seul effet est un rôle invérifiable.
+
+## L'audit du code survivant
+
+Quatre choses attendaient, toutes invisibles à `flutter analyze` : deux liens
+de doc pointant vers des symboles non importés (dartdoc aurait émis des liens
+morts), une affirmation périmée à propos d'un fichier qu'il ne possédait pas,
+**trois revendications documentées sans aucun test derrière** — dont un test
+tautologique qui cherchait un nœud par son libellé exact puis vérifiait que le
+libellé valait ce libellé — et une page de doc référencée depuis le code mais
+inexistante.
+
+## Six mutants, six morts
+
+Focus supprimé → 2 tests. `skip` masqué à la dernière étape → 5.
+`content` déplacé après les contrôles → le nouveau test d'ordre, seul.
+`MergeSemantics` par-dessus → les deux nouveaux tests de contenu.
+Défilement injecté → le test de défilement, seul. `Future.delayed` →
+l'épingle plus 6 tests comportementaux.
+
+42 tests.

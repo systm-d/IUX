@@ -36,7 +36,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// joins with `.` is choosing a separator on the caller's behalf, and a
 /// language whose sentence separator is not a full stop gets a slightly wrong
 /// glyph in exchange for the right pause. If that trade ever needs revisiting,
-/// the two sites are the only ones, and this test is what keeps it to two.
+/// this test is what keeps the count reviewable. It was two when this was
+/// written and IUX-036's onboarding heading made it three — the number is
+/// deliberately not restated here, because a count in a comment goes stale
+/// silently while the rule does not.
 void main() {
   group('the framework composes no user-facing strings', () {
     // Properties whose value is read aloud or painted on screen.

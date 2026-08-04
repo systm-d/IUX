@@ -92,6 +92,8 @@ export 'src/patterns/form/iux_guided_form_model.dart';
 export 'src/patterns/form/iux_validation_summary.dart';
 export 'src/patterns/loading/iux_load_state.dart';
 export 'src/patterns/loading/iux_loading_retry.dart';
+export 'src/patterns/onboarding/iux_onboarding_flow.dart';
+export 'src/patterns/onboarding/iux_onboarding_model.dart';
 export 'src/patterns/permission/iux_permission_moment.dart';
 export 'src/patterns/permission/iux_permission_rationale.dart';
 export 'src/patterns/search/iux_search_field.dart';
