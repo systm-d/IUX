@@ -361,14 +361,23 @@ class _FocusPanel extends StatelessWidget {
               ],
             ),
             CatalogNote(
-              'The ring is drawn by IuxFocusable, not by the button. '
-              'IuxButtonTokens.focused exists, IuxButtonResolver accepts a '
-              'focused argument and sets it — and no button widget passes it '
-              'and nothing reads it. The equivalent token on the text field is '
-              'consumed; this one is dead public surface, so anyone building a '
-              'control from the resolver gets a token that silently means '
-              'nothing.',
-              finding: true,
+              'The ring is drawn by IuxFocusable, not by the button, and that '
+              'is now the only channel there is. IuxButtonTokens.focused used '
+              'to exist beside it — a token the resolver set and no widget '
+              'ever read, so a caller building a control from the resolver got '
+              'a value that silently meant nothing. It was removed rather than '
+              'wired up: a token-driven ring can only be painted by the '
+              'container\'s own decoration, inside the control and over the '
+              'content it identifies, which is the failure SC 2.4.11 exists '
+              'for.',
+            ),
+            CatalogNote(
+              'The node these publish is worth reading with the semantics '
+              'probe: each one declares a focusable state and offers the focus '
+              'action, so assistive technology can move accessibility focus '
+              'onto it. It could not until IUX-038 — the helper excluded the '
+              'subtree to control the announced name and took the Focus '
+              'widget\'s annotations with it.',
             ),
           ],
         ),
@@ -414,11 +423,20 @@ class _OperationPanel extends StatelessWidget {
             ],
           ),
           const CatalogNote(
-            'idle, inProgress, succeeded and failed resolve to the same '
-            'colours. IuxButtonStateResolver computes loading, success and '
-            'error, but IuxButtonResolver gives all three the resting palette, '
-            'so a plain IuxButton carrying a failed operation is '
-            'pixel-identical to one that never ran.',
+            'All four resolve to the same colours: a plain IuxButton carrying '
+            'a failed operation is pixel-identical to one that never ran. '
+            'IuxButtonStateResolver computes exactly one rung above enabled — '
+            'loading — and IuxButtonResolver gives it the resting palette, so '
+            'the operation is carried by the announcement and by nothing a '
+            'sighted user can see.\n\n'
+            'There used to be two more rungs. success and error sat above '
+            'hovered on the stated grounds that a result outranks a pointer '
+            'position, and both returned the resting palette — so the only '
+            'thing they achieved was to stop a settled button responding to '
+            'hover at all. They were removed, and hovering a succeeded or '
+            'failed button now moves it the same way hovering an idle one '
+            'does. A running one still does not, which is correct: it is not '
+            'accepting a tap.',
             finding: true,
           ),
           SizedBox(height: geometry.spacingSm),
@@ -843,7 +861,6 @@ class _RefusalPanel extends StatelessWidget {
             ),
             ('destructive + tonal', 'not enough separation for data loss'),
             ('disabled + inProgress', 'what cannot start cannot be running'),
-            ('hold-to-confirm + disabled', 'a disabled control cannot be held'),
             (
               'role: undo + irreversible',
               'undoing is a reversal by definition'
@@ -867,11 +884,22 @@ class _RefusalPanel extends StatelessWidget {
               'a control that does nothing'
             ),
             ('prompt with no confirmation policy', 'nobody is ever asked'),
-            (
-              'hold or double activation in the destructive pattern',
-              'neither is reachable by a screen reader from one control'
-            ),
           ]),
+          SizedBox(height: geometry.spacingXs),
+          const CatalogNote(
+            'Two rows left this table rather than being demoted. '
+            'Hold-to-confirm and double activation were members of '
+            'IuxConfirmationPolicy, and the assertions above used to refuse '
+            'them in the destructive pattern and refuse a held control that '
+            'was also disabled. Both members were removed: nothing in the '
+            'library honoured either, so a caller could state a precaution and '
+            'receive none — an ordinary first tap ran the action. A refusal by '
+            'omission from a sealed type is the one kind a release build still '
+            'honours, so this is stronger than the assertions it replaced, and '
+            'the reasoning is unchanged: neither gesture is reachable by a '
+            'screen reader from a single control, and re-adding a member is '
+            'the reviewable change a sealed type exists to make deliberate.',
+          ),
           SizedBox(height: geometry.spacingXs),
           const CatalogNote(
             'Every one of these is an assert, so none of them exists in a '

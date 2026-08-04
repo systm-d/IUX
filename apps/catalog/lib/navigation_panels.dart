@@ -183,11 +183,12 @@ class _AppBarPanelState extends State<_AppBarPanel> {
             'decision to make.',
           ),
           const CatalogNote(
-            'docs/components/app-bar.md still lists "Not exported from the '
-            'barrel" as a limit. It is exported, at iux_flutter.dart line 16. '
-            'The page is stale and a reader would conclude the component is '
-            'unusable from outside the package.',
-            finding: true,
+            'This panel used to record that docs/components/app-bar.md listed '
+            '"Not exported from the barrel" as a limit while the export sat at '
+            'iux_flutter.dart line 16. The page no longer says it. The export '
+            'is still on line 16, and the limits that remain on that page — no '
+            'overflow menu, no subtitle, no PreferredSizeWidget — are the ones '
+            'this panel demonstrates.',
           ),
         ],
       ),
@@ -252,10 +253,14 @@ class _BottomNavigationPanelState extends State<_BottomNavigationPanel> {
             ('Destinations', '$_count'),
           ]),
           const CatalogNote(
-            'Five destinations at 200% text on a 320-wide screen take 360 '
-            'pixels of height. Three take 216. An application that expects '
-            'enlarged text should ship three, and that is a design decision '
-            'the component cannot make — it can only refuse to hide the cost.',
+            'The five destinations shown here take 408 pixels of height at '
+            '200% text on a 320-wide surface. Three take 264. Measured on the '
+            'list this panel actually builds, badge included — the same five '
+            'without the badge are 384 and 240, which is the number the '
+            'app-bar arithmetic in the evidence register uses. An application '
+            'that expects enlarged text should ship three, and that is a '
+            'design decision the component cannot make — it can only refuse to '
+            'hide the cost.',
           ),
           const CatalogNote(
             'Above roughly 250% with five destinations on a short screen the '
@@ -375,11 +380,13 @@ class _RailPanelState extends State<_RailPanel> {
                   'stay visible. That scroll is the harness\'s, not the '
                   'component\'s: a Row hands the rail its full asked-for width '
                   'because a rail is not flexible, and whatever is beside it '
-                  'is then clipped — a debug overflow at 300%, measured at 36 '
-                  'pixels on an 800-wide surface. IuxAdaptiveNavigation avoids '
-                  'this by refusing the rail below 320 pixels of content; a '
-                  'caller placing a rail by hand gets no such refusal and no '
-                  'warning.',
+                  'is then clipped. Measured at 300%: a hand-placed rail in a '
+                  'Row on a 360-wide surface reports a debug overflow of 36 '
+                  'pixels; the same arrangement on an 800-wide one reports '
+                  'nothing, because 800 is wide enough for the 396 the rail '
+                  'asks for. IuxAdaptiveNavigation now refuses a rail that '
+                  'will not fit at all — a caller placing one by hand still '
+                  'gets no such refusal and no warning.',
                   finding: true,
                 ),
               const CatalogNote(
@@ -399,7 +406,7 @@ class _RailPanelState extends State<_RailPanel> {
               const CatalogNote(
                 'On a 320 × 640 phone at 300% neither arrangement fits: the '
                 'bar takes the window and the content is laid out at zero '
-                'height, and the rail would need 354 of 320 pixels. That is a '
+                'height, and the rail would need 394 of 320 pixels. That is a '
                 'documented degradation inherited from IUX-024 and it is not '
                 'solved here.',
               ),
@@ -430,12 +437,13 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
   int _selected = 0;
   double _width = 360;
 
-  /// Whether the component's own rule would pick a rail wider than the box.
+  /// Whether the rail would be wider than the box it was offered.
   ///
-  /// Replicates `IuxAdaptiveNavigation._prefersRail` far enough to predict the
-  /// overflow: a landscape box past the stacked text threshold takes the rail
-  /// whatever the leftover, and the leftover here is negative.
-  bool _overflows(
+  /// No longer a prediction of an overflow: the component now weighs this
+  /// itself and takes the bar instead. It is kept because it is the condition
+  /// the note below is about, and reading it off the same public `widthFor`
+  /// the component uses is what makes the note checkable on screen.
+  bool _railWouldNotFit(
     BuildContext context,
     List<IuxNavigationDestination> destinations,
   ) =>
@@ -469,46 +477,32 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
           ),
           SizedBox(height: geometry.spacingXs),
           // Both bounded. The rail is only chosen when the box has a width and
-          // a height to spend, and an unbounded box is exactly the case the
-          // documentation and the code disagree about — see the finding below.
+          // a height to spend.
           //
-          // The sample is withheld when the component's own rule would pick a
-          // rail wider than the box it was given, because the result is a
-          // debug overflow that would take the harness down. The numbers and
-          // the finding are shown in its place: this is one of the few limits
-          // in the library that cannot be *shown* without stopping the thing
-          // showing it.
-          if (_overflows(context, destinations))
-            IuxSurface(
-              role: IuxSurfaceRole.subtle,
-              bordered: true,
-              padding: IuxInsets.surface(context),
-              child: Text(
-                'Not built at this size. The component would choose the rail '
-                'and the rail is wider than the box.',
-                style: type.body.copyWith(color: colors.content.primary),
-              ),
-            )
-          else
-            SizedBox(
-              width: _width,
-              height: _boxHeight,
-              child: IuxAdaptiveNavigation(
-                label: 'Main sections',
-                destinations: destinations,
-                selectedIndex: _selected,
-                onDestinationSelected: (int value) =>
-                    setState(() => _selected = value),
-                child: IuxSurface(
-                  role: IuxSurfaceRole.subtle,
-                  padding: IuxInsets.surface(context),
-                  child: Text(
-                    destinations[_selected].label,
-                    style: type.body.copyWith(color: colors.content.primary),
-                  ),
+          // This sample used to be withheld whenever the rail would be wider
+          // than the box, because building it produced a debug overflow that
+          // took the harness down. It is built at every size now: the
+          // component asks whether the rail fits before it asks how much is
+          // left over, so the case that used to overflow renders the bar.
+          SizedBox(
+            width: _width,
+            height: _boxHeight,
+            child: IuxAdaptiveNavigation(
+              label: 'Main sections',
+              destinations: destinations,
+              selectedIndex: _selected,
+              onDestinationSelected: (int value) =>
+                  setState(() => _selected = value),
+              child: IuxSurface(
+                role: IuxSurfaceRole.subtle,
+                padding: IuxInsets.surface(context),
+                child: Text(
+                  destinations[_selected].label,
+                  style: type.body.copyWith(color: colors.content.primary),
                 ),
               ),
             ),
+          ),
           SizedBox(height: geometry.spacingXs),
           CatalogRows(<(String, String)>[
             (
@@ -522,21 +516,21 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
               _width >= _boxHeight ? 'yes' : 'no'
             ),
           ]),
-          if (_overflows(context, destinations))
+          if (_railWouldNotFit(context, destinations))
             const CatalogNote(
-              'This is the case the rule does not cover. On a landscape window '
-              'past the stacked text threshold the component picks the rail '
-              'even when the content budget fails, and the argument for that '
-              'is sound: the bar there is a full-width list that would leave '
-              'zero content, while the rail at least leaves some. But the '
-              'reasoning weighs how much is *left over*, and never asks '
-              'whether the rail fits at all. At 300% in a 360 × 320 box the '
-              'rail asks for more than the whole box, the leftover is '
-              'negative, and the Row overflows by 36 pixels — a debug error '
-              'rather than the degradation the documentation promises. '
-              'Reproduce it by setting the text scale to 300% with the box at '
-              '360.',
-              finding: true,
+              'The rail is wider than this box, and the component has taken '
+              'the bar. That is the case the rule used to miss. On a landscape '
+              'window past the stacked text threshold it picked the rail even '
+              'when the content budget failed — the argument being that the '
+              'bar there is a full-width list leaving zero content while the '
+              'rail at least leaves some — but the reasoning weighed how much '
+              'was *left over* and never asked whether the rail fitted at all. '
+              'At 300% in a 360 × 320 box the leftover was negative and the '
+              'Row overflowed by 36 pixels: a debug error instead of the '
+              'degradation the documentation promises. Measured again at the '
+              'same size, the bar is chosen and nothing is thrown. What is '
+              'left is the degradation itself, which is real: read the row '
+              'above and see how little height the content keeps.',
             ),
           const CatalogNote(
             'The decision is made from the box, not from the device and not '
@@ -545,13 +539,17 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
             'That is right — the user sees the box, not the hardware.',
           ),
           const CatalogNote(
-            'docs/components/navigation-rail.md says an unbounded box makes '
-            'the layout "fail loudly rather than silently" and marks it '
-            '"Asserted." There is no such assertion. The private width check '
-            'returns false for an unbounded constraint, so the widget silently '
-            'chooses the bar. A caller who put this inside a scroll view would '
-            'get the phone arrangement on a tablet and no warning of any kind, '
-            'which is the failure the documentation claims to prevent.',
+            'An unbounded box is still unhandled, and it is worth knowing what '
+            'actually happens now that the documentation no longer claims an '
+            'assertion. Measured: put this inside a SingleChildScrollView on a '
+            '1200-wide surface and the private width check returns false for '
+            'the unbounded height, so the widget chooses the bar — the phone '
+            'arrangement on a tablet — and then Flutter throws "RenderFlex '
+            'children have non-zero flex but incoming height constraints are '
+            'unbounded" from the component\'s own Column. So it fails loudly '
+            'after all, but by accident and in somebody else\'s words: nothing '
+            'in the message says a rail was wanted, or that a scroll view is '
+            'the wrong place for one.',
             finding: true,
           ),
         ],
@@ -658,19 +656,21 @@ class _DrawerPanelState extends State<_DrawerPanel> {
             'a little, open the menu, close it, and watch where you land.',
           ),
           const CatalogNote(
-            'The system back button does not close it. The drawer installs a '
-            'PopScope where IuxDialog and IuxBottomSheet leave the back button '
-            'to the caller, which means three overlays in one library answer '
-            'the hardware back key three different ways. On Android that is '
-            'the single most practised gesture there is.',
+            'The system back button does not close it here. The drawer is the '
+            'only overlay in the library that installs a PopScope of its own; '
+            'IuxDialog and IuxBottomSheet leave the back button to the caller '
+            'and name the two lines it needs in their own documentation. So '
+            'three overlays answer Android\'s most practised gesture two '
+            'different ways, and which one a user gets depends on which '
+            'happens to be open.',
             finding: true,
           ),
           const CatalogNote(
             'Set the dismiss label to the longer one and open the drawer. The '
-            'header row overflows by 7.5 pixels — measured, at 100% text, on '
-            'an 800-wide surface and again on a 1200-wide one. The panel is '
-            'capped at a readable width of about 280 whatever the screen, so a '
-            'wider screen never helps; the header is '
+            'header row overflows by 9.5 pixels — measured, at 100% text, on '
+            'an 800-wide surface and again on a 1200-wide one, with identical '
+            'geometry in both. The panel is capped at the width the names need '
+            'whatever the screen, so a wider screen never helps; the header is '
             'Row([Expanded(title), gap, dismiss]) and once the dismissal\'s '
             'intrinsic width plus the gap exceeds the content width the '
             'Expanded is handed negative space. "Close the menu" is fourteen '
@@ -681,12 +681,12 @@ class _DrawerPanelState extends State<_DrawerPanel> {
             finding: true,
           ),
           const CatalogNote(
-            'docs/components/navigation-drawer.md lists "No IuxModalLayer '
-            'slot" as its first limit and describes the fix as work on a file '
-            'the mission did not own. The slot exists — IuxModalLayer takes '
-            'dialog, sheet and drawer, and asserts that at most one is filled, '
-            'which is what this panel uses. The page is stale.',
-            finding: true,
+            'The slot this panel is built on is real and the page that once '
+            'denied it agrees now: docs/components/navigation-drawer.md marks '
+            '"No IuxModalLayer slot" as closed. IuxModalLayer takes dialog, '
+            'sheet and drawer and asserts that at most one is filled, which is '
+            'what makes two-modals-at-once unrepresentable rather than merely '
+            'discouraged.',
           ),
         ],
       ),

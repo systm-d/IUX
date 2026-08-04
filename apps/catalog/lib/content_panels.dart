@@ -127,12 +127,23 @@ class _CardPanelState extends State<_CardPanel> {
           ),
           CatalogNote('Opened $_opened time(s).'),
           const CatalogNote(
-            'The tappable card is announced by the name the caller gave it, '
-            'not by the text inside it: a card containing four lines would '
-            'otherwise be read out in full before the user learns it is a '
-            'button. The subtree is excluded, which is also why no focusable '
-            'flag reaches the node — IUX-A11Y-FOCUS-001, the same open defect '
-            'every IUX control shares.',
+            'The tappable card is announced by the name the caller gave it '
+            'and then by the text inside it, as one stop. Measured, the node '
+            'reads "Open the March invoice" followed by the title and the '
+            'body. That is the opposite of what a button does, deliberately: '
+            'a button\'s content only repeats its own label, while a card\'s '
+            'content *is* the information, and excluding it would delete the '
+            'reference, the status and the amount from the interface of every '
+            'screen-reader user while the control went on looking correct. '
+            'One stop also means nothing inside may be a control of its own, '
+            'which is what the panel below is about.',
+          ),
+          const CatalogNote(
+            'The node declares a focusable state and offers the focus action. '
+            'It did not until IUX-038 — no IUX control did — so assistive '
+            'technology had no way to move accessibility focus onto any of '
+            'them. Read it with the semantics probe above rather than taking '
+            'it from here.',
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('grouped, with separators'),

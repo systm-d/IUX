@@ -317,14 +317,14 @@ class _ErrorRecoveryPanelState extends State<_ErrorRecoveryPanel> {
           ),
           const CatalogNote(
             'The "already running" route is the one to look at with the '
-            'semantics tree in mind. docs/patterns/loading-and-retry.md still '
-            'describes a running retry as announced *unavailable* and dropped '
-            'from the focus order; IUX-038 fixed that in IuxButton, and the '
-            'source docstring on IuxLoadingRetry now says the opposite of the '
-            'documentation page. One of the two is stale, and a maintainer '
-            'reading the page rather than the source will avoid a flow that '
-            'now works.',
-            finding: true,
+            'semantics tree in mind. A running retry used to be announced as '
+            '*unavailable* and dropped out of the focus order, because one '
+            'flag fed both the announced enabled state and the focus node. '
+            'IuxButton now keeps the focus, reports itself enabled, carries '
+            'its busyHint and offers the focus action but not tap — measured, '
+            'not read — and docs/patterns/loading-and-retry.md and the '
+            'IuxLoadingRetry docstring agree about it, which they did not '
+            'while this note was first written.',
           ),
           const CatalogNote(
             'One control, and no error code. A failure the user must resolve '

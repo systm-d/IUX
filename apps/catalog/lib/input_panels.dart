@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import 'catalog_chrome.dart';
+import 'catalog_testable.dart';
 import 'semantics_readout.dart';
 
 /// The text field and the selection controls, under the same three axes.
@@ -316,20 +317,31 @@ class _ContentTypePanelState extends State<_ContentTypePanel> {
               'A search type among them',
               IuxTextContent.values
                       .any((IuxTextContent value) => value.name == 'search')
-                  ? 'yes'
+                  ? 'yes — SemanticsInputType.search is reachable'
                   : 'no — SemanticsInputType.search is unreachable'
             ),
           ]),
           const CatalogNote(
-            'The row above is read off the enum rather than written down, '
-            'because it is one third of IUX-TEXTFIELD-GAPS-001 and that entry '
-            'is open. The other two thirds are not visible from here and are '
-            'still missing: there is no textInputAction and no onSubmitted, so '
-            'a search that runs when the user presses the keyboard\'s action '
-            'key cannot be built on this widget, and there is no trailing '
-            'slot. IuxSearchField exists partly because of them — see the '
-            'Search section.',
-            finding: true,
+            'The row above is read off the enum rather than written down, and '
+            'it used to answer no: IUX-TEXTFIELD-GAPS-001 was three gaps, and '
+            'the missing search member was the one visible from here. Two are '
+            'closed. search maps to SemanticsInputType.search, and onSubmitted '
+            'exists — measured, it fires with the text when the action key is '
+            'pressed, and the key itself is resolved from content rather than '
+            'named by the caller, so a phone-number field cannot be given a '
+            '"search" key. onSubmitted on a multiline field asserts, because '
+            'there the action key is the newline key and the callback could '
+            'never fire.',
+          ),
+          const CatalogNote(
+            'The third gap is refused rather than deferred: there is no '
+            'trailing-control slot inside the box, and there will not be. A '
+            'control in there is a second interactive element inside a node '
+            'announced as one text field, and the target floor settles it — a '
+            'target meeting the minimum leaves too little of a small-screen '
+            'field for text, and one that fits is below the minimum. A control '
+            'beside the box is the arrangement that works, which is what '
+            'IuxSearchField does.',
           ),
           const CatalogNote(
             'There is no obscured mode, so no password field can be built '
@@ -451,20 +463,23 @@ class _SelectionPanelState extends State<_SelectionPanel> {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('a switch'),
-          IuxSwitch(
-            label: _optionLabel(
-              'Sync over mobile data',
-              'Synchronisierung über Mobilfunkverbindung zulassen',
-            ),
-            input: const IuxInputDescriptor(
-              semantics: IuxInputSemantics(label: 'Sync over mobile data'),
-              helpText: 'Applies immediately.',
-            ),
-            value: _sync
-                ? IuxSelectionState.selected
-                : IuxSelectionState.unselected,
-            onChanged: (bool selected) => setState(() => _sync = selected),
-          ),
+          CatalogTestable(
+              what: 'Turns it on and off. It applies at once — there is no '
+                  'submit behind it.',
+              child: IuxSwitch(
+                label: _optionLabel(
+                  'Sync over mobile data',
+                  'Synchronisierung über Mobilfunkverbindung zulassen',
+                ),
+                input: const IuxInputDescriptor(
+                  semantics: IuxInputSemantics(label: 'Sync over mobile data'),
+                  helpText: 'Applies immediately.',
+                ),
+                value: _sync
+                    ? IuxSelectionState.selected
+                    : IuxSelectionState.unselected,
+                onChanged: (bool selected) => setState(() => _sync = selected),
+              )),
           const CatalogNote(
             'A switch applies at once and a checkbox waits for a submit. '
             'Nothing in the API enforces that — both take the same callback — '
@@ -473,35 +488,40 @@ class _SelectionPanelState extends State<_SelectionPanel> {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('a radio group'),
-          IuxRadioGroup<String>(
-            label: _optionLabel(
-              'How to send the receipt',
-              'Wie soll die Zahlungsbestätigung zugestellt werden',
-            ),
-            input: const IuxInputDescriptor(
-              semantics: IuxInputSemantics(label: 'How to send the receipt'),
-              requirement: IuxInputRequirement.required,
-            ),
-            value: _channel,
-            options: <IuxRadioOption<String>>[
-              IuxRadioOption<String>(
-                value: 'email',
-                label: _optionLabel('Email', 'Per E-Mail zustellen'),
-                helpText: 'Arrives within a minute.',
-              ),
-              IuxRadioOption<String>(
-                value: 'post',
-                label: _optionLabel('Post', 'Per Briefpost zustellen'),
-                helpText: 'Three to five working days.',
-              ),
-              const IuxRadioOption<String>(
-                value: 'fax',
-                label: 'Fax',
-                unavailabilityReason: 'No fax number on this account',
-              ),
-            ],
-            onChanged: (String value) => setState(() => _channel = value),
-          ),
+          CatalogTestable(
+              what:
+                  'Moves the choice. "Fax" is unavailable on purpose and will '
+                  'not respond — that is the specimen, not a fault.',
+              child: IuxRadioGroup<String>(
+                label: _optionLabel(
+                  'How to send the receipt',
+                  'Wie soll die Zahlungsbestätigung zugestellt werden',
+                ),
+                input: const IuxInputDescriptor(
+                  semantics:
+                      IuxInputSemantics(label: 'How to send the receipt'),
+                  requirement: IuxInputRequirement.required,
+                ),
+                value: _channel,
+                options: <IuxRadioOption<String>>[
+                  IuxRadioOption<String>(
+                    value: 'email',
+                    label: _optionLabel('Email', 'Per E-Mail zustellen'),
+                    helpText: 'Arrives within a minute.',
+                  ),
+                  IuxRadioOption<String>(
+                    value: 'post',
+                    label: _optionLabel('Post', 'Per Briefpost zustellen'),
+                    helpText: 'Three to five working days.',
+                  ),
+                  const IuxRadioOption<String>(
+                    value: 'fax',
+                    label: 'Fax',
+                    unavailabilityReason: 'No fax number on this account',
+                  ),
+                ],
+                onChanged: (String value) => setState(() => _channel = value),
+              )),
           const CatalogNote(
             'There is no arrow-key traversal inside the group: every option is '
             'its own Tab stop. Flutter\'s own RadioGroup adds arrows and skips '
@@ -517,12 +537,21 @@ class _SelectionPanelState extends State<_SelectionPanel> {
             'device to confirm.',
           ),
           const CatalogNote(
-            'None of these publishes a focusable flag on its semantics node: '
-            'the subtree is excluded to control the announced name, and the '
-            'Focus widget\'s annotation goes with it. Keyboard focus works; '
-            'the flag is absent. This is IUX-A11Y-FOCUS-001, open across every '
-            'control built on IuxSemantics.action, and it is the same defect '
-            'the button section shows — not a second one.',
+            'Each of these now publishes a focusable flag and a focus action '
+            'on its own node — measured on the checkbox, the switch and a '
+            'radio option. None of them did until IUX-038: the subtree is '
+            'excluded to control the announced name, and the Focus widget\'s '
+            'annotation went with it, so keyboard focus worked while assistive '
+            'technology had no way to move accessibility focus onto the '
+            'control. That was IUX-A11Y-FOCUS-001, and the fix is the same one '
+            'the button section shows: the helper is handed the node the '
+            'control actually focuses, and republishes the state and the '
+            'action itself.',
+          ),
+          const CatalogNote(
+            'What a device is still owed: the flag reaching the node is not '
+            'the same as TalkBack acting on it, and nothing in this project '
+            'has been validated on a real device with a screen reader.',
           ),
         ],
       ),

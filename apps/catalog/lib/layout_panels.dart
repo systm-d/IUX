@@ -253,7 +253,10 @@ class _SurfacePanel extends StatelessWidget {
             'surface.inverse is a dark panel in a light theme and a light one '
             'in dark, and IuxSurface does not touch the content colour, so a '
             'caller who writes content.primary inside it gets a pairing the '
-            'theme never measured. Nothing asserts, and the failure is '
+            'theme never measured. Measured now, on the standard light '
+            'profile: content.primary on surface.inverse is 1.08:1, which is '
+            'text nobody can read, against 17.63:1 for content.inverse on the '
+            'same panel. Nothing asserts, and the failure is '
             'invisible until somebody looks. A surface is a background rather '
             'than a component, so it is arguably not the surface\'s job — but '
             'it is nobody else\'s either, and content.inverse exists precisely '
@@ -374,13 +377,14 @@ class _SpacingPanel extends StatelessWidget {
             ],
           ),
           SizedBox(height: geometry.spacingSm),
-          const CatalogSubheading('the same two, vertically'),
+          const CatalogSubheading('the same two, vertically and full width'),
           IuxTargetSpacing(
             children: <Widget>[
               for (final String label in <String>['Keep', 'Delete'])
                 IuxButton(
                   label: label,
                   variant: IuxButtonVariant.outlined,
+                  expand: true,
                   action: IuxActionDescriptor(
                     semantics: IuxActionSemantics(
                       label: '$label the invoice, stacked',
@@ -398,28 +402,28 @@ class _SpacingPanel extends StatelessWidget {
             'screen reader gets too.',
           ),
           const CatalogNote(
-            'The vertical pair above is deliberately *not* expanded, and that '
-            'is a workaround. IuxTargetSpacing is a Wrap on both axes, and a '
-            'Wrap offers its children no width, so IuxButton\'s expand — a '
-            'SizedBox(width: double.infinity) — forces an infinite width and '
-            'the layout throws. Two full-width buttons stacked with the '
-            'library\'s own spacing primitive is the most ordinary thing a '
-            'caller can write:\n\n'
-            '    IuxTargetSpacing(children: <Widget>[\n'
-            '      IuxButton(label: \'Keep\', expand: true, …),\n'
-            '      IuxButton(label: \'Delete\', expand: true, …),\n'
-            '    ])\n\n'
-            'and it fails on "BoxConstraints forces an infinite width" at '
-            'iux_button.dart:417. The button\'s comment says the loud failure '
-            'is intended for an unbounded Row; nothing anticipated that '
-            'IuxTargetSpacing would be one. Stacking full-width controls needs '
-            'a Column with IuxGap between, which is the arrangement the '
-            'primitive appears to exist for.',
-            finding: true,
+            'The vertical pair above is expanded, and until IUX-038 it could '
+            'not be. IuxTargetSpacing was a Wrap on both axes, and a Wrap '
+            'offers its children no width, so IuxButton\'s expand — a '
+            'SizedBox(width: double.infinity) — forced an infinite width and '
+            'the layout threw on "BoxConstraints forces an infinite width". '
+            'Two full-width buttons stacked with the library\'s own spacing '
+            'primitive is the most ordinary thing a caller can write, and it '
+            'was the one arrangement the primitive refused. The vertical axis '
+            'is a Column now; the horizontal one is still a Wrap, which is '
+            'what lets the pair above it move to a second line.',
+          ),
+          const CatalogNote(
+            'The measurement that decided the shape is better than the crash '
+            'it fixed. A vertical Wrap protected nothing: a page scrolls, so '
+            'height is normally unbounded and it never wrapped at all — and '
+            'where height *was* bounded it moved the overflow sideways in '
+            'silence, putting a target off the right edge with no exception '
+            'reported. The Column reports a RenderFlex overflow instead.',
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading(
-            'the arrangement that does work: a Column and a gap',
+            'the arrangement people reached for instead: a Column and a gap',
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -451,9 +455,12 @@ class _SpacingPanel extends StatelessWidget {
           ),
           const CatalogNote(
             'A gap from the spacing scale is not the target floor: it follows '
-            'density and can resolve below eight. Stacking targets this way '
-            'gets the width and gives up the guarantee the primitive above '
-            'exists to make, which is the whole cost of the workaround.',
+            'density and can resolve below eight. This arrangement gets the '
+            'width and gives up the guarantee the primitive above exists to '
+            'make — which is what it cost to reach for it while the primitive '
+            'was broken, and the reason to stop reaching for it now. Measured: '
+            'two bare 48-tall targets in IuxTargetSpacing come out 8 pixels '
+            'apart; with IuxGap(IuxSpacingStep.xxs) they come out 4.',
           ),
         ],
       ),

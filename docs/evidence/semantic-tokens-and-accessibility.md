@@ -1022,7 +1022,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: `expanded` is null rather than false by default, so an ordinary
   button is never announced as "collapsed" — a state it does not have.
 
-### IUX-A11Y-FOCUS-001 — Focus semantics, fixed for the button and nothing else (PARTIAL)
+### IUX-A11Y-FOCUS-001 — Focus semantics, closed across the library (FIXED)
 
 - **Level**: standard
 - **Scope**: every component built on `IuxSemantics.action`, since IUX-005
@@ -1050,8 +1050,16 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Fixed for `IuxButton` at IUX-038**, verified by re-probing rather than by
   reading the diff: it now reports `isFocused: Tristate.isTrue` when it holds
   focus and offers `[tap, focus]`, matching Flutter's own.
-- **STILL OPEN EVERYWHERE ELSE, and my first write-up of this overclaimed.**
-  `IuxFocusNodeOwner` has exactly **one** call site.
+- **Closed.** The sweep found **eleven** controls affected, not the four first
+  reported, and three of them had no `tap` action at all — announced as
+  buttons, inert to a screen-reader double-tap. `IuxFocusNodeOwner` now has ten
+  call sites, and a later independent audit re-probed every control and found
+  the flag and the `focus` action present throughout.
+- **My first two write-ups of this were both wrong**, in opposite directions:
+  the first claimed it was fixed everywhere when one call site existed, the
+  second left it marked partial after the sweep had closed it. Both were
+  corrected by somebody measuring rather than reading the entry.
+- The original text is kept below because the mechanism still matters:
   `_IuxDisclosureControl`, `IuxValidationSummary` entries and both
   transient-layer controls still report `isFocused: Tristate.none` with
   `actions=[tap]` — and driving `performAction(SemanticsAction.focus)` on the
@@ -1917,7 +1925,8 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 
 - **Level**: context_dependent
 - **Status**: open. `dismissLabel: 'Close the menu'` overflows the drawer
-  header by 7.5 px at **100%** text on 800- and 1200-wide surfaces, while
+  header by **9.5 px** — the 7.5 first recorded was measured on a different
+  label — at **100%** text on 800- and 1200-wide surfaces, while
   `'Close'` does not — the panel caps near 280 px whatever the screen. It only
   stacks past about 130% text, so **enlarging the text fixes it and leaving it
   alone does not**. Pinned by a catalog test.

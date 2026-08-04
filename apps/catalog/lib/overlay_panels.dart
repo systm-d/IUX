@@ -340,13 +340,12 @@ class _SheetPanelState extends State<_SheetPanel> {
             'which is a change to layout rather than to this component.',
           ),
           const CatalogNote(
-            'docs/components/bottom-sheet.md still opens its Limits with '
-            '"IuxModalLayer cannot hold it. Its slot is IuxDialog?" and '
-            'describes the fix as unwritten. The slot exists and this panel '
-            'uses it — IuxModalLayer takes dialog, sheet and drawer and '
-            'asserts at most one. The page is stale in a way that would send a '
-            'reader off to build their own Stack.',
-            finding: true,
+            'This panel used to record that docs/components/bottom-sheet.md '
+            'still opened its Limits with "IuxModalLayer cannot hold it" while '
+            'the sheet slot already existed. The page marks that limit closed '
+            'now. The slot is what this panel uses — IuxModalLayer takes '
+            'dialog, sheet and drawer and asserts at most one — and it is why '
+            'nothing here builds a Stack of its own.',
           ),
         ],
       ),
@@ -579,12 +578,14 @@ class _TooltipPanel extends StatelessWidget {
             ),
           ]),
           const CatalogNote(
-            'The second row is the one that matters. A message that fits in '
-            'English is 128 runes in German and asserts — in debug, in '
-            'initState, after the screen was built and only if somebody long '
-            'presses the right glyph on the right locale. isWithinBounds is '
-            'public so a caller can ask first, and a caller who does not ask '
-            'ships a crash that only speakers of one language ever reach.',
+            'The last row is the one that matters, and its number is read off '
+            'the string rather than written down here. A message that fits in '
+            'English runs well past the ceiling in German and asserts — in '
+            'debug, in initState, after the screen was built, and only if '
+            'somebody long presses the right glyph on the right locale. '
+            'isWithinBounds is public so a caller can ask first, and a caller '
+            'who does not ask ships a crash that only speakers of one language '
+            'ever reach.',
             finding: true,
           ),
           const CatalogNote(

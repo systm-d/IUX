@@ -100,13 +100,20 @@ class _SearchPanelsState extends State<SearchPanels> {
                 'means typing.',
               ),
               const CatalogNote(
-                'It cannot be built out of IuxTextField. There is no '
-                'textInputAction and no onSubmitted on the field, so a search '
-                'that runs when the user presses the keyboard\'s action key is '
-                'unreachable — which is a pattern existing partly to work '
-                'around its own component. Two thirds of '
-                'IUX-TEXTFIELD-GAPS-001, still open; the Inputs section reads '
-                'the third off the enum rather than claiming it.',
+                'A search still cannot be run from the keyboard\'s action key '
+                'here, and the reason has moved. IuxTextField was missing both '
+                'onSubmitted and a search content type — two thirds of '
+                'IUX-TEXTFIELD-GAPS-001 — and it has gained both: the Inputs '
+                'section reads the content type off the enum, and a field '
+                'declared as search offers a "search" key that fires '
+                'onSubmitted with the text. This pattern has not been rewired '
+                'to use either. Measured on the box above: it builds an '
+                'IuxTextField with content "text", passes no onSubmitted, and '
+                'its action key is "done". So the query reaches the caller '
+                'only through onChanged, and the box is announced as an '
+                'ordinary text field rather than a search one — a gap in a '
+                'pattern now, where it used to be a gap in the component the '
+                'pattern is built on.',
                 finding: true,
               ),
             ],
@@ -129,12 +136,14 @@ class _SearchPanelsState extends State<SearchPanels> {
                 onChanged: (_Answer value) => setState(() => _answer = value),
               ),
               SizedBox(height: geometry.spacingXs),
-              // Bounded on purpose. IuxSearchResults puts the result list in
-              // an Expanded, because a scrolling list has to be told how tall
-              // it is, and this catalog is itself a scroll view offering
-              // unbounded height. Given one, the pattern fails on Flutter's
-              // own unbounded-constraints assertion — loudly, which is better
-              // than laying out silently wrongly.
+              // Bounded on purpose, though it no longer has to be. The ready
+              // branch used to wrap the caller's list in an Expanded, so
+              // placing the pattern in a scroll view — this catalog is one —
+              // threw on Flutter's unbounded-constraints assertion at the
+              // first non-empty result. It does not any more: probed inside a
+              // SingleChildScrollView it lays out with no exception and adds
+              // no second scrollable. The box stays because a fixed height is
+              // what makes the reachability question below visible.
               SizedBox(
                 height: 320,
                 child: IuxSearchResults<String>(
@@ -196,12 +205,17 @@ class _SearchPanelsState extends State<SearchPanels> {
                 'one is what a screen-reader user hears.',
               ),
               const CatalogNote(
-                'Nothing here scrolls itself. At 300% the summary wraps and '
-                'takes its height from the results below it, and in a 320-tall '
-                'box it will overflow. That is inherited from IuxLoadingRetry '
-                'and IuxEmptyState and it is deliberate: a region inside a '
-                'list that already scrolls must not introduce a second one. '
-                'Set the text scale to 300% and watch this box.',
+                'This box no longer overflows at 300%, and the rule that '
+                'stopped it introducing a second scrollbar is intact. Measured '
+                'in a 320-tall box at 300%: no exception, exactly one '
+                'scrollable, and the reset control off screen until the user '
+                'scrolls to it. The discriminator is the constraint rather '
+                'than a parameter — given a bounded height the block scrolls '
+                'itself, because something that will not scroll it has just '
+                'told it the size of a box; given an unbounded one it adds '
+                'nothing, because it is already inside a scroll view. So a '
+                'region inside a list that already scrolls still cannot '
+                'introduce a second one.',
               ),
               const CatalogNote(
                 'Activating the reset loses keyboard focus, because the '

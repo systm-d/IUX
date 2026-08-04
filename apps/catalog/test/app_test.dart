@@ -592,11 +592,12 @@ void main() {
       expect(find.byType(IuxDialog), findsNothing);
     });
 
-    testWidgets('a bottom sheet uses the layer slot the docs deny exists', (
+    testWidgets('a bottom sheet goes in the page layer, not its own Stack', (
       WidgetTester tester,
     ) async {
-      // docs/components/bottom-sheet.md still opens its Limits with
-      // "IuxModalLayer cannot hold it. Its slot is IuxDialog?". It holds it.
+      // docs/components/bottom-sheet.md once opened its Limits with
+      // "IuxModalLayer cannot hold it. Its slot is IuxDialog?" and now marks
+      // that closed. The behaviour is pinned here either way.
       await tester.pumpWidget(const IuxCatalogApp());
       await gotoSection(tester, 'Overlays');
       await reveal(tester, 'A panel from the bottom edge');
@@ -611,9 +612,11 @@ void main() {
       expect(find.byType(IuxBottomSheet), findsNothing);
     });
 
-    testWidgets('the drawer uses the slot its own page calls missing', (
+    testWidgets('the drawer uses the modal layer\'s third slot', (
       WidgetTester tester,
     ) async {
+      // docs/components/navigation-drawer.md once listed "No IuxModalLayer
+      // slot" as its first limit and now marks it closed at IUX-027.
       await tester.pumpWidget(const IuxCatalogApp());
       await gotoSection(tester, 'Navigation');
       await reveal(tester, 'The drawer, which the page has to place');

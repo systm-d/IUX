@@ -282,14 +282,18 @@ class _ProgressPanelState extends State<_ProgressPanel> {
             label: 'Value label',
             value: _honest,
             values: const <bool>[true, false],
-            naming: (bool value) => value ? 'agrees with the bar' : 'lies',
+            naming: (bool value) =>
+                value ? 'a percentage' : 'a count, which is not checked',
             onChanged: (bool value) => setState(() => _honest = value),
           ),
           SizedBox(height: geometry.spacingXs),
           IuxProgressIndicator(
             label: 'Uploading invoices',
             value: _value,
-            valueLabel: _honest ? '${(_value * 100).round()}%' : '90%',
+            // A percentage that disagreed with the value asserts, so it cannot
+            // be shown; the count below is the form the check does not read,
+            // and it is deliberately wrong about the same bar.
+            valueLabel: _honest ? '${(_value * 100).round()}%' : '9 of 10',
           ),
           SizedBox(height: geometry.spacingSm),
           const IuxLoadingIndicator(label: 'Checking availability'),
@@ -302,14 +306,25 @@ class _ProgressPanelState extends State<_ProgressPanel> {
             ('Value in force', _value.toStringAsFixed(2)),
           ]),
           const CatalogNote(
-            'Set the value label to "lies" and look at the bar against the '
-            'number. The label is a free string and nothing compares it with '
-            'the value, so a bar at 45% can announce "90%" — and the '
-            'announcement is what a screen-reader user receives, so the two '
-            'audiences are told different things. The parameter exists because '
-            'IUX cannot compose a percentage: "%", "٪" and "45 %" are all '
-            'locale decisions. That is a good reason for the parameter and not '
-            'a reason for it to be unchecked.',
+            'A bar at 45% used to be able to announce "90%": the label was a '
+            'free string and nothing compared it with the value, so the two '
+            'audiences were told different things and neither was warned. It '
+            'is checked now, and the check is what stops this panel offering '
+            'the demonstration — a mismatched percentage asserts in debug, so '
+            'it cannot be put on screen without stopping the harness. The '
+            'parameter still exists because IUX cannot compose a percentage: '
+            '"%", "٪" and "45 %" are all locale decisions.',
+          ),
+          const CatalogNote(
+            'The check reads percentages and nothing else, which is the half '
+            'still worth knowing. Switch the label to the count and look at it '
+            'against the bar: "9 of 10" beside a bar at 45% passes without a '
+            'word, because "3 of 7" is a legitimate label for a run that has '
+            'finished two steps and started the third, and a framework reading '
+            'it as a fraction would refuse correct code. A label with no '
+            'percent sign in it, or with more than one, is not inspected at '
+            'all — so the two audiences can still be told different things, '
+            'just not in the one notation a machine can arbitrate.',
             finding: true,
           ),
           const CatalogNote(
