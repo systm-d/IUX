@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../actions/iux_action_descriptor.dart';
 import '../../actions/iux_action_model.dart';
@@ -354,7 +355,21 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
       hasLabel: widget.hasLabel,
     );
 
+    // Whether activating right now would run anything. False while a busy
+    // action drops repeats, which is what the gesture handlers and the tap
+    // action have to follow.
     final bool activatable = widget.action.isActivatable;
+
+    // Whether the control exists as far as the user is concerned. Only
+    // *unavailable* takes a control out of the focus order and announces it as
+    // unusable; running is not unavailable. The two were one flag, so a button
+    // that was working announced itself as disabled and threw a keyboard user
+    // back to the enclosing scope the moment they pressed Enter on it. The
+    // action model kept these dimensions apart from the start — it even
+    // asserts that a disabled action cannot be in progress — and the button
+    // collapsed them anyway.
+    final bool available =
+        widget.action.availability != IuxActionAvailability.disabled;
 
     // The container animates between states so a change is perceptible rather
     // than instantaneous. Declared as a state change, so a reduced-motion
@@ -402,27 +417,33 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
         ? SizedBox(width: double.infinity, child: visual)
         : IntrinsicWidth(child: visual);
 
-    return IuxSemantics.action(
-      label: widget.action.semantics.label,
-      hint: _hint,
-      enabled: activatable,
-      busyHint: widget.action.isBusy ? widget.busyHint : null,
-      onTap: activatable ? _handleActivate : null,
-      child: IuxFocusable(
-        autofocus: widget.autofocus,
-        focusNode: widget.focusNode,
-        canRequestFocus: activatable,
-        onActivate: activatable ? _handleActivate : null,
-        child: MouseRegion(
-          onEnter: (_) => _setHovered(true),
-          onExit: (_) => _setHovered(false),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: activatable ? (_) => _setPressed(true) : null,
-            onTapUp: activatable ? (_) => _setPressed(false) : null,
-            onTapCancel: activatable ? () => _setPressed(false) : null,
-            onTap: activatable ? _handleActivate : null,
-            child: visual,
+    return IuxFocusNodeOwner(
+      focusNode: widget.focusNode,
+      debugLabel: widget.action.semantics.label,
+      builder: (BuildContext context, FocusNode node) => IuxSemantics.action(
+        label: widget.action.semantics.label,
+        hint: _hint,
+        enabled: available,
+        focusNode: node,
+        focusable: available,
+        busyHint: widget.action.isBusy ? widget.busyHint : null,
+        onTap: activatable ? _handleActivate : null,
+        child: IuxFocusable(
+          autofocus: widget.autofocus,
+          focusNode: node,
+          canRequestFocus: available,
+          onActivate: activatable ? _handleActivate : null,
+          child: MouseRegion(
+            onEnter: (_) => _setHovered(true),
+            onExit: (_) => _setHovered(false),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: activatable ? (_) => _setPressed(true) : null,
+              onTapUp: activatable ? (_) => _setPressed(false) : null,
+              onTapCancel: activatable ? () => _setPressed(false) : null,
+              onTap: activatable ? _handleActivate : null,
+              child: visual,
+            ),
           ),
         ),
       ),

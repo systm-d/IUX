@@ -62,19 +62,20 @@ void main() {
       .decoration! as BoxDecoration;
 
   group(
-      'open defect — a running action is not focusable, so activating it '
-      'with the keyboard throws the user out of their place', () {
-    // Measured, not read. IuxButton wires `canRequestFocus` to
+      'fixed — a running action keeps the focus the user put on it '
+      '(IUX-BUTTON-BUSY-001, IUX-BUTTON-BUSY-002)', () {
+    // Measured, not read. IuxButton used to wire `canRequestFocus` to
     // `action.isActivatable`, and under the default
     // IuxActionRepeatPolicy.ignoreWhileInProgress that is false for the whole
     // run. Availability and focusability are not the same question: an action
     // that cannot be started *right now* is still the control the user is
-    // standing on.
+    // standing on. Only *unavailable* now takes a control out of the focus
+    // order, which is where Flutter draws the line too.
     //
-    // Distinct from IUX-A11Y-FOCUS-001, which is about the semantics node
-    // declaring no focusable state. This is real focus, and it moves.
+    // Distinct from IUX-A11Y-FOCUS-001, which was about the semantics node
+    // declaring no focusable state. This is real focus, and it used to move.
 
-    testWidgets('activating with Enter moves focus to the previous control',
+    testWidgets('activating with Enter leaves focus where the user put it',
         (WidgetTester tester) async {
       late void Function(IuxAsyncOutcome) finish;
       final IuxAsyncActionController controller = IuxAsyncActionController(
@@ -136,14 +137,16 @@ void main() {
 
       expect(
         focusedLabel(),
-        'Before',
-        reason: 'DEFECT: pressing Enter on the action sent focus backwards to '
-            'the control above it. The user asked to run something and was '
-            'moved somewhere they did not choose.',
+        // The visible label is the caller's busy wording while the operation
+        // runs; it is the same control and the same focus node.
+        'Paying...',
+        reason: 'pressing Enter used to send focus backwards to the control '
+            'above. The user asked to run something and was moved somewhere '
+            'they did not choose.',
       );
 
-      // And the running control cannot be reached again: one Tab from
-      // "Before" skips straight past it.
+      // And the running control is still a stop of its own: one Tab from it
+      // reaches the next control rather than skipping over it from "Before".
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(focusedLabel(), 'After');
@@ -153,17 +156,18 @@ void main() {
       expect(
         focusedLabel(),
         'After',
-        reason: 'DEFECT: the run finished and focus never came back. A '
-            'keyboard user resumes two controls away from where they were.',
+        reason: 'the run finished with the user where they had walked to',
       );
     });
 
     testWidgets(
-        'the repeat policy alone decides whether a busy button keeps '
+        'the repeat policy no longer decides whether a busy button keeps '
         'its focus', (WidgetTester tester) async {
-      // The proof that this is a conflation rather than a deliberate choice:
-      // the same running action stays focusable when its repeat policy happens
-      // to allow a second activation. Nothing about focus changed.
+      // The proof that this was a conflation rather than a deliberate choice:
+      // the same running action stayed focusable when its repeat policy
+      // happened to allow a second activation. Nothing about focus changed
+      // between the two, only whether a second tap would be accepted — so the
+      // two policies must agree, and now do.
       final FocusNode node = FocusNode(debugLabel: 'busy');
       addTearDown(node.dispose);
 
@@ -189,8 +193,8 @@ void main() {
       expect(await focusableUnder(IuxActionRepeatPolicy.allow), isTrue);
       expect(
         await focusableUnder(IuxActionRepeatPolicy.ignoreWhileInProgress),
-        isFalse,
-        reason: 'DEFECT: the default repeat policy removes the control from '
+        isTrue,
+        reason: 'the default repeat policy used to remove the control from '
             'focus traversal for the duration of the operation.',
       );
     });
@@ -253,11 +257,10 @@ void main() {
     });
   });
 
-  group('open defect — a running button announces itself as disabled', () {
+  group('fixed — a running button no longer announces itself as disabled', () {
     testWidgets(
-        'its node is that of a disabled control, and the only thing '
-        'separating the two is a hint the caller may omit',
-        (WidgetTester tester) async {
+        'a working control and an unavailable one no longer produce the '
+        'same node', (WidgetTester tester) async {
       await host(
         tester,
         Column(
@@ -283,25 +286,44 @@ void main() {
       );
 
       // No busyHint supplied, which the API permits: it is optional on
-      // IuxButton and there is no assertion pushing a caller towards it.
-      for (final String name in <String>['Busy', 'Off']) {
-        expect(
-          tester.getSemantics(find.bySemanticsLabel(name)),
-          matchesSemantics(
-            label: name,
-            isButton: true,
-            isEnabled: false,
-            hasEnabledState: true,
-            hasTapAction: false,
-          ),
-          reason: 'DEFECT: "$name" — a working control and an unavailable one '
-              'produce the same node. WCAG 2.2 SC 4.1.2 asks for the state a '
-              'control is actually in.',
-        );
-      }
+      // IuxButton and there is no assertion pushing a caller towards it. So
+      // this is the *worst* case for telling the two apart, and it is exactly
+      // the case that used to be indistinguishable.
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Busy')),
+        matchesSemantics(
+          label: 'Busy',
+          isButton: true,
+          // Running is not unavailable. WCAG 2.2 SC 4.1.2 asks for the state
+          // the control is actually in, and this one is working.
+          isEnabled: true,
+          hasEnabledState: true,
+          // No tap action, because the default repeat policy would drop one:
+          // the node offers an activation exactly when activating would run
+          // something. That is the same rule a disabled control follows, and
+          // it is the only property the two still share.
+          hasTapAction: false,
+          // Still the control the user is standing on, and still somewhere
+          // assistive technology can put accessibility focus.
+          isFocusable: true,
+          hasFocusAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Off')),
+        matchesSemantics(
+          label: 'Off',
+          isButton: true,
+          isEnabled: false,
+          hasEnabledState: true,
+          hasTapAction: false,
+        ),
+        reason: 'an unavailable control leaves the focus order entirely, which '
+            'is what Flutter does too and is not the defect',
+      );
     });
 
-    testWidgets('a supplied busyHint is the whole of the difference',
+    testWidgets('a supplied busyHint says what the state means',
         (WidgetTester tester) async {
       await host(
         tester,
@@ -318,12 +340,15 @@ void main() {
           label: 'Save',
           hint: 'Enregistrement en cours',
           isButton: true,
-          isEnabled: false,
+          isEnabled: true,
           hasEnabledState: true,
           hasTapAction: false,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
-        reason: 'the wording explains the state; the state itself still reads '
-            'as unavailable',
+        reason: 'the wording explains the state, and the state now agrees '
+            'with it — the hint used to be attached to a node announcing '
+            'itself as unavailable, on a control the user had been moved off',
       );
     });
   });

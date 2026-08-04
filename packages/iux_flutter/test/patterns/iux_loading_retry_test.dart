@@ -476,6 +476,8 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
 
@@ -518,20 +520,20 @@ void main() {
           tester.getSemantics(find.bySemanticsLabel(_kRetrySemanticLabel));
       expect(node.getSemanticsData().hint, contains('Reloading your orders'));
 
-      // Probed, not assumed, and it is not the answer this pattern wanted.
-      // IuxButton derives its announced enabled state from
+      // Probed, not assumed. This asserted the opposite until IUX-038:
+      // IuxButton derived its announced enabled state from
       // IuxActionDescriptor.isActivatable, which is false while an action is in
-      // progress under the default repeat policy — so a *running* retry is
-      // announced as unavailable rather than as busy. Availability and
-      // operation are orthogonal in the action model, and the descriptor even
-      // asserts that a disabled action cannot be in progress; the button
-      // collapses them anyway. Reported upstream. If this expectation ever
-      // fails, IuxButton was fixed: flip it and delete the corresponding
-      // caveat in iux_loading_retry.dart.
+      // progress under the default repeat policy, so a *running* retry was
+      // announced as unavailable rather than as busy (IUX-BUTTON-BUSY-001).
+      // Availability and operation are orthogonal in the action model, and the
+      // descriptor even asserts that a disabled action cannot be in progress;
+      // the button collapsed them anyway. It no longer does — only
+      // availability decides what is announced — so the running retry says it
+      // is working, which is what busyHint is attached to.
       expect(
         node,
-        isSemantics(hasEnabledState: true, isEnabled: false),
-        reason: 'a busy retry is announced as disabled by IuxButton',
+        isSemantics(hasEnabledState: true, isEnabled: true),
+        reason: 'a busy retry is working, not unavailable',
       );
 
       handle.dispose();
@@ -850,22 +852,23 @@ void main() {
       );
 
       // This was written expecting focus to survive — the control is still
-      // mounted, after all — and the probe said otherwise. IuxButton passes
-      // IuxActionDescriptor.isActivatable to IuxFocusable.canRequestFocus, and
-      // that getter is false while an action is in progress, so a running
-      // control is removed from the focus order and drops the focus it held.
+      // mounted, after all — and the probe said otherwise, because IuxButton
+      // passed IuxActionDescriptor.isActivatable to
+      // IuxFocusable.canRequestFocus and that getter is false while an action
+      // is in progress (IUX-BUTTON-BUSY-002). The consequence was worse than a
+      // lost tab stop: busyHint exists precisely so a running control is not
+      // silent, and it was announced on a node the user had just been moved
+      // off.
       //
-      // The consequence is worse than a lost tab stop: busyHint exists
-      // precisely so a running control is not silent, and it is announced on a
-      // node the user has just been moved off. Reported upstream. If this ever
-      // fails, IuxButton was fixed: flip it, and update the note on focus in
-      // iux_loading_retry.dart, which currently tells callers this flow buys
-      // them nothing.
+      // Fixed at IUX-038, and this is the assertion flipped. Only
+      // *unavailable* now removes a control from the focus order, so driving
+      // the retry in place keeps the user where they were — which is what
+      // makes this flow worth choosing.
       expect(find.text(_kRetryLabel), findsOneWidget);
       expect(
         retryFocus(tester).hasPrimaryFocus,
-        isFalse,
-        reason: 'a busy IuxButton leaves the focus order',
+        isTrue,
+        reason: 'a busy IuxButton is still the control the user is standing on',
       );
     });
   });

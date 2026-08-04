@@ -4,6 +4,8 @@
 // prose, which changes how the platform speaks the value back.
 import 'dart:ui' show SemanticsInputType;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
@@ -63,20 +65,6 @@ enum IuxSelectionValue {
 /// another labels an icon and forgets to exclude the icon's own semantics, and
 /// the reading order stops being predictable across the library.
 abstract final class IuxSemantics {
-  /// Wraps [child] as an activatable control.
-  ///
-  /// Leave [selected] null unless the control genuinely toggles: passing false
-  /// advertises a selected *state* to assistive technology, so a plain button
-  /// gets announced as "not selected", which invites the user to look for a
-  /// selection that does not exist.
-  ///
-  /// [busyHint] is appended when the action is running. Supply it already
-  /// localised, or leave it null: the framework will not invent one.
-  ///
-  /// Pass [onTap] whenever the wrapped subtree is activatable. It is what a
-  /// screen reader's double-tap invokes; a gesture detector inside the child
-  /// cannot supply it, because this helper excludes the child's semantics in
-  /// order to control the announced name.
   /// Attaches a short elaboration to [child] without adding a stop.
   ///
   /// The platform tooltip property lands on the *same* node as whatever
@@ -95,6 +83,34 @@ abstract final class IuxSemantics {
   }) =>
       Semantics(tooltip: message, child: child);
 
+  /// Wraps [child] as an activatable control.
+  ///
+  /// Leave [selected] null unless the control genuinely toggles: passing false
+  /// advertises a selected *state* to assistive technology, so a plain button
+  /// gets announced as "not selected", which invites the user to look for a
+  /// selection that does not exist.
+  ///
+  /// [busyHint] is appended when the action is running. Supply it already
+  /// localised, or leave it null: the framework will not invent one.
+  ///
+  /// Pass [onTap] whenever the wrapped subtree is activatable. It is what a
+  /// screen reader's double-tap invokes; a gesture detector inside the child
+  /// cannot supply it, because this helper excludes the child's semantics in
+  /// order to control the announced name.
+  ///
+  /// [focusNode] is the node the control actually focuses, and it is what lets
+  /// this node carry a focus *state* and a `focus` action. The exclusion that
+  /// takes the child's tap action also takes the `Focus` widget's own
+  /// `focusable`/`focused`/`onFocus` annotations, so without it the node
+  /// declares no focusable state at all and assistive technology has no way to
+  /// move accessibility focus onto the control. Pass the same node the
+  /// focusable region below is given; `IuxFocusNodeOwner` exists to make that
+  /// one node rather than two.
+  ///
+  /// [focusable] is whether the control takes part in focus at all — the same
+  /// answer given to `IuxFocusable.canRequestFocus`. It is a separate question
+  /// from [enabled]: an action that cannot be started *right now* because it is
+  /// already running is still the control the user is standing on.
   static Widget action({
     required Widget child,
     required String label,
@@ -104,35 +120,20 @@ abstract final class IuxSemantics {
     bool? expanded,
     String? busyHint,
     VoidCallback? onTap,
+    FocusNode? focusNode,
+    bool focusable = true,
   }) =>
-      Semantics(
-        container: true,
-        button: true,
+      _IuxActionSemantics(
+        label: label,
         enabled: enabled,
         selected: selected,
-        // A disclosure control has to announce whether the thing it controls
-        // is open, on the same node as its name. Left null it is absent
-        // rather than false, so an ordinary button is not announced as
-        // "collapsed" — a state it does not have.
         expanded: expanded,
-        label: label,
-        // Carried here because [excludeSemantics] removes the child's own tap
-        // action along with its label. Without it the node announces a button
-        // and offers nothing to activate, so a screen-reader double-tap does
-        // nothing at all — the control is visible, named, and unusable.
-        onTap: enabled ? onTap : null,
-        // A running action is announced through the hint, because a screen
-        // reader gives no standard indication for it and silence is
-        // indistinguishable from a control that simply did nothing.
-        //
-        // The wording is the caller's. An earlier version composed the
-        // English literal 'In progress' here, which every non-English
-        // application would have shipped untranslated — the framework holds
-        // roles, never user-facing text.
+        onTap: onTap,
         hint: busyHint == null || busyHint.isEmpty
             ? hint
             : _joinHint(hint, busyHint),
-        excludeSemantics: true,
+        focusNode: focusNode,
+        focusable: focusable,
         child: child,
       );
 
@@ -462,6 +463,118 @@ abstract final class IuxSemantics {
 
   static String? _joinHint(String? hint, String addition) =>
       hint == null || hint.isEmpty ? addition : '$hint. $addition';
+}
+
+/// The node [IuxSemantics.action] builds, kept in step with a focus node.
+///
+/// A widget rather than a plain `Semantics`, because the focus state has to be
+/// re-read when it changes and only a listener can do that. Everything else
+/// about the node is a pure function of its arguments.
+class _IuxActionSemantics extends StatefulWidget {
+  const _IuxActionSemantics({
+    required this.child,
+    required this.label,
+    required this.hint,
+    required this.enabled,
+    required this.selected,
+    required this.expanded,
+    required this.onTap,
+    required this.focusNode,
+    required this.focusable,
+  });
+
+  final Widget child;
+  final String label;
+  final String? hint;
+  final bool enabled;
+  final bool? selected;
+  final bool? expanded;
+  final VoidCallback? onTap;
+  final FocusNode? focusNode;
+  final bool focusable;
+
+  @override
+  State<_IuxActionSemantics> createState() => _IuxActionSemanticsState();
+}
+
+class _IuxActionSemanticsState extends State<_IuxActionSemantics> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode?.addListener(_handleFocusChanged);
+  }
+
+  @override
+  void didUpdateWidget(_IuxActionSemantics oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      oldWidget.focusNode?.removeListener(_handleFocusChanged);
+      widget.focusNode?.addListener(_handleFocusChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode?.removeListener(_handleFocusChanged);
+    super.dispose();
+  }
+
+  void _handleFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final FocusNode? node = widget.focusNode;
+    // Mirrors what Flutter's own `Focus` publishes, so an IUX control and a
+    // Material one describe focus identically. `focused` and the focus action
+    // are withheld from a control that cannot take focus: announcing "not
+    // focused" for something that can never be focused describes a state it
+    // does not have, which is the same mistake as announcing a plain button as
+    // "not selected".
+    final bool focusable = node != null && widget.focusable;
+
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: widget.enabled,
+      selected: widget.selected,
+      // A disclosure control has to announce whether the thing it controls is
+      // open, on the same node as its name. Left null it is absent rather than
+      // false, so an ordinary button is not announced as "collapsed" — a state
+      // it does not have.
+      expanded: widget.expanded,
+      label: widget.label,
+      // Carried here because [excludeSemantics] removes the child's own tap
+      // action along with its label. Without it the node announces a button
+      // and offers nothing to activate, so a screen-reader double-tap does
+      // nothing at all — the control is visible, named, and unusable.
+      onTap: widget.enabled ? widget.onTap : null,
+      // The same exclusion removes the `Focus` widget's own annotations, which
+      // is how every IUX control came to declare no focusable state at all.
+      // Re-published here, on the node the user actually lands on.
+      focusable: focusable,
+      focused: focusable ? node.hasPrimaryFocus : null,
+      // Flutter withholds this on iOS for an open engine defect
+      // (flutter/flutter#150030) and IUX follows rather than diverging: the
+      // alternative is shipping a known platform bug that this package cannot
+      // reproduce, let alone verify a fix for.
+      onFocus: focusable && defaultTargetPlatform != TargetPlatform.iOS
+          ? node.requestFocus
+          : null,
+      // A running action is announced through the hint, because a screen
+      // reader gives no standard indication for it and silence is
+      // indistinguishable from a control that simply did nothing.
+      //
+      // The wording is the caller's. An earlier version composed the English
+      // literal 'In progress' here, which every non-English application would
+      // have shipped untranslated — the framework holds roles, never
+      // user-facing text.
+      hint: widget.hint,
+      excludeSemantics: true,
+      child: widget.child,
+    );
+  }
 }
 
 /// Speaks a message that has no visual anchor.

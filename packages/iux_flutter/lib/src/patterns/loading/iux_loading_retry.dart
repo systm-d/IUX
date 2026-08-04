@@ -196,35 +196,32 @@ typedef IuxLoadedBuilder<T> = Widget Function(BuildContext context, T value);
 ///
 /// ## Known limitations
 ///
-/// **Activating the recovery loses keyboard focus, whichever flow you choose.**
-/// This is the pattern's sharpest remaining edge, and half of it is not this
-/// pattern's to fix.
+/// **Returning the region to a wait loses keyboard focus.**
 ///
-/// Returning the region to a wait unmounts the control the user just
-/// activated, and Flutter hands focus back to the nearest enclosing scope; a
-/// keyboard user then tabs from there rather than from where they were. This
-/// pattern does not paper over that, because every fix is a focus movement of
-/// the kind it has just argued against, onto a node that would itself vanish
-/// when the content arrived — two interruptions in place of one.
+/// It unmounts the control the user just activated, and Flutter hands focus
+/// back to the nearest enclosing scope; a keyboard user then tabs from there
+/// rather than from where they were. This pattern does not paper over that,
+/// because every fix is a focus movement of the kind it has just argued
+/// against, onto a node that would itself vanish when the content arrived —
+/// two interruptions in place of one.
 ///
 /// Leaving the region [IuxLoadState.failed] and driving
-/// [IuxRetryRoute.isRunning] instead *should* have been the answer: the control
-/// stays mounted, so it should keep both focus and the user's place. It does
-/// not, and a probe rather than a reading is what established that. `IuxButton`
-/// passes [IuxActionDescriptor.isActivatable] to its focus node's
-/// `canRequestFocus`, and that getter is false while an action is in progress
-/// under the default repeat policy — so a running control leaves the focus
-/// order and drops the focus it was holding. The same getter feeds the
-/// announced enabled state, so a running retry is announced as *unavailable*
-/// rather than as busy, and [IuxRetryRoute.busyHint] — which exists so a
-/// running control is not silent — is attached to a node the user has just
-/// been moved off. Both are `IuxButton`'s to fix; this pattern's tests pin the
-/// current behaviour so the day it changes is visible.
+/// [IuxRetryRoute.isRunning] instead is the answer, and now behaves like one.
+/// The control stays mounted and keeps both focus and the user's place. It did
+/// not until IUX-038: `IuxButton` passed [IuxActionDescriptor.isActivatable] to
+/// its focus node's `canRequestFocus`, and that getter is false while an action
+/// is in progress under the default repeat policy, so a running control left
+/// the focus order and dropped the focus it was holding. The same getter fed
+/// the announced enabled state, so a running retry was announced as
+/// *unavailable* rather than as busy, and [IuxRetryRoute.busyHint] — which
+/// exists so a running control is not silent — was attached to a node the user
+/// had just been moved off. Availability and operation are separate questions
+/// again, and this pattern's tests pin the corrected behaviour.
 ///
-/// Until then, prefer returning the region to a wait. It is the simpler flow,
-/// it keeps one state on screen, and the alternative currently buys nothing.
-/// Either way it is the live region — on the wait or on the failure — that
-/// tells a screen-reader user their activation was accepted.
+/// So prefer driving [IuxRetryRoute.isRunning] where the caller can: the user
+/// keeps their place, and the busy hint reaches them. Either way it is the live
+/// region — on the wait or on the failure — that tells a screen-reader user
+/// their activation was accepted.
 ///
 /// **The wait is indeterminate.** A load whose extent the caller can count is
 /// better served by `IuxProgressIndicator`, which answers "how much longer"

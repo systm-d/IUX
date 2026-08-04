@@ -210,6 +210,13 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasTapAction: true,
+          // IUX-A11Y-FOCUS-001. An IUX button used to declare no focusable
+          // state at all and offer no way for assistive technology to move
+          // accessibility focus onto it. Both are asserted here because both
+          // were missing, and the node now matches what Flutter's own button
+          // publishes.
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });

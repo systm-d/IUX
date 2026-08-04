@@ -329,6 +329,8 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
     });

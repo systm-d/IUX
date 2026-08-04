@@ -746,16 +746,18 @@ void main() {
           isEnabled: true,
           hasEnabledState: true,
           hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
         ),
       );
 
-      // Measured, and stated here rather than assumed: the announced node
-      // carries no isFocusable flag and no focus action, because
-      // `IuxSemantics.action` excludes the child semantics in order to control
-      // the announced name, and the focusability lives on the child. The same
-      // is true of a plain IuxButton beside it, so it is the library's shape
-      // and not this pattern's — recorded so a later reading of this file does
-      // not mistake it for a property of the destructive flow.
+      // Measured, and stated here rather than assumed. This used to record the
+      // opposite: the announced node carried no isFocusable flag and no focus
+      // action, because `IuxSemantics.action` excluded the child semantics in
+      // order to control the announced name and took the focusability with it
+      // (IUX-A11Y-FOCUS-001, fixed at IUX-038). The comparison against a plain
+      // IuxButton beside it is what said this was the library's shape and not
+      // this pattern's, so it is kept: it now holds in the other direction.
       expect(
         tester
             .getSemantics(find.bySemanticsLabel(_semantics.label))

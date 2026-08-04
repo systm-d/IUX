@@ -1022,7 +1022,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: `expanded` is null rather than false by default, so an ordinary
   button is never announced as "collapsed" — a state it does not have.
 
-### IUX-A11Y-FOCUS-001 — Every IUX control is missing its focus semantics (OPEN)
+### IUX-A11Y-FOCUS-001 — Every IUX control was missing its focus semantics (FIXED)
 
 - **Level**: standard
 - **Scope**: every component built on `IuxSemantics.action`, since IUX-005
@@ -1047,11 +1047,16 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   reader since IUX-005); it deletes the focus state too.
 - **Not a regression**: `IuxBottomNavigation` destinations do carry
   `[tap, focus]`, because they do not route through the helper.
-- **Deferred deliberately**: the fix belongs in `IuxSemantics.action`, which
-  every component depends on, and it was found while two missions were live in
-  the same tree. Changing the shared foundation mid-wave trades a known defect
-  for an unknown one. Scheduled as the first item of IUX-038, which is the
-  accessibility audit.
+- **Fixed at IUX-038**, and verified by re-probing rather than by reading the
+  diff. An IUX button now reports `isFocused: Tristate.isTrue` when it holds
+  focus and offers `[tap, focus]`, matching Flutter's own.
+- **The mechanism of the fix**: `IuxSemantics.action` now publishes the focus
+  state and the `focus` action itself, naming the *same* `FocusNode` that
+  `IuxFocusable` holds. A private `IuxFocusNodeOwner` supplies that node —
+  deliberately unexported — because otherwise every control repeats four lines
+  (hold a fallback, create it lazily, prefer the caller's, dispose only the one
+  it owns) at eight call sites, and the line most easily forgotten is the
+  disposal.
 
 ### IUX-DRAWER-001 — The working stack shape is the only one a caller can express
 
@@ -1255,7 +1260,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   so the comparison pattern used correctly everywhere else was silently wrong
   here.
 
-### IUX-BUTTON-BUSY-001 — A running button is announced as unavailable (OPEN)
+### IUX-BUTTON-BUSY-001 — A running button was announced as unavailable (FIXED)
 
 - **Level**: standard
 - **Scope**: every component built on `IuxButton`, including IUX-029's
@@ -1284,9 +1289,14 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   dimensions orthogonal, and `IuxActionDescriptor` even asserts that a
   disabled action cannot be in progress in order to keep them apart. The
   button collapses them anyway.
-- **Scheduled with IUX-A11Y-FOCUS-001** in one pass: same file, same class of
-  defect, and IUX-008.9's audit is strengthening the button tests right now —
-  those tests are the safety net the fix should land against.
+- **Fixed at IUX-038**, re-probed rather than read. A running button now keeps
+  the focus the user put on it, reports `enabled: Tristate.isTrue`, carries its
+  `busyHint`, and offers `[focus]` but **not** `tap`.
+- **That last part is the whole fix**: withholding the tap is the truth — the
+  repeat policy really does decline a second activation — while claiming the
+  control is *disabled* was not. The two were one flag and are now two.
+- The tests IUX-008.9 wrote to pin the defective behaviour were flipped, not
+  deleted, which is what they were written for.
 
 ### IUX-BUTTON-CONFIRM-001 — A confirmation policy is honoured by one widget in four (OPEN)
 
@@ -1332,7 +1342,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   reverted attempt is on record so the next person does not spend the same
   hour discovering the same two callers.
 
-### IUX-BUTTON-BUSY-002 — The focus loss is a conflation, proven
+### IUX-BUTTON-BUSY-002 — The focus loss was a conflation, proven then undone (FIXED)
 
 - **Level**: standard
 - **Scope**: every `IuxButton`
