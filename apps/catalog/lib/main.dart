@@ -345,6 +345,22 @@ class _ConditionsPanel extends StatelessWidget {
       '${_stressTextScale.toStringAsFixed(0)}00% text and long labels. '
       'The text is meant to be that large: it is where most defects show.';
 
+  // Applying a preset multiplies every size on the page around wherever the
+  // user happened to be scrolled, so the control that undoes it stops being
+  // under their thumb — measured at 300%: `Defaults` at y 3050 on an 800px
+  // viewport, hitTestable 0, and a tap on it did nothing. Bringing the row
+  // back into view is what makes a preset reversible.
+  // Held outside the widget because this panel is a StatelessWidget rebuilt on
+  // every condition change: a key created in a field would be a fresh key each
+  // build, and `currentContext` always null. There is exactly one conditions
+  // panel in the application, so one key is the right number.
+  static final GlobalKey _presetsKey = GlobalKey();
+
+  void _keepPresetsInView() {
+    final BuildContext? context = _presetsKey.currentContext;
+    if (context != null) Scrollable.ensureVisible(context);
+  }
+
   void _applyStress() {
     onConfigurationChanged(
       configuration.copyWith(
@@ -357,12 +373,18 @@ class _ConditionsPanel extends StatelessWidget {
     );
     onTextScaleChanged(_stressTextScale);
     onLongLabelsChanged(_stressLongLabels);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _keepPresetsInView(),
+    );
   }
 
   void _applyDefaults() {
     onConfigurationChanged(const IuxThemeConfiguration());
     onTextScaleChanged(1);
     onLongLabelsChanged(false);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _keepPresetsInView(),
+    );
   }
 
   @override
@@ -374,23 +396,18 @@ class _ConditionsPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          'Every preference is independent. Any combination is valid, and high '
-          'contrast exists for dark as well as light. The two presets are '
-          'shortcuts, not modes: at 300% the chips below are large enough that '
-          'setting six of them by hand is its own obstacle, which is also why '
-          'this whole header folds away.',
-          style: type.supporting.copyWith(color: colors.content.secondary),
-        ),
-        SizedBox(height: geometry.spacingSm),
-        CatalogChoice<_Section>(
-          label: 'Section',
-          value: section,
-          values: _Section.values,
-          naming: (_Section value) => value.title,
-          onChanged: onSectionChanged,
-        ),
+        // The presets come first, before even the paragraph explaining them.
+        // They used to follow the section list, and at 300% the thirteen
+        // section chips pushed this row to y 6265 on an 800px viewport —
+        // hitTestable 0. Moving it above the chips left it at 5489, still off
+        // screen, because the paragraph alone is enough at that scale.
+        //
+        // So the rule is not "higher" but "first": the control that leaves the
+        // worst case has to be the first thing in the header, or it is
+        // unreachable in exactly the condition it exists to undo. That is the
+        // defect this harness exists to make visible, found in the harness.
         IuxTargetSpacing(
+          key: _presetsKey,
           axis: Axis.horizontal,
           children: <Widget>[
             IuxButton(
@@ -418,7 +435,24 @@ class _ConditionsPanel extends StatelessWidget {
         ),
         SizedBox(height: geometry.spacingXxs),
         Text(_stressDescription, style: type.body),
+        Text(
+          'Every preference is independent. Any combination is valid, and high '
+          'contrast exists for dark as well as light. The two presets are '
+          'shortcuts, not modes: at 300% the chips below are large enough that '
+          'setting six of them by hand is its own obstacle, which is also why '
+          'this whole header folds away.',
+          style: type.supporting.copyWith(color: colors.content.secondary),
+        ),
         SizedBox(height: geometry.spacingSm),
+        SizedBox(height: geometry.spacingSm),
+        CatalogChoice<_Section>(
+          label: 'Section',
+          value: section,
+          values: _Section.values,
+          naming: (_Section value) => value.title,
+          onChanged: onSectionChanged,
+        ),
+
         CatalogChoice<Brightness>(
           label: 'Brightness',
           value: configuration.brightness,
