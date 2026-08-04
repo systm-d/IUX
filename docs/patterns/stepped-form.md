@@ -110,7 +110,7 @@ The heading is a focusable node carrying the position, the title and the
 description as one utterance — "Step 2 of 5. Delivery address. We only deliver
 within the city." Arriving there *is* the announcement.
 
-This is the fifth focus decision in this library, and the five disagree on
+This is one of seven focus decisions in this library, and the seven disagree on
 purpose. The test each applies is the same: **did the user ask for this?**
 
 | Pattern | On the event | Why |
@@ -119,22 +119,30 @@ purpose. The test each applies is the same: **did the user ask for this?**
 | `IuxErrorRecovery` (IUX-029) | focus not moved | a failure can arrive while the user is typing elsewhere — and landing on a retry arms it |
 | `IuxLoadingRetry` (IUX-030) | focus not moved | a load resolving happens *to* the user, hands elsewhere |
 | `IuxPermissionRationale` (IUX-031) | focus not moved | focus arms the next Enter, and the armed control opens the OS prompt |
-| `IuxValidationSummary` via `IuxForm` (IUX-012) | focus moves to the summary | it answers a button the user just pressed and is waiting on |
+| `IuxOnboarding` (IUX-036) | moved on a step change, not on first build | first build is nobody's request; a step change is the user's |
+| `IuxValidationSummary` via `IuxForm` (IUX-012) | focus moves to the summary, while the submission is still unanswered | it answers a button the user just pressed and is waiting on |
 | `IuxGuidedForm` (this) | focus moves to the step heading | the user pressed Back or Continue and is waiting to find out where they now are |
 
-Two corrections to this table, both measured at IUX-039 rather than reasoned.
+Two corrections to this table, both measured at IUX-039 rather than reasoned,
+and both now settled.
+
 `IUX-031` was missing from it, so the count above said "fourth" while the
 permission pattern's own evidence entry also claimed fourth; that pattern
-decided focus first and belongs here.
+decided focus first and belongs here. `IUX-036` belongs here too, which makes
+seven.
 
-And the `IuxForm` row states an intention the code does not hold to. An
-*accepted* submission increments the pending-attempt counter and never brings
+And the `IuxForm` row used to state an intention the code did not hold to. An
+*accepted* submission incremented the pending-attempt counter and never brought
 it level again, so from then on any parent rebuild carrying a rejected field
-moves focus to the summary — including an ordinary blur check, arbitrarily
-later, while the user is typing somewhere else. Measured in
-`test/patterns/iux_form_test.dart`, "DEFECT: an accepted submission arms an
-unbounded focus move", and again in the guided form's own test. Until that is
-bounded, the row above describes the intended rule and not the shipped one.
+moved focus to the summary — including an ordinary blur check, arbitrarily
+later, while the user was typing somewhere else (`IUX-FORM-FOCUS-001`). Both
+form patterns now bound that window: it opens when the user asks to submit and
+closes when the failure is shown or when **focus arrives in a field**, because
+a user standing in a box has stopped waiting to be told where to go. The
+clause in the row above — *while the submission is still unanswered* — is that
+bound. With it, the single rule holds for all seven. The argument for this
+particular bound, and against elapsed time, a parent-reported outcome and a
+one-rebuild window, is in `docs/patterns/guided-form.md`.
 
 A step change is the same shape as a refused submission: the user acted, and is
 standing still expecting an answer. Not moving focus would be the failure the
@@ -154,6 +162,12 @@ points at another step changes the step and then focuses the **field**. The
 user did not ask to be told about a step; they asked to be taken to a box they
 were told was wrong, and stopping at the heading first is a second journey they
 did not ask for.
+
+**A step change also closes a pending submission's window**, which is a third
+closing event `IuxForm` has no use for. The user asked to be somewhere else and
+is waiting to find out where they now are; that answer outranks a refusal from
+before it, and costs nothing, because the summary follows the user onto every
+step and still says everything it said.
 
 ## Crossing a step boundary
 
@@ -441,8 +455,11 @@ bar costs.
 - **The form does not scroll**, and neither does a step. The page owns
   scrolling; `Scrollable.ensureVisible` needs a scrollable ancestor to work, so
   place the form inside one.
-- **A late rejection takes focus**, exactly as in `IuxForm`, and the form cannot
-  tell a waiting user from one who had gone back to reading.
+- **A submission the parent never answers keeps its window open**, exactly as in
+  `IuxForm`: a rejection arriving long afterwards moves focus if the user has
+  neither entered a field nor changed step since submitting. That is right for
+  a user still waiting and wrong for one who walked away, and nothing here can
+  tell those apart.
 - **Nothing here can tell whether a step is a sensible grouping.** Whether five
   questions belong together is the application's judgement, and it is the whole
   difference between a form that helps and one that adds four page changes.
@@ -460,6 +477,7 @@ bar costs.
 | splitting a long form reduces abandonment | **strong guidance** — same sources (`to_verify`) |
 | focus to the step heading rather than the first field | **context dependent** — argued from the four focus decisions above; untested with users |
 | the summary below the heading rather than above it | **context dependent** — follows from where focus lands; untested with users |
+| a late rejection moves focus only while the submission is unanswered — no field entered, no step changed | **context dependent** — argued in `guided-form.md` against three other bounds; the arrival is a proxy for "the user has stopped waiting", untested with users |
 | never blocking forward progress on validation | **hypothesis** — consistent with IUX's position on disabled submits, not user-tested for steps |
 | one pair of navigation labels rather than one per step | **hypothesis** — chosen for consistency |
 | text rather than a progress bar | **brand choice on the visual, hypothesis on the trade** — the announcement conflict is measured; whether users miss the bar is not |

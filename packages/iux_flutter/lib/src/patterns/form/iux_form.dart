@@ -234,6 +234,51 @@ final class IuxFormSubmit {
 /// falls back to the first rejected field, because being moved somewhere useful
 /// beats being left where the failure is invisible.
 ///
+/// ## How long a submission is allowed to move focus
+///
+/// A rejection that arrives *after* the submission was sent still moves focus:
+/// the user pressed the control and is waiting for an answer, and this is the
+/// answer. A rejection that arrives because the user tabbed out of a field ten
+/// minutes later must not — they asked for nothing, and a caret that jumps out
+/// from under them is a change of context they did not request (WCAG 2.2 SC
+/// 3.2.2).
+///
+/// What separates the two is not elapsed time. A screen-reader user working
+/// slowly through a long form is not a different case from a fast one, and a
+/// window measured in seconds would move focus for whoever was quick and
+/// refuse it to whoever was not.
+///
+/// What separates them is **where the user is**. Asking to submit opens a
+/// window; the window closes on the first of two events:
+///
+/// - the failure is shown — the answer arrived and focus moved, so there is
+///   nothing left to wait for;
+/// - **focus arrives in one of this form's fields** — the user has stopped
+///   waiting to be told where to go and has gone. Whatever the parent says
+///   next is the answer to what they are doing now, not to the button they
+///   pressed earlier.
+///
+/// Only an *arrival* closes the window, never a departure, and the asymmetry
+/// is the rule rather than a detail of it. What this exists to prevent is a
+/// caret being taken out of a box the user is standing in, and a user can only
+/// stand in a box they arrived in. A departure leaves them standing nowhere —
+/// at the enclosing scope, usually the page — where there is no caret to take,
+/// and where a refusal that moved nothing would be a refusal a screen-reader
+/// user is never told about. Closing on a departure would buy no protection
+/// and cost the announcement.
+///
+/// The two rules differ in exactly one sequence: the user is in a field, asks
+/// to submit, and then leaves that field without entering another. There the
+/// arrival rule moves focus, deliberately. Asking to submit is not itself a
+/// departure — `IuxButton` does not take focus when it is activated, and a
+/// focused field keeps its focus through the tap, both measured rather than
+/// assumed.
+///
+/// **Nothing is asked of the parent**, deliberately. A window that the parent
+/// closed — by reporting an outcome, by ending a generation — is a window a
+/// parent can forget to close, and a parent that forgets would get the
+/// unbounded focus move back with nothing on screen to say so.
+///
 /// ## Accessibility
 ///
 /// Everything above is what a screen-reader user gets, and it is the same thing
@@ -254,9 +299,11 @@ final class IuxFormSubmit {
 /// different scrolling and keyboard-avoidance problems and one parameter cannot
 /// answer both.
 ///
-/// If the parent rejects a field long after the submission was sent, focus
-/// moves to the summary at that moment — which is right if the user was
-/// waiting, and an interruption if they had gone back to reading the form.
+/// A submission the parent never answers leaves its window open. If the user
+/// asks to submit, touches nothing afterwards, and a rejection arrives a long
+/// time later, focus moves — right for a user who is still waiting, wrong for
+/// one who walked away from the screen. Nothing here can tell those apart, and
+/// the alternative is a report the parent has to remember to send.
 class IuxForm extends StatefulWidget {
   /// Creates a form.
   const IuxForm({
@@ -313,13 +360,25 @@ class _IuxFormState extends State<IuxForm> {
   final Map<FocusNode, bool> _hadFocus = <FocusNode, bool>{};
 
   /// How many times the user has asked to submit.
+  ///
+  /// Read only by [_buildSummary], which shows nothing until the user has
+  /// asked for a commit at least once.
   int _attempt = 0;
 
-  /// The attempt for which focus has already been moved to a failure.
+  /// Whether a submission is still waiting to be answered.
   ///
-  /// Compared against [_attempt] rather than being a flag, so a second refused
-  /// submission moves focus again and a rebuild for any other reason does not.
-  int _focusedAttempt = 0;
+  /// The bounded window described in the class documentation, and the whole of
+  /// it: a rejection may move focus while this is true and may not while it is
+  /// false. [_handleSubmit] opens it, [_moveFocusToFailure] closes it by
+  /// spending it, and [_handleFocusChange] closes it when the user goes and
+  /// stands in a field.
+  ///
+  /// A flag rather than a counter compared against [_attempt]: every
+  /// submission opens the window again, so a second refusal moves focus a
+  /// second time, and no arithmetic is needed to say so. A counter also cannot
+  /// express the case this exists for — an accepted submission, which advances
+  /// [_attempt] and must not leave a move armed behind it.
+  bool _awaitingOutcome = false;
 
   @override
   void initState() {
@@ -334,7 +393,7 @@ class _IuxFormState extends State<IuxForm> {
     // The parent has rebuilt, possibly with the rejections that answer a
     // submission already sent. If that submission is still waiting for its
     // failure to be shown, this is it.
-    if (_attempt != _focusedAttempt) _moveFocusToFailure();
+    if (_awaitingOutcome) _moveFocusToFailure();
   }
 
   @override
@@ -389,9 +448,20 @@ class _IuxFormState extends State<IuxForm> {
     if (had == has) return;
     _hadFocus[node] = has;
 
-    // Only the departure matters. Checking a field the user has just arrived in
-    // would reject a value before they have had the chance to change it.
-    if (has) return;
+    if (has) {
+      // The user has gone and stood in a box. Whatever the parent says next
+      // answers that, not the control they pressed before it, so a submission
+      // still waiting loses its claim on focus here. This is the bound on the
+      // window; see the class documentation.
+      //
+      // Before the timing check, and deliberately: where the form asks for its
+      // checks has nothing to do with whether the user is still waiting.
+      _awaitingOutcome = false;
+
+      // And nothing to check. Asking about a field the user has just arrived
+      // in would reject a value before they have had the chance to change it.
+      return;
+    }
     if (widget.timing != IuxValidationTiming.onBlur) return;
 
     for (final IuxFormField field in _fields) {
@@ -411,6 +481,11 @@ class _IuxFormState extends State<IuxForm> {
   /// `IuxButton` evaluates `IuxActionPolicy` before calling this — so anything
   /// arriving here is a genuine request to commit.
   void _handleSubmit() {
+    // The user is now waiting for an answer, and a rejection may move focus
+    // until they stop waiting. Set on every path, including the one that ends
+    // in `onSubmit`: an accepted submission is exactly the case where an
+    // answer may still be coming.
+    _awaitingOutcome = true;
     setState(() => _attempt++);
 
     // Already rejected, and the form knows it. Sending the parent a submission
@@ -438,9 +513,12 @@ class _IuxFormState extends State<IuxForm> {
   /// exist until the build that follows the refusal.
   void _moveFocusToFailure() {
     final List<IuxFormField> invalid = _invalidFields;
+    // Nothing to move to. The answer has not arrived yet, so the window stays
+    // open rather than being spent on a rebuild that carried no rejection —
+    // which is what makes a check the parent runs asynchronously still land.
     if (invalid.isEmpty) return;
 
-    _focusedAttempt = _attempt;
+    _awaitingOutcome = false;
     final bool hasSummary = widget.summary != null;
     final FocusNode target =
         hasSummary ? _summaryNode : invalid.first.focusNode;

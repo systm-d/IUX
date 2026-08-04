@@ -454,6 +454,7 @@ frame is a screen-reader user hearing half of each.
 | the summary appears only after a submission attempt | **context dependent** — IUX's reading of the above; untested with users |
 | `edited` gating blur validation | **hypothesis** — sound in principle, not user-tested |
 | focus to the summary rather than the first field, for a single error too | **hypothesis** — chosen for consistency; a per-count rule may test better |
+| a late rejection moves focus only while no field has been entered since the submission | **context dependent** — follows from SC 3.2.2 and from the four bounds weighed above; the arrival is a proxy for "the user has stopped waiting", and the proxy is untested with users |
 
 Sources marked strong guidance are cited from memory of well-known
 recommendations and should be re-checked against the primary documents before

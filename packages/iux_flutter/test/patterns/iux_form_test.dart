@@ -286,39 +286,26 @@ void main() {
       expect(summaryNode(tester).hasPrimaryFocus, isFalse);
     });
 
-    // IUX-039. The test above makes a general claim — "an ordinary rebuild
-    // does not steal focus" — and demonstrates it on the one path where it
-    // holds. It is not vacuous: deleting `_focusedAttempt = _attempt` from
-    // `_moveFocusToFailure` makes it fail, verified by doing exactly that.
-    // What it never exercises is a submission the parent *accepted*.
+    // IUX-FORM-FOCUS-001, pinned as a defect by IUX-039 and fixed here. The
+    // test above makes a general claim — "an ordinary rebuild does not steal
+    // focus" — and demonstrated it only on the path where the submission was
+    // *refused*. On the accepted path `_handleSubmit` used to increment
+    // `_attempt`, find nothing invalid, and call `onSubmit`, so
+    // `_moveFocusToFailure` never ran and `_focusedAttempt` was never brought
+    // level. `_attempt != _focusedAttempt` was then permanently true, and the
+    // next `didUpdateWidget` carrying any rejected field moved focus, however
+    // long afterwards and whatever caused it.
     //
-    // On that path `_handleSubmit` increments `_attempt`, finds nothing
-    // invalid, and calls `onSubmit` — so `_moveFocusToFailure` never runs and
-    // `_focusedAttempt` is never brought level. `_attempt != _focusedAttempt`
-    // is then permanently true, and the next `didUpdateWidget` that arrives
-    // with any rejected field moves focus, however long afterwards and
-    // whatever caused it.
+    // Measured here with an ordinary blur check: the user edits a field, tabs
+    // onward, and the parent answers the *blur* — the request list proves that
+    // is what it is answering — and the caret used to be taken out from under
+    // them. WCAG 2.2 SC 3.2.2.
     //
-    // Measured below with an ordinary blur check: the user edits a field, tabs
-    // onward, and the parent answers the *blur* — the request list proves it —
-    // and the caret is taken out from under them.
-    //
-    // This is the reconciling test IUX-033 proposed for the seven focus
-    // decisions — "did the user ask for this?" — failing in one of the two
-    // patterns that proposed it. WCAG 2.2 SC 3.2.2.
-    //
-    // Pinned as-is rather than fixed, because it is not a one-line fix and
-    // this mission may not edit lib/. Both candidate one-liners were tried:
-    // hoisting the assignment above the `invalid.isEmpty` bail changes
-    // nothing, because `_moveFocusToFailure` is not called at all on the
-    // accepted path; assigning it in `_handleSubmit` fixes this test and
-    // breaks 'a rejection that arrives after the submission still moves it',
-    // which is deliberate behaviour. The two requirements are in genuine
-    // tension and need a bounded pending-submission window, which is a
-    // decision rather than a patch.
-    testWidgets(
-        'DEFECT: an accepted submission arms an unbounded focus move '
-        '(IUX-039)', (WidgetTester tester) async {
+    // What closes the window is the user arriving in a field; the three tests
+    // below are the other side of that rule, and each of them fails under a
+    // different wrong bound.
+    testWidgets('a rejection long after an accepted submission moves nothing',
+        (WidgetTester tester) async {
       final _Host host = await pumpForm(tester);
 
       // Nothing is wrong, so the submission goes out and is accepted.
@@ -339,15 +326,80 @@ void main() {
       host.state.reject(0, 'That address is already registered');
       await tester.pumpAndSettle();
 
-      // What should happen: focus stays in the field the user is standing in,
-      // exactly as 'an ordinary rebuild does not steal focus' requires.
-      // What happens: it is moved to the summary.
-      expect(
-        host.state.focusNodes[1].hasPrimaryFocus,
-        isFalse,
-        reason: 'pinning the defect. When it is fixed this expectation flips '
-            'to isTrue and the one below to isFalse.',
-      );
+      // The summary appears, because something is wrong and the user has asked
+      // to submit at least once. It does not take the caret.
+      expect(find.byType(IuxValidationSummary), findsOneWidget);
+      expect(host.state.focusNodes[1].hasPrimaryFocus, isTrue);
+      expect(summaryNode(tester).hasPrimaryFocus, isFalse);
+    });
+
+    testWidgets('submitting from inside a field still lets the answer move it',
+        (WidgetTester tester) async {
+      final _Host host = await pumpForm(tester);
+
+      // The user is standing in a box when they ask to submit — the ordinary
+      // case for anyone whose last act before reaching for the control was to
+      // type. The window closes on focus *arriving* in a field, so an arrival
+      // that happened before the submission must not close the window that
+      // submission opens.
+      host.state.focusNodes[0].requestFocus();
+      await tester.pumpAndSettle();
+      await submit(tester);
+      expect(host.submissions, 1);
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('leaving a field does not close the window an arrival closes',
+        (WidgetTester tester) async {
+      final _Host host = await pumpForm(tester);
+
+      host.state.focusNodes[0].requestFocus();
+      await tester.pumpAndSettle();
+      await submit(tester);
+      expect(host.submissions, 1);
+      host.requests.clear();
+
+      // The user drops out of the field without entering another — tapping
+      // dead space, dismissing the keyboard. Focus is now at the enclosing
+      // scope, so there is no caret to take; and the blur check that goes out
+      // here is the one whose answer arrives below.
+      host.state.focusNodes[0].unfocus();
+      await tester.pumpAndSettle();
+      expect(host.requests, <String>['Email address:blur']);
+      expect(host.state.focusNodes[0].hasPrimaryFocus, isFalse);
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      // Moving here costs the user nothing they were holding, and not moving
+      // would leave a screen-reader user with a refusal nothing announced.
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('the window is not spent by rebuilds that carry no answer',
+        (WidgetTester tester) async {
+      final _Host host = await pumpForm(tester);
+
+      await submit(tester);
+      expect(host.submissions, 1);
+
+      // The parent rebuilds several times while its check is still in flight —
+      // a busy descriptor going up, a value arriving from somewhere else, any
+      // of the things a parent rebuilds for. None of them is the answer, and
+      // none of them may close the window: a window closed by the first
+      // rebuild is a window that only ever catches a synchronous rejection.
+      for (int i = 0; i < 3; i++) {
+        host.state.accept(1);
+        await tester.pumpAndSettle();
+      }
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
       expect(summaryNode(tester).hasPrimaryFocus, isTrue);
     });
   });

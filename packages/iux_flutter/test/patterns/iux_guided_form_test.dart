@@ -320,24 +320,23 @@ void main() {
       expect(find.byType(IuxValidationSummary), findsNothing);
     });
 
-    // IUX-039. The same defect as IuxForm's, and it survives here for the same
-    // reason: `_moveFocusToSummary` brings `_focusedAttempt` level with
-    // `_attempt`, but `_handleSubmit` only calls it when the form already
-    // knows something is wrong. An accepted submission therefore leaves the
-    // two apart, and every later `didUpdateWidget` that finds a rejection
-    // moves focus.
+    // IUX-FORM-FOCUS-001, pinned as a defect by IUX-039 and fixed here. The
+    // same defect as `IuxForm`'s and for the same reason:
+    // `_moveFocusToSummary` brought `_focusedAttempt` level with `_attempt`,
+    // but `_handleSubmit` only called it when the form already knew something
+    // was wrong. An accepted submission therefore left the two apart, and every
+    // later `didUpdateWidget` that found a rejection moved focus.
     //
-    // `IuxGuidedForm` is partly shielded — a step change consumes the pending
-    // attempt at didUpdateWidget, deliberately — but on the last step, which
+    // `IuxGuidedForm` was partly shielded — a step change consumes the pending
+    // attempt at `didUpdateWidget`, deliberately — but on the last step, which
     // is where submit lives, there is no step change to consume it.
     //
     // 'a rejection arriving after the submission still refuses it' above
     // covers the intended case, where the parent's answer follows the
     // submission immediately. It does not put the user anywhere in between,
     // which is what makes the difference visible.
-    testWidgets(
-        'DEFECT: an accepted submission arms an unbounded focus move '
-        '(IUX-039)', (WidgetTester tester) async {
+    testWidgets('a rejection long after an accepted submission moves nothing',
+        (WidgetTester tester) async {
       final _Host host = await pumpGuidedForm(tester, step: 2);
 
       await tap(tester, 'Place the order');
@@ -355,13 +354,102 @@ void main() {
       host.state.reject(0, 'That address is already registered');
       await tester.pumpAndSettle();
 
-      expect(
-        host.state.focusNodes[4].hasPrimaryFocus,
-        isFalse,
-        reason: 'pinning the defect. Correct behaviour is that the caret stays '
-            'in the field the user is typing in; when that lands, this flips '
-            'to isTrue and the expectation below to isFalse.',
-      );
+      // The summary appears and lists it. It does not take the caret.
+      expect(find.byType(IuxValidationSummary), findsOneWidget);
+      expect(host.state.focusNodes[4].hasPrimaryFocus, isTrue);
+      expect(summaryNode(tester).hasPrimaryFocus, isFalse);
+    });
+
+    testWidgets('submitting from inside a field still lets the answer move it',
+        (WidgetTester tester) async {
+      final _Host host = await pumpGuidedForm(tester, step: 2);
+
+      // Standing in a box when the order is placed. The window closes on focus
+      // *arriving* in a field, so an arrival before the submission must not
+      // close the window that submission opens.
+      host.state.focusNodes[4].requestFocus();
+      await tester.pumpAndSettle();
+      await tap(tester, 'Place the order');
+      expect(host.state.submissions, 1);
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('leaving a field does not close the window an arrival closes',
+        (WidgetTester tester) async {
+      final _Host host = await pumpGuidedForm(tester, step: 2);
+
+      host.state.focusNodes[4].requestFocus();
+      await tester.pumpAndSettle();
+      await tap(tester, 'Place the order');
+      expect(host.state.submissions, 1);
+      host.requests.clear();
+
+      // The user drops out of the field without entering another. Focus is at
+      // the enclosing scope, so there is no caret to take — and the blur check
+      // that goes out here is the one whose answer arrives below.
+      host.state.focusNodes[4].unfocus();
+      await tester.pumpAndSettle();
+      expect(host.requests, <String>['Card number:blur']);
+      expect(host.state.focusNodes[4].hasPrimaryFocus, isFalse);
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+    });
+
+    // The third event that closes the window, and the one `IuxForm` has no
+    // equivalent for. `didUpdateWidget` has consumed the pending attempt on a
+    // step change since IUX-033, with a comment explaining why — and nothing
+    // measured it: removing that line broke no test in this suite, verified by
+    // doing exactly that before writing this one.
+    testWidgets('a step change closes the window a submission opened',
+        (WidgetTester tester) async {
+      final _Host host = await pumpGuidedForm(tester, step: 2);
+
+      await tap(tester, 'Place the order');
+      expect(host.state.submissions, 1);
+
+      // The user goes back to look at something while the answer is in flight.
+      // Focus lands on the heading of the step that arrived, which is the
+      // announcement they asked for.
+      await tap(tester, 'Back');
+      expect(host.state.step, 1);
+      expect(headingNode(tester).hasPrimaryFocus, isTrue);
+
+      // The answer then arrives. It may not ambush the arrival the user did
+      // ask for — and it loses nothing, because the summary follows them onto
+      // this step and still lists everything.
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IuxValidationSummary), findsOneWidget);
+      expect(headingNode(tester).hasPrimaryFocus, isTrue);
+      expect(summaryNode(tester).hasPrimaryFocus, isFalse);
+    });
+
+    testWidgets('the window is not spent by rebuilds that carry no answer',
+        (WidgetTester tester) async {
+      final _Host host = await pumpGuidedForm(tester, step: 2);
+
+      await tap(tester, 'Place the order');
+      expect(host.state.submissions, 1);
+
+      // The parent rebuilds several times while its check is still in flight.
+      // None of them is the answer, and none may close the window: a window
+      // closed by the first rebuild only ever catches a synchronous rejection.
+      for (int i = 0; i < 3; i++) {
+        host.state.accept(1);
+        await tester.pumpAndSettle();
+      }
+
+      host.state.reject(0, 'That address is already registered');
+      await tester.pumpAndSettle();
+
       expect(summaryNode(tester).hasPrimaryFocus, isTrue);
     });
   });

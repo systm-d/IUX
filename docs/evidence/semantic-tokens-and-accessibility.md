@@ -1922,7 +1922,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   stacks past about 130% text, so **enlarging the text fixes it and leaving it
   alone does not**. Pinned by a catalog test.
 
-### IUX-FORM-FOCUS-001 — An accepted submission arms an unbounded focus move (OPEN)
+### IUX-FORM-FOCUS-001 — An accepted submission armed an unbounded focus move (FIXED)
 
 - **Level**: standard
 - **Scope**: `IuxForm`, `IuxGuidedForm`
@@ -1940,12 +1940,45 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   fixes this and breaks the deliberate *"a rejection that arrives after the
   submission still moves focus"* in both suites — verified by doing exactly
   that. It needs a bounded pending-submission window, which is a decision.
-- **What this means for IUX-033's reconciling test.** IUX-033 proposed *"did
+- **What this meant for IUX-033's reconciling test.** IUX-033 proposed *"did
   the user ask for this?"* as the single line behind seven independent focus
-  decisions. Measured across all seven: the other five hold — IUX-028, 029,
-  030 and 031 move nothing, and IUX-036 moves only on a step change with
-  nothing pending. The two form patterns do not. The test was a good
-  description of the intent and not of the code.
+  decisions. Measured, five held and the two form patterns did not: the test
+  was a good description of the intent and not of the code.
+- **Fixed with a bounded pending-submission window.** Pressing submit opens a
+  window in which a rejection may move focus. It closes on the first of: the
+  failure being shown, **focus arriving in one of the form's own fields**, or
+  — in `IuxGuidedForm` — a step change. `_focusedAttempt` became
+  `_awaitingOutcome`; no new public API, no new parameter, no barrel change.
+- **Only an arrival closes it, never a departure — and the first rationale for
+  that was wrong.** The agent's draft claimed the submit gesture blurs the
+  field; it probed that and found it **false**: `IuxButton` does not take focus
+  on activation, and a focused `IuxTextField` keeps focus through the tap. The
+  rationale that survives measurement is different — the window protects a
+  caret in a box, you can only be in a box you arrived in, and a departure
+  leaves the user at the enclosing scope with no caret to take, where a
+  refusal that moved nothing is a refusal a screen-reader user is never told
+  about.
+- **The alternatives, rejected with reasons.** Elapsed time: the framework
+  cannot see it and should not want to — a slow screen-reader user is not a
+  different user, and a seconds-wide window moves focus for whoever was quick
+  and refuses it to whoever was not. An outcome the parent reports: a window
+  the parent closes is a window the parent can **forget** to close, which
+  reinstates this defect silently. The next rebuild after submit: deletes the
+  asynchronous case the window exists for.
+- **Now measured across the whole library**: exactly **seven**
+  `IuxFocus.request` call sites across nine patterns. Empty, error, loading,
+  permission, destructive and disclosure have **zero**; onboarding has one
+  behind a step guard; the two forms have the rest. Each of the seven has a
+  test pinning its decision. **IUX-033's rule now holds seven of seven.** An
+  eighth site exists that the table never counted — the search field's clear
+  control — and it holds the rule too.
+- **A find along the way**: `IuxGuidedForm` has consumed the pending attempt
+  on a step change since IUX-033, with a comment explaining why, and **nothing
+  measured it** — removing the line broke no test. Now pinned.
+- **The residue, documented rather than hidden**: a submission the parent never
+  answers keeps its window open, so a rejection arriving much later still moves
+  focus. Right for someone still waiting, wrong for someone who walked away.
+  The only fix is the parent-reported outcome that was argued against.
 
 ### IUX-API-DEAD-001 — Reachable API that nothing honours or reads (OPEN)
 

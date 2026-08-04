@@ -158,6 +158,20 @@ typedef _Rejected = ({int step, IuxFormField field});
 /// duplication knowingly. See `docs/patterns/stepped-form.md` for what that
 /// costs.
 ///
+/// ## How long a submission is allowed to move focus
+///
+/// `IuxForm`'s bounded window, unchanged and for its reasons: asking to submit
+/// opens a window in which a rejection may move focus, and the window closes
+/// when the failure is shown or when focus arrives in one of the fields on
+/// screen. Without it, an accepted submission would leave a focus move armed
+/// for every later rebuild that happened to carry a rejection.
+///
+/// One event closes it here that has no equivalent in `IuxForm`: **a step
+/// change**. The user asked to be somewhere else and is waiting to find out
+/// where they now are, and that answer outranks a refusal from before — which
+/// loses nothing, because the summary stays on screen on every step and still
+/// says everything it said.
+///
 /// ## Where the summary lives
 ///
 /// Under the step heading, above the questions — one position lower than
@@ -187,6 +201,13 @@ typedef _Rejected = ({int step, IuxFormField field});
 ///
 /// There is no per-step submission and no draft saving. One guided form is one
 /// set of answers committed once, by [submit], on the last step.
+///
+/// A submission the parent never answers leaves its window open. If the user
+/// asks to submit, touches nothing afterwards and stays on the last step, and
+/// a rejection arrives a long time later, focus moves — right for a user who
+/// is still waiting and wrong for one who walked away. `IuxForm` has the same
+/// residue, for the same reason: the alternative is a report the parent has to
+/// remember to send.
 ///
 /// A journey to a field on another step lasts exactly as long as the parent's
 /// next answer. It completes if the next rebuild is the step it asked for; it
@@ -337,10 +358,16 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
   final Map<FocusNode, bool> _hadFocus = <FocusNode, bool>{};
 
   /// How many times the user has asked to submit.
+  ///
+  /// Read only by [_buildSummary], which shows nothing until the user has
+  /// asked to commit at least once.
   int _attempt = 0;
 
-  /// The attempt for which focus has already been moved to the summary.
-  int _focusedAttempt = 0;
+  /// Whether a submission is still waiting to be answered.
+  ///
+  /// `IuxForm`'s bounded window, with one extra event that closes it: a step
+  /// change. See the class documentation.
+  bool _awaitingOutcome = false;
 
   /// A field the user asked to be taken to, waiting for its step to arrive.
   FocusNode? _pendingField;
@@ -367,7 +394,7 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
       // waiting to find out where they now are. Any refusal still pending is
       // consumed rather than deferred, so it cannot ambush focus a frame
       // later — the summary itself stays on screen and still says everything.
-      _focusedAttempt = _attempt;
+      _awaitingOutcome = false;
       _handleStepArrival();
       return;
     }
@@ -380,7 +407,7 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
 
     // The parent has rebuilt, possibly with the rejections that answer a
     // submission already sent.
-    if (_attempt != _focusedAttempt) _moveFocusToSummary();
+    if (_awaitingOutcome) _moveFocusToSummary();
   }
 
   @override
@@ -448,9 +475,17 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
     if (had == has) return;
     _hadFocus[node] = has;
 
-    // Only the departure matters. Checking a field the user has just arrived
-    // in would reject a value before they have had the chance to change it.
-    if (has) return;
+    if (has) {
+      // The user has gone and stood in a box, so a submission still waiting
+      // loses its claim on focus. `IuxForm`'s bound, for its reasons — and
+      // before the timing check, because where the form asks for its checks
+      // has nothing to do with whether the user is still waiting.
+      _awaitingOutcome = false;
+
+      // And nothing to check. Asking about a field the user has just arrived
+      // in would reject a value before they have had the chance to change it.
+      return;
+    }
     if (widget.timing != IuxValidationTiming.onBlur) return;
 
     for (final IuxFormField field in _step.fields) {
@@ -486,6 +521,11 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
   void _handleSubmit() {
     _pendingField = null;
     _pendingStep = null;
+    // The user is now waiting for an answer, and a rejection may move focus
+    // until they stop waiting. Set on every path, including the one that ends
+    // in `onSubmit`: an accepted submission is exactly the case where an
+    // answer may still be coming.
+    _awaitingOutcome = true;
     setState(() => _attempt++);
 
     // Already rejected, and the form knows it — on this step or on any other.
@@ -511,8 +551,10 @@ class _IuxGuidedFormState extends State<IuxGuidedForm> {
   /// Scheduled for after the frame, because the summary this focuses does not
   /// exist until the build that follows the refusal.
   void _moveFocusToSummary() {
+    // Nothing to move to. The answer has not arrived yet, so the window stays
+    // open rather than being spent on a rebuild that carried no rejection.
     if (_rejected.isEmpty) return;
-    _focusedAttempt = _attempt;
+    _awaitingOutcome = false;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
