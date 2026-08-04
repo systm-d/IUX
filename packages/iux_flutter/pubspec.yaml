@@ -1,11 +1,55 @@
 name: iux_flutter
 description: Human-centred foundations and UX patterns for Flutter applications.
 version: 0.1.0-dev.9
+
+# The package is not publishable yet, and this line is the guard rather than an
+# oversight. The repository's LICENSE is a placeholder that grants no
+# permission to use, copy or distribute anything here, so publishing would put
+# code on pub.dev that nobody is allowed to use. `dart pub publish --dry-run`
+# refuses for the same reason: "You must have a LICENSE file in the root
+# directory". Remove this line once the licence has been chosen — see
+# docs/MISSION_040_PERFORMANCE_AND_PACKAGE_AUDIT.md for the rest of the
+# checklist.
 publish_to: none
 
-environment:
-  sdk: '>=3.0.0 <4.0.0'
+# No `repository:` or `homepage:`. `dart pub publish --dry-run` recommends one
+# and it is deliberately absent: the working tree has no git remote, so any URL
+# written here would be a guess. Add the real one when the repository is
+# published; it is one of the two things standing between this package and
+# pub.dev.
 
+environment:
+  # The two bounds answer different questions, and they are set from
+  # measurement rather than habit.
+  #
+  # `sdk` is the *language* version the sources are written against. Nothing
+  # here uses a feature newer than Dart 3.0: `flutter analyze` is clean with
+  # this bound, and the analyzer enforces language-version gating from it, so
+  # a post-3.0 feature would be an error rather than an opinion. It is left at
+  # 3.0 deliberately. Raising it to 3.8 to match the Flutter bound below would
+  # switch `dart format` to its 3.7 "tall" style and rewrite 157 of the 172
+  # files in this package with no behavioural content — measured, and a
+  # decision for whoever wants that diff, not a side effect of this line.
+  #
+  # `flutter` is the *library* version the package needs, and this is the bound
+  # that actually protects a consumer: pub enforces it, and Flutter 3.35.0
+  # itself requires Dart ^3.8.0-0, so no resolution can land on an SDK where
+  # this fails to compile. 3.35.0 is where the newest Flutter API used by
+  # `lib/` — `MediaQuery.supportsAnnounceOf` — first appears in a stable tag,
+  # and all 202 Flutter types referenced by `lib/` exist at that tag. The
+  # previous pubspec declared no Flutter bound at all.
+  #
+  # Only Flutter 3.44.8 / Dart 3.12.2 has actually run the test suite. 3.35.0
+  # is a lower bound established from the API history, not a version anyone
+  # has built against.
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.35.0'
+
+# Two dependencies, both from the SDK, and the package uses nothing else: a
+# sweep of every `package:` import across lib/ and test/ finds only `flutter`,
+# `flutter_test` and `iux_flutter` itself. `@internal` and `@immutable` come
+# from `flutter/foundation.dart`, so `package:meta` is not an undeclared
+# dependency.
 dependencies:
   flutter:
     sdk: flutter

@@ -2024,6 +2024,64 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   only a screen-reader user would miss**. The framework's assertions are the
   existing mitigation; the gap is the strings no assertion can demand.
 
+### IUX-PERF-001 — Opening a keyboard rebuilds 7.6x what Material does (OPEN)
+
+- **Level**: standard
+- **Scope**: `IuxAccessibility.of`, 34 call sites across 25 files
+- **Status**: **open, and the only real performance finding.** It reads six
+  platform values through `MediaQuery.of(context)`, which subscribes to
+  **every** aspect of the media query.
+- **Controlled A/B**, 20 identical widgets differing only in how they read the
+  same six values: a keyboard change rebuilds **20 of 20** through
+  `IuxAccessibility.of` and **0 of 20** through the aspect-scoped accessors.
+  Same for a notch change and a rotation. Text scale rebuilds 20 of 20 either
+  way, correctly.
+- **On a realistic screen against the same screen in Material, tuned to the
+  same 518 elements**: keyboard **106 vs 14**, notch 93 vs 6, rotation 122 vs
+  30. Where IUX genuinely depends on the change it is level with or cheaper —
+  text scale 132 vs 112, theme flip 132 vs 170. So the cost is precisely the
+  rebuilds that cannot alter a pixel.
+- Not fixed: it is a rebuild-behaviour change in a file the audit did not own.
+  It cannot weaken a guarantee — identical resolved values, narrower
+  dependency — so §5 does not block it.
+
+### IUX-PERF-002 — Resolvers are not hot, stated so nobody optimises them
+
+- **Level**: standard
+- **Status**: measured and closed. 200k calls each after a 20k warm-up, JIT on
+  Linux x86-64: `IuxButtonResolver` **710 ns**, the slowest
+  (`IuxNavigationDrawerResolver`) **1,557 ns**. A 60 Hz frame is 16,667,000 ns,
+  so the worst resolver is **0.009%** of one. A column of fifty buttons
+  rebuilds in 243 µs — about 2 µs per button, of which 0.7 µs is the resolver.
+- Per-frame contrast maths does exist — two `computeLuminance()` calls for the
+  scrim — and costs **37 ns**, which is 2.4% of the resolver that runs it,
+  once per overlay. Nothing to optimise.
+
+### IUX-LINT-001 — The rule the project relied on had never run
+
+- **Level**: standard (PROJECT_PROMPT §35)
+- **Status**: fixed. The root `analysis_options.yaml` raised the *severity* of
+  `public_member_api_docs` without ever adding it to `linter.rules` — a no-op.
+  The rule the project depends on for documented public API had therefore
+  never executed. Turning it on surfaced **41 undocumented public members** in
+  the foundations file alone, now written.
+- The rule set went from 8 to **160**, the Flutter framework's own minus the 17
+  measured to fail plus five. `prefer_is_empty` is deliberately excluded: a
+  probe shows `assert(label.isNotEmpty)` in a `const` constructor fails, so the
+  lint would take `const` off every widget that refuses an empty label.
+
+### IUX-PUBLISH-001 — The package cannot be published, and the reason is not technical (OPEN)
+
+- **Status**: open. `dart pub publish --dry-run` fails on one blocker:
+  `LICENSE` is a placeholder that explicitly **grants no permission** to use,
+  copy or distribute. For a project whose stated purpose is an open-source
+  framework, that is the single thing standing between it and a release.
+- Also open: the package `CHANGELOG.md` says `0.1.0-dev.1`, the pubspec says
+  `0.1.0-dev.9`, and the repository changelog says `0.1.0-dev.11` — three
+  files and no two agreeing.
+- Also open: **47 broken dartdoc references** in `lib/` that render as literal
+  text on pub.dev.
+
 ## Deferred to later missions
 
 | Subject | Mission |
