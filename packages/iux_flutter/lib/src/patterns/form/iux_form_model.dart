@@ -68,6 +68,25 @@ enum IuxValidationTrigger {
   submit,
 }
 
+/// Builds the widget that asks one form field's question.
+///
+/// [field] is the [IuxFormField] being built — the same object, handed back so
+/// the widget can be given the descriptor and the focus node the form is
+/// already using. Take them from there and the two cannot disagree:
+///
+/// ```dart
+/// builder: (BuildContext context, IuxFormField field) => IuxTextField(
+///   input: field.input,
+///   focusNode: field.focusNode,
+///   controller: _email,
+///   onChanged: controller.emailChanged,
+/// )
+/// ```
+typedef IuxFormFieldBuilder = Widget Function(
+  BuildContext context,
+  IuxFormField field,
+);
+
 /// One field inside a form: what it is, where its focus lives, and how to draw
 /// it.
 ///
@@ -77,10 +96,10 @@ enum IuxValidationTrigger {
 ///   focusNode: _emailFocus,
 ///   edited: state.emailEdited,
 ///   onValidationRequested: (_) => controller.checkEmail(),
-///   child: IuxTextField(
-///     input: state.emailDescriptor,
+///   builder: (BuildContext context, IuxFormField field) => IuxTextField(
+///     input: field.input,
+///     focusNode: field.focusNode,
 ///     controller: _email,
-///     focusNode: _emailFocus,
 ///     onChanged: controller.emailChanged,
 ///     content: IuxTextContent.email,
 ///   ),
@@ -92,43 +111,68 @@ enum IuxValidationTrigger {
 /// it can be listed in the summary; where its focus node is, so the summary can
 /// send the user to it; and a way to ask for a check when the user leaves it.
 ///
-/// **[focusNode] must be the same node the field widget was given.** It is the
-/// only link between an entry in the error summary and the box the user has to
-/// go and fix, and nothing can check it for you: passing a second, unused node
-/// produces a summary whose entries look right and go nowhere. This is the one
-/// mistake this API can still make, and it is the reason the parameter is
-/// required rather than optional.
+/// ## Why a builder rather than a child
+///
+/// The widget needs the same descriptor and the same focus node the form has.
+/// Given a `child`, the caller wrote both out a second time, and nothing said
+/// whether the second copy was the same thing: a summary entry built from one
+/// node, pointing at a field holding another, looks correct and goes nowhere.
+/// That was recorded as "the one mistake this API can still make" and it was
+/// made in this repository — `IuxRadioGroup` had no `focusNode` parameter at
+/// all, so the node handed over was adopted by nothing and a summary entry left
+/// focus exactly where it was.
+///
+/// The builder is handed the field itself, so `field.input` and
+/// `field.focusNode` are *the* descriptor and *the* node rather than a copy of
+/// them. What remains expressible — building a fresh node inside the builder
+/// and using that — is caught: `IuxFormSection` checks in debug that
+/// [focusNode] ends up held by a widget inside the field, and fails with the
+/// field's name when it does not.
+///
+/// It is not a guarantee. A shape that made the mistake unrepresentable would
+/// have the field widgets read their descriptor and node from the enclosing
+/// field instead of taking parameters, which is a change to
+/// `lib/src/components/input/` and not to this pattern.
 @immutable
 final class IuxFormField {
   /// Creates a field entry.
   const IuxFormField({
     required this.input,
     required this.focusNode,
-    required this.child,
+    required this.builder,
     this.edited = false,
     this.onValidationRequested,
   });
 
   /// What the field is, and what the parent has decided about its value.
   ///
-  /// The same descriptor the widget in [child] was given. The form reads
-  /// [IuxInputDescriptor.validation] to decide what the summary lists, and
-  /// [IuxInputSemantics.label] to name the entry — both of which are the
-  /// parent's strings, already localised.
+  /// The form reads [IuxInputDescriptor.validation] to decide what the summary
+  /// lists, and [IuxInputSemantics.label] to name the entry — both of which are
+  /// the parent's strings, already localised.
+  ///
+  /// Give the widget this one, through [builder]'s `field.input`, rather than
+  /// building a second descriptor beside it. Two descriptors that drift leave a
+  /// summary naming a field that shows no error, or repeating a message the
+  /// field no longer carries.
   final IuxInputDescriptor input;
 
   /// The field's focus node, owned and disposed by the parent.
   ///
-  /// Required, and it must be the node the widget in [child] actually uses.
-  /// See the class documentation.
+  /// Required, because it is the only link between an entry in the error
+  /// summary and the box the user has to go and fix. [builder] is handed it so
+  /// the widget can be given this node and no other; `IuxFormSection` checks in
+  /// debug that something inside the field ended up holding it.
   final FocusNode focusNode;
 
-  /// The field widget itself.
+  /// Builds the field widget, given the field itself.
   ///
   /// Usually an `IuxTextField`, an `IuxCheckbox`, an `IuxRadioGroup`. The form
-  /// renders it untouched: it lays fields out and never decorates them, so a
-  /// field looks the same inside a form as outside one.
-  final Widget child;
+  /// renders what this returns untouched: it lays fields out and never
+  /// decorates them, so a field looks the same inside a form as outside one.
+  ///
+  /// Pass `field.input` and `field.focusNode` down. See the class
+  /// documentation for why this is a builder.
+  final IuxFormFieldBuilder builder;
 
   /// Whether the user has changed this value since the form was built.
   ///
@@ -169,13 +213,13 @@ final class IuxFormField {
       other is IuxFormField &&
           other.input == input &&
           other.focusNode == focusNode &&
-          other.child == child &&
+          other.builder == builder &&
           other.edited == edited &&
           other.onValidationRequested == onValidationRequested;
 
   @override
   int get hashCode =>
-      Object.hash(input, focusNode, child, edited, onValidationRequested);
+      Object.hash(input, focusNode, builder, edited, onValidationRequested);
 
   @override
   String toString() => 'IuxFormField(${input.semantics.label}, '

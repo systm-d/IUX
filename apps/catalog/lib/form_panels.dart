@@ -183,10 +183,15 @@ class _FormPanelState extends State<_FormPanel> {
                         edited: field.edited,
                         onValidationRequested: (IuxValidationTrigger _) =>
                             setState(field.check),
-                        child: IuxTextField(
-                          input: _inputFor(field, long: long),
+                        // The descriptor and the node come back out of the
+                        // field rather than being written a second time: two
+                        // copies is how a summary entry comes to point at a
+                        // node no box holds.
+                        builder: (BuildContext context, IuxFormField entry) =>
+                            IuxTextField(
+                          input: entry.input,
                           controller: field.controller,
-                          focusNode: field.focusNode,
+                          focusNode: entry.focusNode,
                           onChanged: (String _) => setState(() {
                             field.edited = true;
                           }),
@@ -370,10 +375,12 @@ class _GuidedFormPanelState extends State<_GuidedFormPanel> {
                             edited: field.edited,
                             onValidationRequested: (IuxValidationTrigger _) =>
                                 setState(field.check),
-                            child: IuxTextField(
-                              input: _inputFor(field, long: long),
+                            builder:
+                                (BuildContext context, IuxFormField entry) =>
+                                    IuxTextField(
+                              input: entry.input,
                               controller: field.controller,
-                              focusNode: field.focusNode,
+                              focusNode: entry.focusNode,
                               onChanged: (String _) => setState(() {
                                 field.edited = true;
                               }),

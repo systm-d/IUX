@@ -725,6 +725,117 @@ void main() {
       );
     });
 
+    testWidgets('the caller\'s focus node is adopted by the first option',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode(debugLabel: 'How fast do you need it');
+      addTearDown(node.dispose);
+
+      await pump(
+        tester,
+        IuxRadioGroup<String>(
+          label: 'Delivery speed',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(label: 'How fast do you need it'),
+          ),
+          focusNode: node,
+          value: null,
+          options: const <IuxRadioOption<String>>[
+            IuxRadioOption<String>(value: 'standard', label: 'Standard'),
+            IuxRadioOption<String>(value: 'express', label: 'Express'),
+          ],
+          onChanged: (_) {},
+        ),
+      );
+
+      // Attached to a widget, which is the whole of what "adopted" means: a
+      // node with a null context is a node nothing answers to.
+      expect(node.context, isNotNull);
+
+      node.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(node.hasPrimaryFocus, isTrue);
+      // And it is the first option that holds it, not the column.
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Standard'),
+            matching: find.byType(IuxFocusable),
+          ),
+          matching: find.text('Standard'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widgetList<IuxFocusable>(
+              find.ancestor(
+                of: find.text('Standard'),
+                matching: find.byType(IuxFocusable),
+              ),
+            )
+            .any((IuxFocusable f) => identical(f.focusNode, node)),
+        isTrue,
+      );
+    });
+
+    testWidgets('the node skips an option that cannot take focus',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode(debugLabel: 'How fast do you need it');
+      addTearDown(node.dispose);
+
+      await pump(
+        tester,
+        IuxRadioGroup<String>(
+          label: 'Delivery speed',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(label: 'How fast do you need it'),
+          ),
+          focusNode: node,
+          value: null,
+          options: const <IuxRadioOption<String>>[
+            IuxRadioOption<String>(
+              value: 'sameDay',
+              label: 'Same day',
+              unavailabilityReason: 'Not available at your address',
+            ),
+            IuxRadioOption<String>(value: 'standard', label: 'Standard'),
+          ],
+          onChanged: (_) {},
+        ),
+      );
+
+      node.requestFocus();
+      await tester.pumpAndSettle();
+
+      // A node attached to a control that refuses focus is the original defect
+      // with an extra step in it: attached, pointed at, and still going
+      // nowhere.
+      expect(node.hasPrimaryFocus, isTrue);
+      expect(
+        tester
+            .widgetList<IuxFocusable>(
+              find.ancestor(
+                of: find.text('Standard'),
+                matching: find.byType(IuxFocusable),
+              ),
+            )
+            .any((IuxFocusable f) => identical(f.focusNode, node)),
+        isTrue,
+        reason: 'the node belongs to the first option that can hold it',
+      );
+    });
+
+    testWidgets('a group given no node still focuses option by option',
+        (WidgetTester tester) async {
+      await pump(tester, _speedGroup(onChanged: (_) {}));
+
+      // The parameter is optional, and a group without one is unchanged: every
+      // option owns its own node, as before.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(IuxFocusable), findsNWidgets(2));
+    });
+
     testWidgets('a group-level error is stated once, not on every option',
         (WidgetTester tester) async {
       // An unanswered required group is not five wrong options.

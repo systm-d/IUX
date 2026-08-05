@@ -903,7 +903,7 @@ void main() {
                     semantics: IuxInputSemantics(label: 'Email address'),
                   ),
                   focusNode: FocusNode(),
-                  child: const SizedBox.shrink(),
+                  builder: _placeholder,
                 ),
               ],
             ),
@@ -987,7 +987,7 @@ void main() {
       return IuxFormField(
         input: IuxInputDescriptor(semantics: IuxInputSemantics(label: label)),
         focusNode: node,
-        child: const SizedBox.shrink(),
+        builder: _placeholder,
       );
     }
 
@@ -1331,23 +1331,31 @@ class _GuidedHostState extends State<_GuidedHost> {
         edited: widget.edited,
         onValidationRequested: (IuxValidationTrigger trigger) =>
             widget.requests.add('${_kLabels[index]}:${trigger.name}'),
-        child: index == _kCheckboxField
-            ? IuxCheckbox(
-                label: _kLabels[index],
-                input: inputs[index],
-                value: checkbox,
-                focusNode: focusNodes[index],
-                onChanged: (bool next) => setState(
-                  () => checkbox = next
-                      ? IuxSelectionState.selected
-                      : IuxSelectionState.unselected,
-                ),
-              )
-            : IuxTextField(
-                input: inputs[index],
-                controller: controllers[index],
-                focusNode: focusNodes[index],
-                onChanged: (String _) {},
-              ),
+        builder: (BuildContext context, IuxFormField field) =>
+            index == _kCheckboxField
+                ? IuxCheckbox(
+                    label: _kLabels[index],
+                    input: field.input,
+                    value: checkbox,
+                    focusNode: field.focusNode,
+                    onChanged: (bool next) => setState(
+                      () => checkbox = next
+                          ? IuxSelectionState.selected
+                          : IuxSelectionState.unselected,
+                    ),
+                  )
+                : IuxTextField(
+                    input: field.input,
+                    controller: controllers[index],
+                    focusNode: field.focusNode,
+                    onChanged: (String _) {},
+                  ),
       );
 }
+
+/// A field widget for the tests that never render a real one.
+///
+/// It holds the node: `IuxFormSection` refuses in debug a field whose widget
+/// adopts nothing, which is the defect the check exists for.
+Widget _placeholder(BuildContext context, IuxFormField field) =>
+    Focus(focusNode: field.focusNode, child: const SizedBox.shrink());

@@ -1,7 +1,7 @@
 // Tristate is declared in dart:ui and not re-exported by
 // package:flutter/semantics.dart, so this is the only way to name it. It is
 // what a semantics flag reads as now: set, cleared, or never mentioned.
-import 'dart:ui' show Tristate;
+import 'dart:ui' show CheckedState, Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -484,6 +484,199 @@ void main() {
     });
   });
 
+  group('a radio group is a field like any other', () {
+    testWidgets('the node the form was given is adopted by the group',
+        (WidgetTester tester) async {
+      final _RadioHandle host = await pumpRadioForm(tester);
+
+      // A node with no context is a node no widget attached itself to. It is
+      // the whole of the defect: the form holds it, the summary points at it,
+      // and nothing in the tree answers to it.
+      expect(
+        host.speedNode.context,
+        isNotNull,
+        reason: 'IuxFormField.focusNode has to reach the widget in the field, '
+            'or the summary entry naming that field goes nowhere',
+      );
+    });
+
+    testWidgets('activating the entry lands focus on the first option',
+        (WidgetTester tester) async {
+      final _RadioHandle host = await pumpRadioForm(tester);
+      host.reject('Choose a delivery speed');
+      await tester.pumpAndSettle();
+      await submit(tester);
+
+      // Focus is on the summary; that part already worked.
+      expect(summaryNode(tester).hasPrimaryFocus, isTrue);
+
+      await activateEntry(tester, 'How fast do you need it');
+
+      // Measured from the manager, not inferred from the widget tree: this is
+      // the assertion that failed before IuxRadioGroup took a focusNode, and
+      // it failed by leaving focus exactly where it was — on the summary the
+      // user had just activated an entry in.
+      expect(
+        summaryNode(tester).hasPrimaryFocus,
+        isFalse,
+        reason: 'the user activated the entry that says what is wrong; '
+            'staying on the summary is going nowhere',
+      );
+      expect(host.speedNode.hasPrimaryFocus, isTrue);
+      expect(
+        FocusManager.instance.primaryFocus,
+        same(host.speedNode),
+        reason: 'the node the summary was pointed at is the node that ended '
+            'up holding focus',
+      );
+      expect(
+        insideRadioGroup(FocusManager.instance.primaryFocus),
+        isTrue,
+        reason: 'focus has to land inside the group, not merely somewhere',
+      );
+    });
+
+    testWidgets('what a screen reader finds on arrival',
+        (WidgetTester tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final _RadioHandle host = await pumpRadioForm(tester);
+      host.reject('Choose a delivery speed');
+      await tester.pumpAndSettle();
+      await submit(tester);
+      await activateEntry(tester, 'How fast do you need it');
+
+      // The live tree, walked from the root. `find.bySemanticsLabel` reads the
+      // node a render object cached and would answer about a frame that is no
+      // longer on screen.
+      final SemanticsNode focused = focusedSemanticsNode(tester)!;
+      final SemanticsData data = focused.getSemanticsData();
+
+      // "Standard, radio button, not checked" — the first answer to the
+      // question, ready to be given with the next gesture.
+      expect(data.label, 'Standard');
+      expect(focused.flagsCollection.isFocused, Tristate.isTrue);
+      expect(focused.flagsCollection.isInMutuallyExclusiveGroup, isTrue);
+      expect(focused.flagsCollection.isChecked, CheckedState.isFalse);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+
+      // And it is inside the named radio-group container, which is what lets
+      // the platform read the question and count "1 of 2" rather than leaving
+      // the user with a loose word.
+      final SemanticsNode group = enclosingRole(
+        focused,
+        SemanticsRole.radioGroup,
+      )!;
+      expect(group.getSemanticsData().label, 'How fast do you need it');
+
+      handle.dispose();
+    });
+
+    testWidgets('a screen reader activating the entry lands in the same place',
+        (WidgetTester tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      final _RadioHandle host = await pumpRadioForm(tester);
+      host.reject('Choose a delivery speed');
+      await tester.pumpAndSettle();
+      await submit(tester);
+
+      final SemanticsNode entry = tester.getSemantics(
+        find.bySemanticsLabel(
+          'How fast do you need it. Choose a delivery speed',
+        ),
+      );
+      // ignore: deprecated_member_use
+      tester.binding.pipelineOwner.semanticsOwner!
+          .performAction(entry.id, SemanticsAction.tap);
+      await tester.pumpAndSettle();
+
+      expect(host.speedNode.hasPrimaryFocus, isTrue);
+      handle.dispose();
+    });
+  });
+
+  group('a node the field does not hold is refused', () {
+    /// Pumps one section holding one field built by [builder].
+    Future<void> pumpField(
+      WidgetTester tester,
+      FocusNode node,
+      IuxFormFieldBuilder builder,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+          home: Scaffold(
+            body: IuxFormSection(
+              fields: <IuxFormField>[
+                IuxFormField(
+                  input: const IuxInputDescriptor(
+                    semantics: IuxInputSemantics(label: 'Email address'),
+                  ),
+                  focusNode: node,
+                  builder: builder,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('a widget that holds no node at all',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode();
+      addTearDown(node.dispose);
+
+      await pumpField(
+        tester,
+        node,
+        (BuildContext context, IuxFormField field) => const SizedBox.shrink(),
+      );
+
+      final Object? error = tester.takeException();
+      expect(error, isAssertionError);
+      expect(
+        error.toString(),
+        contains('"Email address" field is not held by anything'),
+      );
+    });
+
+    testWidgets('a widget that holds some other node',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode(debugLabel: 'the form was given this');
+      final FocusNode other = FocusNode(debugLabel: 'the widget uses this');
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+
+      // The copy-paste the old `child:` parameter invited, and the one nothing
+      // could see: the summary would name this field and send the user to a
+      // node no box answers to.
+      await pumpField(
+        tester,
+        node,
+        (BuildContext context, IuxFormField field) =>
+            Focus(focusNode: other, child: const SizedBox.shrink()),
+      );
+
+      expect(tester.takeException(), isAssertionError);
+    });
+
+    testWidgets('a widget that holds the node it was handed is accepted',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode();
+      addTearDown(node.dispose);
+
+      await pumpField(
+        tester,
+        node,
+        (BuildContext context, IuxFormField field) =>
+            Focus(focusNode: field.focusNode, child: const SizedBox.shrink()),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('accessibility', () {
     testWidgets('the focused summary node carries the category and the count',
         (WidgetTester tester) async {
@@ -747,7 +940,7 @@ void main() {
                 semantics: IuxInputSemantics(label: 'Email address'),
               ),
               focusNode: node,
-              child: const SizedBox.shrink(),
+              builder: _placeholder,
             ),
           ],
         ),
@@ -844,7 +1037,7 @@ void main() {
         IuxFormField(
           input: clean,
           focusNode: node,
-          child: const SizedBox.shrink(),
+          builder: _placeholder,
         ).isInvalid,
         isFalse,
       );
@@ -854,7 +1047,7 @@ void main() {
             validation: const IuxInputValidation.invalid('Enter an address'),
           ),
           focusNode: node,
-          child: const SizedBox.shrink(),
+          builder: _placeholder,
         ).isInvalid,
         isTrue,
       );
@@ -872,7 +1065,7 @@ void main() {
             validation: IuxInputValidation.validating(),
           ),
           focusNode: node,
-          child: const SizedBox.shrink(),
+          builder: _placeholder,
         ).isInvalid,
         isFalse,
       );
@@ -881,26 +1074,30 @@ void main() {
     test('fields compare by value', () {
       final FocusNode node = FocusNode();
       addTearDown(node.dispose);
-      const Widget child = SizedBox.shrink();
       const IuxInputDescriptor input = IuxInputDescriptor(
         semantics: IuxInputSemantics(label: 'Email address'),
       );
 
+      // A named function rather than a closure written twice: two inline
+      // closures are never the same object, so the comparison would be
+      // measuring Dart rather than this class.
       expect(
-        IuxFormField(input: input, focusNode: node, child: child),
-        IuxFormField(input: input, focusNode: node, child: child),
+        IuxFormField(input: input, focusNode: node, builder: _placeholder),
+        IuxFormField(input: input, focusNode: node, builder: _placeholder),
       );
       expect(
-        IuxFormField(input: input, focusNode: node, child: child).hashCode,
-        IuxFormField(input: input, focusNode: node, child: child).hashCode,
+        IuxFormField(input: input, focusNode: node, builder: _placeholder)
+            .hashCode,
+        IuxFormField(input: input, focusNode: node, builder: _placeholder)
+            .hashCode,
       );
       expect(
-        IuxFormField(input: input, focusNode: node, child: child),
+        IuxFormField(input: input, focusNode: node, builder: _placeholder),
         isNot(
           IuxFormField(
             input: input,
             focusNode: node,
-            child: child,
+            builder: _placeholder,
             edited: true,
           ),
         ),
@@ -916,13 +1113,20 @@ void main() {
             semantics: IuxInputSemantics(label: 'Email address'),
           ),
           focusNode: node,
-          child: const SizedBox.shrink(),
+          builder: _placeholder,
         ).toString(),
         'IuxFormField(Email address, notValidated)',
       );
     });
   });
 }
+
+/// A field widget for the tests that never render one.
+///
+/// It holds the node, because a widget that does not is exactly what
+/// `IuxFormSection` refuses in debug.
+Widget _placeholder(BuildContext context, IuxFormField field) =>
+    Focus(focusNode: field.focusNode, child: const SizedBox.shrink());
 
 /// Presses the form's submit control.
 Future<void> submit(WidgetTester tester) async {
@@ -940,6 +1144,187 @@ Future<void> submit(WidgetTester tester) async {
 FocusNode summaryNode(WidgetTester tester) => tester
     .widget<IuxValidationSummary>(find.byType(IuxValidationSummary))
     .focusNode!;
+
+/// Activates the summary entry named [label], bringing it on screen first.
+Future<void> activateEntry(WidgetTester tester, String label) async {
+  final Finder entry = find.descendant(
+    of: find.byType(IuxValidationSummary),
+    matching: find.text(label),
+  );
+  // `tester.tap` only warns when it misses, so a tap that landed on nothing
+  // would leave the assertions below measuring a form nobody touched.
+  await tester.ensureVisible(entry);
+  await tester.pumpAndSettle();
+  await tester.tap(entry);
+  await tester.pumpAndSettle();
+}
+
+/// The node the *live* semantics tree reports as focused.
+///
+/// Walked from the root rather than read through `find.bySemanticsLabel`, which
+/// answers from the node a render object cached and can therefore describe a
+/// frame that is no longer on screen.
+SemanticsNode? focusedSemanticsNode(WidgetTester tester) {
+  final SemanticsOwner? owner =
+      // ignore: deprecated_member_use
+      tester.binding.pipelineOwner.semanticsOwner;
+  final SemanticsNode? root = owner?.rootSemanticsNode;
+  if (root == null) return null;
+  return _firstSemanticsNode(
+    root,
+    (SemanticsNode node) => node.flagsCollection.isFocused == Tristate.isTrue,
+  );
+}
+
+/// The nearest ancestor of [node] carrying [role], or null.
+SemanticsNode? enclosingRole(SemanticsNode node, SemanticsRole role) {
+  SemanticsNode? current = node.parent;
+  while (current != null) {
+    if (current.getSemanticsData().role == role) return current;
+    current = current.parent;
+  }
+  return null;
+}
+
+SemanticsNode? _firstSemanticsNode(
+  SemanticsNode node,
+  bool Function(SemanticsNode) matches,
+) {
+  if (matches(node)) return node;
+  SemanticsNode? found;
+  node.visitChildren((SemanticsNode child) {
+    found ??= _firstSemanticsNode(child, matches);
+    return found == null;
+  });
+  return found;
+}
+
+/// Whether [node] is held by a widget inside an [IuxRadioGroup].
+bool insideRadioGroup(FocusNode? node) {
+  final BuildContext? context = node?.context;
+  if (context == null) return false;
+  bool inside = false;
+  context.visitAncestorElements((Element element) {
+    if (element.widget is IuxRadioGroup<String>) {
+      inside = true;
+      return false;
+    }
+    return true;
+  });
+  return inside;
+}
+
+/// A one-field form whose field is a radio group.
+///
+/// Its own host rather than a fourth field on [pumpForm]'s, so the counts and
+/// orders every other test asserts stay what they were.
+class _RadioHost extends StatefulWidget {
+  const _RadioHost({super.key});
+
+  @override
+  State<_RadioHost> createState() => _RadioHostState();
+}
+
+class _RadioHostState extends State<_RadioHost> {
+  final FocusNode speedNode = FocusNode(debugLabel: 'How fast do you need it');
+
+  IuxInputDescriptor speed = const IuxInputDescriptor(
+    semantics: IuxInputSemantics(label: 'How fast do you need it'),
+    requirement: IuxInputRequirement.required,
+  );
+
+  String? value;
+
+  void reject(String message) => setState(() {
+        speed = speed.copyWith(
+          validation: IuxInputValidation.invalid(message),
+        );
+      });
+
+  @override
+  void dispose() {
+    speedNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IuxForm(
+        summary: IuxValidationSummaryLabels(
+          categoryLabel: 'Error',
+          navigationHint: 'Go to this field',
+          describeCount: (int count) => count == 1
+              ? '1 field needs your attention'
+              : '$count fields need your attention',
+        ),
+        submit: IuxFormSubmit(
+          label: 'Save',
+          action: const IuxActionDescriptor.primary(
+            semantics: IuxActionSemantics(label: 'Save'),
+          ),
+          onSubmit: () {},
+        ),
+        sections: <IuxFormSection>[
+          IuxFormSection(
+            title: 'Delivery',
+            fields: <IuxFormField>[
+              IuxFormField(
+                input: speed,
+                focusNode: speedNode,
+                builder: (BuildContext context, IuxFormField field) =>
+                    IuxRadioGroup<String>(
+                  label: 'Delivery speed',
+                  input: field.input,
+                  focusNode: field.focusNode,
+                  value: value,
+                  options: const <IuxRadioOption<String>>[
+                    IuxRadioOption<String>(
+                      value: 'standard',
+                      label: 'Standard',
+                    ),
+                    IuxRadioOption<String>(value: 'express', label: 'Express'),
+                  ],
+                  onChanged: (String next) => setState(() => value = next),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+}
+
+/// Reaches back into the radio-group form a test pumped.
+class _RadioHandle {
+  _RadioHandle(this._state);
+
+  final _RadioHostState _state;
+
+  FocusNode get speedNode => _state.speedNode;
+
+  void reject(String message) => _state.reject(message);
+}
+
+/// Pumps a form whose only field is a radio group.
+Future<_RadioHandle> pumpRadioForm(WidgetTester tester) async {
+  const Size size = Size(400, 800);
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  final GlobalKey<_RadioHostState> key = GlobalKey<_RadioHostState>();
+  await tester.pumpWidget(
+    MediaQuery(
+      data: const MediaQueryData(size: size),
+      child: MaterialApp(
+        theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+        home: Scaffold(
+          body: SingleChildScrollView(child: _RadioHost(key: key)),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return _RadioHandle(key.currentState!);
+}
 
 /// What a test needs to reach back into the form it pumped.
 class _Host {
@@ -1106,24 +1491,25 @@ class _FormHostState extends State<_FormHost> {
                 edited: widget.edited,
                 onValidationRequested: (IuxValidationTrigger trigger) =>
                     widget.requests.add('${_kLabels[i]}:${trigger.name}'),
-                child: i == _kCheckboxField
-                    ? IuxCheckbox(
-                        label: _kLabels[i],
-                        input: inputs[i],
-                        value: checkbox,
-                        focusNode: focusNodes[i],
-                        onChanged: (bool next) => setState(
-                          () => checkbox = next
-                              ? IuxSelectionState.selected
-                              : IuxSelectionState.unselected,
-                        ),
-                      )
-                    : IuxTextField(
-                        input: inputs[i],
-                        controller: controllers[i],
-                        focusNode: focusNodes[i],
-                        onChanged: (String _) {},
-                      ),
+                builder: (BuildContext context, IuxFormField field) =>
+                    i == _kCheckboxField
+                        ? IuxCheckbox(
+                            label: _kLabels[i],
+                            input: field.input,
+                            value: checkbox,
+                            focusNode: field.focusNode,
+                            onChanged: (bool next) => setState(
+                              () => checkbox = next
+                                  ? IuxSelectionState.selected
+                                  : IuxSelectionState.unselected,
+                            ),
+                          )
+                        : IuxTextField(
+                            input: field.input,
+                            controller: controllers[i],
+                            focusNode: field.focusNode,
+                            onChanged: (String _) {},
+                          ),
               ),
           ],
         ),

@@ -263,6 +263,9 @@ class IuxSwitch extends StatelessWidget {
 /// **The group owns the answer.** [value] is the chosen option; the widget
 /// derives each row's state from it, so two options can never both appear
 /// chosen.
+///
+/// **[focusNode] lands on the first option, not on the group.** See the
+/// parameter for why.
 class IuxRadioGroup<T> extends StatefulWidget {
   /// Creates a mutually exclusive group.
   ///
@@ -276,6 +279,7 @@ class IuxRadioGroup<T> extends StatefulWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.focusNode,
   })  : assert(
           label.length > 0,
           'A group of radios must be named. Without a name the options are a '
@@ -337,6 +341,33 @@ class IuxRadioGroup<T> extends StatefulWidget {
   /// it would have parents re-running whatever a choice triggers.
   final ValueChanged<T> onChanged;
 
+  /// An externally owned node, attached to the **first option**.
+  ///
+  /// A group is a question, and a question is not a control: focusing the
+  /// column would put the user on a stop they cannot act on and would have to
+  /// leave again, with nothing drawn to say where they are. Focusing the first
+  /// option puts them on the first answer, which the next gesture gives.
+  ///
+  /// Nothing is lost by not landing on the group. The option sits inside the
+  /// group's `SemanticsRole.radioGroup` container, so a screen reader
+  /// announces the question and the option's position within it — "How fast do
+  /// you need it, Standard, radio button, not checked, 1 of 2" on Android —
+  /// rather than the option's word on its own.
+  ///
+  /// This exists because [input] can carry a rejection, and a rejected field
+  /// has to be reachable from the thing that reports it. `IuxFormField`
+  /// requires a node and uses it to send a user from an error summary to the
+  /// field it names; before this parameter existed the node reached no widget
+  /// at all, and activating that entry left focus on the summary — measured,
+  /// not supposed. WCAG 2.2 SC 2.4.3 and SC 4.1.2.
+  ///
+  /// When the first option is individually unavailable the node goes to the
+  /// first one that can take focus, because a node attached to a control that
+  /// refuses focus is the same defect wearing a different hat. A group that is
+  /// disabled as a whole cannot carry a rejection — the resolver asserts on it
+  /// — so there is no case where the node has nowhere to go.
+  final FocusNode? focusNode;
+
   @override
   State<IuxRadioGroup<T>> createState() => _IuxRadioGroupState<T>();
 }
@@ -374,9 +405,7 @@ class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
   Widget build(BuildContext context) {
     final String label = widget.label;
     final IuxInputDescriptor input = widget.input;
-    final T? value = widget.value;
     final List<IuxRadioOption<T>> options = widget.options;
-    final ValueChanged<T> onChanged = widget.onChanged;
     final IuxSelectionTokens tokens =
         IuxSelectionResolver.resolve(context, input);
     final String? help = input.helpText;
@@ -399,22 +428,8 @@ class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
           const IuxGap.tight(),
           _SpacedColumn(
             children: <Widget>[
-              for (final IuxRadioOption<T> option in options)
-                _IuxSelectionControl(
-                  role: IuxSelectionRole.radio,
-                  value: IuxSelectionState.fromSelected(option.value == value),
-                  label: option.label,
-                  input: _optionInput(option),
-                  onActivate: (bool _) => onChanged(option.value),
-                  autofocus: false,
-                  focusNode: null,
-                  indicator: (
-                    BuildContext context,
-                    IuxSelectionTokens tokens,
-                    IuxSelectionState state,
-                  ) =>
-                      _RadioIndicator(tokens: tokens, value: state),
-                ),
+              for (int index = 0; index < options.length; index++)
+                _option(options[index], index),
             ],
           ),
           if (message != null) ...<Widget>[
@@ -431,6 +446,39 @@ class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
         ],
       ),
     );
+  }
+
+  /// One option's row.
+  ///
+  /// [IuxRadioGroup.focusNode] goes to exactly one of them; see
+  /// [_focusTargetIndex].
+  Widget _option(IuxRadioOption<T> option, int index) => _IuxSelectionControl(
+        role: IuxSelectionRole.radio,
+        value: IuxSelectionState.fromSelected(option.value == widget.value),
+        label: option.label,
+        input: _optionInput(option),
+        onActivate: (bool _) => widget.onChanged(option.value),
+        autofocus: false,
+        focusNode: index == _focusTargetIndex ? widget.focusNode : null,
+        indicator: (
+          BuildContext context,
+          IuxSelectionTokens tokens,
+          IuxSelectionState state,
+        ) =>
+            _RadioIndicator(tokens: tokens, value: state),
+      );
+
+  /// Which option adopts [IuxRadioGroup.focusNode].
+  ///
+  /// The first that can take focus. Attaching it to an unavailable option
+  /// would leave a node that is attached and still refuses to be focused,
+  /// which is the original defect with an extra step in it. The fallback of
+  /// zero is unreachable while a group carrying a rejection cannot be disabled.
+  int get _focusTargetIndex {
+    final int index = widget.options.indexWhere(
+      (IuxRadioOption<T> option) => _optionInput(option).isFocusable,
+    );
+    return index == -1 ? 0 : index;
   }
 
   /// The field descriptor one option renders under.

@@ -159,6 +159,7 @@ already made, which is the expensive direction to be wrong in.
 | `value` | yes | `T?` — null means unanswered, which is a real state |
 | `options` | yes | at least two, values distinct |
 | `onChanged` | yes | called with the option chosen; silent when it was already chosen |
+| `focusNode` | no | externally owned; **attached to the first option**, see below |
 
 `IuxRadioOption<T>` carries `value`, `label`, `helpText` and
 `unavailabilityReason`. That last field is one field rather than a flag plus a
@@ -166,6 +167,41 @@ reason, so a greyed option with no explanation cannot be expressed.
 
 There is no colour, radius, elevation or duration parameter, and there will not
 be one.
+
+### Focusing a radio group
+
+`focusNode` is attached to the **first option**, not to the group.
+
+A group is a question, and a question is not a control. Focusing the column
+would put the user on a stop they cannot act on and would have to leave again,
+with nothing drawn to say where they are — a focus indicator belongs to the
+control it identifies, and there is none on a heading and a list. Focusing the
+first option puts the user on the first answer, which the next gesture gives.
+GOV.UK's error-summary guidance says the same thing for the same reason: an
+entry about a group of radios moves focus to the first input in the group.
+
+Nothing is lost by not landing on the group. The option is inside the group's
+`SemanticsRole.radioGroup` container, so a screen reader announces the question
+and the option's place in it — "How fast do you need it, Standard, radio button,
+not checked, 1 of 2" on Android — rather than a loose word.
+
+When the first option is individually unavailable the node goes to the first one
+that **can** take focus. A node attached to a control that refuses focus is the
+same defect with an extra step in it. A group that is disabled as a whole cannot
+carry a rejection — the resolver asserts on it — so the node always has
+somewhere to go.
+
+The parameter exists because a radio group is a form field, and
+`IuxFormField.focusNode` is the link between an entry in an error summary and
+the field it names. Without it the node was created, handed to the form,
+disposed — and adopted by nothing: activating the entry left focus on the
+summary, silently, and the group's own message was never reached. Harmless only
+while no rule was attached to a group. WCAG 2.2 SC 2.4.3, SC 4.1.2.
+
+There is no `autofocus`. A group opening with an option focused says nothing
+about which option is chosen and puts the user's first keypress somewhere they
+did not look; `IuxCheckbox` and `IuxSwitch` have one because a single control
+focused on arrival is a single answerable question.
 
 ## States
 
@@ -192,6 +228,9 @@ is a value they do not have.
 - The group of a radio set carries `SemanticsRole.radioGroup`, which is what
   lets the platform say "1 of 3" instead of leaving the user to count. The
   group name is also a heading, so it can be jumped to.
+- **A group can be sent focus, and it arrives on the first option.** See
+  "Focusing a radio group". This is what makes a radio group usable as a form
+  field: an error summary can take the user to it.
 - Every control exposes a tap action **on its own node**, so a screen reader's
   double-tap activates it. Everything below the node is excluded from the
   semantic tree, so without this the control would be announced correctly and
@@ -276,10 +315,11 @@ IuxSelectionGroup(label: 'Notify me about', children: checkboxes)
   IUX-011 could not extend it. The deviation is contained in one private
   function shared by all three controls, so they cannot drift; promoting those
   builders into `IuxSemantics` is a follow-up.
-- **No `focusable` flag on the semantic node.** The subtree is excluded, so the
-  `Focus` widget's own annotation does not reach the node. Keyboard focus works;
-  the flag is absent. `IuxButton` has the same shape, and both should be fixed
-  together.
+- ~~**No `focusable` flag on the semantic node.**~~ — **Closed**, and this entry
+  contradicted the Accessibility section above it. `IuxSemantics.selection`
+  publishes the node's focus state and its `focus` action; measured here, an
+  option focused from an error summary reports `isFocused: Tristate.isTrue`
+  in the live semantics tree. That is `IUX-A11Y-FOCUS-001`, fixed.
 - **No arrow-key navigation within a radio group.** Each option is
   individually focusable and reachable by Tab or D-pad. Flutter's
   `RadioGroup` adds arrow-key traversal that skips unselected options; IUX does
@@ -293,7 +333,14 @@ IuxSelectionGroup(label: 'Notify me about', children: checkboxes)
   other.
 - **No indeterminate switch, no tri-state radio.** Both are asserted against
   rather than rendered.
-- **Not in the catalog yet.** IUX-011 owned no catalog files.
+- ~~**Not in the catalog yet.**~~ — **Closed.** All four controls have a panel;
+  the radio group is in `apps/catalog/lib/input_panels.dart`. The line was true
+  of IUX-011 and stale afterwards.
+- **A radio group cannot be focused as a group.** `focusNode` lands on an
+  option, which is the right destination and not the only conceivable one: a
+  caller who wants the user to hear the question again before the options has no
+  way to ask for that. Nobody has asked, and the parameter that answered it
+  would be a second focus target with a rule for choosing between them.
 
 ## Evidence level
 

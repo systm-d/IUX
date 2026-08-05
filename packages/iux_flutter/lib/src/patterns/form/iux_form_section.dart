@@ -7,6 +7,107 @@ import '../../layout/iux_spacing_primitives.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
 import 'iux_form_model.dart';
 
+/// Renders one field, and checks in debug that its node was adopted.
+///
+/// [IuxFormField.focusNode] is the link between an entry in the error summary
+/// and the box the user has to go and fix. A node no widget holds breaks that
+/// link silently: the entry is named correctly, announces correctly, and moves
+/// focus nowhere — and only once a rule is attached to the field, which may be
+/// months after the mistake was made.
+///
+/// [IuxFormField.builder] is handed the node so the right one is the easy one
+/// to pass. This is what catches the rest: a node built inside the builder, a
+/// node belonging to another field, a widget that accepts no node at all.
+///
+/// A debug check rather than a shape that refuses the mistake, because the
+/// shape would have to reach into the field widgets themselves — they take
+/// their node as a parameter, and this pattern does not own them.
+class _IuxField extends StatefulWidget {
+  const _IuxField({required this.field});
+
+  final IuxFormField field;
+
+  @override
+  State<_IuxField> createState() => _IuxFieldState();
+}
+
+class _IuxFieldState extends State<_IuxField> {
+  @override
+  void initState() {
+    super.initState();
+    _scheduleAdoptionCheck();
+  }
+
+  @override
+  void didUpdateWidget(_IuxField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only when the node changed. Checking every frame would cost every form a
+    // post-frame callback per field to re-answer a question whose answer
+    // cannot have changed.
+    if (widget.field.focusNode != oldWidget.field.focusNode) {
+      _scheduleAdoptionCheck();
+    }
+  }
+
+  /// Asks, after the frame, whether anything below took the node.
+  ///
+  /// After the frame because the widget that adopts it does so while building,
+  /// so during this build the answer is always "no".
+  void _scheduleAdoptionCheck() {
+    assert(() {
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+        if (!mounted) return;
+        _checkAdoption();
+      });
+      return true;
+    }());
+  }
+
+  void _checkAdoption() {
+    final FocusNode node = widget.field.focusNode;
+    final BuildContext? holder = node.context;
+    final bool adopted =
+        holder != null && holder.mounted && _isInsideThisField(holder);
+
+    assert(
+      adopted,
+      'The focus node given to the "${widget.field.input.semantics.label}" '
+      'field is not held by anything the field built.\n'
+      '\n'
+      'IuxFormField.focusNode is the only link between an entry in the error '
+      'summary and the box the user has to go and fix. A node nothing holds '
+      'produces a summary whose entries look right, announce right, and move '
+      'focus nowhere — and it stays invisible until a rule is attached to '
+      'this field.\n'
+      '\n'
+      'Pass the node the builder hands you — field.focusNode — to the widget '
+      'you return, and to nothing else. A widget that accepts no focus node '
+      'cannot be a form field.',
+    );
+  }
+
+  /// Whether [holder] is inside the subtree this field built.
+  ///
+  /// A node held by *some* widget is not enough: a node held by the field next
+  /// to this one loses the user in exactly the same way, one field further
+  /// down.
+  bool _isInsideThisField(BuildContext holder) {
+    bool inside = false;
+    holder.visitAncestorElements((Element element) {
+      if (identical(element, context)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    return inside;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.field.builder(context, widget.field);
+}
+
 /// A named group of fields inside a form.
 ///
 /// ```dart
@@ -118,7 +219,7 @@ class IuxFormSection extends StatelessWidget {
           children: <Widget>[
             for (int i = 0; i < fields.length; i++) ...<Widget>[
               if (i > 0) SizedBox(height: separation),
-              fields[i].child,
+              _IuxField(field: fields[i]),
             ],
           ],
         ),

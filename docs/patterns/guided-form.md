@@ -261,10 +261,10 @@ IuxForm(
           focusNode: _emailFocus,
           edited: state.emailEdited,
           onValidationRequested: (_) => controller.checkEmail(),
-          child: IuxTextField(
-            input: state.email,
+          builder: (BuildContext context, IuxFormField field) => IuxTextField(
+            input: field.input,                   // not a second descriptor
+            focusNode: field.focusNode,           // not a second node
             controller: _emailText,
-            focusNode: _emailFocus,               // the same node
             content: IuxTextContent.email,
             onChanged: controller.emailChanged,
           ),
@@ -291,7 +291,8 @@ IuxForm(
 | --- | --- |
 | `IuxValidationTiming` | `onBlur` (default) or `onSubmit` |
 | `IuxValidationTrigger` | why the form is asking: `blur` or `submit` |
-| `IuxFormField` | a descriptor, a focus node, the widget, `edited`, `onValidationRequested` |
+| `IuxFormField` | a descriptor, a focus node, a builder for the widget, `edited`, `onValidationRequested` |
+| `IuxFormFieldBuilder` | `Widget Function(BuildContext, IuxFormField)` |
 | `IuxFormSection` | a titled group of `IuxFormField`s |
 | `IuxValidationSummaryEntry` | one rejected field: label, message, `onActivate` |
 | `IuxValidationSummary` | the block itself, focusable |
@@ -300,13 +301,62 @@ IuxForm(
 | `IuxForm` | the pattern |
 | `IuxErrorCountDescription` | `String Function(int invalidFieldCount)` |
 
-### `focusNode` must be the field's own node
+### The field builds its own widget, and is handed its own state
 
-It is the only link between an entry in the summary and the box the user has to
-go and fix, and nothing can check it for you. Passing a second, unused node
-produces a summary whose entries look right and go nowhere. This is the one
-mistake the API can still make, and it is why the parameter is required rather
-than optional.
+`IuxFormField` takes a **builder**, not a child, and the builder is given the
+field itself. Take the descriptor and the node from there:
+
+```dart
+builder: (BuildContext context, IuxFormField field) => IuxTextField(
+  input: field.input,
+  focusNode: field.focusNode,
+  controller: _emailText,
+  onChanged: controller.emailChanged,
+)
+```
+
+This used to be a `child:`, and the caller wrote the descriptor and the node out
+a second time with nothing checking that the two copies agreed. `focusNode` is
+the only link between an entry in the summary and the box the user has to go and
+fix: a second, unused node produces a summary whose entries look right, announce
+right, and move focus nowhere. The documentation called that "the one mistake
+this API can still make" — and it had been made, in this repository:
+`IuxRadioGroup` had no `focusNode` parameter at all, so the node handed to the
+form was adopted by nothing.
+
+Two things now stand between a caller and that mistake:
+
+1. **The builder hands back the real objects.** `field.input` *is* the
+   descriptor the summary reads; `field.focusNode` *is* the node it points at.
+   Writing the right thing is now shorter than writing the wrong thing.
+2. **`IuxFormSection` checks, in debug, that the node was adopted.** After the
+   first frame it asks whether `field.focusNode` is held by a widget inside that
+   field, and fails with the field's name when it is not — including when the
+   node is held by the *next* field, which loses the user in the same way one
+   question further down.
+
+The check is a backstop, not a guarantee: nothing stops a builder ignoring the
+argument, and the check runs in debug only. Making the mistake unrepresentable
+would mean the field widgets reading their descriptor and node from the
+enclosing field rather than taking them as parameters — a change to
+`lib/src/components/input/`, not to this pattern. Until then this is the
+ceiling, and it is a debug failure with the field's name in it rather than a
+silent one nobody sees until a rule is attached.
+
+### Migrating from `child:`
+
+```dart
+// before
+child: IuxTextField(input: state.email, focusNode: _emailFocus, ...)
+
+// after
+builder: (BuildContext context, IuxFormField field) =>
+    IuxTextField(input: field.input, focusNode: field.focusNode, ...)
+```
+
+A widget that accepts no focus node cannot be a form field — that is what the
+required `focusNode` has always meant, and the debug check is the first thing to
+say so out loud.
 
 ### Why the count is a function
 
@@ -367,6 +417,18 @@ What the form guarantees:
   that the user can be *taken* to the problem.
 - **Entries are in field order**, so the list matches the form rather than the
   order the failures happened to be discovered in.
+- **An entry pointing at a radio group lands on its first option.** A group is a
+  question, and a question is not a control: focusing the column would put the
+  user on a stop they cannot act on and would have to leave again, with nothing
+  drawn to say where they are. The option sits inside the group's
+  `SemanticsRole.radioGroup` container, so arrival announces the question, the
+  option and its position — "How fast do you need it, Standard, radio button,
+  not checked, 1 of 2" on Android — and the next gesture answers it. The
+  message is not repeated on arrival, because the entry the user just activated
+  was named `"$label. $message"` and said it a moment ago. This needed
+  `IuxRadioGroup.focusNode`, which did not exist: the node was created, handed
+  over, disposed, and adopted by nothing, and activating the entry left focus on
+  the summary. Measured, not supposed. SC 2.4.3, SC 4.1.2.
 - **Nothing is carried by colour.** The block has a glyph, an outline and words;
   each entry is underlined rather than merely tinted, which survives greyscale,
   colour-vision deficiency and a printed screenshot.
@@ -445,6 +507,20 @@ frame is a screen-reader user hearing half of each.
 - **Nothing here can tell whether a message says how to fix the value.** That is
   the difference between a form a user completes and one they abandon, and it is
   entirely the application's.
+- **The adoption check is debug-only, and it cannot see the descriptor.** It
+  asks whether `field.focusNode` ended up held inside the field, which is
+  answerable; whether the widget was given `field.input` or a second descriptor
+  built beside it is not — the form never sees what the widget was passed. The
+  builder is what closes that half, and it closes it by making the right thing
+  the short thing rather than by refusing the wrong one.
+- **Four pieces of caller state per validated field, not five.** A controller, a
+  focus node, an `edited` flag, and the validation object with the rule that
+  produces it. The node is still the caller's to create and dispose, because the
+  form has no stable identity to key one by: `IuxFormField` is a description
+  rebuilt every frame, and a form with a conditional field would hand field
+  three the node that belonged to field two. Owning the nodes would remove a
+  piece of caller state and buy a defect that moves the caret into the wrong
+  box.
 
 ## Evidence level
 

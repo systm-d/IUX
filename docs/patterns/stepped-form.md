@@ -359,6 +359,11 @@ IuxGuidedForm(
 | `IuxGuidedFormStep` | a title, a description, and its `IuxFormSection`s | yes |
 | `IuxStepPositionDescription` | `String Function(int step, int stepCount)` | yes |
 | `IuxFormSection`, `IuxFormField` | unchanged | no — IUX-012 |
+
+`IuxFormField` now takes a `builder` rather than a `child`, and it is handed the
+field so the descriptor and the focus node cannot be written out twice and
+disagree. It applies here identically; see
+[`guided-form.md`](guided-form.md#the-field-builds-its-own-widget-and-is-handed-its-own-state).
 | `IuxValidationSummary`, `IuxValidationSummaryEntry`, `IuxValidationSummaryLabels` | unchanged | no — IUX-012 |
 | `IuxFormSubmit`, `IuxValidationTiming`, `IuxValidationTrigger` | unchanged | no — IUX-012 |
 

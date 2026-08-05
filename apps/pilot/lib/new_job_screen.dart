@@ -10,23 +10,24 @@ import 'strings.dart';
 /// The whole of validation lives here. `IuxForm` decides *when* a check is
 /// worth running and nothing about whether a value is acceptable, which is the
 /// right division — and which means this screen holds, per validated field, a
-/// controller, a focus node, an edited flag, a validation object and the rule
-/// that produces it. Five pieces of state for one text box, all of them the
-/// application's, and three of them repeated verbatim between `IuxFormField`
-/// and the widget inside it: the descriptor is passed twice and the focus node
-/// is passed twice, with nothing checking that the two agree. The form's own
-/// documentation calls that "the one mistake this API can still make".
+/// controller, a focus node, an edited flag, and a validation object with the
+/// rule that produces it. Four pieces of state for one text box, all of them
+/// the application's.
 ///
-/// ## The orphan focus node
+/// ## What used to be repeated, and no longer is
 ///
-/// `IuxFormField.focusNode` is required, and it is the link between an entry in
-/// the error summary and the box the user has to go and fix. `IuxRadioGroup`
-/// takes no `focusNode` parameter at all, so [_priorityNode] below is created,
-/// handed to the form, disposed here — and adopted by nothing. If a rule were
-/// ever attached to the priority, its summary entry would move focus to a node
-/// attached to no widget, and the user would be sent nowhere. Nothing asserts
-/// it, and the only reason it is harmless here is that the priority always has
-/// a valid value.
+/// The descriptor and the focus node used to be written out twice — once on
+/// `IuxFormField` and once on the widget inside it — with nothing checking that
+/// the two agreed. `IuxFormField` now takes a `builder` and hands the field
+/// back to it, so `field.input` and `field.focusNode` are *the* descriptor and
+/// *the* node rather than a second copy; and `IuxFormSection` refuses in debug
+/// a field whose node no widget below it holds.
+///
+/// That check is what the priority field would have failed. `IuxRadioGroup`
+/// took no `focusNode` at all, so [_priorityNode] was handed to the form and
+/// adopted by nothing: had a rule ever been attached to the priority, its
+/// summary entry would have left focus on the summary and sent the user
+/// nowhere. The group now takes one, and lands it on the first option.
 ///
 /// [_priorityNode] is referenced from the doc above; it is a private field of
 /// the state class below.
@@ -182,10 +183,11 @@ class _NewJobScreenState extends State<NewJobScreen> {
                   edited: _referenceEdited,
                   onValidationRequested: (IuxValidationTrigger _) =>
                       setState(() => _referenceCheck = _checkReference()),
-                  child: IuxTextField(
-                    input: _referenceInput,
+                  builder: (BuildContext context, IuxFormField field) =>
+                      IuxTextField(
+                    input: field.input,
                     controller: _reference,
-                    focusNode: _referenceNode,
+                    focusNode: field.focusNode,
                     placeholder: Strings.formReferencePlaceholder,
                     onChanged: (String _) =>
                         setState(() => _referenceEdited = true),
@@ -197,10 +199,11 @@ class _NewJobScreenState extends State<NewJobScreen> {
                   edited: _siteEdited,
                   onValidationRequested: (IuxValidationTrigger _) =>
                       setState(() => _siteCheck = _checkSite()),
-                  child: IuxTextField(
-                    input: _siteInput,
+                  builder: (BuildContext context, IuxFormField field) =>
+                      IuxTextField(
+                    input: field.input,
                     controller: _site,
-                    focusNode: _siteNode,
+                    focusNode: field.focusNode,
                     onChanged: (String _) => setState(() => _siteEdited = true),
                   ),
                 ),
@@ -212,10 +215,11 @@ class _NewJobScreenState extends State<NewJobScreen> {
                 IuxFormField(
                   input: _notesInput,
                   focusNode: _notesNode,
-                  child: IuxTextField(
-                    input: _notesInput,
+                  builder: (BuildContext context, IuxFormField field) =>
+                      IuxTextField(
+                    input: field.input,
                     controller: _notes,
-                    focusNode: _notesNode,
+                    focusNode: field.focusNode,
                     content: IuxTextContent.multiline,
                     onChanged: (String _) {},
                   ),
@@ -223,9 +227,11 @@ class _NewJobScreenState extends State<NewJobScreen> {
                 IuxFormField(
                   input: _priorityInput,
                   focusNode: _priorityNode,
-                  child: IuxRadioGroup<JobPriority>(
+                  builder: (BuildContext context, IuxFormField field) =>
+                      IuxRadioGroup<JobPriority>(
                     label: Strings.formPriority,
-                    input: _priorityInput,
+                    input: field.input,
+                    focusNode: field.focusNode,
                     value: _priority,
                     options: const <IuxRadioOption<JobPriority>>[
                       IuxRadioOption<JobPriority>(
@@ -244,10 +250,11 @@ class _NewJobScreenState extends State<NewJobScreen> {
                 IuxFormField(
                   input: _reminderInput,
                   focusNode: _reminderNode,
-                  child: IuxSwitch(
+                  builder: (BuildContext context, IuxFormField field) =>
+                      IuxSwitch(
                     label: Strings.formReminder,
-                    input: _reminderInput,
-                    focusNode: _reminderNode,
+                    input: field.input,
+                    focusNode: field.focusNode,
                     value: IuxSelectionState.fromSelected(_reminder),
                     onChanged: (bool value) {
                       setState(() => _reminder = value);
