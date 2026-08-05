@@ -752,6 +752,122 @@ void main() {
     });
   });
 
+  group('onboarding', () {
+    // A constraint of the harness rather than of the pattern, and it decides
+    // the shape of all three tests below: `reveal` returns to the top first,
+    // and at the top of the list the whole section is out of the ListView's
+    // cache extent and unmounted. Any panel state a chip set is therefore gone
+    // by the time a second `reveal` finishes. Panels whose state lives on the
+    // page — the destructive flow's — do not notice; this one keeps its step
+    // in its own State, so each test sets exactly one chip through
+    // `chooseOption`, which leaves the panel on screen, and reaches everything
+    // after that with `ensureVisible`, which does not rewind.
+
+    /// Taps something already built, without rewinding the list.
+    Future<void> tapWithoutRewinding(WidgetTester tester, String name) async {
+      final Finder target = find.bySemanticsLabel(name);
+      await tester.ensureVisible(target.first);
+      await settle(tester);
+      await tester.tap(target.first);
+      await settle(tester);
+    }
+
+    testWidgets('the way out survives the last step', (
+      WidgetTester tester,
+    ) async {
+      // The branch an application is most tempted to remove, and the one this
+      // pattern exists to keep. The forward control is replaced by the one
+      // that ends the flow; the exit is not replaced by anything.
+      await tester.pumpWidget(const IuxCatalogApp());
+      await gotoSection(tester, 'Flows');
+      await chooseOption(tester, 'Step', '3 of 3');
+
+      expect(find.text('Start using Ledger'), findsOneWidget);
+      expect(find.text('See how budgets work'), findsNothing,
+          reason: 'the forward control has nowhere left to go');
+      expect(find.text('Skip setup'), findsOneWidget,
+          reason: 'the exit is drawn on the last step as well as the first, '
+              'and there is no parameter that removes it');
+
+      await tapWithoutRewinding(tester, 'Skip setup');
+
+      expect(find.text('1 left, 0 finished'), findsOneWidget,
+          reason: 'leaving and finishing are different facts about the same '
+              'user, and the application records them separately');
+      expect(find.text('Start using Ledger'), findsOneWidget,
+          reason: 'leaving reports to the parent; it does not navigate the '
+              'flow underneath the user');
+    });
+
+    testWidgets('a permission request in a step doubles the controls', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const IuxCatalogApp());
+      await gotoSection(tester, 'Flows');
+      await chooseOption(
+        tester,
+        'Step shows',
+        'a permission request — the anti-pattern',
+      );
+      // Off the first step, where there is no way back to count.
+      await tapWithoutRewinding(tester, 'Step: 2 of 3');
+
+      // Scoped to the flow, because the rationale panel further up this
+      // section draws the same two labels for its own reasons.
+      expect(
+        find.descendant(
+          of: find.byType(IuxOnboardingFlow),
+          matching: find.byType(IuxButton),
+        ),
+        findsNWidgets(5),
+        reason: 'the rationale brings a way on and a refusal of its own to a '
+            'step that already had both',
+      );
+      expect(find.text('5 — 2 forward, 2 refusing'), findsOneWidget,
+          reason: 'the arithmetic is the defect, and it is the thing a reader '
+              'cannot see by looking at the screen');
+    });
+
+    testWidgets('the introduction survives 300% text in a 320dp window', (
+      WidgetTester tester,
+    ) async {
+      // The catalog's text scale is global and its width is whatever window
+      // the harness runs in. The combination that breaks a row of controls is
+      // both at once, so the preset carries the text and the panel carries the
+      // width — in that order, because the preset rewinds the list.
+      await tester.pumpWidget(const IuxCatalogApp());
+      await gotoSection(tester, 'Flows');
+      await stress(tester);
+      await chooseOption(tester, 'Window', '320dp — the narrowest phone');
+      // The last step, where all three controls are on screen at once.
+      await tapWithoutRewinding(tester, 'Step: 3 of 3');
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Einrichtung überspringen'), findsOneWidget,
+          reason: 'the exit is still whole and still named at the worst '
+              'combination the harness can produce');
+
+      // Measured against the window rather than against a thrown exception.
+      // A control wider than the window it is in does not throw: the row
+      // wraps, the button takes its natural width, and the label is simply
+      // half off the side of the phone. Only the geometry says so.
+      final Rect window = tester.getRect(find.byType(IuxOnboardingFlow));
+      for (final String label in <String>[
+        'Zurück',
+        'Einrichtung überspringen',
+        'Ledger jetzt verwenden',
+      ]) {
+        final Rect control =
+            tester.getRect(find.widgetWithText(IuxButton, label));
+        expect(control.left, greaterThanOrEqualTo(window.left - 0.5),
+            reason: '$label starts outside the window');
+        expect(control.right, lessThanOrEqualTo(window.right + 0.5),
+            reason: '$label runs past the right edge of a 320dp phone at 300% '
+                'text, which is the combination this panel exists to reach');
+      }
+    });
+  });
+
   group('navigation', () {
     testWidgets('a long dismiss label no longer overflows the drawer header', (
       WidgetTester tester,

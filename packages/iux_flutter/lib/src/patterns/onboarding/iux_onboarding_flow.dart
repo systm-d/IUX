@@ -178,14 +178,26 @@ const String _kEmptyForwardLabel =
 /// carries the position, the title and the body as one utterance. That is the
 /// announcement.
 ///
-/// This is the sixth focus decision in this library and it agrees with the
-/// fifth. `IuxEmptyState` (IUX-028), `IuxErrorRecovery` (IUX-029) and
-/// `IuxLoadingRetry` (IUX-030) all decline to move focus, because the thing
-/// that changed happened *to* the user while their hands were elsewhere.
-/// `IuxForm` (IUX-012) and `IuxGuidedForm` (IUX-033) move it, because the user
-/// pressed something and is standing still waiting to find out what happened.
-/// A step change here is the second shape: the user pressed Back or the forward
-/// control, and is waiting to learn where they now are.
+/// This is the seventh focus decision in this library and it agrees with the
+/// sixth. `IuxEmptyState` (IUX-028), `IuxErrorRecovery` (IUX-029),
+/// `IuxLoadingRetry` (IUX-030) and `IuxPermissionRationale` (IUX-031) all
+/// decline to move focus, because the thing that changed happened *to* the user
+/// while their hands were elsewhere. `IuxForm` (IUX-012) and `IuxGuidedForm`
+/// (IUX-033) move it, because the user pressed something and is standing still
+/// waiting to find out what happened. A step change here is the second shape:
+/// the user pressed Back or the forward control, and is waiting to learn where
+/// they now are.
+///
+/// **A step change the parent made for its own reason moves focus too**, and
+/// this file cannot tell the two apart: [didUpdateWidget] sees one index
+/// becoming another either way. A deep link, a restored session or a control
+/// the application drew beside the flow will therefore take focus to the
+/// heading. That is kept rather than repaired, because the repair is to arm a
+/// pending move and fire it on whatever change arrives next — IUX-039's finding
+/// against the two forms — and it trades a recoverable unrequested focus move
+/// for an occasional silent step change, which is the one failure this pattern
+/// exists to prevent. A test pins the behaviour so that changing it is a
+/// decision.
 ///
 /// **Not on the first build.** Focus is moved by a *change*, never by arrival,
 /// and here that is a decision rather than a mechanism. The first step is on
@@ -495,14 +507,29 @@ class _IuxOnboardingFlowState extends State<IuxOnboardingFlow> {
 /// than three fragments the user has to swipe through to assemble.
 ///
 /// **This is very nearly `IuxGuidedForm`'s private `_IuxStepHeading`, and the
-/// duplication is recorded rather than hidden.** The two differ in that the
-/// body here is required and is the substance of the screen rather than an
-/// optional note above a set of questions, so it takes the primary content
-/// role. Extracting one shared widget would mean editing
-/// `lib/src/patterns/form/iux_guided_form.dart`, which IUX-036 does not own; it
-/// is noted in `docs/patterns/onboarding.md` for whoever does. This is the same
-/// kind of debt `IuxProgressiveDisclosure` recorded against
-/// `IuxContextualHelp`'s private disclosure control.
+/// duplication is measured rather than hidden.** 44 of these 51 code lines are
+/// identical to that class's — of which 11 are punctuation, 24 are syntax any
+/// two widgets holding the same three string fields would share, and **9 carry
+/// a decision**: the six that make one node carry the announcement, and the
+/// three that assign the position and the title their type roles. All nine are
+/// IUX-033 decisions reused here on purpose.
+///
+/// The seven that differ are the two patterns disagreeing correctly: the guided
+/// form's `description` is optional and drawn in the supporting role, being a
+/// note above a set of questions, while [body] is required and drawn in the
+/// primary content role, being the substance of the screen. A shared widget
+/// would need a parameter to express that, and a parameter whose two values are
+/// "guided form" and "onboarding" is a component that has encoded its call
+/// sites.
+///
+/// **They are kept apart because they must be able to diverge.**
+/// `IUX-GUIDED-FORM-LIVE-001` is open against the guided form — a live region
+/// in the same frame as the focus move to its heading — and whatever closes it
+/// touches that heading's announcement frame. This pattern has no live region
+/// and no such collision, so a fix for a defect it does not have must not
+/// arrive here silently. `docs/patterns/onboarding.md` records the measurement,
+/// the two conditions that would make extraction right, and where the extracted
+/// widget would have to live.
 class _IuxOnboardingHeading extends StatelessWidget {
   const _IuxOnboardingHeading({
     required this.focusNode,
@@ -532,11 +559,10 @@ class _IuxOnboardingHeading extends StatelessWidget {
   /// a text-to-speech engine reads the stop as prosody rather than as
   /// orthography, and the same pause is wanted in every language.
   ///
-  /// **This is the third such site, and that test's preamble still says there
-  /// are two.** The count is stale rather than the rule: the trade is
-  /// identical, the test passes because a separator made only of punctuation
-  /// carries no word to ship untranslated, and IUX-036 does not own
-  /// `test/accessibility/`. Whoever next edits that file should say three.
+  /// **This is the third such site**, and `no_composed_strings_test.dart` now
+  /// says so in its preamble — it was written when there were two. The test
+  /// passes because a separator made only of punctuation carries no word to
+  /// ship untranslated.
   String get _spoken => <String>[position, title, body].join('. ');
 
   @override

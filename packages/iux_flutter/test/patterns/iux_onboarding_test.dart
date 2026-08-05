@@ -88,6 +88,14 @@ class _HostState extends State<_Host> {
   /// Forces a rebuild that is not a step change.
   void bump() => setState(() {});
 
+  /// Moves the flow without anybody having pressed anything inside it.
+  ///
+  /// The parent owns the index, so it may set it for a reason of its own — a
+  /// deep link, a restored session, a control the application drew beside the
+  /// flow. The pattern sees the same thing either way, which is what the test
+  /// using this measures.
+  void jump(int to) => setState(() => step = to);
+
   @override
   Widget build(BuildContext context) {
     final List<IuxOnboardingStep> steps = widget.content == null
@@ -586,6 +594,45 @@ void main() {
         isNot('IuxOnboardingFlow step'),
       );
     });
+
+    testWidgets('a step the parent moved on its own moves focus too',
+        (WidgetTester tester) async {
+      // Measured rather than assumed, and it corrects a sentence that used to
+      // read "nothing else can cause a step change". Something else can: the
+      // parent owns the index, so a deep link, a restored session or a control
+      // the application drew beside the flow can set it while the user was
+      // reading — or, as here, while their focus was on the way out.
+      //
+      // The move is kept anyway. The alternative is to move focus only after
+      // the flow's own request, which means arming a pending move and firing
+      // it on whatever change arrives next — IUX-039's finding against the two
+      // forms — and the failure it trades into is worse: a step that changes
+      // in silence is a screen-reader user reading the previous step's
+      // controls under a new step's heading.
+      final _HostState state = await host(tester, const _Host(initialStep: 1));
+
+      final FocusNode skip = Focus.of(
+        tester.element(find.text(_skipLabel)),
+        scopeOk: true,
+      );
+      skip.requestFocus();
+      await tester.pumpAndSettle();
+      expect(skip.hasPrimaryFocus, isTrue);
+
+      state.jump(2);
+      await tester.pumpAndSettle();
+
+      expect(state.requested, isEmpty,
+          reason: 'nothing inside the flow was pressed, so the flow asked for '
+              'nothing — this change came from the parent alone');
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'IuxOnboardingFlow step',
+        reason: 'the pattern cannot tell a press inside it from a parent that '
+            'moved the index, and this pins which of the two behaviours it '
+            'has so that changing it is a decision rather than a slip',
+      );
+    });
   });
 
   group('the heading announces the whole arrival', () {
@@ -702,6 +749,68 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets(
+        'a permission request in a step puts two ways on and two refusals '
+        'on one screen', (WidgetTester tester) async {
+      // The anti-pattern, built rather than described, because the cost of it
+      // is a number nobody counts by eye. IUX-031's guarantees do travel with
+      // the rationale — it still requires a reason, and its decline is still
+      // drawn as a peer of the ask — so the arrangement the type refuses stays
+      // refused. What is not repaired is the arithmetic, and this measures it.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await host(
+        tester,
+        _Host(
+          initialStep: 1,
+          content: IuxPermissionRationale(
+            moment: IuxBeforeAsking(
+              ask: IuxNamedAction(label: 'Allow the camera', onActivate: () {}),
+              decline: IuxNamedAction(label: 'Not now', onActivate: () {}),
+            ),
+            title: 'Photograph a receipt',
+            reason: 'The camera is used only to attach a receipt to an '
+                'invoice.',
+          ),
+        ),
+        size: const Size(400, 1400),
+      );
+
+      expect(
+        find.byType(IuxButton),
+        findsNWidgets(5),
+        reason: 'the rationale brings two controls of its own to a step that '
+            'already had three',
+      );
+
+      final List<String> spoken = tester.semantics
+          .simulatedAccessibilityTraversal()
+          .map((SemanticsNode node) => node.label)
+          .where((String label) => label.isNotEmpty)
+          .toList();
+
+      // Two controls go forward — one into the OS prompt, one into the next
+      // screen — and two refuse, one of them the flow's own exit. The user has
+      // to work out which of the four leaves what, and no assertion can see
+      // that. It is the concrete reason to ask at the feature instead.
+      for (final String label in <String>[
+        'Not now',
+        'Allow the camera',
+        _backLabel,
+        _skipLabel,
+        _forwardLabel,
+      ]) {
+        expect(spoken, contains(label), reason: label);
+      }
+      expect(
+        spoken.indexOf('Allow the camera'),
+        lessThan(spoken.indexOf(_forwardLabel)),
+        reason: 'the rationale sits in the content, above the flow\'s own '
+            'controls, so its pair is met first',
+      );
+      expect(spoken.indexOf('Not now'), lessThan(spoken.indexOf(_skipLabel)));
+      handle.dispose();
+    });
+
     testWidgets('a step without content draws nothing in its place',
         (WidgetTester tester) async {
       await host(tester, const _Host());
@@ -763,6 +872,70 @@ void main() {
       }
       // They did not all fit on one line, which is the point of wrapping.
       expect(rows.length, greaterThan(1));
+    });
+
+    testWidgets('every control survives 300% text on a 320dp window',
+        (WidgetTester tester) async {
+      // The catalog's worst case, and the narrowest Android width still
+      // shipped in volume. 200% is the WCAG floor; this is the combination an
+      // application actually meets on somebody's phone.
+      await host(
+        tester,
+        const _Host(initialStep: 2),
+        textScale: 3,
+        size: const Size(320, 900),
+      );
+
+      expect(tester.takeException(), isNull);
+
+      final Set<double> rows = <double>{};
+      for (final String label in <String>[
+        _backLabel,
+        _skipLabel,
+        _finishLabel,
+      ]) {
+        final Rect rect = tester.getRect(find.text(label));
+        expect(rect.left, greaterThanOrEqualTo(0), reason: label);
+        expect(rect.right, lessThanOrEqualTo(320), reason: label);
+        rows.add(rect.top);
+      }
+      expect(rows.length, 3,
+          reason: 'at 300% in 320dp the three controls each take a row of '
+              'their own, which is the outcome in which all three stay whole');
+
+      // The exit keeps the floor at the scale where a layout is likeliest to
+      // buy space back from it.
+      expect(
+        tester.getSize(find.widgetWithText(IuxButton, _skipLabel)).height,
+        greaterThanOrEqualTo(48),
+      );
+    });
+
+    testWidgets('the exit is still a peer at 200%, though not the same height',
+        (WidgetTester tester) async {
+      // The equal-height measurement in the documentation holds at the default
+      // text scale and is not a property of the pattern: two labels of
+      // different lengths wrap onto different numbers of lines. Measured here
+      // at 200% on 320dp, the exit is 106dp against the finishing control's
+      // 144 — and it does not matter, because the asymmetry this pattern
+      // refuses is drawing weight, not pixels. Both are full buttons, both
+      // keep the floor, and neither can be reduced to a bare word.
+      await host(
+        tester,
+        const _Host(initialStep: 2),
+        textScale: 2,
+        size: const Size(320, 900),
+      );
+
+      for (final String label in <String>[_skipLabel, _finishLabel]) {
+        final Finder button = find.widgetWithText(IuxButton, label);
+        expect(button, findsOneWidget, reason: label);
+        expect(
+          tester.getSize(button).height,
+          greaterThanOrEqualTo(48),
+          reason: '$label fell under the target floor at 200%',
+        );
+      }
     });
 
     testWidgets('the long body wraps rather than being cut',

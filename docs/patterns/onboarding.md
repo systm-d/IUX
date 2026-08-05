@@ -76,13 +76,78 @@ typedef*, imported from `lib/src/patterns/form/iux_guided_form_model.dart`, so
 the two stepped patterns cannot disagree about how a position is expressed.
 
 The private step headings are near-identical: 51 code lines here against 58
-there, and with comments stripped the entire difference is the class name and
-one field — the guided form's optional `description`, drawn in the supporting
-style, against this pattern's required `body`, drawn in the primary content
-style because it is the substance of the screen rather than a note above a set
-of questions. `IuxFocusable`, `Semantics(header: true)`, the joined `_spoken`
-label, `IuxSemantics.decorative`, the position-first column and the `softWrap`
-are the same lines in the same order.
+there, with comments and blank lines stripped. `IuxFocusable`,
+`Semantics(header: true)`, the joined `_spoken` label, `IuxSemantics.decorative`,
+the position-first column and the `softWrap` are the same lines in the same
+order.
+
+### IUX-ONBOARDING-003, measured again and closed as two copies
+
+The record said **40 of 51**. Measured again on the tree as it stands, by
+stripping comments and blank lines from both classes and taking the longest
+common subsequence: **44 of 51, or 86%.** The number went up, not down, and the
+right response is still to keep both. The argument is the breakdown rather than
+the total.
+
+| Of `_IuxOnboardingHeading`'s 51 lines | Count |
+| --- | --- |
+| identical to `_IuxStepHeading` | **44** |
+| — of those, pure punctuation (`),`, `],`, `);`) | 11 |
+| — of those, Dart and Flutter syntax two widgets holding the same three string fields and a column cannot avoid sharing | 24 |
+| — of those, **lines that carry a decision** | **9** |
+| different | 7 |
+
+The nine are the whole of the real overlap: `IuxFocusable`, `focusNode:`,
+`Semantics(`, `header: true`, `label: _spoken`, `IuxSemantics.decorative(` —
+the six that make one node carry the announcement — and the three that assign
+the position and the title their type roles. Every one of them is an IUX-033
+decision this pattern **reuses on purpose**, listed four paragraphs above and
+argued in `docs/patterns/stepped-form.md`. Two comparable patterns behaving
+comparably is the thing the project asks for, not debt: consistency is ranked
+above originality in `PROJECT_PROMPT.md` §4. Extracting a widget to enforce an
+agreement that is already deliberate buys nothing the reader can see.
+
+The other 35 are `required this.title,`, `final String position;`, `@override`,
+`softWrap: true` and closing brackets. A shared widget removes those and
+nothing else, which is a rename, not a refactor.
+
+**And the seven differences are not accidents of style — they are the two
+patterns disagreeing, correctly.** The guided form's `description` is optional
+and drawn in the supporting role, because it is a note above a set of
+questions. This pattern's `body` is required and drawn in the primary content
+role, because it is the substance of the screen and the step is refused without
+it. A shared widget would need a parameter to express that difference, and a
+parameter whose only two values are "guided form" and "onboarding" is a
+component that has encoded its two call sites — Component Standard §7 ("no
+parameter exists without a demonstrated need") and §8 ("a component that needs
+a new visual mode is usually two components").
+
+**The decisive argument is that the two must be able to diverge, and one of
+them is already under repair.** `IUX-GUIDED-FORM-LIVE-001` is open against the
+guided form: a live region fires in the same frame as the focus move to that
+heading. Whatever closes it will touch what happens in that heading's
+announcement frame. `IuxOnboardingFlow` has no live region, no validation
+summary and no submission, so it has no such collision — recorded, under
+"Where focus goes", as unaffected. Shared today, the fix for a defect this
+pattern does not have would land in this pattern silently, which is the exact
+failure mode a shared abstraction is supposed to be worth avoiding.
+
+**What would make extraction right**, so the next reader does not have to
+re-derive it:
+
+- a **third** stepped pattern needing the same heading — two call sites is the
+  weakest possible evidence for a shared component, and the project's standing
+  rule is *aucune couche transverse sans usages multiples démontrés*;
+- **or** `IUX-GUIDED-FORM-LIVE-001` being closed in a way that leaves both
+  headings wanting the same announcement frame.
+
+Until then the consolidation note stands: start from the two `_spoken` getters,
+and extract the nine decision lines as a **component** under
+`lib/src/components/`, which is where the standard says such a thing may live.
+It cannot live in either pattern directory, and it is not a foundation or a
+token. Doing it also means editing
+`lib/src/patterns/form/iux_guided_form.dart`, which no mission that has touched
+this pattern has owned yet.
 
 ### Why a composition was refused
 
@@ -92,11 +157,12 @@ would mean inventing a validation summary that summarises nothing and a
 submission that submits nothing — and then every screen-reader user would be
 told about an error summary that can never have an entry.
 
-The duplication is real and it is recorded rather than hidden. It is the same
-kind of debt `IuxProgressiveDisclosure` recorded against `IuxContextualHelp`'s
-private disclosure control. Extracting one shared step heading would mean
-editing `lib/src/patterns/form/iux_guided_form.dart`, which IUX-036 does not
-own; whoever consolidates them should start from the two `_spoken` getters.
+The duplication is real and it is recorded rather than hidden — but see the
+measurement above: it is 44 lines of which 9 carry a decision, and the decision
+is one the two patterns are supposed to share. That is a different thing from
+the debt `IuxProgressiveDisclosure` recorded against `IuxContextualHelp`'s
+private disclosure control, where a *control* exists twice and the two copies
+can drift in what they announce.
 
 ### What is genuinely new
 
@@ -138,7 +204,17 @@ descriptor is *derived* rather than accepted, exactly as
 not availability.
 
 Measured: on the last step, the exit and the control that ends the flow are the
-same widget at the same height, at or above the 48dp floor.
+same widget, at or above the 48dp floor.
+
+**They are the same height at the default text scale and not above it, and the
+distinction matters because the equal height is not what the guarantee rests
+on.** Measured at 200% on a 320dp window, the exit is 106dp against the
+finishing control's 144 — two labels of different lengths wrapping onto
+different numbers of lines. Both are still full `IuxButton`s, both still keep
+the floor, and neither can be reduced to a bare word by any parameter. The
+asymmetry this pattern refuses is drawing weight, not pixels; a caller who
+reads "the same height" as the promise will eventually enlarge their text and
+think something broke.
 
 **On every step, including the last.** An exit that disappears once the user is
 nearly through costs them the one control that must never need discovering —
@@ -170,6 +246,14 @@ controls and two refusals** — the rationale's pair inside, the flow's pair
 beneath — and the user has to work out which of the four leaves what. That is
 the concrete reason to ask at the feature instead, and it is a defect of
 composition that no assertion can see.
+
+Measured rather than asserted, on a middle step with an `IuxBeforeAsking` in
+`content`: **five controls on one screen**, in this reading order — *Not now,
+Allow the camera, Back, Skip setup, See how budgets work.* Two of them go
+forward, one into the OS prompt and one into the next screen; two refuse, and
+only one of those two ends the flow. The catalog's onboarding panel builds this
+branch on purpose and prints the count above the sample, because it is a number
+nobody arrives at by looking.
 
 **The flow's `skip` is not a permission decline.** Leaving an onboarding flow
 says nothing about a question that was put inside one of its screens, and an
@@ -222,7 +306,26 @@ sixth.
 | `IuxOnboardingFlow` (IUX-036) | **yes** | the user pressed Back or the forward control and is waiting to learn where they now are |
 
 IUX-033 reconciled the six with one test — *did the user ask for this?* A step
-change here is unambiguously asked for: nothing else can cause one.
+change caused by one of this flow's own controls is unambiguously asked for.
+
+**But something else can cause one, and that sentence used to say otherwise.**
+The index is the parent's, so a deep link, a restored session or a control the
+application drew beside the flow can change it while the user was reading —
+and the pattern moves focus for that just as it does for a press, because
+`didUpdateWidget` sees the same thing in both cases. Measured, and pinned by a
+test so that changing it is a decision rather than a slip.
+
+The behaviour is kept, and the reason is that the alternative is worse. To move
+focus only after this flow's own request means arming a pending move and firing
+it on whatever change arrives next — which is precisely IUX-039's finding
+against the two forms, one row down. That trade buys a rare unrequested focus
+move (SC 3.2.5, recoverable: the user is on a named heading that says where
+they are) at the price of an occasional **silent** step change (SC 4.1.3,
+unrecoverable: a screen-reader user reading one step's controls under another
+step's heading, with nothing to tell them). The announcement is the guarantee
+this pattern exists to make. A parent that changes the step for a reason of its
+own has changed the user's context, and announcing it is defensible; not
+announcing it never is.
 
 IUX-039 measured that reconciliation across all seven and found it sound
 everywhere except the two forms, where the question is asked once and then
@@ -410,7 +513,13 @@ something this pattern denies exists.
   reason the user cannot weigh, and truncation gets worse exactly when someone
   has enlarged their text because they were struggling to read.
 - Measured at 200% text on a 320dp screen: the three controls wrap onto more than
-  one row and every one stays whole and within the width.
+  one row and every one stays whole and within the width. Measured again at
+  **300% on 320dp**, which is the catalog's worst case and a real phone: three
+  rows, one control each, every one within the width, and the exit still at or
+  above the 48dp floor. The catalog panel reaches the same combination with
+  translated labels and is asserted on the geometry rather than on the absence
+  of an exception — a control wider than its window does not throw, it simply
+  hangs off the side.
 - Rendered and asserted under light, dark, high-contrast light and high-contrast
   dark, and under RTL.
 
@@ -475,8 +584,14 @@ Nothing here can stop it.
   scale is the caller's to place inside something scrollable, because a block
   embedded in a list that already scrolls must not introduce a second one. Pinned
   by a test.
-- **The step heading is duplicated from `IuxGuidedForm`.** 40 of its 51 code
-  lines are identical to `_IuxStepHeading`'s. Recorded above.
+- **The step heading is duplicated from `IuxGuidedForm`.** 44 of its 51 code
+  lines are identical to `_IuxStepHeading`'s — re-measured, up from the 40 on
+  record — of which 9 carry a decision and the rest are syntax. Closed as **two
+  copies kept on purpose**, with the two conditions that would reopen it stated
+  above. `IUX-ONBOARDING-003`.
+- **A step change the parent made for its own reason still moves focus.** The
+  pattern cannot tell it from a press. Kept deliberately; the argument and the
+  alternative are above, and a test pins it.
 - **There is no step indicator of any kind beyond the sentence.** Deliberate, and
   the measurement is above.
 - **The assertions are debug-only.**
@@ -484,6 +599,33 @@ Nothing here can stop it.
   screens teach anything, and whether the application would be better with none
   of them, is a judgement no widget can make. The strongest thing this pattern
   does about it is refuse a single-step flow and name the alternative.
+
+## In the catalog
+
+`apps/catalog`, **Flows** section, panel *"An introduction the user did not ask
+for"*. It was the only exported pattern without one: IUX-037 recorded this
+directory as unexported and skipped it, and the exports had landed 21 minutes
+earlier.
+
+The panel is a stress harness rather than a showcase, so it is built around the
+branches where the pattern is worth doubting:
+
+| Branch | What it is there to show |
+| --- | --- |
+| the step chips, 1–3 | the exit is on **every** step, and on the last the forward control is replaced while the exit is not |
+| leaving vs finishing | two counters, because the difference is what the application records and not what the user sees happen |
+| a setting in `content` | the legitimate use of the slot: a control that keeps its own focus stop, after the heading and before the flow's controls |
+| a permission request in `content` | the anti-pattern, built rather than described, with the arithmetic printed above it |
+| the 320dp window chip | the narrowest phone, which the catalog's global text-scale axis cannot reach on its own |
+| pressing a step chip rather than a control | the parent-driven focus move, recorded as a finding on the panel itself |
+
+Three things are deliberately **not** in it. There is no auto-advance branch and
+no swipe branch, because neither is constructible through this API and a panel
+cannot demonstrate the absence of a parameter — the refusal panel at the end of
+the section carries those in words instead. There is no branch in which the
+sample stops answering a press, unlike every other panel in that section: a flow
+with nothing to press would be a flow with no way out, and that is
+unconstructible, so the "Test it" frame is unconditional here.
 
 ## Evidence level
 

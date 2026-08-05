@@ -16,6 +16,13 @@ import 'catalog_testable.dart';
 /// So the harness supplies the bad day. Each panel switches between the
 /// branches by hand, and several of them build the limitation the
 /// documentation records rather than avoiding it.
+///
+/// The onboarding flow at the end is the one exception to the "worst day"
+/// framing, and it earns its place here for the opposite reason: it is the
+/// screen a user reaches on their *first* day, before they have asked for
+/// anything at all. Everything it costs is charged to somebody who opened the
+/// application to do something else — which is why the branch that matters
+/// most in it is the one where they leave.
 class FlowPanels extends StatelessWidget {
   /// Creates the pattern harness.
   const FlowPanels({
@@ -39,6 +46,7 @@ class FlowPanels extends StatelessWidget {
           _PermissionPanel(longLabels: longLabels),
           _DestructiveFlowPanel(longLabels: longLabels, overlays: overlays),
           _DisclosurePanel(longLabels: longLabels),
+          _OnboardingPanel(longLabels: longLabels),
           const _FlowRefusalPanel(),
         ],
       );
@@ -967,6 +975,296 @@ class _VolatileNoteState extends State<_VolatileNote> {
       );
 }
 
+/// What the step on screen is showing beyond its two sentences.
+enum _StepShows {
+  /// The ordinary step: a title and the sentence that has to earn the screen.
+  sentences('two sentences — the ordinary step'),
+
+  /// The one setting the documentation says is worth choosing up front.
+  setting('a setting worth choosing up front'),
+
+  /// The thing onboarding is traditionally used for, and must not be.
+  permission('a permission request — the anti-pattern');
+
+  const _StepShows(this.title);
+
+  final String title;
+}
+
+class _OnboardingPanel extends StatefulWidget {
+  const _OnboardingPanel({required this.longLabels});
+
+  final bool longLabels;
+
+  @override
+  State<_OnboardingPanel> createState() => _OnboardingPanelState();
+}
+
+class _OnboardingPanelState extends State<_OnboardingPanel> {
+  /// Owned here, because the pattern never advances itself.
+  int _step = 0;
+
+  _StepShows _shows = _StepShows.sentences;
+
+  /// Whether the flow is squeezed into the narrowest Android width.
+  ///
+  /// The catalog's text-scale axis is global; its width is whatever window the
+  /// harness is running in. The combination that actually breaks a row of
+  /// controls is *both* — 300% text in 320dp — and this chip is the only way
+  /// to reach it on a desktop or a tablet.
+  bool _narrow = false;
+
+  bool _weekly = false;
+  int _left = 0;
+  int _finished = 0;
+  int _asked = 0;
+  int _refused = 0;
+
+  static const double _smallPhoneWidth = 320;
+
+  List<IuxOnboardingStep> get _steps {
+    final bool long = widget.longLabels;
+    final Widget? content = switch (_shows) {
+      _StepShows.sentences => null,
+      _StepShows.setting => IuxCheckbox(
+          label: long ? 'Jeden Montag erinnern' : 'Remind me every Monday',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(
+              label: 'Remind me every Monday',
+              hint: 'Can be changed later in Settings',
+            ),
+          ),
+          value: _weekly
+              ? IuxSelectionState.selected
+              : IuxSelectionState.unselected,
+          onChanged: (bool selected) => setState(() => _weekly = selected),
+        ),
+      _StepShows.permission => IuxPermissionRationale(
+          moment: IuxBeforeAsking(
+            ask: IuxNamedAction(
+              label: 'Allow the camera',
+              onActivate: () => setState(() => _asked++),
+            ),
+            decline: IuxNamedAction(
+              label: 'Not now',
+              onActivate: () => setState(() => _refused++),
+            ),
+          ),
+          title: 'Photograph a receipt',
+          reason: 'The camera is used only to attach a receipt to an invoice. '
+              'Nothing is stored or sent anywhere else.',
+        ),
+    };
+
+    return <IuxOnboardingStep>[
+      IuxOnboardingStep(
+        title: long
+            ? 'Behalten Sie Ihre Ausgaben im Blick'
+            : 'Track what you '
+                'spend',
+        body: long
+            ? 'Fotografierte Belege werden ausschließlich auf diesem Gerät '
+                'gelesen und niemals hochgeladen.'
+            : 'Receipts are read on this device and never uploaded.',
+        content: content,
+      ),
+      IuxOnboardingStep(
+        title: long ? 'Legen Sie ein Monatsbudget fest' : 'Set a budget',
+        body: long
+            ? 'Wir melden uns, sobald Sie sich der festgelegten Grenze nähern.'
+            : 'We tell you when you are close to it.',
+        content: content,
+      ),
+      IuxOnboardingStep(
+        title: long ? 'Teilen Sie es im Haushalt' : 'Share it',
+        body: long
+            ? 'Alle im Haushalt sehen dieselben Zahlen, ohne ein zweites Konto.'
+            : 'Everyone in the household sees the same figures.',
+        content: content,
+      ),
+    ];
+  }
+
+  /// How many controls the step on screen is carrying, and what they do.
+  ///
+  /// Counted from the state rather than from the tree, so the arithmetic the
+  /// documentation warns about is visible before the reader has to count
+  /// buttons by eye. Back is neither a way forward nor a refusal: it is the
+  /// way out of a mistake.
+  (int, int, int) get _arithmetic {
+    final int back = _step > 0 ? 1 : 0;
+    final int forward = 1 + (_shows == _StepShows.permission ? 1 : 0);
+    final int refusing = 1 + (_shows == _StepShows.permission ? 1 : 0);
+    return (back + forward + refusing, forward, refusing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final bool long = widget.longLabels;
+    final (int controls, int forward, int refusing) = _arithmetic;
+
+    final Widget flow = IuxOnboardingFlow(
+      steps: _steps,
+      currentStep: _step,
+      onStepChanged: (int next) => setState(() => _step = next),
+      describePosition: (int step, int count) => '$step of $count',
+      backLabel: long ? 'Zurück' : 'Back',
+      forwardLabel: long
+          ? 'Sehen, wie Budgets funktionieren'
+          : 'See how '
+              'budgets work',
+      skip: IuxNamedAction(
+        label: long ? 'Einrichtung überspringen' : 'Skip setup',
+        onActivate: () => setState(() => _left++),
+      ),
+      finish: IuxNamedAction(
+        label: long ? 'Ledger jetzt verwenden' : 'Start using Ledger',
+        onActivate: () => setState(() => _finished++),
+      ),
+    );
+
+    final Widget sample = IuxSurface(
+      role: IuxSurfaceRole.subtle,
+      bordered: true,
+      padding: IuxInsets.surface(context),
+      child: flow,
+    );
+
+    return CatalogPanel(
+      title: 'An introduction the user did not ask for',
+      description: 'Every other stepped pattern here exists because the user '
+          'started something. This one exists because the application did, and '
+          'that single fact is where all of its decisions come from. Walk it '
+          'with the exit in mind: it is on every step, including the last, it '
+          'is a full control rather than a grey word, and there is no '
+          'parameter anywhere that removes it.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          CatalogChoice<int>(
+            label: 'Step',
+            value: _step,
+            values: const <int>[0, 1, 2],
+            naming: (int value) => '${value + 1} of 3',
+            onChanged: (int value) => setState(() => _step = value),
+          ),
+          CatalogChoice<_StepShows>(
+            label: 'Step shows',
+            value: _shows,
+            values: _StepShows.values,
+            naming: (_StepShows value) => value.title,
+            onChanged: (_StepShows value) => setState(() => _shows = value),
+          ),
+          CatalogChoice<bool>(
+            label: 'Window',
+            value: _narrow,
+            values: const <bool>[false, true],
+            naming: (bool value) =>
+                value ? '320dp — the narrowest phone' : 'the page width',
+            onChanged: (bool value) => setState(() => _narrow = value),
+          ),
+          SizedBox(height: geometry.spacingXs),
+          // Always framed. Unlike every other panel in this section there is
+          // no branch in which the sample stops answering a press: a flow with
+          // nothing to press would be a flow with no way out, and that is the
+          // one arrangement this pattern makes unconstructible.
+          CatalogTestable(
+            what: 'Walks the flow. The exit is on every step including the '
+                'last, and pressing it leaves without finishing — the two '
+                'counts below are what an application uses to tell the '
+                'difference. Nothing advances on its own, however long you '
+                'wait.',
+            child: _narrow
+                ? Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: SizedBox(width: _smallPhoneWidth, child: sample),
+                  )
+                : sample,
+          ),
+          SizedBox(height: geometry.spacingXs),
+          CatalogRows(<(String, String)>[
+            ('Step showing', '${_step + 1} of 3'),
+            ('How this flow ended', '$_left left, $_finished finished'),
+            (
+              'Controls on this screen',
+              '$controls — $forward forward, $refusing refusing'
+            ),
+            if (_shows == _StepShows.permission)
+              ('Permission', '$_asked asked, $_refused refused'),
+          ]),
+          const CatalogNote(
+            'The last step is the one to look at. The control that ends the '
+            'flow appears and the forward control goes, but the exit stays — '
+            'drawn as a full button beside it, with the same target floor and '
+            'the same place in the reading order. Removing it there is the '
+            'anti-pattern the whole pattern is built against, and there is no '
+            'parameter that could.',
+          ),
+          const CatalogNote(
+            'Press a Step chip above rather than the flow\'s own controls and '
+            'watch where the focus outline goes: it leaves the chip and lands '
+            'on the step heading. The flow moves focus on any currentStep '
+            'change and cannot tell a press inside it from a parent that '
+            'changed the index for a reason of its own — which is what this '
+            'chip is. Measured here, and the alternative is worse: a flow that '
+            'only moved focus after its own request would arm a pending move '
+            'and eventually announce nothing at all, which is IUX-039\'s '
+            'finding against the two forms.',
+            finding: true,
+          ),
+          const CatalogNote(
+            'Switch "Step shows" to the permission request and read the '
+            'arithmetic above: five controls, two of which go forward and two '
+            'of which refuse, and the user has to work out which of the four '
+            'leaves what. IUX-031\'s guarantees travel with the rationale — it '
+            'still requires a reason and still draws its decline as a peer — '
+            'but nothing repairs the count. That is the concrete reason to ask '
+            'at the feature instead, and no assertion can see it.',
+            finding: true,
+          ),
+          const CatalogNote(
+            'The flow\'s exit is not a permission decline. Leaving says '
+            'nothing about a question that was put inside one of the screens '
+            'the user left, and an application that records it as an answer '
+            'has recorded something the user never said.',
+          ),
+          const CatalogNote(
+            'Set the window to 320dp and the text scale to 300%. The three '
+            'controls wrap onto three rows rather than overflowing, every one '
+            'stays whole and within the width, and the exit keeps the target '
+            'floor. What does not survive is equal height: at 200% in 320dp '
+            'the exit measures 106dp against the finishing control\'s 144, '
+            'because two labels of different lengths wrap onto different '
+            'numbers of lines. Both are still full buttons, which is the '
+            'asymmetry the pattern actually refuses.',
+          ),
+          const CatalogNote(
+            'There is no dot row, and the position is text. A row of decorated '
+            'boxes carries position through shape and place alone, and '
+            'produces no semantic node at all — measured in the pattern\'s own '
+            'test, which builds the naive version deliberately as evidence for '
+            'not shipping one.',
+          ),
+          const CatalogNote(
+            'Nothing auto-advances and nothing swipes. A screen that replaces '
+            'itself is a time limit on reading, and a horizontal drag has no '
+            'name, no focus stop and no D-pad equivalent — on Android it is '
+            'TalkBack\'s own gesture, so it never reaches the application. '
+            'Wait as long as you like above: the step does not move.',
+          ),
+          const CatalogNote(
+            'Nothing here scrolls. At 300% the block simply grows and the '
+            'catalog page scrolls, which is the same rule the empty state and '
+            'the search results inherit: a block placed inside a list that '
+            'already scrolls must not introduce a second one.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FlowRefusalPanel extends StatelessWidget {
   const _FlowRefusalPanel();
 
@@ -993,7 +1291,19 @@ class _FlowRefusalPanel extends StatelessWidget {
               ('no prompt and no way back', 'destruction with no question'),
               ('an empty disclosure summary', 'a control naming nothing'),
               ('an empty failure message', 'a red block saying nothing'),
+              ('an onboarding flow of one step', 'a screen, not a flow'),
+              ('a step outside the flow', 'it would announce "4 of 3"'),
+              ('an onboarding step with no title', 'focus lands nowhere named'),
+              ('an onboarding step with no body', 'a screen bought for a noun'),
+              ('an unnamed back or forward control', 'announced as "button"'),
             ]),
+            CatalogNote(
+              'The last five are the onboarding flow\'s, and its most '
+              'load-bearing refusal is not on the list because it is not an '
+              'assert at all: skip and finish are required parameters, so an '
+              'introduction with no way out does not compile. That is the one '
+              'guarantee here a release build cannot lose.',
+            ),
             CatalogNote(
               'The undo refusal is the interesting one. An undo protects only '
               'somebody who can tell they need it: a user who deleted the '
