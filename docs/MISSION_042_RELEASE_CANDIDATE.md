@@ -429,19 +429,32 @@ Horizontally it is fixed: re-measured with the pilot's own row, **0 px at 100%,
 pilot's suite rather than rounded away — with the title box holding 136 px
 instead of collapsing.
 
-**But the fix bounded the trailing control to a one-third width share, so at
-300% the status wraps and drives the row's height instead.** Measured: the row
-is **480 px tall without the status and 924 px with it — a one-word status adds
-444 px** — and in a bounded 320x640 box with no scrollable the pair overflows
-**284 px on the bottom**, where the same row without the status fits with 160 px
-to spare. That is this entry's own signature, pair-only and invisible to either
-component's tests, relocated from the horizontal axis to the vertical one.
-Neither `IuxListItem` nor `IuxListGroup` carries the `hasBoundedHeight`
-discriminator that closed B3 for the two patterns. **Whether a 924 px row at
-300% is a defect at all is a real question** — the content may genuinely need
-that height, and the caller who put it in a bounded box with no scrollable made
-B3's mistake in reverse — but it is currently answered nowhere, which is the
-part that is not acceptable.
+**The fix had bounded the trailing control to a one-third width share, so at
+300% the status wrapped and drove the row's height instead** — 480 px tall
+without the status, **924 with it, 444 px for one word**, and 284 px of bottom
+overflow in a bounded 320x640 box where the row alone had 160 to spare. This
+entry's own signature, pair-only, relocated from one axis to the other.
+
+**Now closed on both axes, and the diagnosis changed on measurement.** The cap
+was not failing only at 300%: it laid the control out below its minimum width at
+**every** scale, including 100%. The share is 86 px and does not grow, while an
+`IuxStatusIndicator` reading one word has min intrinsic equal to max intrinsic —
+180 px at 100%, 472 at 300% — because a single word has no wrap point. Handed
+less, the label breaks **inside the word, one glyph to a line**. So the height
+was not honest content height and the B3-in-reverse argument does not apply: the
+row was manufacturing it. The recorded "6 px residual" was not the row's either
+— it was raised inside the indicator, whose label had been laid out in a box
+**zero pixels wide** and painted outside it. The height was the symptom; an
+unreadable status was the defect.
+
+The row now uses the share as the question rather than the answer: a trailing
+control keeps the line while what it asks for fits, and moves under the row's
+text when it does not. No overflow on either axis at 100, 150, 200 or 300%, and
+a row that genuinely does not fit still clips, draws the indicator and reports —
+clamping without reporting would have made a visible overflow silent. What
+remains open is not geometry but perception, and it is B12's: whether a control
+that has moved below the row's text still reads as a *second* target under
+TalkBack.
 
 **B12 — The manual validation register is empty.** No TalkBack run, no Voice
 Access run, no physical keyboard or D-pad pass, no on-device display scaling,
