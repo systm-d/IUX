@@ -28,6 +28,45 @@ height parameter, non-negative bars only, the right-to-left mirroring is a
 decision rather than a standard, and nothing here has been looked at on a
 running screen.
 
+### Also on this branch, and not part of IUX-043
+
+Two workstreams shared a working tree while this mission ran, and a broad
+`git add` merged them: **the commit `754c4fe` ("IUX-043: IuxLineChart, band and
+all") also contains `iux_list_item.dart` and `iux_list_test.dart` in full**, and
+a later chart commit carries the list panel in `apps/catalog`. Nothing was lost
+and everything is tested, but a reader looking for the reasoning behind the list
+change will not find it in the message above it. It is here instead.
+
+- **`IUX-LISTITEM-TRAILING-001` is closed on both axes.** Bounding the trailing
+  control to the row's one-third share had closed the width overflow (214 px at
+  300% down to 6) and opened its mirror image on the other axis, which nothing
+  recorded until a read-only audit measured it. The share is 86 px and does not
+  grow with the text, while an `IuxStatusIndicator` reading one word has a
+  minimum intrinsic width of 180 px at 100% — a single word has no wrap point,
+  so below its minimum the label breaks **inside the word, one glyph to a
+  line**. The row was 480 px tall without the status and 924 with it: 444 px for
+  one word, and 284 px of bottom overflow in a bounded 320x640 box.
+
+  The recorded "6 px residual" was never the row's either. It was raised inside
+  the indicator, whose label had been laid out in a box **zero pixels wide** and
+  painted outside it. The height was the symptom; an unreadable status was the
+  defect.
+
+  The row now uses the share as the question rather than the answer: a trailing
+  control keeps the line while what it asks for fits, and moves under the row's
+  text when it does not. No overflow on either axis at 100, 150, 200 or 300%. A
+  row that genuinely does not fit still clips, draws the indicator and reports,
+  because clamping without reporting would have made a visible overflow silent.
+  Side effect: a row carrying a control can now answer `IntrinsicHeight` and
+  `IntrinsicWidth`.
+
+- **Eleven of the twelve release blockers were re-measured** by an audit with no
+  write access, at `d72dc49`. B1–B10 closed, B11 partially (the entry above is
+  its other half), B12 untouched. `docs/MISSION_042_RELEASE_CANDIDATE.md` §4
+  carries the measurement for each, including two sentences of its own that had
+  become literally false, B2's and B4's guarantees holding in debug builds only,
+  and the 24 px that B5's surviving half was missing.
+
 ## 0.2.0-dev.2 — the IUX-042 follow-through
 
 No new mission. This entry records the work that closed the release
