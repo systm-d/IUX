@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_accessibility.dart';
@@ -148,6 +149,22 @@ const double _minimumContentWidth = 320;
 /// window, a panel inside a larger layout and a real device are all measured
 /// the same way. A component that asked how big the *display* was would put a
 /// rail in a 300-pixel pane on a tablet.
+///
+/// ## It needs a bounded box, and now says so
+///
+/// An axis with no end cannot be compared with anything, so a box that is
+/// unbounded in either direction is refused in debug — see
+/// `_debugCheckHasBoundedBox`. Both terms of the rule are comparisons against
+/// the width available, and neither has an answer when that width is infinite.
+///
+/// It used to fall through to the bar instead, which is the phone arrangement
+/// and was reached without a measurement of any kind. That failed too, but only
+/// afterwards and in the framework's words: measured, one
+/// `SingleChildScrollView` around this component produced 27 exceptions, the
+/// first of them *RenderFlex children have non-zero flex but incoming height
+/// constraints are unbounded*, reported against a `Column` this component owns
+/// and the caller never wrote. Nothing in it said navigation, said rail, or
+/// said what to do. The refusal below is the same failure, named.
 class IuxAdaptiveNavigation extends StatelessWidget {
   /// Creates navigation that adapts to the window it is given.
   ///
@@ -158,9 +175,10 @@ class IuxAdaptiveNavigation extends StatelessWidget {
   /// to be testing on. Restating the rules here would be a third copy that can
   /// disagree with the other two.
   ///
-  /// The one check `build` does make is about the tree rather than the
-  /// arguments, which is why it cannot live here: whether this component was
-  /// placed underneath an `IuxTransientLayer`.
+  /// The two checks `build` does make are about the tree and the box rather
+  /// than the arguments, which is why neither can live here: whether this
+  /// component was placed underneath an `IuxTransientLayer`, and whether the
+  /// box it was handed has an end in both directions.
   const IuxAdaptiveNavigation({
     super.key,
     required this.label,
@@ -229,6 +247,11 @@ class IuxAdaptiveNavigation extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        // Before the rule rather than inside it: an unbounded axis is not a
+        // window this component may choose an arrangement for, and the choice
+        // it used to make there was the bar, reached without a measurement.
+        assert(_debugCheckHasBoundedBox(constraints));
+
         if (_prefersRail(context, constraints)) {
           final bool startIsLeft =
               Directionality.of(context) == TextDirection.ltr;
@@ -296,11 +319,87 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     );
   }
 
+  /// Whether [constraints] describe a box an arrangement can be chosen for.
+  ///
+  /// Returns true when both axes are bounded, and throws a [FlutterError]
+  /// otherwise. The whole body is inside an assertion, so a release build
+  /// carries none of it and keeps the old behaviour — the bar, chosen by
+  /// elimination in `_prefersRail`, which is the only arrangement that does not
+  /// need a width to be decided.
+  ///
+  /// Private, and it stays private: a caller who wants to make this decision
+  /// themselves needs [IuxNavigationRail.widthFor], which is already public and
+  /// answers the question this one only guards.
+  ///
+  /// **What it replaces.** The rule below is two comparisons against the width
+  /// available — is it at least the height, and is it more than the rail costs
+  /// — and an infinite width answers both of them "yes" for a reason that has
+  /// nothing to do with the window. So the component answered "bar" instead, a
+  /// measurement it had not made, and the failure surfaced one layer down as
+  /// *RenderFlex children have non-zero flex but incoming height constraints
+  /// are unbounded*: 27 exceptions from a single `SingleChildScrollView`,
+  /// naming a `Column` that lives in this file and that the caller never wrote.
+  ///
+  /// The page for this component claimed the case was asserted from IUX-025
+  /// until IUX-042 struck the claim. This is the assertion, written rather than
+  /// the sentence corrected a second time: the alternative was a loud failure
+  /// in the framework's words, and `PROJECT_PROMPT.md` §22 and §52 ask for one
+  /// in ours.
+  static bool _debugCheckHasBoundedBox(BoxConstraints constraints) {
+    assert(() {
+      if (constraints.hasBoundedWidth && constraints.hasBoundedHeight) {
+        return true;
+      }
+      final String axes =
+          !constraints.hasBoundedWidth && !constraints.hasBoundedHeight
+              ? 'neither a width nor a height'
+              : constraints.hasBoundedWidth
+                  ? 'no height'
+                  : 'no width';
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary('IuxAdaptiveNavigation was given $axes.'),
+        ErrorDescription(
+          'It chooses between a bottom bar and a rail by comparing the width '
+          'it was offered with the height, and with the width the rail\'s own '
+          'destination names need at the text size in force. An axis with no '
+          'end is not short of anything, so neither comparison has an answer '
+          'and there is no arrangement to choose.\n'
+          '\n'
+          'A scroll view is the usual cause, and it offers an unbounded '
+          'height. Before this check the component took the bar there — the '
+          'phone arrangement, on a window nobody had measured — and the '
+          'layout then failed anyway, one level down, with "RenderFlex '
+          'children have non-zero flex but incoming height constraints are '
+          'unbounded" reported against a Column inside this component.',
+        ),
+        ErrorHint(
+          'Put IuxAdaptiveNavigation in Scaffold.body, or in any box with a '
+          'width and a height: a SizedBox, an Expanded inside a Column, a '
+          'SizedBox.expand. It is the frame for a screen, so it needs the '
+          'screen\'s box; it is not content, and content is the only thing '
+          'that belongs in a scroll view.\n'
+          '\n'
+          'To show a rail as a specimen — which is what apps/catalog does — '
+          'give it a box of its own inside the scroll view, or place '
+          'IuxNavigationRail directly and measure with '
+          'IuxNavigationRail.widthFor.',
+        ),
+        DiagnosticsProperty<BoxConstraints>(
+          'The offending constraints were',
+          constraints,
+        ),
+      ]);
+    }());
+    return true;
+  }
+
   /// Whether the rail is the arrangement this window can afford.
   ///
-  /// Returns false for an unbounded constraint in either axis. A width with no
-  /// end cannot be short of anything, and a component that answered "rail"
-  /// there would be reasoning about a window that has not been decided yet.
+  /// Returns false for an unbounded constraint in either axis, which in debug
+  /// is unreachable — [_debugCheckHasBoundedBox] has already thrown. It stays
+  /// because a release build has no assertions: the bar is then the only
+  /// arrangement that can be chosen without a width, and choosing it is still
+  /// better than measuring a rail against infinity.
   bool _prefersRail(BuildContext context, BoxConstraints constraints) {
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
       return false;
@@ -320,9 +419,14 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     // against a positive budget answers a negative number exactly as it
     // answers a small positive one — so the case where the rail is not an
     // arrangement at all read as the case where it is merely a tight one.
-    // Measured on 360 x 320 at 300% text with five short destination names:
-    // the rail wanted 396 pixels against a 360-pixel window, the Row overflowed
-    // by 36, and the content beside it was laid out at zero.
+    // The audit measured it at 300% in a 360 x 320 box, where the catalog's own
+    // destination names put the rail at 396 pixels: the Row overflowed by 36
+    // and the content beside it was laid out at zero. Re-measured against the
+    // arithmetic rather than against one font — five short names cost 354 at
+    // 300% in the widget-test face — a landscape box 36 pixels narrower than
+    // whatever the rail costs overflows by exactly 36, and one 100 narrower by
+    // exactly 100. The overflow is the deficit; the font only decides where the
+    // deficit starts.
     //
     // Nothing below can rescue it. The rail's width is the width its names
     // need, and clamping it would clip the destination the user is looking
@@ -333,7 +437,7 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     //
     // **The floor is zero, and deliberately not more.** A window this small at
     // this text scale has no arrangement that leaves a usable page — measured
-    // on 360 x 320 at 300%, five short names put the rail at 352 and the page
+    // on 360 x 320 at 300%, five short names put the rail at 354 and the page
     // at six pixels wide, while the bar on the same window takes all 320 and
     // leaves the page none. Raising this floor to a touch target would trade
     // the first for the second, which is not an improvement, and the real
@@ -351,7 +455,7 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     // Above the threshold the bar is not a strip; it is a full-width list of
     // destinations, and on a short landscape window it takes the whole of the
     // scarce axis. Measured on a 640 × 320 window at 300% text: the rail leaves
-    // 288 pixels of content — under the budget, and the reason the budget said
+    // 286 pixels of content — under the budget, and the reason the budget said
     // no — while the bar leaves **zero**. Choosing the bar there is choosing the
     // arrangement that spends the axis the window has least of, which is the one
     // thing this component exists to avoid.

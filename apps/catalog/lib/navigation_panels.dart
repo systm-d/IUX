@@ -410,8 +410,16 @@ class _RailPanelState extends State<_RailPanel> {
                   'pixels; the same arrangement on an 800-wide one reports '
                   'nothing, because 800 is wide enough for the 396 the rail '
                   'asks for. IuxAdaptiveNavigation now refuses a rail that '
-                  'will not fit at all — a caller placing one by hand still '
-                  'gets no such refusal and no warning.',
+                  'will not fit at all. A rail placed by hand gets no such '
+                  'refusal — and cannot: a Row lays out a non-flexible child '
+                  'against an infinite width, so the rail is never told the '
+                  'window it is in and has nothing to compare. What it does '
+                  'get is Flutter\'s own report, and the overflow is exactly '
+                  'the number of pixels the rail was short by — measured at '
+                  '100%, 200% and 300%. In a bounded box narrower than it '
+                  'asked for there is no report at all: the rail takes what it '
+                  'is given, the names wrap, and every destination still '
+                  'renders.',
                   finding: true,
                 ),
               const CatalogNote(
@@ -569,18 +577,18 @@ class _AdaptivePanelState extends State<_AdaptivePanel> {
             'That is right — the user sees the box, not the hardware.',
           ),
           const CatalogNote(
-            'An unbounded box is still unhandled, and it is worth knowing what '
-            'actually happens now that the documentation no longer claims an '
-            'assertion. Measured: put this inside a SingleChildScrollView on a '
-            '1200-wide surface and the private width check returns false for '
-            'the unbounded height, so the widget chooses the bar — the phone '
-            'arrangement on a tablet — and then Flutter throws "RenderFlex '
-            'children have non-zero flex but incoming height constraints are '
-            'unbounded" from the component\'s own Column. So it fails loudly '
-            'after all, but by accident and in somebody else\'s words: nothing '
-            'in the message says a rail was wanted, or that a scroll view is '
-            'the wrong place for one.',
-            finding: true,
+            'An unbounded box is now refused by name, which the documentation '
+            'claimed from IUX-025 until IUX-042 struck the claim. Measured '
+            'before the fix: put this inside a SingleChildScrollView and the '
+            'private '
+            'width check returned false for the unbounded height, so the '
+            'widget chose the bar — the phone arrangement on a tablet — and '
+            'Flutter then threw "RenderFlex children have non-zero flex but '
+            'incoming height constraints are unbounded" from the component\'s '
+            'own Column, 27 exceptions in all. Loud, but by accident and in '
+            'somebody else\'s words: nothing in it said navigation, said rail, '
+            'or said what to do. The assertion says all three. It is an '
+            'assert, so a release build still falls through to the bar.',
           ),
         ],
       ),

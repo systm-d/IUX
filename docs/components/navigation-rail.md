@@ -82,12 +82,17 @@ The middle term asks whether the rail **fits**; the last one asks how much it
 remainder, and a negative number fails a positive budget in exactly the way a
 small positive one does. The budget therefore answered "narrow" to a rail that
 did not fit at all, and the stacked-layout fallback below then chose it anyway.
-Measured at 300% on 360x320: the rail wanted 396 px against a 360 px window,
-the `Row` overflowed by 36, and the content beside it was laid out at zero.
+The audit measured it at 300% on 360x320, where the catalog's own destination
+names put the rail at 396 px against a 360 px window: the `Row` overflowed by
+36 and the content beside it was laid out at zero. Re-measured as arithmetic
+rather than as one font — five short names cost 354 px at 300% in the
+widget-test face — **the overflow is exactly the deficit**: a landscape box 36
+px narrower than the rail overflows by 36, one 100 px narrower by 100. Both are
+pinned, with the window derived from `widthFor`.
 
 The floor is zero and deliberately not more. A window that small at that text
 scale has no arrangement leaving a usable page — five short names put the rail
-at 352 px there, so the page is six pixels wide, while the bar takes all 320 of
+at 354 px there, so the page is six pixels wide, while the bar takes all 320 of
 the height and leaves none. Raising the fit term to a touch target would trade
 the first for the second, which is not an improvement. This term fixes the case
 that is unambiguously wrong — a rail wider than the screen it is drawn on — and
@@ -112,6 +117,36 @@ The decision reads the constraints the widget **receives**, not the display. A
 split-screen window, a panel inside a larger layout and a real device are all
 measured the same way; a component that asked how big the *screen* was would
 put a rail in a 300-pixel pane on a tablet.
+
+### An unbounded box is refused, and what it used to do instead
+
+Both terms of the rule compare something against the width available. An
+infinite width answers both of them "yes" for a reason that has nothing to do
+with the window, so a box unbounded in either axis is **refused in debug**,
+before the rule runs, with an error naming `IuxAdaptiveNavigation` and saying
+where the component belongs.
+
+That refusal is new, and it replaces a claim this page made from IUX-025 until
+IUX-042 struck it. The private width check returned false for an unbounded
+constraint, so the component chose the **bar** — the phone arrangement, on a
+window it had not measured — and the layout then failed anyway one level down.
+Measured: one `SingleChildScrollView` around `IuxAdaptiveNavigation` produced
+**27 exceptions**, the first of them *RenderFlex children have non-zero flex
+but incoming height constraints are unbounded*, reported against a `Column`
+that lives inside this component and that the caller never wrote. Nothing in
+it said navigation, said rail, or said what to do.
+
+So the choice was not between a silent failure and a loud one — it was between
+a loud failure in somebody else's words and a loud failure in ours.
+`PROJECT_PROMPT.md` §22 asks components to detect invalid configurations and
+produce explicit messages, and §52 forbids masking a critical error; making the
+documentation match the old behaviour would have satisfied neither. The
+assertion was written instead. It is an `assert`, so a release build still
+falls through to the bar — the only arrangement that can be chosen without a
+width — exactly as before.
+
+Nothing bounded changed. The arrangement chosen was pinned across 25 windows ×
+7 text scales (100% to 300%) before and after, and every cell is identical.
 
 ### What was measured
 
@@ -382,11 +417,15 @@ where a rail is chosen at all are tens of pixels against hundreds to spare.
 | `onDestinationSelected` | `ValueChanged<int>` | same callback, same index, whichever arrangement is showing. |
 | `child` | `Widget` | the screen. Placed beside the rail or above the bar. |
 
-No assertions of its own: both arrangements refuse exactly the same
+No assertions on its **arguments**: both arrangements refuse exactly the same
 configurations, so whichever is built rejects an invalid set — and the failure
 does not depend on the window size the developer happened to test on.
 Restating the rules here would be a third copy that can disagree with the other
 two. That equivalence is itself asserted.
+
+It does assert twice on the tree and the box it is given, which no argument can
+express: that no `IuxTransientLayer` is above it, and that the box it was
+handed is bounded in both axes.
 
 It owns the frame rather than being dropped into a slot because the two
 arrangements put the content in different places; a caller who had to place it
@@ -480,6 +519,10 @@ IuxAdaptiveNavigation(child: SafeArea(child: body))
 
 // A different set of destinations per arrangement.
 IuxAdaptiveNavigation(destinations: isWide ? all : all.take(3).toList())
+
+// A frame inside a scroll view. There is no window to measure, so there is no
+// arrangement to choose — refused rather than answered with the phone one.
+SingleChildScrollView(child: IuxAdaptiveNavigation(...))
 ```
 
 The last one is the interesting failure: it type-checks, renders, and reshuffles
@@ -487,21 +530,37 @@ the application when the user turns the device.
 
 ## Limits
 
-- **It needs a bounded box, and nothing checks that it has one.** This page
-  previously claimed the failure was asserted. **It is not.** The private width
-  check returns false for an unbounded constraint, so the widget **silently
-  picks the bar** — a caller who puts it inside a scroll view gets the phone
-  arrangement on a tablet, with no warning at all. Put it in `Scaffold.body`,
-  not inside a scroll view, and verify by looking.
+- **It needs a bounded box.** `IuxAdaptiveNavigation` still cannot choose an
+  arrangement without one — both terms of the rule are comparisons against the
+  width it was offered — but the case is now **refused by name**, which this
+  page claimed from IUX-025 until IUX-042 struck the claim. See
+  [An unbounded box is refused, and what it used to do instead](#an-unbounded-box-is-refused-and-what-it-used-to-do-instead).
 - ~~**The rail can be wider than its own window**~~ (`IUX-RAIL-OVERFLOW-001`).
   **Fixed.** The rule weighed *how much was left over* for the content and
   never asked whether the rail itself fitted, so a negative remainder — a rail
   wider than the screen — failed the 320-pixel budget in exactly the way a
   narrow-but-affordable window did, and the fallback for a window too short for
-  the bar then chose it anyway. Measured at 300% in a 360x320 box: the rail
-  wanted 396 px, the `Row` overflowed by 36, and the page beside it was laid
-  out at zero. The rule now carries a fit term of its own — see
-  [How the arrangement is chosen](#how-the-arrangement-is-chosen).
+  the bar then chose it anyway. The rule now carries a fit term of its own —
+  see [How the arrangement is chosen](#how-the-arrangement-is-chosen).
+  Re-measured after the fix, deriving each window from `widthFor` rather than
+  writing a pixel count down: at 300% the rail costs 354 px, and a landscape
+  box **36 px narrower than that** overflowed by exactly 36 with the fit term
+  removed and by nothing with it in place. The audit's original figure — 396 px
+  against a 360-wide box — is the same arithmetic read off the catalog's own
+  longer destination names.
+- **A rail placed by hand is still not refused, and cannot be.** A `Row` lays
+  out a non-flexible child against `maxWidth: infinity`, so the rail is never
+  told the width of the window it is in; there is nothing for it to compare and
+  no refusal it could make. Whatever owns the total has to make that call,
+  which is what `IuxAdaptiveNavigation` is for and why `widthFor` is public.
+  What a hand-placed rail does get is Flutter's own report, measured at 100%,
+  200% and 300% text: **the `Row` overflows by exactly the number of pixels the
+  rail was short by**, and the page beside it is laid out at zero width. Loud,
+  but in the framework's words — it names a `RenderFlex`, not a rail. In a
+  *bounded* box narrower than it asked for there is no overflow and no report
+  at all: the rail takes the width it is given, the names wrap, and every
+  destination still renders. Measured at 300%, asking 354 and given 200, 100
+  and 48 px: no exception in any of the three, all five names present.
 - **Widths here are measured in a test font that is wider than Roboto.** Real
   rails are narrower, so the arrangement flips to the rail slightly earlier on
   a device than the tables above suggest. Nothing in the rule depends on the
@@ -574,6 +633,7 @@ rather than an oversight.
 | The arrangement is chosen on aspect plus a measured content budget | **Context dependent** | The measurements above are facts about this library. That aspect ratio is the right primary term is a design position, not an external standard. |
 | The Android 600 dp width breakpoint is not adopted | **Hypothesis** | The disagreement is confined to wide-portrait windows. Needs validation on a tablet held two-handed. |
 | The budget yields to the rail once the bar has stacked | **Context dependent** | The zero-height failure it replaces is measured and reproduced in the suite; that ~130% is the right crossover is inherited from `prefersStackedLayout`, itself documented as a heuristic. |
+| An unbounded box is refused rather than answered | **Context dependent** | The alternative was measured — 27 exceptions naming a `Column` the caller never wrote — and `PROJECT_PROMPT.md` §22 and §52 decide between them. That an assertion is the right vehicle, rather than a rendered explanation, follows the precedent of `IuxTransientLayer.debugCheckNotPlacedOver`. |
 | The rail scrolls rather than clipping above ~250% text | **Hypothesis** | Chosen because unreachable is worse than inconvenient. No user evidence either way. |
 | Re-selecting the current destination is reported | **Context dependent** | Inherited unchanged from IUX-024. |
 

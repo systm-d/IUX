@@ -197,9 +197,9 @@ class IuxTransientLayer extends StatelessWidget {
   ///
   /// The hole this leaves is an application that puts its real navigation inside
   /// a scroll view. That arrangement is already broken for a louder reason — an
-  /// unbounded height makes `IuxAdaptiveNavigation` choose the bar without ever
-  /// measuring the window — and buying a warning for it at the price of refusing
-  /// every catalog in existence is the wrong trade.
+  /// unbounded height makes `IuxAdaptiveNavigation` refuse outright, by name,
+  /// before it chooses anything — and buying a warning for it at the price of
+  /// refusing every catalog in existence is the wrong trade.
   static bool debugCheckNotPlacedOver(BuildContext context) {
     assert(() {
       bool covered = false;

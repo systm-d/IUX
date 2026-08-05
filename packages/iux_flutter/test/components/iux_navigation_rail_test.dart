@@ -1047,20 +1047,96 @@ void main() {
       );
     });
 
-    testWidgets('an unbounded box is refused loudly, never guessed at',
+    testWidgets('the overflow the fit term prevents, measured',
+        (WidgetTester tester) async {
+      // IUX-RAIL-OVERFLOW-001, reproduced rather than described. The
+      // arrangement below is exactly the one `IuxAdaptiveNavigation` builds
+      // when it takes the rail — a stretched Row of the rail and an Expanded —
+      // so building it by hand on a window narrower than the rail measures what
+      // the component used to do, and pins the number the audit reported.
+      //
+      // The deficit is chosen and the window derived from `widthFor`, so this
+      // asserts arithmetic rather than a font: whatever the rail costs, a
+      // window that much narrower overflows by exactly that much.
+      const double scale = 3;
+      final double rail = await measuredWidth(tester, textScale: scale);
+
+      for (final double deficit in <double>[36, 100]) {
+        final double width = rail - deficit;
+
+        await pump(
+          tester,
+          framed(),
+          size: Size(width, width - 1),
+          textScale: scale,
+        );
+        expect(
+          tester.takeException().toString(),
+          contains('overflowed by ${deficit.toStringAsFixed(0)} pixels'),
+          reason: 'a rail is not flexible, so a Row hands it the '
+              '${rail.toStringAsFixed(1)} pixels it asked for and the page '
+              'beside it is laid out at zero on a '
+              '${width.toStringAsFixed(1)}-pixel window',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+
+        // The same window, the same text size, the same destinations — handed
+        // to the component that owns the total. It asks whether the rail fits
+        // before it asks what the rail leaves, so there is no Row to overflow.
+        await pump(
+          tester,
+          adaptive(child: const SizedBox.expand(key: _content)),
+          size: Size(width, width - 1),
+          textScale: scale,
+        );
+        expect(find.byType(IuxNavigationRail), findsNothing);
+        expect(find.byType(IuxBottomNavigation), findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the arrangement that cannot fit was chosen anyway, and the '
+              'Row overflowed by $deficit',
+        );
+
+        // DebugOverflowIndicatorMixin reports a render object's overflow once
+        // per lifetime, so both assertions above are only worth anything
+        // because every case ends by tearing the tree down
+        // (IUX-QA-VACUOUS-003).
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('an unbounded box is refused by name, not by accident',
         (WidgetTester tester) async {
       // A window with no end in one axis cannot be short of anything in it, and
       // a component that answered "rail" there would be sizing navigation from
-      // a window nobody has decided yet. It refuses instead: no rail appears,
-      // and the layout error is reported rather than swallowed.
+      // a window nobody has decided yet.
       //
-      // This is a limitation, and it is the same one `Scaffold` has. The
-      // component is a frame; it needs a box.
+      // It used to answer "bar" — the phone arrangement, on a window it had not
+      // measured — and the failure then arrived from the framework: measured,
+      // 27 exceptions from one SingleChildScrollView, the first of them
+      // "RenderFlex children have non-zero flex but incoming height constraints
+      // are unbounded", reported against a Column this component owns. That is
+      // loud, and it is not this component's refusal: nothing in it names the
+      // navigation or says what to do instead. `docs/components/navigation-
+      // rail.md` claimed the case was asserted for several missions while it
+      // was not. It is now, and this is what the assertion has to say.
       for (final Widget unbounded in <Widget>[
         SingleChildScrollView(child: adaptive()),
         Row(children: <Widget>[adaptive()]),
       ]) {
+        // Collected rather than taken. An unbounded box produces a cascade —
+        // the refusal, and then everything downstream of a subtree that failed
+        // to build — and `takeException` answers a cascade with a count rather
+        // than with any of the messages in it.
+        final List<String> reported = <String>[];
+        final void Function(FlutterErrorDetails)? previous =
+            FlutterError.onError;
+        FlutterError.onError =
+            (FlutterErrorDetails details) => reported.add(details.toString());
         await pump(tester, unbounded);
+        FlutterError.onError = previous;
+
         expect(
           find.byType(IuxNavigationRail),
           findsNothing,
@@ -1068,11 +1144,19 @@ void main() {
               'from an assumption',
         );
         expect(
-          tester.takeException(),
-          isNotNull,
+          reported.where((String e) => e.contains('IuxAdaptiveNavigation')),
+          isNotEmpty,
           reason: 'silently laying out navigation at zero is how a user ends '
-              'up on a screen with no way off it',
+              'up on a screen with no way off it, and an error naming only a '
+              'Column sends the reader to the wrong widget',
         );
+        expect(
+          reported.where((String e) => e.contains('Scaffold.body')),
+          isNotEmpty,
+          reason: 'an error that says what is wrong and not what to do leaves '
+              'the reader in the source of the framework',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
       }
     });
 
