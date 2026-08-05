@@ -127,6 +127,26 @@ ship a screen where a user cannot reach the only control, and a deletion that
 happens without asking.** Both are on the shortest path a competent developer
 writes. Neither is the developer’s fault.
 
+### The verdict re-stated at `d72dc49`, and why it does not change
+
+Both halves of that sentence are now closed, and so are nine other entries —
+§4 carries the re-measurement for each. **The verdict still stands, and its
+reason is now a single entry: B12.** Nobody has run TalkBack, Voice Access or a
+D-pad on a real device, at any point in forty-two missions and everything since.
+
+That is not a formality standing in for a solved problem. This project shipped a
+library with **no icons at all** for weeks — `uses-material-design` was never
+declared, so every Material glyph rendered blank — and 1976 tests passed over it,
+because `flutter_test` substitutes a font that draws every glyph as a filled box
+regardless of what the pubspec says. It reads to a user as "the radio buttons do
+not work". It was found by a person holding a phone.
+
+Everything this repository claims about accessibility is measured on a semantics
+tree in a unit test. That is a great deal, it is more than most projects have,
+and **it is not the same claim** as "a screen-reader user can operate this".
+Until someone runs the register in §5, the honest statement is that IUX is
+well-evidenced against the things a test can see.
+
 ## 2. What is proven, and it is a great deal
 
 Ranked by how much a consumer can rely on it.
@@ -222,76 +242,146 @@ Two consequences worth naming, because they cut against my own convenience:
 
 Ranked by user harm. Accessibility outranks ergonomics throughout, per §5.
 
-**B1 — No licence.** `LICENSE` is a placeholder that explicitly grants no
-permission to use, copy, modify or distribute. Nobody may legally depend on
-this repository, so every other item on this list is downstream of it.
-`dart pub publish --dry-run` fails on it and `publish_to: none` is the guard.
-**This is a decision for the project owner and nobody else. I have not invented
-one, and no agent should.** Note the package directory also has no `LICENSE`
-file of its own, which is the literal cause of the dry-run error — but copying
-the placeholder there would satisfy the file check while still granting nobody
-anything, which would be worse than failing.
+**Re-audited at `d72dc49` by a read-only pass that re-derived every entry from
+its own probes rather than from these paragraphs.** Eleven of the twelve now
+carry a verdict below. Two sentences in this section were literally false by
+then and are struck where they stood, rather than edited away: the package
+directory *does* have its own `LICENSE`, and `IuxConfirmByHold` no longer
+exists as a type.
 
-**B2 — `IUX-BUTTON-CONFIRM-001`: a deletion runs without asking.**
-`IuxButton(action: IuxActionDescriptor.destructive(...))` compiles, asserts
-nothing, and runs `onActivate` on the first tap — measured, `runs == 1`. The
-`destructive` factory *defaults* to `IuxConfirmBeforeExecution`, so the trap
-sits on the shortest path a caller can write for a deletion, and the type
-system discards a stated intention in silence. `IuxConfirmByHold` is worse:
-`IUX-API-DEAD-001` measured **zero** honourers anywhere. Data loss, §5 priority
-1. The fix needs a decision about *where* a policy is evaluated — the obvious
-guard was written, tested and reverted, and the reasons are on record.
+**B1 — No licence. Closed.** `LICENSE` was a placeholder that explicitly
+granted no permission to use, copy, modify or distribute, so nobody could
+legally depend on this repository and every other item on this list sat
+downstream of it. **It is MIT, chosen by the project owner** — root and package
+directory, byte-identical. `dart pub publish --dry-run` now reports
+**0 warnings** for `iux_flutter 0.2.0-dev.2`: no licence error, no changelog
+drift, and no missing-`homepage` warning now that a `repository:` is declared.
+`publish_to: none` stays, as a guard against publishing by accident rather than
+as a legal position. *(The original entry's note that "the package directory
+also has no `LICENSE` file of its own" is no longer true.)*
+
+**B2 — `IUX-BUTTON-CONFIRM-001`: a deletion runs without asking. Closed in
+debug; the guard is an `assert`, and for a data-loss entry that distinction
+belongs here rather than in a footnote.**
+`IuxButton(action: IuxActionDescriptor.destructive(...))` compiled, asserted
+nothing, and ran `onActivate` on the first tap — measured, `runs == 1`. The
+`destructive` factory *defaults* to `IuxConfirmBeforeExecution`, so the trap sat
+on the shortest path a caller can write for a deletion, and the type system
+discarded a stated intention in silence.
+
+Re-measured: the same call now throws at build and **`onActivate` runs == 0**,
+on `IuxButton` and `IuxIconButton` alike, with the message naming
+`IuxDestructiveAction` and the explicit escape
+`copyWith(confirmation: IuxConfirmationPolicy.none)` — which builds clean and
+runs once, as it should. `IuxConfirmByHold` has been **removed** as a type, so
+the "zero honourers" half of the entry is now unrepresentable rather than
+merely unhonoured.
+
+**What is not closed, and is stated here because §5 priority 1 is user safety:**
+in a release build the check is compiled out and `_handleActivate` still passes
+`confirmed: true`, so a descriptor carrying a policy still runs on the first
+tap. That is deliberate and argued in the source — flipping it in release would
+turn a caller's mistake into a control that does nothing when tapped, which is
+indistinguishable from one that is broken — and the check fires on the *first
+frame* the control is built, so no debug run, widget test or catalog page can
+reach a release build without seeing it. It is still a debug-time guarantee
+protecting against a data-loss defect, and a reader deciding whether to depend
+on this package should be told so in the entry, not in the source.
 
 **B3 — `IUX-A11Y-REACH-001`: two patterns put their only control out of
-reach.** `IuxEmptyState` at 200% on 320 px lands its reset button at y 904–1008
-against a 640 px fold with **no scrollable on the page**; `hitTestable = 0`,
-tap yields zero activations. `IuxPermissionRationale` at **150%** — an
-unremarkable setting — lets the user **refuse but not accept**. WCAG 2.2
-SC 1.4.4 and 1.4.10. A user who has enlarged text is precisely the user least
-able to work around it.
+reach. Closed.** `IuxEmptyState` at 200% on 320 px landed its reset button at
+y 904–1008 against a 640 px fold with **no scrollable on the page**;
+`hitTestable = 0`, tap yielded zero activations. `IuxPermissionRationale` at
+**150%** — an unremarkable setting — let the user **refuse but not accept**.
+WCAG 2.2 SC 1.4.4 and 1.4.10.
+
+Both patterns now supply their own `Scrollable` when, and only when, they are
+handed a bounded height, and none when the caller already scrolls — re-measured,
+nested scrollables = 0. On 320x640 after a drag: empty state `hitTestable = 1`
+and one activation at 200% **and** 300%; the rationale accepts at both, and at
+150% without needing to scroll at all.
 
 **B4 — `IUX-TRANSIENT-COVER-001`: a notice removes the navigation for four
-seconds.** On 360x800 the notice sits at y 712–760 over destinations at
-y 740–786, all three `hitTestable = 0`, for a dwell that is a minimum of four
-seconds and by design cannot be shortened. WCAG 2.2 SC 2.2.1. The framework
-does not say where the layer goes, both doc pages read together produce the
-broken arrangement, and every "Draft saved" costs the user their ability to
-change section. *Documented in this mission* — see §8 — but documentation does
-not clear it, because the default remains wrong.
+seconds. Closed in debug; the guard is an `assert`.** On 360x800 the notice sat
+at y 712–760 over destinations at y 740–786, all three `hitTestable = 0`, for a
+dwell that is a minimum of four seconds and by design cannot be shortened.
+WCAG 2.2 SC 2.2.1.
+
+The broken arrangement now throws at build, naming the caller's widget and
+printing the corrected nesting. Re-measured on the correct arrangement: notice
+at y 620–644, destinations at y 752–792, **all three `hitTestable = 1`**, and a
+tap changes section. As with B2, a release build carries none of the check —
+which is right here, because the failure it catches is a developer's
+arrangement rather than a user's action, and it cannot survive a single debug
+run.
 
 **B5 — `IUX-APPBAR-PAGE-001`: the most-repeated composition is broken three
-ways.** The top inset is applied twice with nothing asserting. The chrome does
-not fit — on 320x640 at 300% the bar and navigation take 260 and 408 px and
-leave the content **−28** — because no component owns the total. And the
-standard remedy is structurally unavailable: `IuxAppBar` uses a `LayoutBuilder`,
-so **no IUX screen containing an app bar can take part in `IntrinsicHeight`,
-`IntrinsicWidth` or intrinsic `Table` sizing**, and the pilot had to scroll the
-whole screen and lose its pinned title at every text scale. Every application
-writes this composition; every application must currently rediscover all three.
+ways. Closed by a new component; one half survives in the shape it replaces.**
+The top inset was applied twice with nothing asserting. The chrome did not fit —
+on 320x640 at 300% the bar and navigation took 260 and 408 px and left the
+content **−28** — because no component owned the total. And the standard remedy
+was structurally unavailable: `IuxAppBar` used a `LayoutBuilder`, so no IUX
+screen containing an app bar could take part in `IntrinsicHeight`,
+`IntrinsicWidth` or intrinsic `Table` sizing.
 
-**B6 — `IUX-A11Y-FOCUS-001` (partial): assistive technology cannot move focus
-onto four control types.** Fixed for `IuxButton` at IUX-038 and **nowhere
-else** — `IuxFocusNodeOwner` has exactly one call site. The disclosure control,
-validation-summary entries and both transient-layer controls still report
-`isFocused: Tristate.none` with actions `[tap]`, and driving
-`performAction(SemanticsAction.focus)` on the disclosure does nothing at all.
-WCAG 2.2 SC 4.1.2. A validation-summary entry that AT cannot focus defeats the
-purpose of the summary.
+`IuxScreen` owns the total now, and all three are measured closed inside it: the
+padding handed to `IuxPage` is `EdgeInsets(0, 0, 0, 16)` — **top inset 0, not
+doubled**; the chrome fits 320x640 at 100, 200, 250 **and 300%** with zero
+errors, splitting 168/168 at 300%; and `IntrinsicHeight` lays out with zero
+errors around both an `IuxScreen` and a bare `IuxAppBar`, the `LayoutBuilder`
+having been rewritten as a slotted render object.
 
-**B7 — `IUX-SEARCH-RESULTS-001`: unusable for a searchable list, two ways.**
-The ready branch throws *RenderFlex children have non-zero flex but incoming
-height constraints are unbounded* on an `IuxPage`, and the documented placement
-means giving up `IuxPage` — the only thing that knows the page insets and the
-reading width. It also hard-codes `IuxNoMatches` and requires a `reset`, so a
-collection that never held anything is reported as "no matches, clear the
-search" beside an empty box: the exact conflation `IuxEmptyStateCause` exists
-to prevent. The pilot tried to use it and could not.
+**The surviving half, now quantified**: a hand-rolled
+`Column(IuxAppBar, Expanded(IuxPage))` still receives `top: 24.0` and puts the
+body **40 px below the bar instead of 16 — exactly 24 px duplicated — and
+nothing refuses it.** `docs/components/app-bar.md` says the entry is "closed by
+a component, not by an assertion" and that the composition it replaces "still
+behaves as it did"; that is true, and 24 px is the number it was missing.
 
-**B8 — `IUX-EXPAND-CRASH-001`: two stacked full-width buttons throw.** Inside
-`IuxTargetSpacing`, `expand: true` fails with *BoxConstraints forces an infinite
-width*. It is the most obvious thing anyone writes, and the workaround gives up
-the 8 px target floor `IuxTargetSpacing` exists to provide — so there is no
-arrangement that gives both.
+**B6 — `IUX-A11Y-FOCUS-001`: assistive technology cannot move focus onto four
+control types. Closed — and the sweep found eleven, not four.** It was fixed for
+`IuxButton` at IUX-038 and nowhere else; `IuxFocusNodeOwner` had exactly one
+call site. The disclosure control, validation-summary entries and both
+transient-layer controls reported `isFocused: Tristate.none` with actions
+`[tap]`, and driving `performAction(SemanticsAction.focus)` on the disclosure
+did nothing at all. WCAG 2.2 SC 4.1.2.
+
+Re-measured on the live semantics tree: all four control types, plus the button,
+report `actions=[tap, focus]` and `isFocused: Tristate.isFalse`, and driving
+`performAction(SemanticsAction.focus)` **moves `primaryFocus` onto the node** in
+every case, with the node flipping to `Tristate.isTrue`. `IuxFocusNodeOwner` has
+**10 call sites** now.
+
+**Three of the eleven had no tap action at all** — announced as buttons, inert
+to a screen-reader double-tap. The mechanical check that should have caught them
+scans for bare `Semantics` calls, and the helper writes `button: true` and
+`onTap:` in its own source, satisfying the scan on behalf of every caller: a
+test that verified the one place the defect could not be.
+
+**B7 — `IUX-SEARCH-RESULTS-001`: unusable for a searchable list, two ways.
+Closed, both halves.** The ready branch threw *RenderFlex children have non-zero
+flex but incoming height constraints are unbounded* on an `IuxPage`, and the
+documented placement meant giving up `IuxPage` — the only thing that knows the
+page insets and the reading width. It also hard-coded `IuxNoMatches` and
+required a `reset`, so a collection that never held anything was reported as "no
+matches, clear the search" beside an empty box: the exact conflation
+`IuxEmptyStateCause` exists to prevent.
+
+Re-measured: the ready branch inside an `IuxPage` produces **zero errors** and
+renders its rows. `emptyCause` is a **required** parameter now, so nothing is
+hard-coded and no `reset` is demanded — `nothingCreatedYet` renders "Add an
+order" with "Clear the search" absent — and a cause that owes a way forward
+while carrying neither an action nor guidance is refused by assert.
+
+**B8 — `IUX-EXPAND-CRASH-001`: two stacked full-width buttons throw. Closed.**
+Inside `IuxTargetSpacing`, `expand: true` failed with *BoxConstraints forces an
+infinite width*, and the workaround gave up the 8 px target floor the primitive
+exists to provide, so there was no arrangement that gave both.
+
+Re-measured: **zero errors** at 100, 200 and 300%, both buttons 320 px wide, gap
+**8.0 px at every scale** — the floor kept, which was the half a `Column` plus
+`IuxGap` could not give. A genuinely widthless parent still fails loudly:
+*"IuxButton(expand: true) was given no width to fill."*
 
 **B9 — `IUX-OVERLAY-001`: opening a modal disposes the widget that opened it.**
 **Closed.** Measured on all three `IuxModalLayer` slots: the opener’s `State`
@@ -314,20 +404,44 @@ live-tree assertions in `iux_modal_layer_test.dart` that fail if paint order is
 reversed.
 
 **B10 — `IUX-FORM-FOCUS-001`: an accepted submission arms an unbounded focus
-move.** `_handleSubmit` never brings `_focusedAttempt` level on the accepted
-path, so the comparison is permanently unequal and every later
-`didUpdateWidget` carrying a rejected field moves focus. Measured: the user
-submits successfully, edits a field, tabs on, the parent answers the blur check
-— and the caret is ripped into the summary. WCAG 2.2 SC 3.2.2. Needs a bounded
-pending-submission window, which is a decision, not a patch.
+move. Closed.** `_handleSubmit` never brought `_focusedAttempt` level on the
+accepted path, so the comparison was permanently unequal and every later
+`didUpdateWidget` carrying a rejected field moved focus: the user submitted
+successfully, edited a field, tabbed on, the parent answered the blur check —
+and the caret was ripped into the summary. WCAG 2.2 SC 3.2.2.
+
+Re-measured over the whole sequence: after an accepted submission the user edits
+field 0, tabs to field 1, the parent answers the blur check and rejects field 0,
+the summary appears — **the caret is still in field 1 and the summary did not
+take focus**. The control case still behaves: a rejection answering the
+*submission itself* does move focus to the summary, which is the whole point of
+the window.
 
 **B11 — `IUX-LISTITEM-TRAILING-001`: a list row overflows at accessible text
-sizes.** `IuxListItem.tappable` with an `IuxStatusIndicator` in
-`trailingAction` on 320 px: clean at 100% and 150%, **68 px over at 200%,
-214 px at 300%**. A list of rows with a status is an ordinary screen and 200%
-is an accommodation, not an edge case. Neither component overflows alone, which
-is why no component test found it and why it is the strongest argument in the
-project for the pilot’s existence.
+sizes. Partially closed — and the fix moved the failure to the other axis.**
+`IuxListItem.tappable` with an `IuxStatusIndicator` in `trailingAction` on
+320 px was clean at 100% and 150%, **68 px over at 200%, 214 px at 300%**.
+Neither component overflows alone, which is why no component test found it and
+why it is the strongest argument in this project for the pilot's existence.
+
+Horizontally it is fixed: re-measured with the pilot's own row, **0 px at 100%,
+150% and 200%**, and **6.0 px at 300%** — pinned at the real number in the
+pilot's suite rather than rounded away — with the title box holding 136 px
+instead of collapsing.
+
+**But the fix bounded the trailing control to a one-third width share, so at
+300% the status wraps and drives the row's height instead.** Measured: the row
+is **480 px tall without the status and 924 px with it — a one-word status adds
+444 px** — and in a bounded 320x640 box with no scrollable the pair overflows
+**284 px on the bottom**, where the same row without the status fits with 160 px
+to spare. That is this entry's own signature, pair-only and invisible to either
+component's tests, relocated from the horizontal axis to the vertical one.
+Neither `IuxListItem` nor `IuxListGroup` carries the `hasBoundedHeight`
+discriminator that closed B3 for the two patterns. **Whether a 924 px row at
+300% is a defect at all is a real question** — the content may genuinely need
+that height, and the caller who put it in a bounded box with no scrollable made
+B3's mistake in reverse — but it is currently answered nowhere, which is the
+part that is not acceptable.
 
 **B12 — The manual validation register is empty.** No TalkBack run, no Voice
 Access run, no physical keyboard or D-pad pass, no on-device display scaling,

@@ -2523,5 +2523,15 @@ none may be claimed until executed on real devices:
 - display scaling and large text;
 - platform high-contrast and colour-inversion settings.
 
-Components do not exist yet, so this is a commitment rather than a backlog. It
-becomes actionable from IUX-008 onward.
+This was written before any component existed, as a commitment rather than a
+backlog, and said it "becomes actionable from IUX-008 onward". **It became
+actionable roughly forty components ago and nothing here has been performed
+since.** It is the last release blocker (B12) and the only one that needs a
+device rather than a decision.
+
+The strongest argument for running it is not procedural. The library shipped
+**no icons at all** for weeks — `uses-material-design` was undeclared, so every
+Material glyph rendered blank — while 1976 tests passed over it, because
+`flutter_test` substitutes a font that draws every glyph as a filled box
+regardless of the pubspec. No test in this repository could have caught it, and
+a person holding a phone caught it immediately.
