@@ -81,6 +81,86 @@ void main() {
       // near 150 — which is what a loop that dashed only the first would give.
       expect(pathLength(dashPath(two, on: 5, off: 5)), lessThan(120));
     });
+
+    test('the three patterns keep decreasing amounts of ink', () {
+      final Path line = _line(100);
+      final double solid = pathLength(
+        strokeAsPattern(line, IuxSeriesStroke.solid, 6),
+      );
+      final double dashed = pathLength(
+        strokeAsPattern(line, IuxSeriesStroke.dashed, 6),
+      );
+      final double dotted = pathLength(
+        strokeAsPattern(line, IuxSeriesStroke.dotted, 6),
+      );
+      expect(solid, closeTo(100, 0.01));
+      expect(dashed, lessThan(solid));
+      expect(dotted, lessThan(dashed));
+    });
+  });
+
+  group('bandPaths', () {
+    const IuxChartScale unit = IuxChartScale(min: 0, max: 1);
+    const Size size = Size(100, 50);
+
+    List<Path> band(List<double?> lower, List<double?> upper) => bandPaths(
+          <IuxChartPoint>[
+            for (int i = 0; i < lower.length; i++)
+              IuxChartPoint(position: i / (lower.length - 1), value: lower[i]),
+          ],
+          <IuxChartPoint>[
+            for (int i = 0; i < upper.length; i++)
+              IuxChartPoint(position: i / (upper.length - 1), value: upper[i]),
+          ],
+          horizontal: unit,
+          vertical: unit,
+          size: size,
+          direction: TextDirection.ltr,
+        );
+
+    test('an unbroken band is one closed shape', () {
+      final List<Path> paths =
+          band(<double?>[0, 0.2, 0.1], <double?>[0.8, 1, 0.9]);
+      expect(paths.length, 1);
+      expect(paths.single.getBounds().width, closeTo(size.width, 0.01));
+    });
+
+    test('a gap on either edge breaks the shape', () {
+      // A band with a hole has a hole. Bridging it would draw an envelope
+      // over a stretch where none was computed.
+      //
+      // Five columns rather than three, and that is not padding: with three,
+      // each side of the gap holds a single column, which encloses no area
+      // and is dropped — the result would be zero shapes, and the test would
+      // be measuring the one-column rule instead of the gap rule.
+      expect(
+        band(<double?>[0, 0, null, 0.1, 0.1], <double?>[1, 1, 1, 1, 1]).length,
+        2,
+      );
+      expect(
+        band(<double?>[0, 0, 0, 0, 0], <double?>[1, 1, null, 1, 1]).length,
+        2,
+      );
+    });
+
+    test('a run of one column has no area and is dropped', () {
+      expect(
+        band(<double?>[null, 0.2, null], <double?>[null, 0.8, null]),
+        isEmpty,
+      );
+    });
+
+    test('the shape spans from the lower edge to the upper one', () {
+      final Path path = band(<double?>[0, 0], <double?>[1, 1]).single;
+      expect(path.getBounds().top, closeTo(0, 0.01));
+      expect(path.getBounds().bottom, closeTo(size.height, 0.01));
+    });
+
+    test('edges of different lengths stop at the shorter one', () {
+      // Not an error worth refusing: the caller has one more reading on one
+      // side than the other, and drawing the overlap is the useful answer.
+      expect(band(<double?>[0, 0, 0], <double?>[1, 1]).length, 1);
+    });
   });
 
   group('pathUpTo', () {

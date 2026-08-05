@@ -21,6 +21,7 @@ export 'src/components/card/iux_card.dart';
 export 'src/components/card/iux_content_group.dart';
 export 'src/components/chart/iux_chart_model.dart';
 export 'src/components/chart/iux_chart_tokens.dart';
+export 'src/components/chart/iux_line_chart.dart';
 export 'src/components/chart/iux_sparkline.dart';
 export 'src/components/feedback/iux_inline_feedback.dart';
 export 'src/components/feedback/iux_inline_feedback_tokens.dart';

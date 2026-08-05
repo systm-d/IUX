@@ -99,6 +99,25 @@ Path dashPath(Path source, {required double on, required double off}) {
   return out;
 }
 
+/// [source], stroked the way [stroke] asks, with [unit] as the mark length.
+///
+/// The one place the vocabulary meets the arithmetic. Both the plot and the
+/// legend swatch call it, which is what stops a series being drawn dashed and
+/// advertised dotted — a legend that disagrees with the picture is worse than
+/// no legend, because it is believed.
+///
+/// The proportions: a dash is one unit on and two thirds off, a dot a third on
+/// and two thirds off. Measured against a solid line those keep roughly three
+/// fifths and a third of the ink, which is far enough apart to tell at arm's
+/// length and on a printed grey page.
+Path strokeAsPattern(Path source, IuxSeriesStroke stroke, double unit) =>
+    switch (stroke) {
+      IuxSeriesStroke.solid => source,
+      IuxSeriesStroke.dashed => dashPath(source, on: unit, off: unit * 2 / 3),
+      IuxSeriesStroke.dotted =>
+        dashPath(source, on: unit / 3, off: unit * 2 / 3),
+    };
+
 /// The first [fraction] of [source], measured along its length.
 ///
 /// This is what a chart being drawn in looks like part-way through. Measured
@@ -181,6 +200,67 @@ List<Path> seriesPaths(
         size.height - vertical.fractionOf(value) * size.height,
       ),
     );
+  }
+  flush();
+
+  return paths;
+}
+
+/// One closed shape per unbroken stretch where both edges of a band exist.
+///
+/// The two edges are read in step, index by index. A null on either side ends
+/// the current shape, so a band with a hole in it has a hole rather than an
+/// envelope drawn across a stretch where none was computed.
+///
+/// A stretch one column wide encloses no area and is dropped: it would paint
+/// nothing and outline a hairline that reads as a stray mark.
+///
+/// The edges may be of different lengths. The shorter one decides, because the
+/// overlap is the part both edges describe and refusing the whole band over one
+/// extra reading would help nobody.
+List<Path> bandPaths(
+  List<IuxChartPoint> lower,
+  List<IuxChartPoint> upper, {
+  required IuxChartScale horizontal,
+  required IuxChartScale vertical,
+  required Size size,
+  required TextDirection direction,
+}) {
+  final List<Path> paths = <Path>[];
+  List<Offset> below = <Offset>[];
+  List<Offset> above = <Offset>[];
+
+  void flush() {
+    if (below.length >= 2) {
+      final Path path = Path()..moveTo(above.first.dx, above.first.dy);
+      for (final Offset point in above.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      for (final Offset point in below.reversed) {
+        path.lineTo(point.dx, point.dy);
+      }
+      paths.add(path..close());
+    }
+    below = <Offset>[];
+    above = <Offset>[];
+  }
+
+  final int columns = lower.length < upper.length ? lower.length : upper.length;
+  for (int i = 0; i < columns; i++) {
+    final double? low = lower[i].value;
+    final double? high = upper[i].value;
+    if (low == null || high == null) {
+      flush();
+      continue;
+    }
+    final double dx = horizontalOffset(
+      horizontal.fractionOf(lower[i].position),
+      size.width,
+      direction,
+    );
+    below.add(Offset(dx, size.height - vertical.fractionOf(low) * size.height));
+    above
+        .add(Offset(dx, size.height - vertical.fractionOf(high) * size.height));
   }
   flush();
 

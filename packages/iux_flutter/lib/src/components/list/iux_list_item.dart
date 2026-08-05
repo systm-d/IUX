@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/semantics.dart';
 
 import '../../accessibility/iux_focus.dart';
 import '../../inputs/iux_input_descriptor.dart';
@@ -90,9 +90,11 @@ enum _IuxListItemKind { plain, tappable, selectable }
 /// arrangement the card recommended, and guarantees the four properties that
 /// make it safe rather than leaving them to a call site:
 ///
-/// - the control is laid out **beside** the interactive region, never inside
-///   it, so neither target overlaps the other;
-/// - at least `kIuxMinimumTargetSpacing` separates the two;
+/// - the control is laid out **outside** the interactive region, never inside
+///   it — beside it while it fits, below it when it does not — so neither
+///   target overlaps the other;
+/// - at least `kIuxMinimumTargetSpacing` separates the two, on whichever axis
+///   they ended up separated by;
 /// - the control is a **sibling** semantics node, never a descendant, so a
 ///   screen reader announces two adjacent stops rather than nested controls;
 /// - the row's press tint stops at the boundary, so where one target ends and
@@ -413,7 +415,7 @@ class IuxListItem extends StatelessWidget {
 /// the spacing, which is the arrangement that produces mis-taps between "open"
 /// and "delete".
 ///
-/// ## Why the control is given a ceiling
+/// ## Why the control's share is a decision and not a ceiling
 ///
 /// The control used to be laid out as a plain `Row` child, which in Flutter
 /// means it is measured against **unbounded** width and takes whatever its
@@ -422,7 +424,7 @@ class IuxListItem extends StatelessWidget {
 /// grows, and the thing that grows all of it at once is the user's text size.
 ///
 /// Measured on a 320-pixel screen, an `IuxListItem.tappable` carrying an
-/// `IuxStatusIndicator`: **34 pixels over at 200%** and **180 at 300%**.
+/// `IuxStatusIndicator`: **68 pixels over at 200%** and **214 at 300%**.
 /// Neither component overflows on its own — the indicator wraps its own label
 /// perfectly well when something tells it how wide it may be, and the row wraps
 /// its title perfectly well when something is left for it — which is why no
@@ -438,17 +440,40 @@ class IuxListItem extends StatelessWidget {
 /// framework complains; it begins failing as soon as it takes more than its
 /// share, and everything between there and the exception is silent.
 ///
-/// The ceiling is [IuxListItemTokens.valueFlex]'s share of the row, which is
-/// the split this component already applies one level down, to the trailing
-/// *text*, for the reason written against those constants: the title is the
-/// only thing that identifies the item, so it is the part that keeps the space
-/// and the trailing element is the part that wraps. A control and a value are
-/// the same problem, and answering them differently would mean two rules to
-/// get right.
+/// **Capping the control at its share moved the failure onto the other axis
+/// rather than removing it.** A cap answers "how much may you have" and never
+/// asks "is that enough to be read". On a 286-pixel row the share is 86 pixels
+/// and an `IuxStatusIndicator` reading one word has a minimum intrinsic width
+/// of **180 at 100%** and **472 at 300%** — a single word has no wrap point, so
+/// below its minimum the label breaks *inside the word*, one glyph to a line.
+/// Measured, capped, on that row: the control came out **116 pixels tall at
+/// 100%** against a natural 36, **286 at 150%**, **376 at 200%** and **556 at
+/// 300%**, where at 300% the glyph and its gap alone (68) exceeded the 62 left
+/// for them and the label was laid out in a box **zero pixels wide** — six
+/// pixels of it painted outside the row. A row that was 480 tall without the
+/// status was 924 with it: **444 pixels for one word**, and in a bounded
+/// 320x640 box the pair overflowed 284 on the bottom where the row alone had
+/// 160 to spare.
 ///
-/// A control that fits inside its share is untouched — a `maxWidth` a child
-/// does not reach changes nothing — so this is invisible at the text sizes
-/// where nothing was wrong.
+/// So the share is kept, and it is used as the question rather than as the
+/// answer: **the control keeps the line while what it asks for fits in its
+/// share, and moves under the row's text when it does not.** That is the rule
+/// this component already applies one level down to the trailing *text* — the
+/// title identifies the item, so it keeps the space, and the trailing element
+/// is the one that gives way — except that a control gives way by *moving*,
+/// because unlike a value it cannot be re-wrapped without being destroyed.
+///
+/// **Measured, not assumed, and this is the distinction that matters.**
+/// Branching on the text scale — what [IuxListItemTokens.stacksTrailingText]
+/// does for the value, and the obvious thing to reach for here — answers a
+/// question about the *user's* text size with a decision that depends on the
+/// *caller's* control and on the room the row was given. It would have left the
+/// 100% case above broken, because 86 pixels is short of 180 at every scale.
+/// `_IuxDrawerHeader` records the same finding for the same reason.
+///
+/// A control that fits inside its share is laid out exactly as it was before —
+/// at its own width, with the region taking the remainder — so this is
+/// invisible everywhere the arrangement was already sound.
 class _IuxListItemWithAction extends StatelessWidget {
   const _IuxListItemWithAction({required this.region, required this.action});
 
@@ -459,44 +484,449 @@ class _IuxListItemWithAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final IuxListItemTokens tokens = IuxListItemResolver.resolve(context);
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        // Unbounded width is left alone rather than guessed at. A row inside a
-        // horizontally scrolling parent has no share to take a fraction of,
-        // and the `Expanded` below has already refused that arrangement in
-        // terms the framework wrote.
-        final double ceiling = constraints.hasBoundedWidth
-            ? (constraints.maxWidth -
-                    tokens.actionSpacing -
-                    tokens.horizontalPadding) *
-                tokens.valueFlex /
-                (tokens.textFlex + tokens.valueFlex)
-            : double.infinity;
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            // Expanded, so the row's target reaches the control rather than
-            // stopping at the end of its text. A gap between two targets that
-            // belongs to neither is a gap where a tap does nothing at all.
-            Expanded(child: region),
-            SizedBox(width: tokens.actionSpacing),
-            Padding(
-              // The control's own end padding, outside its target: the target
-              // stops before the edge of the group, the row's does not.
-              padding:
-                  EdgeInsetsDirectional.only(end: tokens.horizontalPadding),
-              child: ConstrainedBox(
-                // A maximum, never a minimum and never a tight width: a small
-                // control keeps its size, and the row keeps its share.
-                constraints: BoxConstraints(maxWidth: math.max(ceiling, 0)),
-                child: action,
-              ),
-            ),
-          ],
-        );
-      },
+    return _IuxListItemArrangement(
+      metrics: _IuxListItemActionMetrics(
+        separation: tokens.actionSpacing,
+        endPadding: tokens.horizontalPadding,
+        // Where the row's own text starts: the focus ring's reserved gap and
+        // then the content padding. A control that has moved below the text
+        // lines up with the text rather than with the edge of the group.
+        leadingInset: tokens.focusReservation + tokens.horizontalPadding,
+        share: tokens.valueFlex / (tokens.textFlex + tokens.valueFlex),
+      ),
+      region: region,
+      action: action,
     );
+  }
+}
+
+/// The two things on a row that carry a control, in reading order.
+enum _IuxListItemActionSlot {
+  /// The part of the row that responds. Always present.
+  region,
+
+  /// The one control beside it. Always present — this arrangement is not built
+  /// when there is none.
+  action,
+}
+
+/// The resolved numbers the arrangement needs, and nothing else.
+///
+/// A render object has no `BuildContext`, which is the point rather than an
+/// inconvenience: everything the layout depends on is resolved once, in
+/// `build`, from the same tokens every other part of the row reads.
+@immutable
+class _IuxListItemActionMetrics {
+  const _IuxListItemActionMetrics({
+    required this.separation,
+    required this.endPadding,
+    required this.leadingInset,
+    required this.share,
+  });
+
+  /// Between the row's target and the control's, on whichever axis they end up
+  /// separated by. Never below `kIuxMinimumTargetSpacing`.
+  final double separation;
+
+  /// Between the control and the end edge of the row.
+  final double endPadding;
+
+  /// Where the row's text starts, and so where a control that has moved below
+  /// it starts too.
+  final double leadingInset;
+
+  /// The fraction of the shared width a control may take and still keep the
+  /// line.
+  final double share;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _IuxListItemActionMetrics &&
+          other.separation == separation &&
+          other.endPadding == endPadding &&
+          other.leadingInset == leadingInset &&
+          other.share == share;
+
+  @override
+  int get hashCode => Object.hash(separation, endPadding, leadingInset, share);
+}
+
+/// The row's two arrangements, chosen by measurement at layout time.
+///
+/// A render object rather than a `LayoutBuilder`, for two reasons. The first is
+/// that the decision needs an answer a `LayoutBuilder` cannot get: *how wide
+/// would this control like to be*, which is a question about the widget the
+/// caller passed and not about the text scale. The second is the one
+/// `IuxAppBar` records — a `LayoutBuilder` has to build before it knows
+/// anything, so it can never answer *how tall would you be at this width*, and
+/// a row that cannot answer excludes every list holding it from
+/// `IntrinsicHeight`, `IntrinsicWidth` and intrinsic `Table` sizing.
+class _IuxListItemArrangement extends SlottedMultiChildRenderObjectWidget<
+    _IuxListItemActionSlot, RenderBox> {
+  const _IuxListItemArrangement({
+    required this.metrics,
+    required this.region,
+    required this.action,
+  });
+
+  final _IuxListItemActionMetrics metrics;
+  final Widget region;
+  final Widget action;
+
+  @override
+  Iterable<_IuxListItemActionSlot> get slots => _IuxListItemActionSlot.values;
+
+  @override
+  Widget childForSlot(_IuxListItemActionSlot slot) => switch (slot) {
+        _IuxListItemActionSlot.region => region,
+        _IuxListItemActionSlot.action => action,
+      };
+
+  @override
+  _RenderIuxListItemArrangement createRenderObject(BuildContext context) =>
+      _RenderIuxListItemArrangement(
+        metrics: metrics,
+        textDirection: Directionality.of(context),
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderIuxListItemArrangement renderObject,
+  ) {
+    renderObject
+      ..metrics = metrics
+      ..textDirection = Directionality.of(context);
+  }
+}
+
+/// Lays the row and its control onto one line, or onto two.
+///
+/// The decision: the control keeps the shared line while the width it asks for
+/// fits inside its share of the row. It is asked rather than estimated, so the
+/// control the caller actually passed is the control the arrangement is chosen
+/// for.
+class _RenderIuxListItemArrangement extends RenderBox
+    with
+        SlottedContainerRenderObjectMixin<_IuxListItemActionSlot, RenderBox>,
+        DebugOverflowIndicatorMixin {
+  _RenderIuxListItemArrangement({
+    required _IuxListItemActionMetrics metrics,
+    required TextDirection textDirection,
+  })  : _metrics = metrics,
+        _textDirection = textDirection;
+
+  _IuxListItemActionMetrics get metrics => _metrics;
+  _IuxListItemActionMetrics _metrics;
+  set metrics(_IuxListItemActionMetrics value) {
+    if (_metrics == value) return;
+    _metrics = value;
+    markNeedsLayout();
+  }
+
+  TextDirection get textDirection => _textDirection;
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  RenderBox get _region => childForSlot(_IuxListItemActionSlot.region)!;
+  RenderBox get _action => childForSlot(_IuxListItemActionSlot.action)!;
+
+  /// Painted, hit tested and visited in reading order.
+  ///
+  /// Written against the nullable slots rather than [_region] and [_action]:
+  /// the mixin walks this during `attach`, which happens once per slot as each
+  /// child arrives, so for one call the second slot is genuinely still empty.
+  @override
+  Iterable<RenderBox> get children {
+    final RenderBox? region = childForSlot(_IuxListItemActionSlot.region);
+    final RenderBox? action = childForSlot(_IuxListItemActionSlot.action);
+    return <RenderBox>[
+      if (region != null) region,
+      if (action != null) action,
+    ];
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! BoxParentData) child.parentData = BoxParentData();
+  }
+
+  /// Mirrors an offset measured from the leading edge under a right-to-left
+  /// directionality, so the row's text still starts where reading starts.
+  Offset _place(double start, double top, double width, double available) =>
+      Offset(
+        textDirection == TextDirection.ltr ? start : available - start - width,
+        top,
+      );
+
+  /// The whole layout, shared by [performLayout] and [computeDryLayout].
+  ///
+  /// `positionChild` is null for the dry pass, which is what keeps the two from
+  /// drifting: one description of the arrangement, measured twice.
+  Size _arrange(
+    BoxConstraints constraints,
+    ChildLayouter layoutChild, {
+    void Function(RenderBox child, Offset offset)? positionChild,
+  }) {
+    final RenderBox region = _region;
+    final RenderBox action = _action;
+
+    // Unbounded width is left alone rather than guessed at. A row inside a
+    // horizontally scrolling parent has no share to take a fraction of, and the
+    // region's own `Expanded` refuses that arrangement in terms the framework
+    // wrote — which is a better answer than one this layout invented.
+    if (!constraints.hasBoundedWidth) {
+      final Size wanted = layoutChild(action, const BoxConstraints());
+      final Size regionSize = layoutChild(region, const BoxConstraints());
+      final double height = math.max(regionSize.height, wanted.height);
+      if (positionChild != null) {
+        positionChild(region, Offset.zero);
+        positionChild(
+          action,
+          Offset(
+            regionSize.width + metrics.separation,
+            (height - wanted.height) / 2,
+          ),
+        );
+      }
+      return Size(
+        regionSize.width +
+            metrics.separation +
+            wanted.width +
+            metrics.endPadding,
+        height,
+      );
+    }
+
+    final double available = constraints.maxWidth;
+    final double shared =
+        math.max(0, available - metrics.separation - metrics.endPadding);
+
+    // What the control asks for, given the whole row rather than its share. A
+    // control measured against its share can only report the share back, so
+    // asking that way could never tell a control that fits from one that has
+    // been crushed into fitting.
+    final Size wanted = layoutChild(
+      action,
+      BoxConstraints(maxWidth: math.max(0, available - metrics.endPadding)),
+    );
+
+    if (wanted.width <= shared * metrics.share) {
+      // Beside. The region takes everything the control did not, so the row's
+      // target reaches the control rather than stopping at the end of its
+      // text: a gap between two targets that belongs to neither is a gap where
+      // a tap does nothing at all.
+      final double regionWidth = math.max(0, shared - wanted.width);
+      final Size regionSize =
+          layoutChild(region, BoxConstraints.tightFor(width: regionWidth));
+      final double height = math.max(regionSize.height, wanted.height);
+      if (positionChild != null) {
+        positionChild(region, _place(0, 0, regionWidth, available));
+        positionChild(
+          action,
+          _place(
+            available - metrics.endPadding - wanted.width,
+            (height - wanted.height) / 2,
+            wanted.width,
+            available,
+          ),
+        );
+      }
+      return Size(available, height);
+    }
+
+    // Below. The region takes the full width — so the target still spans the
+    // row edge to edge — and the control sits under it at the leading edge,
+    // re-measured against the width it now has. The separation between the two
+    // targets is the same floor, on the other axis.
+    final Size regionSize =
+        layoutChild(region, BoxConstraints.tightFor(width: available));
+    final Size below = layoutChild(
+      action,
+      BoxConstraints(
+        maxWidth: math.max(
+          0,
+          available - metrics.leadingInset - metrics.endPadding,
+        ),
+      ),
+    );
+    final double top = regionSize.height + metrics.separation;
+    if (positionChild != null) {
+      positionChild(region, Offset.zero);
+      positionChild(
+        action,
+        _place(metrics.leadingInset, top, below.width, available),
+      );
+    }
+    return Size(available, top + below.height);
+  }
+
+  /// The same arrangement, measured through the intrinsic protocol.
+  ///
+  /// Separate from [_arrange] because nothing may be laid out during an
+  /// intrinsic pass. The two agree by construction: the same decision, the same
+  /// separation, the same widths handed to the same children.
+  double _intrinsicHeight(double width) {
+    final double wanted = _action.getMaxIntrinsicWidth(double.infinity);
+    if (!width.isFinite) {
+      return math.max(
+        _region.getMaxIntrinsicHeight(double.infinity),
+        _action.getMaxIntrinsicHeight(double.infinity),
+      );
+    }
+
+    final double shared =
+        math.max(0, width - metrics.separation - metrics.endPadding);
+    if (wanted <= shared * metrics.share) {
+      return math.max(
+        _region.getMaxIntrinsicHeight(math.max(0, shared - wanted)),
+        _action.getMaxIntrinsicHeight(wanted),
+      );
+    }
+
+    final double room =
+        math.max(0, width - metrics.leadingInset - metrics.endPadding);
+    return _region.getMaxIntrinsicHeight(width) +
+        metrics.separation +
+        _action.getMaxIntrinsicHeight(math.min(wanted, room));
+  }
+
+  /// The width the row asks for when nothing constrains it: the region, the
+  /// separation, the control, and the control's end padding.
+  double _intrinsicWidth(double region, double action) =>
+      region + metrics.separation + action + metrics.endPadding;
+
+  @override
+  double computeMinIntrinsicWidth(double height) => _intrinsicWidth(
+        _region.getMinIntrinsicWidth(double.infinity),
+        _action.getMinIntrinsicWidth(double.infinity),
+      );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => _intrinsicWidth(
+        _region.getMaxIntrinsicWidth(double.infinity),
+        _action.getMaxIntrinsicWidth(double.infinity),
+      );
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.constrain(
+        _arrange(constraints, ChildLayoutHelper.dryLayoutChild),
+      );
+
+  /// What the arrangement asked for, before the incoming constraints had their
+  /// say.
+  ///
+  /// Kept so an overflow is *reported* rather than absorbed. Clamping the
+  /// returned size to the constraints is obligatory; doing only that would make
+  /// a row that does not fit paint over whatever follows it in silence, which
+  /// is the one thing worse than not fitting. The `Column` this arrangement
+  /// replaced reported it, so this has to as well.
+  Size _arranged = Size.zero;
+
+  final LayerHandle<ClipRectLayer> _clip = LayerHandle<ClipRectLayer>();
+
+  bool get _overflows =>
+      _arranged.width - size.width > precisionErrorTolerance ||
+      _arranged.height - size.height > precisionErrorTolerance;
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
+  }
+
+  @override
+  void performLayout() {
+    _arranged = _arrange(
+      constraints,
+      ChildLayoutHelper.layoutChild,
+      positionChild: (RenderBox child, Offset offset) =>
+          (child.parentData! as BoxParentData).offset = offset,
+    );
+    size = constraints.constrain(_arranged);
+  }
+
+  void _paintChildren(PaintingContext context, Offset offset) {
+    for (final RenderBox child in children) {
+      context.paintChild(
+        child,
+        (child.parentData! as BoxParentData).offset + offset,
+      );
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!_overflows) {
+      _clip.layer = null;
+      _paintChildren(context, offset);
+      return;
+    }
+
+    _clip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      Offset.zero & size,
+      _paintChildren,
+      oldLayer: _clip.layer,
+    );
+
+    assert(() {
+      paintOverflowIndicator(
+        context,
+        offset,
+        Offset.zero & size,
+        Offset.zero & _arranged,
+        overflowHints: <DiagnosticsNode>[
+          ErrorDescription(
+            'The row was given ${size.height.toStringAsFixed(1)} pixels of '
+            'height and its content needs '
+            '${_arranged.height.toStringAsFixed(1)}.',
+          ),
+          ErrorHint(
+            'A list row wraps its text and never truncates it, so at an '
+            'enlarged text size it can be several times the height of a line. '
+            'That is the row doing what it is for. Put the list in something '
+            'that scrolls — IuxPage, a ListView, a SingleChildScrollView — '
+            'rather than in a box of a fixed height: a row that scrolled '
+            'inside itself would hide the very text it refused to truncate.',
+          ),
+        ],
+      );
+      return true;
+    }());
+  }
+
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) =>
+      _overflows ? Offset.zero & size : null;
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    // Reverse of paint order, so the control on top of nothing is still asked
+    // first and a row never swallows a tap meant for it.
+    for (final RenderBox child in children.toList().reversed) {
+      final BoxParentData parentData = child.parentData! as BoxParentData;
+      final bool hit = result.addWithPaintOffset(
+        offset: parentData.offset,
+        position: position,
+        hitTest: (BoxHitTestResult result, Offset transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
   }
 }
 
@@ -925,9 +1355,10 @@ class _IuxRowContentGuardState extends State<_IuxRowContentGuard> {
           ),
           ErrorHint(
             'Pass the control as `trailingAction` instead. It is laid out '
-            'beside the row rather than inside it, keeps at least the minimum '
-            'target separation, and stays its own named stop for a screen '
-            'reader. `leading` is for an icon or an avatar.',
+            'outside the row rather than inside it — beside its text while it '
+            'fits there and below it when it does not — keeps at least the '
+            'minimum target separation either way, and stays its own named '
+            'stop for a screen reader. `leading` is for an icon or an avatar.',
           ),
         ]);
       });

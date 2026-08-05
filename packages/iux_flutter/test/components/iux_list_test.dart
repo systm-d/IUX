@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +27,7 @@ void main() {
     TextDirection direction = TextDirection.ltr,
     double textScale = 1,
     Size size = const Size(400, 800),
+    bool scrollable = true,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -40,7 +43,13 @@ void main() {
           theme: IuxTheme.fromConfiguration(configuration),
           home: Directionality(
             textDirection: direction,
-            child: Scaffold(body: SingleChildScrollView(child: subject)),
+            child: Scaffold(
+              // Scrolling by default, because that is what a list is in. The
+              // bounded case is a deliberate choice a test makes, not a
+              // default it inherits.
+              body:
+                  scrollable ? SingleChildScrollView(child: subject) : subject,
+            ),
           ),
         ),
       ),
@@ -865,6 +874,79 @@ void main() {
       status: IuxStatus.success('Delivered'),
     );
 
+    /// Everything the rendering library reported while [body] ran.
+    ///
+    /// `takeException` collapses several reports into the first one and clears
+    /// the rest, so a case that overflows twice reads as a case that overflowed
+    /// once. `FlutterError.onError` keeps them all, which is the difference
+    /// between "an overflow" and "which overflow, and by how much".
+    Future<List<FlutterErrorDetails>> reported(
+      Future<void> Function() body,
+    ) async {
+      final List<FlutterErrorDetails> collected = <FlutterErrorDetails>[];
+      final void Function(FlutterErrorDetails)? previous = FlutterError.onError;
+      FlutterError.onError = collected.add;
+      try {
+        await body();
+      } finally {
+        FlutterError.onError = previous;
+      }
+      return collected;
+    }
+
+    /// The row's own resolved numbers, read rather than copied.
+    ///
+    /// A test that hard-codes the separation passes for a while after somebody
+    /// changes it and then asserts the wrong thing quietly.
+    Future<IuxListItemTokens> tokensAt(
+      WidgetTester tester,
+      double scale,
+    ) async {
+      late IuxListItemTokens tokens;
+      await pump(
+        tester,
+        Builder(
+          builder: (BuildContext context) {
+            tokens = IuxListItemResolver.resolve(context);
+            return const SizedBox.shrink();
+          },
+        ),
+        textScale: scale,
+        size: small,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      return tokens;
+    }
+
+    /// The size [subject] takes when it is given [width] and nothing else.
+    ///
+    /// The independent half of every measurement below: what the control needs
+    /// has to come from somewhere other than the row that is being judged.
+    Future<Size> aloneAt(
+      WidgetTester tester,
+      Widget subject,
+      double scale, {
+      required double width,
+    }) async {
+      await pump(
+        tester,
+        Align(
+          alignment: Alignment.topLeft,
+          // A maximum, not a tight width: the control has to be free to report
+          // that it wanted less than it was offered.
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: width),
+            child: subject,
+          ),
+        ),
+        textScale: scale,
+        size: small,
+      );
+      final Size size = tester.getSize(find.byType(IuxStatusIndicator));
+      await tester.pumpWidget(const SizedBox.shrink());
+      return size;
+    }
+
     /// The combination: a tappable row with a status beside it.
     ///
     /// `IUX-LISTITEM-TRAILING-001`. The point of this test is the *pair*.
@@ -957,23 +1039,96 @@ void main() {
       }
     });
 
-    testWidgets('the row keeps the larger share of the width, at every scale',
+    testWidgets('the control is never laid out narrower than it asked for',
         (WidgetTester tester) async {
-      // Not merely "nothing threw". A row whose text region had been squeezed
-      // to nothing would also report no overflow, and would be useless: the
-      // title is the only thing that tells this item from the next one.
+      // The guarantee that replaced the ceiling, and the one that has to hold
+      // for the height not to explode. A cap answers "how much may you have"
+      // and never asks "is that enough to be read": on a 320-pixel row the
+      // control's share is 97 pixels and this indicator's minimum intrinsic
+      // width is 180 at 100% and 472 at 300% — a one-word label has no wrap
+      // point, so below its minimum the word itself breaks, one glyph to a
+      // line. Capped, the control came out 76 pixels tall at 100% against a
+      // natural 36, and 556 at 300%.
       for (final double scale in scales) {
-        await pump(tester, combined(), textScale: scale, size: small);
+        final IuxListItemTokens tokens = await tokensAt(tester, scale);
+        final double room = small.width -
+            (tokens.focusReservation + tokens.horizontalPadding) -
+            tokens.horizontalPadding;
+        final Size wanted =
+            await aloneAt(tester, delivered, scale, width: double.infinity);
+        final Size fits = await aloneAt(tester, delivered, scale, width: room);
 
-        final double region = tester.getSize(find.text('Order 3141')).width;
-        final double control =
-            tester.getSize(find.byType(IuxStatusIndicator)).width;
+        await pump(tester, combined(), textScale: scale, size: small);
+        final Size inRow = tester.getSize(find.byType(IuxStatusIndicator));
 
         expect(
-          control,
-          lessThan(region),
-          reason: 'at ${scale}x the status took more of the row than the text '
-              'that identifies it',
+          inRow.width,
+          moreOrLessEquals(math.min(wanted.width, room), epsilon: 0.5),
+          reason: 'at ${scale}x the control was given ${inRow.width} where it '
+              'asked for ${wanted.width} and had room for $room. A control '
+              'squeezed below what it asked for wraps inside its own words',
+        );
+        expect(
+          inRow.height,
+          moreOrLessEquals(fits.height, epsilon: 0.5),
+          reason: 'at ${scale}x the control is ${inRow.height} tall in the row '
+              'and ${fits.height} tall alone at the same width, so the row is '
+              'making it wrap more than the room it gave it requires',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets(
+        'a trailing control costs the row the height it needs, and no '
+        'more', (WidgetTester tester) async {
+      // The half of `IUX-LISTITEM-TRAILING-001` that the width fix created.
+      // Bounding the control to a third of the row stopped it pushing the
+      // title out and started it wrapping inside its own word instead: on a
+      // 320-pixel row at 300% this row was 480 pixels tall without the status
+      // and 924 with it — 444 pixels for one word — and in a bounded 320x640
+      // box the pair overflowed 284 on the bottom while the same row without
+      // the status fitted with 160 to spare.
+      //
+      // The bound asserted here is arithmetic rather than a remembered figure:
+      // a control may cost the row its own height at the width the row can
+      // give it, plus the separation the two targets keep. Nothing else.
+      for (final double scale in scales) {
+        final IuxListItemTokens tokens = await tokensAt(tester, scale);
+        final double room = small.width -
+            (tokens.focusReservation + tokens.horizontalPadding) -
+            tokens.horizontalPadding;
+        final Size control =
+            await aloneAt(tester, delivered, scale, width: room);
+
+        await pump(
+          tester,
+          IuxListItem.tappable(
+            title: 'Order 3141',
+            subtitle: 'Handed to the carrier on Monday',
+            onActivate: () {},
+            hint: 'Opens the order',
+          ),
+          textScale: scale,
+          size: small,
+        );
+        final double without = tester.getSize(find.byType(IuxListItem)).height;
+        await tester.pumpWidget(const SizedBox.shrink());
+
+        await pump(tester, combined(), textScale: scale, size: small);
+        final double with_ = tester.getSize(find.byType(IuxListItem)).height;
+
+        expect(
+          with_,
+          lessThanOrEqualTo(
+            without + tokens.actionSpacing + control.height + 0.5,
+          ),
+          reason: 'at ${scale}x the row is $with_ tall where the same row '
+              'without the control is $without and the control needs '
+              '${control.height} at the width the row can give it. A row that '
+              'costs more than that is manufacturing height rather than '
+              'reporting it',
         );
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -1009,22 +1164,76 @@ void main() {
       );
     });
 
-    testWidgets('the two targets still cannot overlap',
-        (WidgetTester tester) async {
-      // The guarantee the arrangement exists for, re-checked at the scale that
-      // used to break the layout: bounding the control must not have let it
-      // slide under the row's target.
-      await pump(tester, combined(), textScale: 2, size: small);
+    testWidgets(
+        'the two targets cannot overlap, on whichever axis separates '
+        'them', (WidgetTester tester) async {
+      // The guarantee the arrangement exists for. It used to be checked at one
+      // scale and on one axis, which was only ever true because the control
+      // could not leave the line. It can now — that is the fix — so the
+      // guarantee is checked at every scale and against whichever way round
+      // the two ended up.
+      for (final double scale in scales) {
+        await pump(tester, combined(), textScale: scale, size: small);
 
-      final Rect row = tester.getRect(tapRegion());
-      final Rect control = tester.getRect(find.byType(IuxStatusIndicator));
+        final Rect row = tester.getRect(tapRegion());
+        final Rect control = tester.getRect(find.byType(IuxStatusIndicator));
 
-      expect(row.overlaps(control), isFalse);
+        expect(
+          row.overlaps(control),
+          isFalse,
+          reason: 'at ${scale}x the two targets overlap, so a tap on the seam '
+              'has two answers',
+        );
+
+        final double beside = control.left - row.right;
+        final double below = control.top - row.bottom;
+        expect(
+          math.max(beside, below),
+          greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
+          reason: 'at ${scale}x the separation was ${math.max(beside, below)}. '
+              'The spacing floor between two adjacent targets is the reason '
+              'this arrangement is provided rather than left to a call site, '
+              'and moving the control below the text does not suspend it',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets(
+        'a row too tall for its box says so instead of painting over '
+        'what follows', (WidgetTester tester) async {
+      // The row wraps its text and never truncates it, so at 300% it is
+      // genuinely several hundred pixels tall and a caller who put it in a
+      // fixed box with no scrollable has made a mistake the row cannot fix.
+      // What the row owes them is to say so: the arrangement clamps itself to
+      // the constraints it was given, and a clamp that reported nothing would
+      // paint over the next row in silence. This is the assertion that the
+      // diagnostic survives the render object that replaced the Column.
+      final List<FlutterErrorDetails> errors = await reported(() async {
+        await pump(
+          tester,
+          combined(),
+          textScale: 3,
+          size: small,
+          scrollable: false,
+        );
+      });
+
       expect(
-        control.left - row.right,
-        greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
-        reason: 'the spacing floor between two adjacent targets is the reason '
-            'this arrangement is provided rather than left to a call site',
+        errors.map((FlutterErrorDetails d) => d.exception.toString()),
+        contains(contains('overflowed')),
+        reason: 'a row that does not fit and reports nothing is worse than one '
+            'that does not fit: the caller sees a clipped list and no reason',
+      );
+      expect(
+        errors
+            .map((FlutterErrorDetails d) => d.toString())
+            .join()
+            .contains('IuxPage'),
+        isTrue,
+        reason: 'the hint has to name what to do about it, not merely that a '
+            'flex overflowed somewhere',
       );
     });
   });
