@@ -19,6 +19,7 @@ export 'src/components/button/iux_async_button.dart';
 export 'src/components/button/iux_button.dart';
 export 'src/components/card/iux_card.dart';
 export 'src/components/card/iux_content_group.dart';
+export 'src/components/chart/iux_chart_model.dart';
 export 'src/components/feedback/iux_inline_feedback.dart';
 export 'src/components/feedback/iux_inline_feedback_tokens.dart';
 export 'src/components/help/iux_contextual_help.dart';
