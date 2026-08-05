@@ -106,12 +106,16 @@ class _TextFieldPanelState extends State<_TextFieldPanel> {
 
     return CatalogPanel(
       title: 'Availability, and what it costs the caret',
-      description: 'Three availabilities that look like three shades of the '
-          'same box. Read-only still lets the user select and copy the value; '
-          'disabled does not, and a value nobody can copy is a value nobody '
-          'can quote to support. Choosing disabled for a field that is merely '
-          'not editable is the most common mistake this enum exists to make '
-          'visible.',
+      description: 'Three availabilities. Read-only still lets the user select '
+          'and copy the value; disabled does not, and a value nobody can copy '
+          'is a value nobody can quote to support. Choosing disabled for a '
+          'field that is merely not editable is the most common mistake this '
+          'enum exists to make visible. Switch the theme above and watch what '
+          'survives: the three fills are three colours since IUX-SURFACE-001 '
+          'was closed, but no two of them reach 3:1 — on dark standard the '
+          'read-only and disabled fills are still the same colour. What '
+          'actually separates them is the lock marker, the outline, and the '
+          'strength of the value.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -184,6 +188,15 @@ class _TextFieldPanelState extends State<_TextFieldPanel> {
             'directly on the box hears the label and the hint and not the help '
             'until they swipe to it. Pairing helpText with the hint is the '
             'workaround, and it is a workaround.',
+          ),
+          const CatalogNote(
+            'To a screen reader the read-only field and the disabled one both '
+            'report isReadOnly, and there is nothing IUX can do about it: '
+            "Flutter's TextField resolves the flag as readOnly || !enabled and "
+            'merged flags disjoin. What separates them in the tree is enabled, '
+            'and the tap and focus actions that go with it — the read-only '
+            'field answers a tap and takes focus, the disabled one does '
+            'neither.',
           ),
         ],
       ),

@@ -144,8 +144,8 @@ is two things to remember.
 | value | the controller's text |
 | hint | `IuxInputDescriptor.accessibleHint` — the caller's hint, or the reason it is unavailable |
 | required | the `isRequired` property, never a composed asterisk |
-| read-only | the `readOnly` flag |
-| unavailable | `enabled: false` |
+| read-only | the `readOnly` flag — but see below: a disabled field carries it too |
+| unavailable | `enabled: false`, and the absence of the tap and focus actions. This, not the flag above, is what separates read-only from disabled |
 | valid / invalid | `SemanticsValidationResult` |
 | the error itself | a live region beside the field |
 
@@ -173,36 +173,100 @@ the caret, and the state that follows is focus.
 
 ## Read-only is not disabled, and has to look like it
 
+This page used to list five signals as carrying read-onlyness. Four of them do
+not, and the fifth does not do what was claimed. What follows is measured
+(`test/components/iux_text_field_test.dart`,
+`test/inputs/iux_input_theme_test.dart`) rather than asserted.
+
+### The fill, and what changed
+
 `surface.subtle` and `surface.interactive` are distinct roles that every
-palette IUX ships maps to the same colour — recorded as **IUX-SURFACE-001**. In
-the `filled` variant, therefore, the fill separates a read-only field from an
-editable one by nothing at all. (In `outlined` it does: `surface.subtle`
-differs from `surface.base` on all four profiles.)
+shipped palette used to map to **one** primitive — **IUX-SURFACE-001**. In the
+`filled` variant a read-only field was therefore byte-identical to the editable
+field beside it: same fill on all four profiles, same value colour on all four,
+and the same outline on three of them, because `border.standard` and
+`border.interactive` are also one colour outside light standard. A lock glyph
+was the only thing between a box you may type in and one you may not.
 
-Five signals carry the distinction instead, and none of them is a hue:
+**This is now closed.** `surface.interactive` has its own primitive on each
+profile, so `surface.base`, `surface.subtle`, `surface.interactive` and
+`surface.disabled` are four colours everywhere.
 
-1. **No caret.** `showCursor` is false, so focusing a read-only field puts no
-   blinking bar in it.
-2. **No keyboard.** Tapping it opens no software keyboard, which is the fastest
-   feedback a touch user can get.
-3. **A marker.** A small lock glyph sits at the reading end of the box. It is a
-   *shape*, so it survives greyscale, a colour-vision deficiency and a printed
-   screenshot, and — unlike the four other signals — it is there before the
-   user has tried to do anything.
-4. **No placeholder.** A field nobody may fill is not prompted to be filled.
-   Prompting for input the user may not give is an instruction they cannot
-   follow.
-5. **The `readOnly` semantic flag**, which the platform speaks in the user's
-   own language.
+It does not follow that the fill carries the distinction. No two steps of the
+neutral ramp reach 3:1 against each other — the widest separation between any
+two of these four roles on any profile is **1.86:1**, and on dark standard
+`surface.subtle` and `surface.disabled` are still the *same* colour, so a
+read-only field and a disabled one have one fill there. A fill is legible as a
+difference only when the two boxes are adjacent, which a form rarely arranges.
+Closing IUX-SURFACE-001 stopped the fill *contradicting* the state. It does not
+make the fill announce it, and no arrangement of this ramp could: a signal that
+tops out at 1.86:1 is not a signal. What carries the distinction is the marker,
+the outline, the value's own strength and the semantic availability — the four
+rows marked "yes" below.
+
+### What separates read-only from *editable*
+
+| Signal | Present before the user acts? |
+| --- | --- |
+| no caret (`showCursor` false) | no — only once focused |
+| no software keyboard on tap | no — only once tapped |
+| no placeholder | only if a placeholder was passed and the field is empty |
+| the lock marker | **yes** |
+| the `readOnly` semantic flag | yes, to a screen reader |
+
+### What separates read-only from *disabled*
+
+This is the harder question, and it is the one the old list did not answer. A
+disabled field has **no caret, opens no keyboard and shows no placeholder
+either**, so three of the five signals above are silent here.
+
+| Signal | Separates read-only from disabled? |
+| --- | --- |
+| no caret | no — disabled has none either |
+| no keyboard | no — disabled opens none either |
+| no placeholder | no — disabled shows none either |
+| the lock marker | **yes.** Only a read-only field wears it |
+| the `readOnly` semantic flag | **no.** See below |
+| the value's own colour | yes — full strength against `content.disabled` |
+| the outline | yes — `border.standard` against `border.disabled` |
+| `enabled` in the semantic tree, and the tap and focus actions | **yes** |
+
+**The `readOnly` flag is on both.** Flutter's `TextField` hands the editing
+widget `readOnly: widget.readOnly || !_isEnabled`, and semantic flags merge
+upward by disjunction, so a disabled field publishes `isReadOnly` whatever IUX
+asks for. That is not *wrong* — a disabled field genuinely cannot be edited —
+but it means the flag cannot be what tells a screen-reader user which of the two
+they have landed on. `enabled: false` and the absent tap and focus actions are
+what do that, and they are unambiguous: a read-only field is announced, is
+reachable and answers a tap; a disabled field is announced as unavailable and
+answers nothing.
 
 The marker is excluded from the semantic tree: the flag already says it, and an
 icon carrying information the semantics do not is information a screen-reader
-user never receives.
+user never receives. That is why the shape and the semantics are two separate
+guarantees rather than one — the sighted user gets the glyph, the screen-reader
+user gets the availability, and neither depends on the other.
 
 A read-only field **stays in the focus order** and stays selectable and
 copyable, which is the whole reason it is not `disabled`. A disabled field
 leaves traversal, so a screen-reader user is never told the value at all — they
 are not told it is fixed, they are simply not told.
+
+### Measured
+
+Every ratio below is against the fill the field itself paints, on the `filled`
+variant, which is the surface the eye actually receives.
+
+| Profile | read-only value | read-only marker | read-only outline | disabled value |
+| --- | --- | --- | --- | --- |
+| light standard | 16.27:1 | 7.12:1 | 3.43:1 | 3.16:1 |
+| light high contrast | 18.08:1 | 12.72:1 | 12.72:1 | 5.76:1 |
+| dark standard | 13.79:1 | 8.61:1 | 3.10:1 | 3.10:1 |
+| dark high contrast | 14.78:1 | 11.16:1 | 8.61:1 | 4.28:1 |
+
+Text is held to 4.5:1 and the outline and the marker to 3:1. Disabled content
+is held to 3:1 rather than taking the WCAG exemption, because a field the user
+cannot fill is still one they have to read to understand the form.
 
 ## Errors
 
@@ -287,7 +351,10 @@ hint "and also on screen".
   worse exactly when someone has enlarged their text. The read-only marker
   scales with the text rather than shrinking into a dot.
 - **Colour.** Never the only carrier. Errors carry a message and a thicker
-  outline; read-only carries a shape and four behaviours.
+  outline. Read-only carries a shape — the marker — which is the only signal
+  that separates it from a disabled field before the user has tried to do
+  anything; the behaviours it also has (no caret, no keyboard, no placeholder)
+  separate it from an *editable* field and are equally true of a disabled one.
 - **Reduced motion.** The only animation is the state-change tint on the
   container, resolved through `IuxMotionPolicy`. Under
   `IuxMotionPreference.none` it becomes instant — the colours still change,
@@ -378,8 +445,20 @@ helpText: l10n.emailHelp
   the configuration says. Passing `variant` explicitly always works.
 - **The read-only marker is a judgement.** A lock glyph is a widely used
   convention, not a measured optimum, and it has not been validated with users.
-  It is the honest answer to IUX-SURFACE-001; separating `surface.subtle` from
-  `surface.interactive` in the palettes would be a better one.
+  Its *contrast* is measured on all four profiles; whether a lock is the right
+  shape is not, and a lock arguably reads as "unavailable", which is what the
+  neighbouring state means.
+- **A disabled field still publishes `isReadOnly`,** because Flutter resolves
+  the flag as `widget.readOnly || !_isEnabled` and merged flags disjoin. IUX
+  cannot clear it from above. It is accurate but useless as a discriminator;
+  `enabled` is the one that works. Closing this would need
+  `IuxSemantics.field` to be able to force the flag false, which is the
+  accessibility runtime's decision and not this component's.
+- **`surface.subtle` and `surface.disabled` are one colour on dark standard,**
+  so read-only and disabled share a fill there. Not fixed, and deliberately:
+  every alternative rung drops `border.interactive` below the 3:1 an outline
+  owes under SC 1.4.11, and buying a 1.3:1 fill difference with an unreadable
+  outline is a worse interface than the one it replaces.
 - **Hover exists and never happens.** It is carried for parity with the button.
   On a touch-only Android device it can only ever reinforce something already
   available elsewhere.
@@ -403,6 +482,7 @@ helpText: l10n.emailHelp
 | Text must survive 200% scaling | Standard — WCAG 2.2 SC 1.4.4 |
 | The target floor applies to the field | Standard — WCAG 2.2 SC 2.5.8 |
 | Read-only stays in the focus order; disabled does not | Standard — Android accessibility guidance |
+| The marker, the outline and the value's strength must reach the WCAG floors | Standard — WCAG 2.2 SC 1.4.3, 1.4.11; measured per profile |
 | A live region rather than an announcement | Standard — Android deprecated `announceForAccessibility` |
 | Help text should survive an error | Strong guidance — Baymard, NN/g on form error recovery |
 | One content kind rather than five settings | Context dependent — IUX API design |

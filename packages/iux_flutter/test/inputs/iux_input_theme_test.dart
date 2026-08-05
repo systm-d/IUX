@@ -384,6 +384,245 @@ void main() {
     });
   });
 
+  // IUX-SURFACE-001, measured rather than described.
+  //
+  // `surface.subtle` and `surface.interactive` are two roles a caller can
+  // reach through two different availabilities, and all four shipped palettes
+  // mapped them to one primitive. In the `filled` variant that made a
+  // read-only field byte-identical to the editable field beside it —
+  // background, outline and value colour the same on three of the four
+  // profiles — leaving a lock glyph as the only thing that separated a box you
+  // may type in from one you may not.
+  //
+  // The rule generalises, and is the same one `button_distinguishability_test`
+  // enforces for intents and variants: where two choices a caller can make
+  // produce one painted result, either the API is lying about the difference
+  // or one of the two is dead. So every availability is swept against every
+  // other, on every profile, in both variants.
+  //
+  // What is *not* asserted here is a ratio between two fills. No two adjacent
+  // steps of the neutral ramp reach 3:1, so a fill can never be the signal
+  // that separates two states; requiring one would only invite a threshold to
+  // be lowered until the design passed. What the fills owe is to differ at
+  // all; what the perceivable signals owe is the WCAG floor, and those are
+  // measured separately below.
+  group('two availabilities never paint one box', () {
+    final List<(String, IuxThemeConfiguration)> profiles =
+        <(String, IuxThemeConfiguration)>[
+      ('light standard', const IuxThemeConfiguration()),
+      (
+        'light high contrast',
+        const IuxThemeConfiguration(
+          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+        )
+      ),
+      (
+        'dark standard',
+        const IuxThemeConfiguration(brightness: Brightness.dark)
+      ),
+      (
+        'dark high contrast',
+        const IuxThemeConfiguration(
+          brightness: Brightness.dark,
+          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+        )
+      ),
+    ];
+
+    /// Everything a caller can see about a resolved field.
+    ///
+    /// Compared as a record rather than through `IuxInputTokens ==`, so a
+    /// failure names the property that collapsed instead of saying "not
+    /// equal" — and so `state`, which is an input to the painting rather than
+    /// a thing the eye receives, cannot make two identical boxes compare
+    /// unequal.
+    ({
+      Color background,
+      Color border,
+      double borderWidth,
+      Color value,
+      Color supporting,
+    }) painted(IuxInputTokens tokens) => (
+          background: tokens.background,
+          border: tokens.border,
+          borderWidth: tokens.borderWidth,
+          value: tokens.valueStyle.color!,
+          supporting: tokens.labelStyle.color!,
+        );
+
+    testWidgets('the roles a field asks for are distinct colours',
+        (WidgetTester tester) async {
+      // The root of IUX-SURFACE-001. The resolver picks the right roles; the
+      // palette collapsed them, so the right roles produced one colour.
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        final IuxSemanticColors colors = IuxTheme.resolve(configuration).colors;
+        expect(
+          colors.surface.interactive,
+          isNot(colors.surface.subtle),
+          reason: 'surface.interactive and surface.subtle are the same colour '
+              'in $name, so an editable filled field and a read-only one have '
+              'the same fill',
+        );
+        expect(
+          colors.surface.interactive,
+          isNot(colors.surface.disabled),
+          reason: 'surface.interactive and surface.disabled are the same '
+              'colour in $name',
+        );
+        expect(
+          colors.surface.interactive,
+          isNot(colors.surface.base),
+          reason: 'a filled field with the page colour in $name is not filled',
+        );
+      }
+    });
+
+    testWidgets('a read-only field is not the editable one beside it',
+        (WidgetTester tester) async {
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        final IuxInputTokens readOnly = await resolve(
+          tester,
+          input: field.copyWith(availability: IuxInputAvailability.readOnly),
+          variant: IuxInputVariant.filled,
+          configuration: configuration,
+        );
+        final IuxInputTokens editable = await resolve(
+          tester,
+          input: field,
+          variant: IuxInputVariant.filled,
+          configuration: configuration,
+        );
+        expect(
+          readOnly.background,
+          isNot(editable.background),
+          reason: 'in $name a filled read-only field and a filled editable '
+              'field have the same fill',
+        );
+      }
+    });
+
+    testWidgets('no two availabilities resolve to the same painted box',
+        (WidgetTester tester) async {
+      final List<String> collisions = <String>[];
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        for (final IuxInputVariant variant in IuxInputVariant.values) {
+          final Map<
+              String,
+              ({
+                Color background,
+                Color border,
+                double borderWidth,
+                Color value,
+                Color supporting,
+              })> shapes = <String,
+              ({
+            Color background,
+            Color border,
+            double borderWidth,
+            Color value,
+            Color supporting,
+          })>{};
+          for (final MapEntry<IuxInputState, (IuxInputDescriptor, bool)> entry
+              in scenarios().entries) {
+            // Only the availability axis. `valid`, `invalid` and `validating`
+            // are a different question, already asked above.
+            if (!const <IuxInputState>{
+              IuxInputState.enabled,
+              IuxInputState.hovered,
+              IuxInputState.readOnly,
+              IuxInputState.disabled,
+            }.contains(entry.key)) {
+              continue;
+            }
+            shapes[entry.key.name] = painted(
+              await resolve(
+                tester,
+                input: entry.value.$1,
+                hovered: entry.value.$2,
+                variant: variant,
+                configuration: configuration,
+              ),
+            );
+          }
+          final List<String> names = shapes.keys.toList();
+          for (int i = 0; i < names.length; i++) {
+            for (int j = i + 1; j < names.length; j++) {
+              if (shapes[names[i]] == shapes[names[j]]) {
+                collisions.add(
+                  '$name/${variant.name}: ${names[i]} and ${names[j]} paint '
+                  'the same box (${shapes[names[i]]})',
+                );
+              }
+            }
+          }
+        }
+      }
+      // Collected before failing rather than thrown on the first: a sweep that
+      // stops at one cell tells you about one cell.
+      expect(collisions, isEmpty, reason: collisions.join('\n'));
+    });
+
+    testWidgets('what a filled field paints holds the WCAG floors',
+        (WidgetTester tester) async {
+      // Measured against the field's own fill, which is what the eye receives.
+      // The sweep above only requires the fills to differ; this is what stops
+      // the difference being bought by making something unreadable.
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        final Color page = IuxTheme.resolve(configuration).colors.surface.base;
+        for (final IuxInputAvailability availability
+            in IuxInputAvailability.values) {
+          final IuxInputTokens tokens = await resolve(
+            tester,
+            input: field.copyWith(availability: availability),
+            variant: IuxInputVariant.filled,
+            configuration: configuration,
+          );
+          final bool inactive = availability == IuxInputAvailability.disabled;
+          void measure(String role, Color foreground, double floor) {
+            final double measured =
+                ContrastMetric.ratio(foreground, tokens.background);
+            expect(
+              measured,
+              greaterThanOrEqualTo(floor),
+              reason: '$role on ${availability.name} in $name measured '
+                  '${measured.toStringAsFixed(2)}:1 against its own fill, '
+                  'below ${floor.toStringAsFixed(1)}:1',
+            );
+          }
+
+          measure(
+            'the value',
+            tokens.valueStyle.color!,
+            inactive ? ContrastMetric.nonText : ContrastMetric.normalText,
+          );
+          // The read-only marker takes the supporting colour, and it is a
+          // meaningful graphic rather than decoration: it is the one signal
+          // that separates read-only from disabled before the user has tried
+          // to do anything.
+          measure(
+            'the supporting content and the read-only marker',
+            tokens.labelStyle.color!,
+            inactive ? ContrastMetric.nonText : ContrastMetric.normalText,
+          );
+          if (!inactive) {
+            measure('the outline', tokens.border, ContrastMetric.nonText);
+            final double onPage = ContrastMetric.ratio(tokens.border, page);
+            expect(
+              onPage,
+              greaterThanOrEqualTo(ContrastMetric.nonText),
+              reason: 'the ${availability.name} outline in $name measured '
+                  '${onPage.toStringAsFixed(2)}:1 against the page',
+            );
+          }
+        }
+      }
+    });
+  });
+
   group('geometry follows the theme, never a literal', () {
     testWidgets('the target floor is respected on every profile',
         (WidgetTester tester) async {

@@ -587,9 +587,16 @@ class _IuxFieldSemantics extends StatelessWidget {
       // cannot announce the same situation differently.
       hint: input.accessibleHint,
       enabled: input.availability != IuxInputAvailability.disabled,
-      // Only the read-only case. A disabled field is already announced as
-      // unavailable, and saying both would describe two different reasons for
-      // one state.
+      // Only the read-only case, which is what IUX asks for and not what the
+      // tree ends up carrying. Flutter's own `TextField` resolves the flag it
+      // hands the editing widget as `widget.readOnly || !_isEnabled`
+      // (`material/text_field.dart`), and flags merge upward by disjunction,
+      // so a disabled field publishes `isReadOnly` however this is set. It is
+      // not wrong — a disabled field is genuinely not editable — but it does
+      // mean the flag cannot be the thing that tells a screen-reader user
+      // which of the two they have landed on. `isEnabled`, and the tap and
+      // focus actions that go with it, are what separate them; measured in
+      // `test/components/iux_text_field_test.dart`.
       readOnly: input.availability == IuxInputAvailability.readOnly,
       isRequired: input.isRequired,
       validation: switch (input.validation.status) {
@@ -763,17 +770,25 @@ class _IuxFieldRow extends StatelessWidget {
 
 /// The glyph that says a value may be read and not changed.
 ///
-/// A read-only field asks the theme for `surface.subtle` and an editable
-/// filled one for `surface.interactive`. Those are distinct roles, but every
-/// palette IUX ships maps them to the same colour (open issue
-/// IUX-SURFACE-001), so in the filled variant the fill separates nothing. The
-/// behavioural signals — no caret, no keyboard, the read-only flag in the
-/// semantic tree — are real but arrive only once the user has already tried to
-/// type.
+/// A read-only field asks the theme for `surface.subtle`, an editable filled
+/// one for `surface.interactive` and a disabled one for `surface.disabled`.
+/// Those are three colours on every shipped palette since IUX-SURFACE-001 was
+/// closed — until then the first two were one primitive, and in the filled
+/// variant the fill separated nothing at all.
 ///
-/// This is the signal that is there beforehand, and it is a shape rather than
-/// a hue, so it survives greyscale, a colour-vision deficiency and a
-/// screenshot printed in black and white.
+/// The fill is still not what carries this. No two steps of the neutral ramp
+/// reach 3:1 against each other, so the difference between two fills is
+/// legible only when the two boxes are side by side, and a form rarely shows
+/// them that way. The behavioural signals — no caret, no keyboard, no
+/// placeholder — are real, but every one of them is equally true of a
+/// *disabled* field, and none of them exists until the user has already tried
+/// to type.
+///
+/// This is the signal that separates read-only from both of its neighbours
+/// before the user has done anything, and it is a shape rather than a hue, so
+/// it survives greyscale, a colour-vision deficiency and a screenshot printed
+/// in black and white. Its contrast against the fill is measured on all four
+/// profiles in `test/components/iux_text_field_test.dart`.
 ///
 /// It is hidden from assistive technology because the semantic node already
 /// carries `readOnly`, which the platform speaks in the user's own language —

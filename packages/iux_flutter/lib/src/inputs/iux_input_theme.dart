@@ -18,9 +18,11 @@ import 'iux_input_model.dart';
 enum IuxInputVariant {
   /// An outline on the page background.
   ///
-  /// The default. Its boundary is a border held to 3:1 by the theme rather
-  /// than a fill that measures roughly 1.1:1 against the page in light
-  /// conditions.
+  /// The default. Its boundary is a border held to 3:1 by the theme, which no
+  /// fill can be: no two steps of the neutral ramp reach 3:1 against each
+  /// other, so a fill separates a control from the page by about 1.3:1 at
+  /// best. A fill can say *which* control this is; only a border can say that
+  /// there is one.
   outlined,
 
   /// An outline over a filled container.
@@ -338,6 +340,14 @@ abstract final class IuxInputResolver {
     // would put the error in the one channel a user with a colour-vision
     // deficiency cannot read, and would drag the contrast of the value the
     // user is trying to fix down with it.
+    //
+    // The three roles below are three different colours on every shipped
+    // palette, which they were not until IUX-SURFACE-001 was closed: `subtle`
+    // and `interactive` used to be one primitive, so a read-only field and the
+    // editable field beside it had the same fill in the `filled` variant, on
+    // all four profiles. Asking for the right role is not enough when the
+    // palette answers the same colour twice, and
+    // `test/inputs/iux_input_theme_test.dart` now sweeps for exactly that.
     final Color background = switch (state) {
       IuxInputState.disabled => colors.surface.disabled,
       IuxInputState.readOnly => colors.surface.subtle,

@@ -1,4 +1,4 @@
-import 'dart:ui' show SemanticsInputType;
+import 'dart:ui' show SemanticsInputType, Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -8,11 +8,33 @@ import 'package:iux_flutter/iux_flutter.dart';
 // Not yet in the barrel: the team lead exports it. Imported from source so the
 // component can be tested before that lands.
 
+import '../support/contrast.dart';
+
 void main() {
   const IuxInputSemantics emailSemantics =
       IuxInputSemantics(label: 'Email address');
   const IuxInputDescriptor email =
       IuxInputDescriptor(semantics: emailSemantics);
+
+  /// The four shipped role mappings, reached through the public theme engine.
+  const List<(String, IuxThemeConfiguration)> profiles =
+      <(String, IuxThemeConfiguration)>[
+    ('light standard', IuxThemeConfiguration()),
+    (
+      'light high contrast',
+      IuxThemeConfiguration(
+        profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+      )
+    ),
+    ('dark standard', IuxThemeConfiguration(brightness: Brightness.dark)),
+    (
+      'dark high contrast',
+      IuxThemeConfiguration(
+        brightness: Brightness.dark,
+        profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+      )
+    ),
+  ];
 
   /// Builds one field and returns the text reported through `onChanged`.
   Future<List<String>> pump(
@@ -169,6 +191,137 @@ void main() {
       expect(node.hasFocus, isFalse);
     });
 
+    // What actually separates read-only from disabled, measured rather than
+    // listed.
+    //
+    // The component documentation used to name five signals as carrying
+    // read-onlyness: no caret, no keyboard, a marker, no placeholder, and the
+    // `readOnly` semantic flag. Four of those five separate a read-only field
+    // from an *editable* one and say nothing at all about a disabled one,
+    // which has no caret, opens no keyboard and shows no placeholder either.
+    // The fifth does not separate them either: Flutter's own `TextField`
+    // resolves `readOnly: widget.readOnly || !_isEnabled`
+    // (`material/text_field.dart`), so the flag is published on a disabled
+    // field too, whatever IUX asks for.
+    //
+    // These tests pin what is left — a shape the disabled field does not have,
+    // an availability the tree does report, and the actions that go with it —
+    // so that the page describing the difference cannot drift away from it
+    // again.
+    group('read-only is not disabled', () {
+      IuxInputDescriptor availability(IuxInputAvailability value) =>
+          email.copyWith(availability: value);
+
+      testWidgets('only one of the two wears the marker',
+          (WidgetTester tester) async {
+        await pump(
+          tester,
+          input: availability(IuxInputAvailability.readOnly),
+          controller: controllerFor('AB-1234'),
+        );
+        expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+
+        await pump(
+          tester,
+          input: availability(IuxInputAvailability.disabled),
+          controller: controllerFor('AB-1234'),
+        );
+        expect(
+          find.byIcon(Icons.lock_outline),
+          findsNothing,
+          reason: 'a disabled field wearing the read-only marker would make '
+              'the one always-visible signal that separates them mean both',
+        );
+      });
+
+      testWidgets('the marker is a meaningful graphic and is measured as one',
+          (WidgetTester tester) async {
+        // WCAG 2.2 SC 1.4.11. It is the only signal that is present before the
+        // user has tried to type, so it is the one that has to be visible.
+        for (final (String name, IuxThemeConfiguration configuration)
+            in profiles) {
+          await pump(
+            tester,
+            input: availability(IuxInputAvailability.readOnly),
+            controller: controllerFor('AB-1234'),
+            configuration: configuration,
+            variant: IuxInputVariant.filled,
+          );
+          final Icon marker =
+              tester.widget<Icon>(find.byIcon(Icons.lock_outline));
+          final Color fill =
+              IuxTheme.resolve(configuration).colors.surface.subtle;
+          final double measured = ContrastMetric.ratio(marker.color!, fill);
+          expect(
+            measured,
+            greaterThanOrEqualTo(ContrastMetric.nonText),
+            reason: 'the read-only marker in $name measured '
+                '${measured.toStringAsFixed(2)}:1 against the fill it sits on',
+          );
+        }
+      });
+
+      testWidgets(
+          'the semantic tree separates them by availability, '
+          'never by the read-only flag', (WidgetTester tester) async {
+        // `SemanticsData` and not `SemanticsNode`: a node is a live object
+        // that the next pump rewrites in place, so holding two of them and
+        // comparing at the end compares one field with itself.
+        Future<SemanticsData> announce(IuxInputAvailability value) async {
+          await pump(
+            tester,
+            input: availability(value),
+            controller: controllerFor('AB-1234'),
+          );
+          return tester
+              .getSemantics(find.byType(EditableText))
+              .getSemanticsData();
+        }
+
+        final SemanticsData readOnly =
+            await announce(IuxInputAvailability.readOnly);
+        final SemanticsData disabled =
+            await announce(IuxInputAvailability.disabled);
+
+        // What does separate them: one is live and answers a tap, the other
+        // is neither.
+        expect(readOnly.flagsCollection.isEnabled, Tristate.isTrue);
+        expect(readOnly.hasAction(SemanticsAction.tap), isTrue);
+        expect(disabled.flagsCollection.isEnabled, Tristate.isFalse);
+        expect(disabled.hasAction(SemanticsAction.tap), isFalse);
+
+        // What does not, and this is the part the documentation got wrong.
+        // Both carry it, so a page claiming the flag is *the* read-only signal
+        // is claiming something that is equally true of the disabled field.
+        expect(readOnly.flagsCollection.isReadOnly, isTrue);
+        expect(
+          disabled.flagsCollection.isReadOnly,
+          isTrue,
+          reason: 'if Flutter ever stops resolving readOnly as '
+              '`widget.readOnly || !_isEnabled`, the flag becomes a real '
+              'discriminator and the note in docs/components/text-field.md '
+              'should be struck',
+        );
+      });
+
+      testWidgets('the value keeps full strength on one and dims on the other',
+          (WidgetTester tester) async {
+        // Dimming is a luminance change, so it survives greyscale where a hue
+        // change would not.
+        for (final (String name, IuxThemeConfiguration configuration)
+            in profiles) {
+          final IuxSemanticColors colors =
+              IuxTheme.resolve(configuration).colors;
+          expect(
+            colors.content.primary,
+            isNot(colors.content.disabled),
+            reason: 'the read-only value and the disabled value are the same '
+                'colour in $name',
+          );
+        }
+      });
+    });
+
     testWidgets('a read-only field shows no caret',
         (WidgetTester tester) async {
       await pump(
@@ -218,10 +371,11 @@ void main() {
 
     testWidgets('a read-only field wears a marker an editable one does not',
         (WidgetTester tester) async {
-      // surface.subtle and surface.interactive resolve to the same colour on
-      // every shipped palette (IUX-SURFACE-001), so in the filled variant the
-      // fill separates nothing. The marker is a shape, and it is there before
-      // the user has tried to type.
+      // The marker is a shape, so it survives greyscale, a colour-vision
+      // deficiency and a printed screenshot — and unlike the caret, the
+      // keyboard and the placeholder it is there before the user has tried to
+      // do anything. Since IUX-SURFACE-001 was closed the fill separates the
+      // two as well, but the fill is a hue and this is not.
       await pump(
         tester,
         input: email.copyWith(availability: IuxInputAvailability.readOnly),

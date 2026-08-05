@@ -59,7 +59,13 @@ abstract final class IuxColorPalettes {
       subtle: IuxPrimitiveColors.neutral5,
       raised: IuxPrimitiveColors.neutral0,
       overlay: IuxPrimitiveColors.neutral0,
-      interactive: IuxPrimitiveColors.neutral5,
+      // Two rungs below `subtle`, and that gap is the whole point: this used
+      // to be `neutral5` as well, so a filled editable field and a read-only
+      // one were the same colour (IUX-SURFACE-001). `neutral10` is taken by
+      // `disabled`, so `neutral20` is the first step that separates from both
+      // while keeping the value at 13.17:1, the supporting content at 5.76:1
+      // and the outline at 3.60:1 on the fill itself.
+      interactive: IuxPrimitiveColors.neutral20,
       selected: IuxPrimitiveColors.accent90,
       disabled: IuxPrimitiveColors.neutral10,
       inverse: IuxPrimitiveColors.neutral95,
@@ -163,7 +169,15 @@ abstract final class IuxColorPalettes {
       subtle: IuxPrimitiveColors.neutral80,
       raised: IuxPrimitiveColors.neutral70,
       overlay: IuxPrimitiveColors.neutral80,
-      interactive: IuxPrimitiveColors.neutral80,
+      // Darker than the page rather than lighter, which is the opposite
+      // direction from every other surface here and is forced by measurement
+      // rather than chosen for looks. `neutral80` is `subtle`, `disabled` and
+      // `state.hovered` all at once, and the only lighter step left,
+      // `neutral70`, drops `border.interactive` to 2.36:1 on the fill — below
+      // the 3:1 an outline owes under SC 1.4.11. Descending to `neutral95`
+      // keeps the outline at 3.96:1 and the value at 17.63:1, and reads as a
+      // well cut into the page, which is what a field is.
+      interactive: IuxPrimitiveColors.neutral95,
       selected: IuxPrimitiveColors.accent20,
       disabled: IuxPrimitiveColors.neutral80,
       inverse: IuxPrimitiveColors.neutral5,
@@ -279,7 +293,10 @@ abstract final class IuxColorPalettes {
       subtle: IuxPrimitiveColors.neutral10,
       raised: IuxPrimitiveColors.neutral0,
       overlay: IuxPrimitiveColors.neutral0,
-      interactive: IuxPrimitiveColors.neutral10,
+      // `neutral10` is `subtle` and `neutral20` is `disabled`, so the first
+      // step that separates from both is `neutral30`. High contrast can afford
+      // it: the value measures 12.23:1 there and the outline 8.61:1.
+      interactive: IuxPrimitiveColors.neutral30,
       selected: IuxPrimitiveColors.accent90,
       disabled: IuxPrimitiveColors.neutral20,
       inverse: IuxPrimitiveColors.neutral100,
@@ -387,7 +404,11 @@ abstract final class IuxColorPalettes {
       subtle: IuxPrimitiveColors.neutral80,
       raised: IuxPrimitiveColors.neutral70,
       overlay: IuxPrimitiveColors.neutral80,
-      interactive: IuxPrimitiveColors.neutral80,
+      // Below the page, for the reason given on [dark], and one rung further
+      // because the page here is already `neutral95`. `neutral80` is `subtle`
+      // and `neutral70` is `disabled`, so descending is the only direction
+      // left; it puts the value at 21:1 and the outline at 12.23:1.
+      interactive: IuxPrimitiveColors.neutral100,
       selected: IuxPrimitiveColors.accent20,
       disabled: IuxPrimitiveColors.neutral70,
       inverse: IuxPrimitiveColors.neutral0,
