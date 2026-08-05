@@ -300,6 +300,21 @@ class _ListPanelState extends State<_ListPanel> {
                     onActivate: () => setState(() => _archived++),
                   ),
                 ),
+                const IuxListSeparator(),
+                // The wide-control case, which is where the arrangement makes
+                // its decision. An icon fits its share at every text scale and
+                // never moves; a status carrying a word does not fit it on a
+                // phone at any text scale, and moves under the row's text
+                // instead of being wrapped inside its own word.
+                IuxListItem.tappable(
+                  title: long ? 'Junirechnung öffnen' : 'June invoice',
+                  subtitle: 'Solvang A/S — awaiting approval',
+                  hint: 'Opens the invoice',
+                  onActivate: () => setState(() => _opened++),
+                  trailingAction: const IuxStatusIndicator(
+                    status: IuxStatus.warning('Awaiting approval'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -314,6 +329,17 @@ class _ListPanelState extends State<_ListPanel> {
             'tappable row would be a second answer to one tap; the debug guard '
             'throws with the offending widget named rather than letting it '
             'ship.',
+          ),
+          const CatalogNote(
+            'A trailing control keeps the line while what it asks for fits in '
+            'a third of the row, and moves under the text when it does not — '
+            'measured against the control that was actually passed, not '
+            'against the text scale. The archive icon never moves; the status '
+            'on the last row never stays. Capping the control at its third '
+            'instead looks like it works and is not: on a 286-pixel row the '
+            'third is 86 pixels, a one-word status needs 180 at 100% text, and '
+            'a word has no wrap point — so it breaks inside itself, 116 pixels '
+            'tall against a natural 36 and 556 at 300%.',
           ),
           const CatalogNote(
             'Rows touch. IUX keeps eight pixels between adjacent targets '

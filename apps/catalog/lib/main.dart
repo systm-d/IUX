@@ -5,6 +5,7 @@ import 'button_panels.dart';
 import 'button_scenarios.dart';
 import 'catalog_chrome.dart';
 import 'catalog_overlays.dart';
+import 'chart_panels.dart';
 import 'content_panels.dart';
 import 'feedback_panels.dart';
 import 'flow_panels.dart';
@@ -97,6 +98,9 @@ enum _Section {
 
   /// Glyphs, avatars, pictures, statuses, chips and badges.
   media('Media and status'),
+
+  /// Lines, bars and micro-trends.
+  charts('Charts'),
 
   /// Pages, sections, surfaces, spacing and reading width.
   layout('Layout'),
@@ -265,6 +269,8 @@ class _CatalogHomeState extends State<_CatalogHome> {
                       ContentPanels(longLabels: widget.longLabels),
                     _Section.media =>
                       StatusPanels(longLabels: widget.longLabels),
+                    _Section.charts =>
+                      ChartPanels(longLabels: widget.longLabels),
                     _Section.layout =>
                       LayoutPanels(longLabels: widget.longLabels),
                     _Section.navigation => NavigationPanels(
