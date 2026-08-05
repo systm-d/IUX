@@ -62,28 +62,22 @@ const double _kAverageCharacterWidthRatio = 0.5;
 ///
 /// ```dart
 /// Widget build(BuildContext context) {
-///   final Widget page = IuxPage(child: body);
-///   // Not a Stack with a conditional child. See "How to place it" below:
-///   // the page has to leave and re-enter the tree, or it stays readable to a
-///   // screen reader while the drawer covers it.
-///   if (!state.menuOpen) return page;
-///   return Stack(
-///     fit: StackFit.expand,
-///     children: <Widget>[
-///       page,
-///       IuxNavigationDrawer(
-///         title: l10n.mainNavigation,
-///         dismissLabel: l10n.closeMenu,
-///         onDismiss: controller.closeMenu,
-///         selectedIndex: state.section,
-///         destinations: <IuxNavigationDestination>[
-///           IuxNavigationDestination(label: l10n.home, icon: Icons.home_outlined),
-///           IuxNavigationDestination(label: l10n.orders, icon: Icons.receipt_long_outlined),
-///           IuxNavigationDestination(label: l10n.settings, icon: Icons.settings_outlined),
-///         ],
-///         onDestinationSelected: controller.goTo,
-///       ),
-///     ],
+///   return IuxModalLayer(
+///     drawer: state.menuOpen
+///         ? IuxNavigationDrawer(
+///             title: l10n.mainNavigation,
+///             dismissLabel: l10n.closeMenu,
+///             onDismiss: controller.closeMenu,
+///             selectedIndex: state.section,
+///             destinations: <IuxNavigationDestination>[
+///               IuxNavigationDestination(label: l10n.home, icon: Icons.home_outlined),
+///               IuxNavigationDestination(label: l10n.orders, icon: Icons.receipt_long_outlined),
+///               IuxNavigationDestination(label: l10n.settings, icon: Icons.settings_outlined),
+///             ],
+///             onDestinationSelected: controller.goTo,
+///           )
+///         : null,
+///     child: IuxPage(child: body),
 ///   );
 /// }
 /// ```
@@ -136,28 +130,40 @@ const double _kAverageCharacterWidthRatio = 0.5;
 ///
 /// ## How to place it, and why the shape matters
 ///
-/// `IuxModalLayer` has no drawer slot yet, so the parent builds the stack. The
-/// shape is not a matter of taste, and it was measured rather than assumed:
+/// Through `IuxModalLayer.drawer`, as in the example above. It is not the only
+/// arrangement that renders, but it is the only one that is measured, and the
+/// difference between the three a caller can write is not a matter of taste:
 ///
 /// ```dart
-/// // Wrong. The page's element survives the change, so its semantics node is
-/// // never recompiled, so `BlockSemantics` never removes it: the covered page
-/// // is still readable and activatable by a screen reader.
-/// Stack(children: <Widget>[page, if (open) drawer])
+/// // Right. The page's element is kept whether or not the drawer is open, so
+/// // nothing below it is disposed and rebuilt when the drawer appears.
+/// IuxModalLayer(drawer: open ? drawer : null, child: page)
 ///
-/// // Right. The page leaves the tree, its subtree rebuilds, and the page
-/// // disappears from the semantics tree while the drawer is up.
+/// // Wrong, and this is IUX-OVERLAY-001. The page changes depth in the
+/// // element tree, so Flutter throws the whole subtree away: every State
+/// // disposed, every list back to the top, and any callback the page handed
+/// // to the drawer now closed over a defunct State — which throws
+/// // `setState() called after dispose()` on the tap that answers it.
 /// if (!open) return page;
 /// return Stack(fit: StackFit.expand, children: <Widget>[page, drawer]);
 /// ```
 ///
-/// This is IUX-OVERLAY-001, recorded on `IuxModalLayer` and reproduced here.
-/// The cost of the right shape is the same one that mission recorded: the page
-/// changes depth, so a list scrolled to 400 snaps back to 0 when the drawer
-/// opens. `PROJECT_PROMPT.md` §5 puts accessibility above ergonomics, so the
-/// scroll loss stays. Touch is unaffected either way — the scrim covers the
-/// page in both shapes — which is exactly why the wrong shape is hard to
-/// notice without a screen reader.
+/// **Correction to the record.** Earlier revisions of this page recommended
+/// the second shape, on the grounds (IUX-027) that a permanent `Stack` left
+/// the covered page readable to a screen reader, because `BlockSemantics` was
+/// thought never to reach a page whose element survived. **That finding is
+/// withdrawn.** It was measured with `find.bySemanticsLabel`, which reads
+/// `RenderObject.debugSemantics` — a per-render-object cache that keeps its
+/// last value for a subtree that stops being visited rather than being
+/// dirtied. Walking the semantics tree the platform is actually given, and the
+/// simulated screen-reader traversal, shows the covered page absent under all
+/// three placements. Touch is unaffected in all three as well, because the
+/// scrim covers the page.
+///
+/// So there was never a trade between the barrier and the page: the shape this
+/// page used to recommend cost the page and bought nothing. See the
+/// 'IUX-027, withdrawn' and 'what the placements actually cost' tests in
+/// `test/components/iux_navigation_drawer_test.dart`.
 ///
 /// ## There is always a way out, and none of them is a gesture
 ///

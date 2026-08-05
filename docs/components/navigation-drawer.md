@@ -16,13 +16,10 @@ surface, and it is what makes the surface learnable.
 
 ```dart
 Widget build(BuildContext context) {
-  final Widget page = IuxPage(child: body);
-  if (!state.menuOpen) return page;
-  return Stack(
-    fit: StackFit.expand,
-    children: <Widget>[
-      page,
-      IuxNavigationDrawer(
+  return IuxModalLayer(
+    child: IuxPage(child: body),
+    drawer: state.menuOpen
+      ? IuxNavigationDrawer(
         title: l10n.mainNavigation,
         dismissLabel: l10n.closeMenu,
         onDismiss: controller.closeMenu,
@@ -44,8 +41,8 @@ Widget build(BuildContext context) {
           ),
         ],
         onDestinationSelected: controller.goTo,
-      ),
-    ],
+      )
+      : null,
   );
 }
 ```
@@ -121,31 +118,41 @@ IuxModalLayer(
 If you assemble the stack yourself instead, the shape is not a matter of taste:
 
 ```dart
-// Wrong.
-Stack(children: <Widget>[page, if (open) drawer])
-
-// Right.
+// Wrong, and this is IUX-OVERLAY-001.
 if (!open) return page;
 return Stack(fit: StackFit.expand, children: <Widget>[page, drawer]);
 ```
 
-The reason is measured, not assumed. `BlockSemantics` removes the siblings
-painted before it — but only when their semantics are recompiled. In the first
-shape the page's element survives the change, its semantics node is reused, and
-the covered page **stays in the semantics tree**: a screen-reader user can still
-read and activate a page they cannot see or touch. In the second shape the page
-leaves the tree, its subtree rebuilds, and it disappears as intended.
+The page changes depth in the element tree when the drawer opens, so Flutter
+cannot reuse it: the whole subtree is thrown away and inflated again. Every
+`State` below is disposed, a list scrolled to 400 is back at 0, and any callback
+the page has already handed to the drawer is now closed over a defunct `State`
+— so the tap that dismisses the drawer throws
+`setState() called after dispose()`. Measured, not assumed:
+`test/components/iux_navigation_drawer_test.dart`, *what the placements actually
+cost*, counts one page disposal in this shape and zero through `IuxModalLayer`.
 
-Touch behaves identically in both shapes — the scrim covers the page either way
-— which is exactly why the wrong shape is invisible without a screen reader.
-Both halves of that are pinned by tests in
-`test/components/iux_navigation_drawer_test.dart`.
+### A correction to what this page used to say
 
-This is **IUX-OVERLAY-001**, first recorded on `IuxModalLayer` and reproduced
-here. The right shape has the cost that mission already recorded: the page
-changes depth when the drawer opens, so its subtree rebuilds and a list scrolled
-to 400 snaps back to 0. `PROJECT_PROMPT.md` §5 puts accessibility above
-ergonomics, so the scroll loss stays.
+Earlier revisions of this section recommended the shape above, and called a
+permanent `Stack(children: [page, if (open) drawer])` the wrong one, on the
+grounds (IUX-027) that `BlockSemantics` removes a sibling only when its
+semantics are recompiled — so a page whose element survived stayed readable to a
+screen reader.
+
+**That finding is withdrawn.** It was measured with `find.bySemanticsLabel`,
+which reads `RenderObject.debugSemantics`: a per-render-object cache that keeps
+its last value for a subtree that stops being visited rather than being dirtied.
+Walking the semantics tree the platform is actually given — and the simulated
+screen-reader traversal — shows the covered page absent under **all three**
+placements. Touch is unaffected in all three as well, because the scrim covers
+the page.
+
+There was therefore never a trade between the accessibility barrier and the
+page's state. The shape this page used to recommend cost the page and bought
+nothing, and the reversal is why IUX-OVERLAY-001 stayed open as long as it did.
+Both halves are pinned by *IUX-027, withdrawn* and *what the placements actually
+cost* in `test/components/iux_navigation_drawer_test.dart`.
 
 ## There is always a way out, and none of them is a gesture
 
@@ -447,8 +454,10 @@ destinations: <IuxNavigationDestination>[
 onDestinationSelected: (int i) { controller.goTo(i); /* and nothing else */ }
 // The parent must lower its own flag too, or the drawer reopens next frame.
 
-// A permanent Stack. The covered page stays readable to a screen reader.
-Stack(children: <Widget>[page, if (open) drawer])
+// Placing the drawer by hand. The page changes depth, so it is destroyed and
+// rebuilt every time the drawer opens: IUX-OVERLAY-001. Use IuxModalLayer.
+if (!open) return page;
+return Stack(fit: StackFit.expand, children: <Widget>[page, drawer]);
 
 // Two names that read the same. Refused at construction, and rightly.
 IuxNavigationDestination(label: 'Reports', icon: ...),
@@ -471,9 +480,14 @@ IuxNavigationDestination(label: 'Reports', icon: ...),
   arrangement is now measured rather than read off the text scale; see
   [The header](#the-header). Zero overflow at 100/150/200/300% on 320, 360,
   800 and 1200 wide, pinned by the component's own suite.
-- **IUX-OVERLAY-001.** Opening the drawer rebuilds the page's subtree, so a
-  scrolled list behind it loses its position. The accessible alternative is
-  worse; see *How to place it*.
+- ~~**IUX-OVERLAY-001.**~~ **Closed.** Opening the drawer used to rebuild the
+  page's subtree — disposing its `State`, resetting a scrolled list to 0 and
+  leaving any callback the page had handed to the drawer closed over a defunct
+  object. `IuxModalLayer` now keeps the page in the tree whether or not
+  anything is open. Measured: one page disposal in the shape this page used to
+  recommend, zero through the layer. The accessibility argument that kept the
+  defect open was itself a measurement artifact; see
+  [A correction to what this page used to say](#a-correction-to-what-this-page-used-to-say).
 - **No exit animation.** The drawer is removed from the tree by the parent, so
   there is no frame in which to animate a departure. The entrance is animated;
   the exit is instant.

@@ -8,9 +8,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
-// Imported by path because the barrel does not export the drawer yet. The
-// barrel is owned elsewhere; when the two export lines land this import becomes
-// redundant rather than wrong.
 
 import '../support/contrast.dart';
 
@@ -53,10 +50,10 @@ void main() {
 
   /// Builds the host page with the drawer over it.
   ///
-  /// [conditionalChild] is the shape a caller reaches for first and must not
-  /// use: a permanent `Stack` whose second child appears and disappears. It is
-  /// a parameter rather than a comment so the difference can be measured — see
-  /// the IUX-OVERLAY-001 group.
+  /// [placement] chooses how. All three shapes a caller can write are
+  /// available as a parameter rather than described in a comment, because the
+  /// differences between them are the subject of the IUX-OVERLAY-001 group and
+  /// have to be measured rather than asserted in prose.
   Future<_Scenario> pump(
     WidgetTester tester, {
     bool open = false,
@@ -68,7 +65,7 @@ void main() {
     Size size = const Size(400, 800),
     String dismissLabel = 'Close',
     String drawerTitle = title,
-    bool conditionalChild = false,
+    _Placement placement = _Placement.layer,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -114,11 +111,15 @@ void main() {
                           focusNode: scenario.elsewhere,
                           onActivate: () {},
                         ),
+                        // Carries no interface of its own. It is here only so
+                        // the page's lifetime can be measured, which is what
+                        // IUX-OVERLAY-001 is about.
+                        const _PageProbe(),
                       ],
                     ),
                   );
 
-                  final Widget drawer = IuxNavigationDrawer(
+                  final IuxNavigationDrawer drawer = IuxNavigationDrawer(
                     title: drawerTitle,
                     dismissLabel: dismissLabel,
                     onDismiss: () => scenario.dismissals++,
@@ -127,17 +128,24 @@ void main() {
                     onDestinationSelected: scenario.chosen.add,
                   );
 
-                  if (conditionalChild) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[page, if (scenario.open) drawer],
-                    );
+                  switch (placement) {
+                    case _Placement.layer:
+                      return IuxModalLayer(
+                        drawer: scenario.open ? drawer : null,
+                        child: page,
+                      );
+                    case _Placement.permanentStack:
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[page, if (scenario.open) drawer],
+                      );
+                    case _Placement.conditionalTree:
+                      if (!scenario.open) return page;
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[page, drawer],
+                      );
                   }
-                  if (!scenario.open) return page;
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[page, drawer],
-                  );
                 },
               ),
             ),
@@ -154,6 +162,31 @@ void main() {
     final BuildContext? focused = FocusManager.instance.primaryFocus?.context;
     if (focused == null) return false;
     return focused.findAncestorWidgetOfExactType<IuxNavigationDrawer>() != null;
+  }
+
+  /// Every label the compiled semantic tree currently exposes.
+  ///
+  /// Read from the tree assistive technology actually sees rather than through
+  /// `find.bySemanticsLabel`, which reads each render object's *last* semantics
+  /// node: a subtree that has been blocked keeps holding its node, so the
+  /// finder reports content a screen reader can no longer reach. The same
+  /// helper, and the same reason, as `iux_bottom_sheet_test.dart`.
+  ///
+  /// The distinction became load-bearing when IUX-OVERLAY-001 was fixed: the
+  /// page's element now survives the drawer opening, so its stale node
+  /// survives with it and the finder answers the wrong question.
+  List<String> announcedLabels(WidgetTester tester) {
+    final List<String> labels = <String>[];
+    void visit(SemanticsNode node) {
+      if (node.label.isNotEmpty) labels.add(node.label);
+      node.visitChildren((SemanticsNode child) {
+        visit(child);
+        return true;
+      });
+    }
+
+    visit(tester.getSemantics(find.byType(MaterialApp)));
+    return labels;
   }
 
   /// The nearest ancestor semantics node of [finder] that scopes a route.
@@ -613,13 +646,13 @@ void main() {
       // A control that reads out but no longer responds is worse than one that
       // is gone.
       final _Scenario scenario = await pump(tester);
-      expect(find.bySemanticsLabel('Open'), findsOneWidget);
+      expect(announcedLabels(tester), contains('Open'));
 
       scenario.setOpen(true);
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel('Open'), findsNothing);
-      expect(find.bySemanticsLabel('Elsewhere'), findsNothing);
+      expect(announcedLabels(tester), isNot(contains('Open')));
+      expect(announcedLabels(tester), isNot(contains('Elsewhere')));
     });
 
     testWidgets('the page returns to the semantic tree when the drawer closes',
@@ -629,31 +662,88 @@ void main() {
       scenario.setOpen(false);
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel('Open'), findsOneWidget);
+      expect(announcedLabels(tester), contains('Open'));
     });
 
-    testWidgets(
-        'IUX-OVERLAY-001: a permanent Stack leaves the page readable, which '
-        'is why the documented shape is the conditional one',
+    testWidgets('IUX-027, withdrawn: every placement hides the covered page',
         (WidgetTester tester) async {
-      // Measured rather than assumed. `BlockSemantics` blocks siblings painted
-      // before it, but only when their semantics are recompiled; with the
-      // page's element preserved across the change they are not, so the covered
-      // page stays in the tree. Touch is unaffected in both shapes, which is
-      // exactly why this is invisible without a screen reader.
+      // This test used to assert the opposite for the permanent stack, and
+      // that reversal is the reason IUX-OVERLAY-001 stayed open for so long.
       //
-      // If this test ever fails because the page *has* left the tree, Flutter
-      // has fixed the underlying behaviour and the warning in the class
-      // documentation can go.
-      final _Scenario scenario = await pump(tester, conditionalChild: true);
+      // IUX-027 concluded that `BlockSemantics` blocks a sibling only when its
+      // semantics are recompiled, so a page whose element survives stays
+      // readable — which made the page being destroyed look like the price of
+      // the accessibility guarantee, and the guarantee outranks ergonomics.
+      // The conclusion came from `find.bySemanticsLabel`, which reads
+      // `RenderObject.debugSemantics`: a per-render-object cache that keeps
+      // its last value for a subtree that stops being visited instead of being
+      // dirtied.
+      //
+      // Both instruments are run below on the same trees. The finder half is
+      // not a test of IUX; the day it starts finding nothing, Flutter has
+      // tightened `debugSemantics` and it can go.
+      for (final _Placement placement in _Placement.values) {
+        final _Scenario scenario = await pump(tester, placement: placement);
 
-      scenario.setOpen(true);
-      await tester.pumpAndSettle();
+        scenario.setOpen(true);
+        await tester.pumpAndSettle();
+
+        expect(
+          announcedLabels(tester),
+          isNot(contains('Open')),
+          reason: 'the semantics tree the platform is given still holds the '
+              'covered page under $placement',
+        );
+        expect(
+          tester.semantics
+              .simulatedAccessibilityTraversal()
+              .map((SemanticsNode node) => node.label),
+          isNot(contains('Open')),
+          reason: 'a screen-reader swipe lands on the covered page under '
+              '$placement',
+        );
+        expect(
+          find.bySemanticsLabel('Open'),
+          placement == _Placement.conditionalTree
+              ? findsNothing
+              : findsOneWidget,
+          reason: 'the stale cache IUX-027 read is still stale wherever the '
+              "page's element survives, and only there — which is exactly why "
+              'the finding came out backwards',
+        );
+      }
+    });
+
+    testWidgets('IUX-OVERLAY-001: what the placements actually cost',
+        (WidgetTester tester) async {
+      // With the semantics claim withdrawn, the three placements differ in
+      // exactly one thing: whether the page survives being covered. The shape
+      // this component used to document — return the page, or return a Stack
+      // holding it — is the only one that destroys it, because the page
+      // changes depth in the element tree. Its `State` is disposed, so a list
+      // is back at the top and any callback the page handed to the drawer
+      // fires on a dead object.
+      final Map<_Placement, int> disposals = <_Placement, int>{};
+      for (final _Placement placement in _Placement.values) {
+        final _Scenario scenario = await pump(tester, placement: placement);
+        final int before = _PageProbe.disposals;
+
+        scenario.setOpen(true);
+        await tester.pumpAndSettle();
+
+        disposals[placement] = _PageProbe.disposals - before;
+      }
 
       expect(
-        find.bySemanticsLabel('Open'),
-        findsOneWidget,
-        reason: 'IUX-OVERLAY-001 no longer reproduces; update the docs',
+        disposals,
+        <_Placement, int>{
+          _Placement.layer: 0,
+          _Placement.permanentStack: 0,
+          _Placement.conditionalTree: 1,
+        },
+        reason: 'IuxModalLayer must keep the page that opened the drawer, and '
+            'the shape this component used to document must be shown to be '
+            'the one that does not',
       );
     });
   });
@@ -932,12 +1022,27 @@ void main() {
   });
 
   group('the header holds whatever label the caller wrote', () {
-    // IUX-DRAWER-LABEL-001. `dismissLabel: 'Close the menu'` overflowed the
-    // header by 9.5 px at 100% text on 360-, 800- and 1200-wide surfaces and by
-    // 34 px on a 320-wide one, with the heading squeezed to a box zero pixels
-    // wide, while `'Close'` did not — and *enlarging* the text to 150% repaired
+    // IUX-DRAWER-LABEL-001, closed. `dismissLabel: 'Close the menu'` overflowed
+    // the header by 9.5 px at 100% text on 360-, 800- and 1200-wide surfaces
+    // and by 34 px on a 320-wide one — recorded elsewhere as 7.5 px, and both
+    // numbers are historical — with the heading squeezed to a box zero pixels
+    // wide, while `'Close'` did not, and *enlarging* the text to 150% repaired
     // it, because the arrangement was chosen from the text scale rather than
     // from the label.
+    //
+    // Re-measured on the current header: at 100% text with 'Close the menu',
+    // the panel is 280 px wide on both an 800- and a 1200-wide surface, the
+    // header stacks, the heading spans x 16–264 and the way out x 37–236.5.
+    // Every child sits 16 px inside the panel edge; the overflow is 0 at all
+    // sixteen combinations below.
+    //
+    // The assertion that carries this is 'never squeezes the heading below the
+    // way out', not the absence of an overflow exception: the header is a
+    // render object that clamps a starved heading to zero width rather than
+    // painting past its box, so *no arrangement of it can raise an overflow*.
+    // Forcing the pre-fix decision (never stack) leaves the exception test
+    // green and the heading at 0.0 px wide, which is how the two were told
+    // apart.
     //
     // The panel caps near the width the destination names need whatever the
     // screen is, so a wider screen does not help. Every case below is measured
@@ -1418,4 +1523,51 @@ void main() {
       expect(tokensOf(tester, current: true), isNot(tokensOf(tester)));
     });
   });
+}
+
+/// A zero-size widget in the page whose `State` lifetime can be counted.
+///
+/// The page's own controls cannot answer "was the page destroyed" — they are
+/// rebuilt either way and look identical afterwards. A `State` disposal is the
+/// thing that distinguishes a page that survived from a page that was thrown
+/// away and replaced, and it is what turns IUX-OVERLAY-001 from a lost scroll
+/// position into a callback firing on a defunct object.
+class _PageProbe extends StatefulWidget {
+  const _PageProbe();
+
+  /// Every disposal since the test file started. Read as a delta.
+  static int disposals = 0;
+
+  @override
+  State<_PageProbe> createState() => _PageProbeState();
+}
+
+class _PageProbeState extends State<_PageProbe> {
+  @override
+  void dispose() {
+    _PageProbe.disposals++;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// The three ways a caller can put the drawer over a page.
+///
+/// Named rather than described, because the differences between them are
+/// measured in the IUX-OVERLAY-001 group and a comment cannot be run.
+enum _Placement {
+  /// `IuxModalLayer(drawer: open ? drawer : null, child: page)` — what this
+  /// component's documentation shows.
+  layer,
+
+  /// `Stack(children: [page, if (open) drawer])` — the shape IUX-027 reported
+  /// as leaving the covered page readable, a finding since withdrawn.
+  permanentStack,
+
+  /// `if (!open) return page; return Stack(children: [page, drawer])` — the
+  /// shape this component used to document, and the one that destroys the page
+  /// every time the drawer opens.
+  conditionalTree,
 }

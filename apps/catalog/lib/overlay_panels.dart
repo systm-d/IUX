@@ -60,11 +60,15 @@ class _DialogPanelState extends State<_DialogPanel> {
 
   /// Builds the dialog once, from values, and hands the page a constant.
   ///
-  /// Deliberately not a closure over this `State`. Opening the modal rebuilds
-  /// the page's subtree, which resets the scroll position and disposes this
-  /// panel if it had been scrolled to — so a builder that read `_actionCount`
-  /// later, or `context` at all, would be reading a widget that no longer
-  /// exists. The counters live on the overlay owner for the same reason.
+  /// Written this way when opening a modal still rebuilt the page's subtree
+  /// and disposed this panel with it — IUX-OVERLAY-001 — so that a builder
+  /// reading `_actionCount`, or `context` at all, could not be reading a
+  /// widget that no longer existed. That defect is closed: `IuxModalLayer`
+  /// keeps the page in the tree whether or not anything is open.
+  ///
+  /// The shape stays, because it is the better one on its own merits: a value
+  /// built once from what the panel knows is easier to read than a closure
+  /// whose result depends on when it is called.
   void _open() {
     final CatalogOverlays overlays = widget.overlays;
     final bool long = widget.longLabels;
@@ -159,15 +163,17 @@ class _DialogPanelState extends State<_DialogPanel> {
             ('Dismissed', '${widget.overlays.tally(_dismissed)}'),
           ]),
           const CatalogNote(
-            'Those two counters live on the page rather than in this panel, '
-            'and they had to be moved there. Opening a modal rebuilds the '
-            'page\'s subtree — IUX-OVERLAY-001, documented as a scroll '
-            'position that is lost — and a panel that had been scrolled to is '
-            'disposed by that rebuild. Its callbacks then fire on a dead '
-            'State: "setState() called after dispose()", thrown from the tap '
-            'that answered the dialog. The documented symptom is a lost scroll '
-            'position; the undocumented one is that the widget which opened '
-            'the modal may not survive to see the answer.',
+            'Those two counters live on the page rather than in this panel '
+            'because, until IUX-OVERLAY-001 was closed, they had to. Opening a '
+            'modal rebuilt the page\'s subtree, so a panel that had been '
+            'scrolled to was disposed by that rebuild and its callbacks then '
+            'fired on a dead State: "setState() called after dispose()", '
+            'thrown from the tap that answered the dialog. The recorded '
+            'symptom was a lost scroll position; the one nobody had written '
+            'down was that the widget which opened the modal did not survive '
+            'to see the answer. IuxModalLayer now keeps the page mounted, so '
+            'neither happens — and this panel is no longer disposed by the '
+            'button in it.',
             finding: true,
           ),
           const CatalogNote(

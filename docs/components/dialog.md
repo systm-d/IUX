@@ -101,7 +101,7 @@ stating plainly:
 | Consequence | What it means for you |
 | --- | --- |
 | The dialog cannot leak | There is no code path that pops the wrong route or forgets to pop at all. |
-| The page stays mounted behind it | Scroll position, controllers and animations survive; nothing is rebuilt on close. |
+| The page stays mounted behind it | Scroll position, controllers and animations survive; nothing is rebuilt on open or on close. |
 | The system back button does not reach it | You wire it, in one place, with the same callback. |
 
 ```dart
@@ -117,6 +117,17 @@ PopScope(
 This is deliberate rather than an oversight: `PopScope` is navigation, and
 navigation is the parent's. Putting it two lines from the flag the parent
 already owns is clearer than hiding it inside a component.
+
+The second row of that table used to be a promise the layer did not keep. Until
+`IUX-OVERLAY-001` was closed, `IuxModalLayer` returned the page directly while
+nothing was open and wrapped it in a `Stack` when a dialog appeared — so the
+page changed depth, its whole subtree was thrown away and rebuilt, every `State`
+below it was disposed, and a callback the page had already handed to the dialog
+fired on a defunct object: `setState() called after dispose()`, thrown by the
+tap that answered the dialog. The `Stack` is now permanent, so the page's
+element survives, and the covered page is still absent from the semantics tree
+while the dialog is up. Both halves are pinned in
+`test/components/iux_modal_layer_test.dart`.
 
 ## Insets
 

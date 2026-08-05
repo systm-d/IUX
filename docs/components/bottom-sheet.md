@@ -74,9 +74,20 @@ PopScope(
 
 `IuxModalLayer` gained a `sheet` slot at IUX-020, with an assertion refusing a
 dialog and a sheet at once. **Use it.** The plain `Stack` this page used to
-prescribe is no longer necessary, and assembling the stack by hand is how a
-covered page keeps its semantics node and goes on offering a screen reader
-controls the user cannot touch.
+prescribe is no longer necessary, and a stack assembled by hand as
+`if (!open) return page; return Stack(...)` changes the page's depth in the
+element tree every time the sheet opens — which destroys the page, its scroll
+positions and its controllers, and leaves any callback it handed to the sheet
+closed over a defunct `State`. That is `IUX-OVERLAY-001`, now closed inside the
+layer.
+
+An earlier revision of this paragraph gave a different reason: that a
+hand-rolled stack leaves the covered page in the semantics tree. That claim
+(IUX-027) is withdrawn — it came from `find.bySemanticsLabel`, which reads a
+per-render-object cache rather than the semantics tree the platform is given.
+The covered page is absent under every placement. See
+`docs/components/navigation-drawer.md`, *A correction to what this page used to
+say*.
 
 ```dart
 IuxModalLayer(

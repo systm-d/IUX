@@ -83,41 +83,71 @@ class IuxModalLayer extends StatelessWidget {
 
   /// The navigation drawer currently open, or null when none is.
   ///
-  /// This slot exists because getting the shape wrong is silent. IUX-027
-  /// probed the obvious alternative — `Stack(children: [page, if (open)
-  /// drawer])` — and found that the page element survives, its semantics node
-  /// is never recompiled, and `BlockSemantics` therefore does **not** remove
-  /// the covered page: a screen reader still reads and offers to activate
-  /// controls the user cannot touch. Touch behaves identically in both
-  /// shapes, which is exactly why nobody catches it without a screen reader.
+  /// Typed for the same reason as [dialog] and [sheet]. It also spares the
+  /// caller a shape that is easy to get wrong: a drawer placed by hand in
+  /// `Stack(children: [page, if (open) drawer])` hides the page correctly, but
+  /// destroys and rebuilds it every time it opens — which is IUX-OVERLAY-001,
+  /// and is a crash rather than an annoyance. Routing the drawer through here
+  /// makes the working shape the only shape a caller can express.
   ///
-  /// Routing the drawer through here makes the working shape the only shape a
-  /// caller can express, rather than an idiom they have to know.
+  /// **Correction to the record.** IUX-027 reported that the hand-rolled stack
+  /// also left the covered page readable to a screen reader, and that finding
+  /// is withdrawn: it was measured with `find.bySemanticsLabel`, which reads
+  /// `RenderObject.debugSemantics` — a per-render-object cache that keeps its
+  /// last value when a subtree simply stops being visited. Walking the
+  /// semantics tree the platform is actually given shows the page gone in both
+  /// shapes. See the 'IUX-027, withdrawn' test.
   final IuxNavigationDrawer? drawer;
 
   @override
   Widget build(BuildContext context) {
     final Widget? modal = dialog ?? sheet ?? drawer;
-    // No Stack at all while nothing is open.
-    //
-    // This has a measured cost: the page changes depth in the element tree
-    // when a modal opens, so its subtree rebuilds and a list scrolled to 400
-    // snaps back to 0. Keeping the Stack permanently fixes that — and breaks
-    // something worse. With the page element preserved, `BlockSemantics` no
-    // longer removes it from the semantics tree, so a screen-reader user can
-    // still read and try to activate a page they cannot touch.
-    //
-    // PROJECT_PROMPT.md §5 puts accessibility above ergonomics, so the scroll
-    // loss stays and is recorded as IUX-OVERLAY-001. Fixing both at once needs
-    // a way to preserve the element *and* dirty the semantics — not a
-    // one-line change, and not this mission's.
-    if (modal == null) return child;
     return Stack(
-      // The dialog is painted after the page, which is what lets it block the
-      // page's semantics. Reversing the order would leave the page readable to
-      // a screen reader while it is unreachable by touch.
+      // The Stack is here whether or not anything is open, and that is the
+      // whole of IUX-OVERLAY-001.
+      //
+      // While the layer returned [child] directly, opening a modal changed the
+      // page's depth in the element tree. Flutter cannot reuse an element at a
+      // different depth under a different parent widget, so it threw the page
+      // away and inflated a new one: every `State` below disposed, every
+      // controller rebuilt, every list back to offset zero — and any callback
+      // the page had already handed to the modal now closed over a defunct
+      // `State`, so the tap that *answered* the dialog threw `setState()
+      // called after dispose()`. A modal that destroys the page it interrupts
+      // is not an ergonomic cost, it is a crash on the ordinary path.
+      //
+      // `expand`, unchanged, and now applied while nothing is open as well.
+      // That is deliberate rather than incidental: the layer used to hand the
+      // page whatever loose constraints it was given while closed and a tight
+      // `constraints.biggest` the moment a modal appeared, so the page
+      // relaid out — a second, quieter half of the same defect. One
+      // arrangement in both states is the point. `passthrough` was tried and
+      // rejected: under the loose constraints a `Scaffold` body supplies it
+      // shrinks the layer to the page's content, and the modal is then
+      // laid out inside a box the size of the page rather than the screen.
+      //
+      // The cost is that a layer placed in an unbounded box now fails while
+      // closed instead of failing when the user opens something. A modal layer
+      // that cannot show a modal is not usable there either way, and the early
+      // failure is the one a developer can act on.
       fit: StackFit.expand,
-      children: <Widget>[child, modal],
+      children: <Widget>[
+        child,
+        // Painted after the page, which is what lets its `BlockSemantics` drop
+        // the page from the semantics tree. Reversing the order would leave
+        // the page readable to a screen reader while it is unreachable by
+        // touch.
+        //
+        // Nothing here excludes the page a second time. That was written, and
+        // then removed: with the Stack permanent, the covered page was
+        // measured absent from the semantics tree and from the simulated
+        // screen-reader traversal in all three slots, with and without the
+        // extra exclusion. A second mechanism no test can distinguish is a
+        // mechanism that will rot — the guarantee is pinned by
+        // 'the page behind a modal is unreachable' instead, which fails
+        // whichever way it is broken.
+        if (modal != null) modal,
+      ],
     );
   }
 }

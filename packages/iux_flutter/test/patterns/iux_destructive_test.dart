@@ -964,8 +964,25 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel(_semantics.label), findsOneWidget);
-      expect(find.bySemanticsLabel(_prompt.keepLabel), findsOneWidget);
+      // Walked from the application's node down, not through
+      // `find.bySemanticsLabel`: that finder reads each render object's
+      // `debugSemantics`, a cache that keeps its last value for a subtree
+      // which stops being visited. Since IUX-OVERLAY-001 was closed the page
+      // behind the dialog survives, so its blocked node survives with it and
+      // the finder reports two matches for one announced label.
+      final List<String> announced = <String>[];
+      void visit(SemanticsNode node) {
+        if (node.label.isNotEmpty) announced.add(node.label);
+        node.visitChildren((SemanticsNode child) {
+          visit(child);
+          return true;
+        });
+      }
+
+      visit(tester.getSemantics(find.byType(MaterialApp)));
+
+      expect(announced, contains(_semantics.label));
+      expect(announced, contains(_prompt.keepLabel));
 
       handle.dispose();
     });

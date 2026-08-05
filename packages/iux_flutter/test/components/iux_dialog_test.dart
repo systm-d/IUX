@@ -139,6 +139,31 @@ void main() {
     return node;
   }
 
+  /// Every label the compiled semantic tree currently exposes.
+  ///
+  /// Read from the tree assistive technology actually sees rather than through
+  /// `find.bySemanticsLabel`, which reads each render object's *last* semantics
+  /// node: a subtree that has been blocked keeps holding its node, so the
+  /// finder reports content a screen reader can no longer reach. The same
+  /// helper, and the same reason, as `iux_bottom_sheet_test.dart`.
+  ///
+  /// The distinction became load-bearing when IUX-OVERLAY-001 was fixed: the
+  /// page's element now survives a dialog opening, so its stale node survives
+  /// with it and the finder answers the wrong question.
+  List<String> announcedLabels(WidgetTester tester) {
+    final List<String> labels = <String>[];
+    void visit(SemanticsNode node) {
+      if (node.label.isNotEmpty) labels.add(node.label);
+      node.visitChildren((SemanticsNode child) {
+        visit(child);
+        return true;
+      });
+    }
+
+    visit(tester.getSemantics(find.byType(MaterialApp)));
+    return labels;
+  }
+
   /// The accessible names of every control announced under [root].
   List<String> buttonLabelsUnder(SemanticsNode root) {
     final List<String> labels = <String>[];
@@ -499,12 +524,13 @@ void main() {
       // A control that reads out but no longer responds is worse than one that
       // is gone.
       final _Scenario scenario = await pump(tester);
-      expect(find.bySemanticsLabel('Open'), findsOneWidget);
+      expect(announcedLabels(tester), contains('Open'));
 
       scenario.setOpen(true);
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel('Open'), findsNothing);
+      expect(announcedLabels(tester), isNot(contains('Open')));
+      expect(announcedLabels(tester), isNot(contains('Elsewhere')));
     });
 
     testWidgets('the page returns to the semantic tree when the dialog closes',
@@ -514,7 +540,7 @@ void main() {
       scenario.setOpen(false);
       await tester.pumpAndSettle();
 
-      expect(find.bySemanticsLabel('Open'), findsOneWidget);
+      expect(announcedLabels(tester), contains('Open'));
     });
 
     testWidgets('the title is a heading, so it can be jumped to',
