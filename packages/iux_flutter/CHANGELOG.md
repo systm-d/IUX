@@ -5,6 +5,13 @@ package directory that names the current version, so it names it and points at
 the one changelog. Every entry, for every version, is in
 [`CHANGELOG.md`](../../CHANGELOG.md) at the repository root.
 
+## 0.2.0-dev.3
+
+Three chart primitives — `IuxLineChart`, `IuxBarChart`, `IuxSparkline` — and the
+first painting code in the package. `semanticsSummary` is required on all three.
+
+Additive. See [`CHANGELOG.md`](../../CHANGELOG.md) at the repository root.
+
 ## 0.2.0-dev.2
 
 The IUX-042 follow-through: the release assessment's blockers, closed and

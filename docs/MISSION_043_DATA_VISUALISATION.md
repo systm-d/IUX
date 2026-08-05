@@ -2,12 +2,12 @@
 mission_id: IUX-043
 title: Data Visualisation
 priority: medium
-status: in_progress
+status: completed
 started_at: 2026-08-05
 started_by: agent/iux-043-data-visualisation
 last_updated_at: 2026-08-05
-completion_status: pending
-validation_status: pending
+completion_status: accepted
+validation_status: passed
 target_version: 0.2.0-dev.3
 compatibility: additive
 depends_on:
@@ -104,3 +104,67 @@ Les commandes réellement exécutées et leur sortie ; ce qui n'a pas été vali
 
 ## 29. Instruction finale
 Ne pas élargir le périmètre. Un graphe interactif est une mission suivante.
+
+---
+
+# Rapport final
+
+## Commandes réellement exécutées
+
+Depuis `packages/iux_flutter/` :
+
+```
+flutter analyze   → No issues found
+flutter test      → 2290 tests, tous verts
+```
+
+Depuis `apps/catalog/` :
+
+```
+flutter analyze   → No issues found
+flutter test      → 56 tests, tous verts
+```
+
+`dart format` appliqué aux fichiers livrés uniquement, pour ne pas réécrire du
+code appartenant à des travaux concurrents non commités.
+
+## Tests de contrat, tenus sans exception
+
+Le plafond d'arité à dix paramètres, l'interdiction des chaînes destinées à
+l'utilisateur dans `lib/src`, le balayage des jetons morts, le recensement des
+énumérations et le tri du barillet ont tous été respectés sans dérogation.
+`every enum in lib/src is referenced or resolved` et
+`every field of every Iux*Tokens class is read by something` sont restés rouges
+entre les livraisons intermédiaires — c'était attendu et documenté, pas
+contourné : le premier s'est refermé quand `strokeAsPattern` a nommé
+`IuxSeriesStroke`, le second quand `IuxBarChart` a lu `barTrack` et `barHeight`.
+
+## Défauts trouvés en écrivant les tests
+
+1. **Canonicalisation des `const`.** Le test d'égalité par identité
+   d'`IuxChartSeries` passait en mesurant le compilateur : Dart fusionne deux
+   `const` structurellement identiques en une seule instance. Reconstruit sans
+   `const`, il mesure désormais la classe.
+2. **`addTearDown(handle.dispose)`.** Flutter vérifie qu'aucun
+   `SemanticsHandle` ne survit au test *avant* d'exécuter les tear-downs : un
+   handle libéré là est signalé comme fuité. Disposé dans le corps.
+3. **Bande à trois colonnes.** Le test « un trou coupe la bande » attendait deux
+   formes et en obtenait zéro : avec trois colonnes, chaque côté du trou n'en a
+   qu'une, qui n'enferme aucune aire et est correctement écartée. Le test
+   mesurait la règle de la colonne unique. Porté à cinq colonnes.
+4. **`Transform` non qualifié.** Le test de remplissage RTL des barres mesurait
+   un `Transform` de Material, identité dans les deux sens, et passait pour la
+   mauvaise raison. Finder restreint au graphe.
+
+## Ce qui n'a pas été validé
+
+- **Aucun appareil réel, aucun lecteur d'écran.** Les widget tests approchent
+  TalkBack et rien de plus, limite que porte déjà tout le paquet.
+- **Le catalogue n'a pas été lancé.** `flutter run -d linux` demande `ninja` et
+  les fichiers de développement GTK 3, absents de la machine de construction.
+  Les cinq panneaux sont analysés et testés, jamais regardés. La vérification à
+  l'œil du §21 — légende à 300 %, bande en contraste renforcé, première image
+  en mouvement réduit, janvier à droite en RTL — reste à faire.
+- **Aucune mesure de performance.** §23 demandait qu'aucune allocation ne se
+  produise par image ; les chemins sont construits dans `paint` comme prévu,
+  mais rien ne l'a chronométré.

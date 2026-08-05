@@ -3,6 +3,31 @@
 The version in `packages/iux_flutter/pubspec.yaml` decides; the heading below
 repeats it. See CONTRIBUTING.md, "Versioning".
 
+## 0.2.0-dev.3 — IUX-043
+
+Three chart primitives, and the first painting code in the package.
+
+- `IuxLineChart` — one or more series over an axis, optionally against a
+  reference band, with screen-reader stops laid over the stretch they describe.
+- `IuxBarChart` — horizontal bars, one per row. No vertical arrangement, on
+  purpose: columns collide at 200% text and the usual fixes break the chart for
+  the reader who enlarged it.
+- `IuxSparkline` — a trend small enough to sit beside the number it is about.
+
+`semanticsSummary` is required on all three. A chart with no text alternative
+does not exist for a screen-reader user, and the gap is invisible at review
+time; making it a parameter is the only version of the rule that cannot be
+forgotten.
+
+Two series may not share a stroke pattern, which caps a chart at three. The
+pattern is the channel that survives a monochrome screen, and two series sharing
+one are a single line drawn twice for a large share of readers.
+
+Known limits, all documented in `docs/components/chart.md`: no interaction, no
+height parameter, non-negative bars only, the right-to-left mirroring is a
+decision rather than a standard, and nothing here has been looked at on a
+running screen.
+
 ## 0.2.0-dev.2 — the IUX-042 follow-through
 
 No new mission. This entry records the work that closed the release
