@@ -349,6 +349,17 @@ IuxStatus.error(l10n.paymentDeclined)
   the component exists to prevent. Where a table genuinely has no room for a
   status pill in every row, put the status text in a column of its own; the
   component does not solve that layout for you.
+- **A status indicator has a minimum width and it is the width of its longest
+  word.** The label wraps, so a two-word status shrinks; a one-word status has
+  no wrap point and cannot. Measured: `IuxStatus.neutral('Scheduled')` needs
+  **180.3 px at 100% text and 472.3 at 300%**, and given less it breaks inside
+  the word — one glyph to a line, and once the glyph and its gap alone exceed
+  the room, the label is laid out in a box zero pixels wide and paints outside
+  the pill. A caller bounding this component must bound it above that minimum
+  or move it somewhere with room. `IuxListItem` learned this the expensive way
+  (`IUX-LISTITEM-TRAILING-001`) and now measures the control rather than
+  capping it; nothing in this component can detect the mistake for you, because
+  from inside it a narrow box and a small screen look identical.
 - **The status indicator is not a live region.** A list of thirty rows each
   announcing itself on every refresh is a list nobody can use with TalkBack, and
   only the caller knows which of its statuses is worth an interruption. Wrap it

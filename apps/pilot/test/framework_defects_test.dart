@@ -122,15 +122,18 @@ void main() {
     expect(await at(1.5), isNull);
     expect(await at(2), isNull, reason: 'was 68px over before the fix');
 
-    // Residual, measured rather than rounded away: 300% still overflows, by
-    // 6px where it was 214. The bound is a share of the row, so at an extreme
-    // scale the two thirds left to the text are still not enough for a word
-    // this long. Pinned at the real number so a regression is visible and so
-    // nobody records this as closed.
+    // The 6px residual is gone, and it was never the row's: it was raised by
+    // the indicator's own Row, because the third of the row it had been capped
+    // at (86px) was narrower than the glyph and its gap (68px against the 62
+    // left inside the pill), so the label was laid out in a box zero pixels
+    // wide. The row now asks the control how wide it would like to be and
+    // moves it under the text when a third is not enough, so the indicator is
+    // never handed less than it asked for and has nothing to overflow.
     expect(
       await at(3),
-      isNotNull,
-      reason: '6px residual at 300%, down from 214px',
+      isNull,
+      reason: 'was 6px over at 300%, and 214px before the trailing control was '
+          'bounded at all',
     );
   });
 

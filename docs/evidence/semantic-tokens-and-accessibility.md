@@ -2391,17 +2391,80 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   *word* rather than a spinner. **An exclusion needs the same evidence as an
   assertion.**
 
-### IUX-LISTITEM-TRAILING-001 — residual at 300%, measured not rounded away
+### IUX-LISTITEM-TRAILING-001 — the width fix bought its own defect on the other axis (FIXED)
 
-- The trailing control is now bounded to the same one-third share the row
-  already applied to trailing text. **214 px of overflow at 300% became 6 px**,
-  and 200% is clean where it was 68 px over.
-- **The measurement that mattered was not the exception.** Before the fix the
-  title box was squeezed to **2.8 px wide at 150%** — silently, with nothing
-  thrown until 200%. A `takeException` assertion alone would have called 150%
-  healthy. The test asserts the title keeps a usable width.
-- The 6 px residual at 300% is pinned at its real number in the pilot's own
-  suite, so a regression is visible and nobody records this as closed.
+- **Level**: standard
+- **Sources**: WCAG 2.2 SC 1.4.4
+- **Status**: closed on both axes. The trailing control was first laid out as a
+  plain `Row` child and took its intrinsic width, squeezing the title to
+  **2.8 px at 150%** and overflowing **68 px at 200%, 214 at 300%**. Capping it
+  at the row's one-third share closed that and opened its mirror image.
+- **The measurement that mattered was never the exception.** The 2.8 px title at
+  150% was silent, with nothing thrown until 200%; a `takeException` assertion
+  alone would have called 150% healthy.
+- **The cap answered "how much may you have" and never asked "is that enough to
+  be read".** The share is a fraction of the row and does not grow: **86 px** in
+  the pilot's composition, **97.3** on a bare 320 px screen, at *every* text
+  scale. `IuxStatusIndicator` reading one word has **min intrinsic = max
+  intrinsic** — 180.25 px at 100%, 253.25 at 150%, 326.25 at 200%, 472.25 at
+  300% — because a single word has no wrap point. Below its minimum the label
+  breaks **inside the word**, one glyph to a line.
+- **Measured under the cap**: control 116 px tall at 100% against a natural 36,
+  286 at 150%, 376 at 200%, 556 at 300%. The row was **480 px tall without the
+  status and 924 with it — 444 px for one word** — and in a bounded 320x640 box
+  with no scrollable the pair overflowed **284 px on the bottom** where the row
+  alone had 160 to spare.
+- **The recorded "6 px residual at 300%" was never the row's.** It is
+  `A RenderFlex overflowed by 6.0 pixels on the right` raised inside
+  `iux_status_indicator.dart`: the glyph (60) plus its gap (8) is 68 against the
+  62 px left inside the pill, so the label was laid out in a box **zero pixels
+  wide** and painted outside it. The height was the symptom; an unreadable
+  status was the defect. It also appears only at 286 px of row width — on a bare
+  320 px screen nothing overflowed horizontally at any scale, which is why the
+  two compositions must not be quoted as one, and the earlier record did quote
+  them as one.
+- **Fixed by using the share as the question rather than the answer.** The
+  control keeps the line while what it asks for fits inside its third, and moves
+  under the row's text when it does not — the rule the trailing *value* already
+  follows, with the difference that a value gives way by wrapping and a control
+  gives way by moving, because it cannot be re-wrapped without being destroyed.
+  After: **no overflow on either axis at 100, 150, 200 or 300%**; row
+  148 / 220 / 400 / 688 against 144 / 286 / 460 / 924; the cost of the status
+  48 / 58 / 108 / 208 against 44 / 124 / 168 / 444; the title box in the pilot's
+  composition 113.8 / 169.8 / 225.8 / 250 against 113.8 / 136 / 136 / 136.
+- **Branching on the text scale was rejected on measurement.**
+  `IuxAccessibility.prefersStackedLayout` is the obvious move and the one the
+  trailing *text* uses, but it answers a question about the **user's** text size
+  with a decision that depends on the **caller's** control: 86 px is short of
+  180 at every scale, so it would have left **100%** broken.
+  `IUX-DRAWER-LABEL-001` recorded the same finding, and the row now uses the
+  same mechanism — a slotted render object that asks the control how wide it
+  would like to be, where a `LayoutBuilder` can only report the room. As a side
+  effect a row carrying a control can now answer `IntrinsicHeight` and
+  `IntrinsicWidth`, which it could not before.
+- **Also rejected**: an internal `Scrollable` behind `constraints.hasBoundedHeight`
+  — the remedy that closed `IUX-A11Y-REACH-001` — because a row that scrolls
+  inside itself hides the text it refused to truncate, nests a scrollable inside
+  every `ListView`, and would have fixed neither the unreadable label nor the
+  6 px clip; `IuxEmptyState` is a page-filling pattern and a row is not. Raising
+  the cap to the control's minimum reopens the width defect, measured: title
+  back to 2.75 px. Deciding on `getMinIntrinsicWidth` of the caller's control
+  would be tighter, but intrinsics **throw** for any subtree holding a
+  `LayoutBuilder`, and both `IuxTooltip` and `IuxAppBar` hold one — a layout
+  that is occasionally taller beats one that can crash on a legal child.
+- **A row that still does not fit says so.** At 300% the row is genuinely 688 px
+  tall, and in a 640 px box with no scrollable it clips, draws the indicator and
+  reports **48 px** (down from 284), naming the row and pointing at `IuxPage`,
+  `ListView` and `SingleChildScrollView`. The clamp without the report would
+  have made a previously-visible overflow silent, which is worse than the
+  defect.
+- **Limits**: the beside-or-below threshold is context dependent — a multi-word
+  control that could have wrapped inside its third is moved below anyway. The
+  property underneath it, that a control is never laid out narrower than it
+  asked for while the row has room, is standard. And per B12, whether a control
+  that has moved below the row's text still reads as a *second* target rather
+  than as part of the row is unverified on a device: the geometry and the
+  sibling semantics node are asserted, the perception is a hypothesis.
 
 ### IUX-MAP-001 — A map without its list equivalent is unconstructible
 

@@ -88,8 +88,9 @@ A row that is itself a control and also contains controls has two answers to
 "what does tapping do", and nothing on screen tells the user which one they are
 about to get. …
 
-Pass the control as `trailingAction` instead. It is laid out beside the row
-rather than inside it, keeps at least the minimum target separation, and stays
+Pass the control as `trailingAction` instead. It is laid out outside the row
+rather than inside it — beside its text while it fits there and below it when it
+does not — keeps at least the minimum target separation either way, and stays
 its own named stop for a screen reader. `leading` is for an icon or an avatar.
 ```
 
@@ -117,8 +118,8 @@ to a call site that will eventually get one of them wrong:
 
 | Guarantee | Why it is the one that matters |
 | --- | --- |
-| the control is laid out **beside** the region, never inside it | the two targets cannot overlap, so a tap has one answer |
-| at least `kIuxMinimumTargetSpacing` between them | size alone does not prevent mis-taps; a finger on the seam has no margin |
+| the control is laid out **outside** the region, never inside it — beside it while it fits, below it when it does not | the two targets cannot overlap, so a tap has one answer |
+| at least `kIuxMinimumTargetSpacing` between them, on whichever axis separates them | size alone does not prevent mis-taps; a finger on the seam has no margin |
 | the control is a **sibling** semantics node | a screen reader gets two adjacent stops, not controls inside a control |
 | the row's press tint stops at the boundary | where one target ends and the next begins is visible |
 
@@ -172,26 +173,35 @@ tests pump.
   title identifies the item, so it is the part that keeps the space and the
   value is the part that wraps. A layout that lets a long value squeeze the
   title produces rows the user cannot tell apart.
-- **`trailingAction` gets the same one third, as a ceiling.** It used to be laid
-  out as a plain `Row` child, which in Flutter means it is measured against
-  unbounded width and takes whatever its content asks for, with the `Expanded`
-  holding the text absorbing the remainder — including a negative one. Two
-  components that each behave perfectly alone then fail together
-  (`IUX-LISTITEM-TRAILING-001`, WCAG 2.2 SC 1.4.4). It is now bounded, so a
-  control that fits is untouched and one that does not wraps instead of pushing
-  the title out of the row.
+- **`trailingAction` gets the same one third — as a question, not as a
+  ceiling.** It used to be laid out as a plain `Row` child, which in Flutter
+  means it is measured against unbounded width and takes whatever its content
+  asks for, with the `Expanded` holding the text absorbing the remainder —
+  including a negative one. Two components that each behave perfectly alone
+  then fail together (`IUX-LISTITEM-TRAILING-001`, WCAG 2.2 SC 1.4.4). **The
+  control now keeps the line while what it asks for fits inside its third, and
+  moves under the row's text when it does not.** That is the rule the trailing
+  *value* already follows, with one difference: a value gives way by wrapping,
+  and a control gives way by moving, because it cannot be re-wrapped without
+  being destroyed.
 
 ### What the pair was measured doing
 
-An `IuxListItem.tappable` carrying an `IuxStatusIndicator`, on a 320-pixel
-screen:
+An `IuxListItem.tappable` carrying an `IuxStatusIndicator` reading one word, on
+a 320-pixel screen. Three states: as first shipped, with the control capped at
+its third, and with the control's share used to choose an arrangement.
 
-| Text | Before | After |
-| --- | --- | --- |
-| 100% | title box 75.8 px wide, three lines | title keeps two thirds |
-| 150% | title box **2.8 px** wide and 324 tall | no change to the rule |
-| 200% | title box **0**, `RenderFlex overflowed by 34 pixels` | no overflow |
-| 300% | title box **0**, overflow of 180 | no overflow |
+| Text | No bound | Capped at a third | Measured arrangement |
+| --- | --- | --- | --- |
+| 100% | title box 75.8 px wide | control 116 px tall, natural 36 | control below, at its own 180 px |
+| 150% | title box **2.8 px** wide, 324 tall | control **286 px** tall | control below, 253 px wide, 46 tall |
+| 200% | title box **0**, overflow 68 | control **376 px** tall | control below, 284 wide, 96 tall |
+| 300% | title box **0**, overflow 214 | overflow **6 px**, control **556 px** tall | no overflow, control 196 tall |
+
+Row height at 300%, on the same screen: **480 px without the status, 924 with
+it under the cap, 688 with the arrangement.** The cap charged **444 pixels for
+one word**; the arrangement charges 208, which is what the control genuinely
+needs at the width a 320-pixel screen can give it.
 
 **The overflow is the half of it a test could see.** Nothing was thrown until
 200%, so an assertion on `takeException` alone would have called 150% healthy
@@ -199,11 +209,35 @@ while the title was one character to a line. A control that takes its intrinsic
 width from a row does not begin failing where the framework complains; it
 begins failing as soon as it takes more than its share.
 
+**And a cap has the same blindness pointing the other way.** It answers *how
+much may you have* and never asks *is that enough to be read*. On a 286-pixel
+row the third is 86 pixels; an `IuxStatusIndicator` reading one word has a
+minimum intrinsic width of **180 at 100%** and **472 at 300%**, because a single
+word has no wrap point — so below its minimum the label breaks **inside the
+word**, one glyph to a line. At 300% the glyph and its gap alone (68 px)
+exceeded the 62 left for them and the label was laid out in a box **zero pixels
+wide**. The height was the symptom; the unreadable status was the defect.
+
+**Measured, not assumed.** Branching on the text scale instead — what
+`stacksTrailingText` does for the value — answers a question about the *user's*
+text size with a decision that depends on the *caller's* control and on the room
+the row was given. It would have left 100% broken, because 86 px is short of 180
+at every scale. `IuxNavigationDrawer`'s header recorded the same finding for the
+same reason, and this row now uses the same mechanism: a render object that asks
+the control how wide it would like to be, rather than a `LayoutBuilder` that can
+only report the room.
+
 **Neither component overflows alone**, which is why no component test found it:
 the indicator wraps its own label perfectly well when something tells it how
 wide it may be, and the row wraps its title perfectly well when something is
 left for it. The test that pins this exercises the combination and pumps each
 half on its own as the control.
+
+**A row that still does not fit says so.** At 300% this row is genuinely 688 px
+tall — it never truncates — and a caller who puts it in a fixed 640 px box with
+no scrollable gets a reported overflow of 48 px naming the row and pointing at
+`IuxPage`, `ListView` and `SingleChildScrollView`. That is the caller's mistake
+and the row's job is to name it, not to hide it by scrolling inside itself.
 - **The leading element sits beside the first line**, not opposite the middle of
   a three-line sentence.
 
@@ -221,7 +255,9 @@ half on its own as the control.
 - **A plain row reserves the same gap** even though it can never take focus, so
   a list mixing plain and interactive rows does not have two row heights.
 - **A trailing control keeps `kIuxMinimumTargetSpacing` from the row's target**,
-  and the two never overlap. Both are asserted.
+  and the two never overlap. Both are asserted, at every text scale and on
+  whichever axis the two ended up separated by — a control that has moved below
+  the text keeps the same floor, vertically.
 
 ### Rows touch each other, and that is deliberate
 
@@ -458,6 +494,23 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
   hundred rows. That is what `ListView.separated` is for.
 - **One trailing control, not a list.** Deliberate, and it will stay one until
   there is a real case that a menu control cannot serve.
+- **The beside-or-below decision uses what the control asks for, not its
+  minimum.** A control whose label is several words could sometimes wrap inside
+  its third without breaking a word, and is moved below anyway. The cost is
+  vertical space in a case that would have survived; the alternative is asking
+  the control for its minimum intrinsic width, which **throws** for any subtree
+  containing a `LayoutBuilder` — `IuxTooltip` and `IuxAppBar` both contain one.
+  Between a layout that is sometimes taller than it needed to be and one that
+  can crash on a legal child, this takes the first.
+- **The row's own intrinsics reach into `trailingAction`.** A row with a control
+  can now answer `IntrinsicHeight` and `IntrinsicWidth`, which the `LayoutBuilder`
+  it replaced could not. The exception is the same one: if the control contains
+  a `LayoutBuilder`, asking the row for an intrinsic dimension throws Flutter's
+  own error. Nothing in normal layout asks.
+- **A row that does not fit its box is clipped**, with the overflow reported and
+  the striped indicator drawn, as a `Column` would have done. The report fires
+  once per render object lifetime, so a test asserting it must tear the tree
+  down between cases.
 - **No disabled state**, by construction. See *States*.
 - **No swipe actions, no reordering, no long-press selection mode.** Each is a
   pattern rather than a component: they need gesture arbitration, an
@@ -516,8 +569,14 @@ specification, and for a selectable row using checkbox semantics.
 **Context dependent** for letting stacked rows touch, for the two-thirds/one-third
 split between text and value, for the enlarged-text stacking threshold (inherited
 from `IuxAccessibility.prefersStackedLayout`, itself documented as a heuristic),
-and for allowing `trailingAction` on an interactive row at all — which is where
-this component makes a judgement `IuxCard` did not have to make.
+for using that same third as the threshold at which a trailing control leaves the
+line, and for allowing `trailingAction` on an interactive row at all — which is
+where this component makes a judgement `IuxCard` did not have to make.
+
+**Standard**, not context dependent, for the property underneath that threshold:
+a control is never laid out narrower than it asked for while the row has room to
+give it. Wherever the threshold is put, breaking a word to make a control fit
+loses content at a text size the user chose, which is SC 1.4.4.
 
 **Hypothesis**, and the honest label: that a sibling trailing control on a
 tappable row is understood by users as two targets rather than one. The geometry
