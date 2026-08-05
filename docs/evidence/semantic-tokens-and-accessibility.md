@@ -504,18 +504,35 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 - **Limits**: 10 points is not a measured optimum and has not been validated
   with screen-reader users.
 
-### IUX-SURFACE-001 — Interactive and subtle surfaces are not distinct today
+### IUX-SURFACE-001 — Interactive and subtle surfaces were not distinct (FIXED)
 
 - **Level**: context_dependent
-- **Scope**: found in IUX-009, affects IUX-003.1 palettes
+- **Scope**: found in IUX-009, affected the IUX-003.1 palettes; closed after
+  IUX-042
 - **Sources**: measurement of the four shipped palettes
-- **Status**: **open**. `surface.subtle` and `surface.interactive` resolve to
-  the same primitive on all four profiles, so a read-only field is not
-  separated from an editable one by fill alone.
-- **Limits**: the resolver asks for the correct distinct roles and a test pins
-  the roles rather than the colours, so the intent stays honest. Separating
-  them means re-measuring every affected pair. Until then the distinction is
-  the widget's — no caret, no keyboard, announced read-only — in IUX-010.
+- **Status**: **closed.** `surface.interactive` has its own primitive per
+  profile. Two real consumers, both re-measured.
+- **The defect was the mirror of the one recorded.** The entry said a read-only
+  field was not separated from a *disabled* one; measured, those two differ by
+  border, value colour and marker on all four profiles, and only the fill
+  collided, and only on dark standard. What actually collided was read-only
+  against **editable**: in the `filled` variant, byte-identical fill on all four
+  profiles, identical value colour on all four, identical outline on three. A
+  lock glyph was the only thing separating a box you may type in from one you
+  may not, and the *sighted* user was the one misled.
+- **A claim withdrawn with it**: "five other signals carry read-only" was false.
+  Four of the five separate read-only from editable and say nothing about
+  disabled; the fifth is worse, because a **disabled** field also publishes
+  `isReadOnly` — Flutter resolves `readOnly: widget.readOnly || !_isEnabled` and
+  merged flags disjoin. Exactly one signal, the marker, separated the two.
+- **Limits**: fill still does not *carry* the distinction and cannot — no two
+  steps of the neutral ramp reach 3:1, the widest pair on any profile being
+  1.86:1. `surface.subtle` still equals `surface.disabled` on dark standard;
+  every alternative rung measured there costs `border.interactive` its 3:1, and
+  buying a 1.3:1 fill difference with an unreadable outline is the wrong trade.
+  Whether a *lock* is the right marker is untested — its contrast is measured,
+  its meaning is a hypothesis, and it arguably reads as "unavailable", which is
+  what the neighbouring state means.
 
 ### IUX-ASYNC-001 — An async operation must report its own outcome
 
@@ -1927,26 +1944,72 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   exactly where the 4 px workaround failure was measured. The guarantee is
   real; the button's headroom is a coincidence of a different feature.
 
-### IUX-OVERLAY-001 — the scroll loss also disposes the opener (WORSE THAN RECORDED)
+### IUX-OVERLAY-001 — the scroll loss also disposed the opener (FIXED)
 
-- **Status**: still open, and worse than the original entry said. The rebuild
-  does not merely lose a scroll position: it **disposes** the panel that was
-  scrolled to, so its callback throws `setState() called after dispose()` on
-  the very tap that answered the dialog.
+- **Status**: **closed.** The rebuild did not merely lose a scroll position: it
+  **disposed** the panel that had been scrolled to, so its callback threw
+  `setState() called after dispose()` on the very tap that answered the dialog.
+  `IuxModalLayer` now keeps its `Stack` whether or not anything is open, so the
+  page never changes depth and its element is reused. Measured on all three
+  slots: disposals 1 → 0, inflations 2 → 1, scroll offset 0.0 → 400, exception
+  → none. A second, unrecorded half is closed with it: the layer handed the page
+  loose constraints while closed and tight `constraints.biggest` on open, so the
+  page also re-laid-out every time.
+- **Why it stayed open for fifteen missions, which matters more than the fix**:
+  the entry said the known fix breaks `BlockSemantics`. It does not. IUX-027
+  measured that with `find.bySemanticsLabel`, which reads
+  `RenderObject.debugSemantics` — a per-render-object cache that keeps its last
+  value for a subtree that stops being **visited** rather than being dirtied,
+  which is exactly what a blocked page does. On the semantics tree the platform
+  is actually given, and on `simulatedAccessibilityTraversal`, the covered page
+  is absent under a permanent `Stack`, under a hand-rolled one, and under the
+  conditional shape alike. **IUX-027 is withdrawn**, and with it the argument
+  that accessibility outranked the ergonomics here — there was never a trade.
+- **The rule this leaves**: an entry whose justification rests on a single
+  measurement must name the instrument. Other `find.bySemanticsLabel` call sites
+  survive elsewhere in the suite only because the pages behind their modals are
+  still destroyed or genuinely absent; a sweep of the whole suite for this
+  instrument is owed.
+- **Limits**: measured in widget tests. The traversal is
+  `simulatedAccessibilityTraversal`, not TalkBack on a device.
 
 ### IUX-PROGRESS-LABEL-001 — `valueLabel` is unchecked against `value` (FIXED)
 
 - **Level**: standard
 - **Sources**: WCAG 2.2 SC 1.1.1
-- **Status**: open. A 45% bar can announce "90%", so the two audiences are
-  told different things and neither is warned.
+- **Status**: **closed.** A percentage written in `valueLabel` is compared
+  against `value` with a five-point tolerance; `%`, `٪`, `﹪` and `％` are read,
+  with or without the space French puts in front. The parameter survives,
+  because IUX still cannot compose a percentage — that is a locale decision and
+  it belongs to the application.
+- **Limits**: what is not inspected stays uninspected deliberately, because a
+  false positive is worse than a miss — `3 of 7`, `12 MB of 40 MB`, non-ASCII
+  digits (`\d` is ASCII-only in Dart, so no match means no claim), and any label
+  carrying two percentages. A caller who computes the percentage wrongly and
+  writes it out consistently is undetectable: both audiences get the same wrong
+  number. It is an `assert`, so a release build has none of it.
 
-### IUX-RAIL-OVERFLOW-001 — the rail can be wider than its own window (FIXED)
+### IUX-RAIL-OVERFLOW-001 — the rail could be wider than its own window (FIXED)
 
 - **Level**: standard
-- **Status**: open. At 300% in a 360x320 box the leftover is negative and the
-  `Row` overflows by 36 px. IUX-025's rule weighs *how much is left over* and
-  never asks whether the rail fits at all.
+- **Status**: **closed.** IUX-025's rule weighed *how much is left over* and
+  never asked whether the rail fits at all, so a negative remainder failed the
+  budget exactly as a small positive one did. The rule now carries a fit term.
+- **What was measured**: re-measured as arithmetic rather than as one font — a
+  landscape box *N* px narrower than the rail overflowed by exactly *N* without
+  the term (36 → 36, 100 → 100) and by nothing with it. Across 25 windows × 7
+  text scales, 21 cells flip rail → bar and 18 stop throwing, with every
+  ordinary size unchanged. The "396 px against 360" originally recorded is the
+  catalog's longer destination names; five short ones cost 354 at 300%.
+- **Corrected with it**: an unbounded box is now refused by name, which
+  `docs/components/navigation-rail.md` had claimed since IUX-025 without it
+  being true. The charge that the old behaviour was *silent* was also wrong —
+  one `SingleChildScrollView` produced 27 exceptions, the first a `RenderFlex`
+  unbounded-height error reported against a `Column` the caller never wrote.
+- **Limits**: a rail placed by hand still gets no IUX refusal and cannot get
+  one — a `Row` lays out a non-flexible child against an infinite width, so the
+  rail is never told the window it is in. The check is an `assert`, so a release
+  build still falls through to the bar rather than throwing at the user.
 
 ### IUX-DRAWER-LABEL-001 — a longer dismiss label overflows, and text scale fixes it (FIXED)
 
@@ -2309,9 +2372,24 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   exist, importance picks the rung. **A named `variant:` always wins or
   asserts** — deriving a default is not the same failure as discarding a
   request.
-- Now permanent: `test/themes/button_distinguishability_test.dart`, 22 tests,
+- Now permanent: `test/themes/button_distinguishability_test.dart`, 26 tests,
   every profile x legal intent x legal variant x interaction state, with the
-  two deliberate exclusions pinned and argued rather than left silent.
+  deliberate exclusions pinned and argued rather than left silent.
+- **Applied again after IUX-042, and it found the rung the first sweep had
+  excluded.** `IuxButtonState.loading` survived IUX-038's removal of `success`
+  and `error`, and measured byte-identical to `enabled` in **68 of 68 cells**
+  (four profiles × seventeen legal intent/variant pairs). Its cost was not the
+  wasted name: it sat **above `pressed` and `hovered`**, so a running action
+  whose repeat policy was still *accepting taps* answered neither the pointer
+  nor the finger — `rest=#1560B0 hover=#1560B0 press=#1560B0` against
+  `#1560B0 / #0F4289 / #0A2C63` idle. The rung is removed and engagement
+  feedback now follows `IuxActionDescriptor.isActivatable`, the same predicate
+  as the tap action and the gesture handlers, so the three cannot drift apart
+  again. The exclusion that hid it was justified in the test by "the progress
+  indicator the button swaps in" — there is no progress indicator in either
+  button, and `IuxAsyncActionButton` documents at length why the busy state is a
+  *word* rather than a spinner. **An exclusion needs the same evidence as an
+  assertion.**
 
 ### IUX-LISTITEM-TRAILING-001 — residual at 300%, measured not rounded away
 
@@ -2383,6 +2461,44 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   them invisible to the developer testing the screen — against the pilot's 17
   of 99.
 
+### IUX-RADIO-FOCUS-001 — A radio group's focus node had to land on a control
+
+- **Level**: standard
+- **Scope**: IUX-011 onward; closed after IUX-042
+- **Sources**: WCAG 2.2 SC 2.4.3 (focus order), SC 4.1.2 (name, role, value);
+  SC 2.4.7 for the destination argument
+- **Status**: implemented, measured in `test/patterns/iux_form_test.dart`
+- **What was measured**: `IuxRadioGroup` accepted no `focusNode`, so the node an
+  `IuxFormField` handed over had `context == null` and `parent == null`. With a
+  rule attached and the summary entry activated, `primaryFocus` stayed on the
+  summary — focus did not land badly, it did not move at all — and
+  `Scrollable.ensureVisible` was a no-op for the same reason.
+- **The destination is the argued half**: the node attaches to the group's first
+  option that can take focus, not to the group. A group is a question and a
+  question is not a control; focusing the column would give a stop the user
+  cannot act on, must leave again, and which carries no focus ring — trading an
+  SC 2.4.3 failure for an SC 2.4.7 one. The first-option choice is
+  **strong_guidance**, not standard: it follows the GOV.UK error-summary
+  pattern, and no user testing was run here.
+- **Limits**: the announcement on arrival is measured against Flutter's
+  semantics tree, not against TalkBack on a device.
+
+### IUX-FORM-DUPLICATE-STATE-001 — A field's descriptor and node were written twice
+
+- **Level**: context_dependent
+- **Scope**: IUX-012 onward
+- **Sources**: none external; an API-design judgement
+- **Status**: implemented — `IuxFormField.builder` replaces `child` and is
+  handed the field itself, so `field.input` and `field.focusNode` are the
+  objects the form uses rather than a second copy; `IuxFormSection` refuses in
+  debug a field whose node is adopted by nothing, or by the neighbouring field
+- **Limits**: only the *node* half is checkable. Nothing detects a caller who
+  ignores `field.input` and builds a second descriptor, because the form never
+  sees what the widget was passed — that half is closed by shape alone. The
+  adoption check is debug-only: a release build gets the ergonomics and no
+  check, since the alternatives are throwing at the user or a logging channel
+  IUX does not have. Four pieces of caller state per validated field remain.
+
 ## Deferred to later missions
 
 | Subject | Mission |
@@ -2390,7 +2506,7 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 | Visual feedback components (snackbar, alerts, loaders) | IUX-013 to IUX-015 |
 | A lint enforcing that components read the runtime | Phase 5 |
 | Per-intent action container roles, so tonal can express intent | unscheduled |
-| Distinct `surface.interactive`, so a read-only field differs by fill | unscheduled |
+| ~~Distinct `surface.interactive`, so a read-only field differs by fill~~ | **done**, after IUX-042 — though fill still does not *carry* the distinction, and cannot: no two steps of the neutral ramp reach 3:1 |
 | `IuxSemantics.field`, so a text field need not compose `Semantics` directly | unscheduled |
 | A semantic role for text selection, currently inherited from Material | unscheduled |
 | `IuxSemantics` helpers for checked/toggled/route/field, so components stop composing bare `Semantics` | unscheduled |

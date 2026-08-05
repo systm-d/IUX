@@ -202,11 +202,15 @@ which §5 ranks eleventh, rather than user harm, which it ranks first to third.
 
 Two consequences worth naming, because they cut against my own convenience:
 
-- **Ease of fixing is not a criterion.** `IUX-DRAWER-LABEL-001` is 7.5 px and
-  probably a one-line fix; it is a known issue. `IUX-APPBAR-PAGE-001` needs a
-  new component and possibly a change to `IuxAppBar`’s internals; it blocks.
-  Ranking by user harm means the blocking list is harder to clear than a list I
-  chose for tractability.
+- **Ease of fixing is not a criterion, and neither is apparent difficulty.**
+  `IUX-DRAWER-LABEL-001` was 7.5 px and a known issue; `IUX-APPBAR-PAGE-001`
+  needs a new component and possibly a change to `IuxAppBar`’s internals, and it
+  blocks. Ranking by user harm means the blocking list is harder to clear than a
+  list chosen for tractability. The reverse trap is `IUX-OVERLAY-001`, which
+  read as a hard problem — "the known fix breaks `BlockSemantics`" — and turned
+  out to be one deleted line behind one wrong measurement. **An entry whose
+  justification rests on a single measurement should name the instrument**, or
+  the next reader inherits the conclusion without the means to check it.
 - **"The mitigation exists" does not clear a blocker if the default is wrong.**
   `IUX-A11Y-REACH-001` did not bite the pilot, because the pilot put everything
   inside `IuxPage`, which scrolls. That is real and it is why the entry is
@@ -290,11 +294,24 @@ the 8 px target floor `IuxTargetSpacing` exists to provide — so there is no
 arrangement that gives both.
 
 **B9 — `IUX-OVERLAY-001`: opening a modal disposes the widget that opened it.**
-Worse than originally recorded. Not merely a lost scroll position: the panel
-that was scrolled to is disposed, so its callback throws `setState() called
-after dispose()` **on the very tap that answered the dialog**. The known fix
-breaks `BlockSemantics`, which is why it is open rather than neglected — but a
-crash on answering a dialog is a crash.
+**Closed.** Measured on all three `IuxModalLayer` slots: the opener’s `State`
+was disposed on open (1, now 0), a scrolled list returned to 0 (now holds 400),
+and the callback the opener had handed to the modal threw `setState() called
+after dispose(): _OpenerState#… (lifecycle state: defunct, not mounted)` on the
+tap that answered the dialog (now no exception). The fix is the removal of one
+line — the `Stack` is permanent, so the page never changes depth.
+
+**The reason this was open needs recording, because it was not neglect.** The
+entry said "the known fix breaks `BlockSemantics`". It does not. IUX-027
+measured that with `find.bySemanticsLabel`, which reads
+`RenderObject.debugSemantics` — a per-render-object cache that keeps its last
+value for a subtree that stops being visited rather than being dirtied. On the
+semantics tree the platform is actually given, and on the simulated
+screen-reader traversal, the covered page is absent under a permanent `Stack`,
+under a hand-rolled one, and under the conditional shape alike. IUX-027 is
+withdrawn; §5’s ranking was never in play. The barrier is now pinned by
+live-tree assertions in `iux_modal_layer_test.dart` that fail if paint order is
+reversed.
 
 **B10 — `IUX-FORM-FOCUS-001`: an accepted submission arms an unbounded focus
 move.** `_handleSubmit` never brings `_focusedAttempt` level on the accepted
@@ -332,10 +349,10 @@ around each.
 | --- | --- |
 | `IUX-DESTRUCTIVE-FOCUS-001` | Cancelling a destructive confirmation drops focus to the page root: four Tab presses to recover, where Flutter’s own dialog costs zero. SC 2.4.3, recoverable. |
 | `IUX-GUIDED-FORM-LIVE-001` | A live region in the same frame as a focus move — the collision the pattern refused a progress bar to avoid. Degrades an announcement; does not block. |
-| `IUX-PROGRESS-LABEL-001` | A 45% bar can announce "90%". Requires the caller to pass a wrong label, so it is a missing assertion rather than a wrong default. |
-| `IUX-RAIL-OVERFLOW-001` | The rail can be wider than its window: 36 px overflow at 300% in 360x320. Needs small-landscape plus 300%. |
-| `IUX-DRAWER-LABEL-001` | `’Close the menu’` overflows the header by 7.5 px at 100% text; enlarging the text fixes it. Avoidable by keeping the label short — now documented. |
-| `IUX-SURFACE-001` | `surface.subtle` and `surface.interactive` resolve identically on all four profiles, so a read-only field is not separated by fill alone. Five other signals carry read-only. |
+| `IUX-PROGRESS-LABEL-001` | **Closed.** A percentage written in `valueLabel` is now compared against `value` with a five-point tolerance; `%`, `٪`, `﹪` and `％` are read, with or without the space French puts in front. Uninspected on purpose, because a false positive is worse than a miss: `3 of 7`, `12 MB of 40 MB`, non-ASCII digits, and any label carrying two percentages. It is an `assert`, so finding 6 of the catalog applies. |
+| `IUX-RAIL-OVERFLOW-001` | **Closed.** The rule now asks whether the rail fits before asking what it leaves. Re-measured as arithmetic rather than as one font: a landscape box *N* px narrower than the rail overflowed by exactly *N* without the fit term (36 → 36, 100 → 100) and by nothing with it; across 25 windows × 7 text scales, 21 cells flip rail → bar and 18 stop throwing, with every ordinary size unchanged. The "396 px against 360" was the catalog’s longer destination names; five short ones cost 354 at 300%. An unbounded box is now refused by name as well — and the old behaviour was never *silent*, it produced 27 exceptions from a `Column` the caller never wrote. |
+| `IUX-DRAWER-LABEL-001` | **Closed.** Overflow 0 at all sixteen combinations of {320, 360, 800, 1200} × {100%, 150%, 200%, 300%}. The header is a slotted render object that measures the label it was given, so the arrangement follows the label and the room rather than the text scale, and the inversion this entry described — enlarging the text repaired it — is gone with the rule that caused it. The recorded 7.5 px, and the 9.5 px in the drawer’s own test file, are historical. |
+| `IUX-SURFACE-001` | **Closed.** `surface.interactive` has its own primitive per profile. The claim that "five other signals carry read-only" was false and is withdrawn: four of the five separate read-only from *editable* and say nothing about *disabled*, and the fifth is worse — a disabled field also publishes `isReadOnly`, because Flutter resolves `readOnly: widget.readOnly \|\| !_isEnabled` and merged flags disjoin. Exactly one signal, the marker, separated the two. The real defect was the mirror of the recorded one: in the `filled` variant a read-only field was byte-identical to the **editable** field beside it on all four profiles. Fill still does not carry the distinction and cannot — no two steps of the neutral ramp reach 3:1. |
 | `IUX-API-DEAD-001` | `importance` read by zero call sites; `role` read only by two debug assertions; `IuxElevation` an exported enum with no references. Misleads, does not harm. **Its `IuxConfirmByHold` half is B2, not here.** |
 | `IUX-API-NAMING-001` | `summary` names three unrelated types; `IuxInlineFeedbackAction` and `IuxTransientAction` are field-for-field identical; `onDismiss` vs `onDismissed`. Costs developer time and a breaking change later. |
 | `IUX-QA-VACUOUS-003` | Two tests that cannot fail, plus the mechanism note — `DebugOverflowIndicatorMixin` reports once per render-object lifetime. Weakens the guard, harms no user. |
@@ -343,8 +360,8 @@ around each.
 | `IUX-PERF-001` | Opening a keyboard rebuilds 106 elements against Material’s 14, none of which can change a pixel. Measurable; not a correctness defect, and the fix cannot weaken a guarantee. |
 | `IUX-DISCLOSURE-004` | Closed **wontfix** on measured evidence, with one of its three reasons later weakened by IUX-039. Listed so it is not mistaken for neglected debt. |
 | `IuxDialog` and the Android back button | By design — back is navigation, and navigation is the application’s. But Android is the platform priority, so every application writes the `PopScope` or ships a modal the platform’s primary gesture cannot dismiss. Needs documenting on the dialog page. |
-| `IuxRadioGroup` has no `focusNode` | `IuxFormField.focusNode` is required and is the link from a summary entry to the field. `IuxRadioGroup` takes none, so the node is created, handed over, disposed — and adopted by nothing. Harmless only while no rule is attached to the field. **Latent B6-class**: attach a rule and a summary entry sends the user nowhere. |
-| Five pieces of caller state per form field | A controller, a focus node, an edited flag, a validation object and its rule — three of them passed twice with nothing checking the two agree. The form’s own docs call this "the one mistake this API can still make". |
+| `IuxRadioGroup` has no `focusNode` | **Closed, and it was worse than "latent".** Measured with a rule attached: activating the summary entry left `primaryFocus` on the summary itself — focus did not land badly, it did not move at all — and `Scrollable.ensureVisible` was a no-op too, because it early-returns on a null context. The parameter now exists and lands on the group’s first option that can take focus, because a group is a question and a question is not a control: focusing the column would give a stop the user cannot act on and which has no focus ring, trading an SC 2.4.3 failure for an SC 2.4.7 one. |
+| Five pieces of caller state per form field | **Reduced, and the rest made loud.** `IuxFormField` takes a `builder` handed the field itself, so the descriptor and the node are passed once rather than twice; `IuxFormSection` refuses in debug a field whose node is adopted by nothing, or by the neighbouring field. Four pieces remain. The descriptor half is closed by shape rather than by a check, because the form cannot see what the widget was passed — closing it properly needs the input components to read from an inherited field scope. |
 | Per-route modal and transient layers | A pushed route cannot reach the shell’s layers, so every route that opens a dialog or offers an undo places both again. |
 | `IuxOnboardingFlow` has no catalog panel | IUX-037 recorded it as unexported and skipped it; the exports had landed 21 minutes earlier. An exported pattern with no catalog scenario. |
 | 4 unresolved dartdoc references | See §7 — the registry’s "47" is a different measurement. |

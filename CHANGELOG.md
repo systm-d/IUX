@@ -3,6 +3,193 @@
 The version in `packages/iux_flutter/pubspec.yaml` decides; the heading below
 repeats it. See CONTRIBUTING.md, "Versioning".
 
+## 0.2.0-dev.2 — the IUX-042 follow-through
+
+No new mission. This entry records the work that closed the release
+assessment's blockers, and it covers a gap: nothing between IUX-042 and here had
+been written down at all.
+
+**The licence is settled.** MIT, chosen by the project owner, at the repository
+root and in the package directory. `LICENSE` no longer grants nobody anything,
+which was blocker B1 and the entry every other one sat underneath.
+`publish_to: none` stays in the pubspec while the repository has no remote —
+that is a guard against publishing by accident, not a legal position.
+
+**Still not a release candidate**, and the reason has narrowed to one thing that
+no amount of code closes: **nobody has run TalkBack, Voice Access or a D-pad on
+a real device**, at any point in forty-two missions plus this. Everything this
+repository claims about accessibility is measured on a semantics tree in a unit
+test. That is a great deal, and it is not the same claim.
+
+### Breaking
+
+- `IuxFormField.child` is replaced by `IuxFormField.builder`, of the new type
+  `IuxFormFieldBuilder = Widget Function(BuildContext, IuxFormField)`. The
+  builder is handed the field, so the widget takes `field.input` and
+  `field.focusNode` instead of a second copy of each — the duplication that had
+  nothing checking the two agreed. Migration: `child: IuxTextField(input: x,
+  focusNode: n, …)` becomes `builder: (BuildContext context, IuxFormField
+  field) => IuxTextField(input: field.input, focusNode: field.focusNode, …)`.
+  22 call sites in this repository, all migrated.
+- `IuxFormSection` now refuses, in debug, a field whose `focusNode` is held by
+  no widget inside that field — including one held by the *neighbouring* field.
+  A widget that accepts no focus node cannot be a form field, which is what the
+  required parameter has always meant.
+- `IuxButtonState.loading` is removed. It resolved to the resting palette in all
+  68 measured cells (four colour profiles × seventeen legal intent/variant
+  pairs) while outranking `pressed` and `hovered`, so a running action whose
+  repeat policy still accepted activations answered neither the pointer nor the
+  finger. The last of the three unpainted rungs, after `success` and `error`.
+- `IuxActionColors.border` and `IuxButtonTheme.variant` are removed, and
+  `IuxActionIntent.tertiary` is redefined — from a statement about weight, which
+  variant and importance already make, to **an action that leads away from the
+  task**. `IuxInlineFeedbackAction` becomes `IuxNamedAction`, and `onDismiss`
+  becomes `onDismissed` on three components.
+
+### Added
+
+- **`IuxScreen`**, which owns the app-bar-plus-page composition every
+  application was writing by hand and getting wrong three ways. On 320x640 at
+  250% the hand-written arrangement overflowed by 154 px and left the page
+  nothing; it now splits 178/178. `IuxAppBar`'s `LayoutBuilder` is gone,
+  rewritten as a slotted render object, so `IntrinsicHeight` and
+  `SliverFillRemaining` work on an IUX screen — with bar heights byte-identical
+  before and after across five scales and two widths.
+- **`IuxPlaceMap`**, the accessible shell around a caller-supplied map. IUX
+  renders no tiles and gains no dependency. A map without its list equivalent is
+  **unconstructible**: `places` is required, the widget renders the rows itself,
+  and there is no parameter that hides them. That guarantee is what licenses the
+  other half — because the list is certain, the map subtree is removed from the
+  semantics tree outright.
+- **`IuxRadioGroup.focusNode`**, attached to the group's first option that can
+  take focus. Without it the node an `IuxFormField` handed over was adopted by
+  nothing: a validation-summary entry naming a radio group left focus on the
+  summary and moved the user nowhere at all. The destination is argued rather
+  than assumed — a group is a question, and focusing the column would give a
+  stop the user cannot act on and which carries no focus ring, trading an
+  SC 2.4.3 failure for an SC 2.4.7 one.
+- `IuxAdaptiveNavigation` refuses an unbounded box by name, which
+  `docs/components/navigation-rail.md` had claimed since IUX-025 without it
+  being true.
+- `IuxTransientLayer.debugCheckNotPlacedOver`, called from the three navigation
+  components, so a notice placed over the navigation fails at build with the
+  corrected arrangement printed.
+- `uses-material-design: true` in the package pubspec.
+
+### Fixed
+
+- **A deletion ran without asking** (B2). `IuxActionDescriptor.destructive`
+  *defaults* to `IuxConfirmBeforeExecution`, and a plain `IuxButton` discarded
+  it in silence: the call site read as though the user were being asked, and the
+  action ran on the first tap. A policy is now honoured or refused, never
+  discarded — the button refuses at build, by name, and says what to use
+  instead.
+- **Two patterns put their only control out of reach** (B3). `IuxEmptyState` and
+  `IuxPermissionRationale` now scroll themselves when, and only when, they are
+  given a bounded height. The discriminator is not a heuristic: every vertical
+  scroll view hands its children an unbounded height, so a block inside a
+  caller's scrollable adds nothing, and a block given a bounded height was told
+  the size of a box by something that will not scroll it — which is the dead
+  screen.
+- **A notice removed the navigation for four seconds** (B4).
+- **The app-bar-plus-page composition** (B5), by `IuxScreen` above.
+- **Assistive technology could not move focus onto four control types** (B6) —
+  the sweep found **eleven**, and three of them had no tap action at all:
+  announced as buttons, inert to a screen-reader double-tap. The mechanical
+  check had missed them because it scans bare `Semantics` calls, and the helper
+  writes `button: true` and `onTap:` in its own source, satisfying the scan on
+  behalf of every caller. A test that verified the one place the defect could
+  not be.
+- **`IuxSearchResults` was unusable for a searchable list** (B7).
+- **Two stacked full-width buttons threw** (B8). `IuxTargetSpacing` lays its two
+  axes out with two different widgets now; the vertical `Wrap`'s wrapping
+  protected nothing and cost a target — where the height was bounded it moved
+  the overflow **sideways, in silence**, a third target landing 68 px off the
+  right edge of a 320-wide box with no exception reported at all.
+- **Opening a modal disposed the widget that opened it** (B9). `IuxModalLayer`
+  keeps its `Stack` whether or not anything is open, so the page never changes
+  depth: measured on all three slots, disposals 1 → 0, scroll offset 0.0 → 400,
+  and no more `setState() called after dispose()` on the tap that answered the
+  dialog. The page is also no longer re-laid-out between loose and tight
+  constraints on open.
+- **An accepted submission armed an unbounded focus move** (B10). Submitting
+  opens a window in which a rejection may move focus, and it closes on the first
+  of: the failure being shown, focus arriving in one of the form's own fields,
+  or a step change.
+- **A list row overflowed at accessible text sizes** (B11): 214 px at 300%, now
+  6 px, pinned at the real number rather than rounded away.
+- **The library shipped no icons at all.** The package pubspec did not declare
+  `uses-material-design: true`, so every Material glyph rendered blank — which
+  reads as "the radio buttons do not work" rather than as a missing font,
+  because a radio group still updates its value and still calls `onChanged`; it
+  simply has no visible mark saying which option is chosen. **No test could have
+  caught it**: `flutter_test` substitutes a font that draws every glyph as a
+  filled box regardless of what the pubspec declares, so 1976 tests passed
+  against a package that shipped no icons. Reported from a real device.
+- **Opening a keyboard rebuilt 7.6× what Material does** (`IUX-PERF-001`).
+  `IuxAccessibility.of` read six platform values through `MediaQuery.of`, which
+  subscribes to every aspect, across 34 call sites; each now reads its own
+  aspect. Keyboard 114 → 8 rebuilds, notch 101 → 8, rotation 130 → 26, and text
+  scale unchanged at 140 — correctly, since it is the one change that must
+  rebuild. Nothing observable changed, verified by dumping 672 resolutions
+  before and after, byte-identical.
+- **`IUX-SURFACE-001`**: `surface.interactive` has its own primitive per
+  profile. The recorded defect was the mirror of the real one — read-only and
+  disabled did differ, but in the `filled` variant a read-only field was
+  byte-identical to the **editable** field beside it on all four profiles, and a
+  lock glyph was the only thing between them.
+- **`IUX-RAIL-OVERFLOW-001`**, **`IUX-PROGRESS-LABEL-001`**,
+  **`IUX-DRAWER-LABEL-001`**, **`IUX-DESTRUCTIVE-FOCUS-001`** and
+  **`IUX-EXPAND-CRASH-001`** are all closed; see
+  `docs/evidence/semantic-tokens-and-accessibility.md` for the measurement on
+  each.
+
+### Corrected — findings withdrawn, not quietly dropped
+
+- **IUX-027 is withdrawn.** It reported that `BlockSemantics` does not remove a
+  covered page whose element survives, and that finding is what kept B9 open for
+  fifteen missions under an argument that accessibility outranked the
+  ergonomics. It was measured with `find.bySemanticsLabel`, which reads
+  `RenderObject.debugSemantics` — a per-render-object cache that keeps its last
+  value for a subtree that stops being **visited** rather than being dirtied,
+  which is exactly what a blocked page does. On the tree the platform is given,
+  and on the simulated screen-reader traversal, the covered page is absent under
+  every placement. There was never a trade. **The rule this leaves: an entry
+  whose justification rests on a single measurement must name the instrument.**
+- **"Five other signals carry read-only" was false.** Four of the five separate
+  read-only from *editable* and say nothing about *disabled*, and the fifth is
+  worse — a disabled field also publishes `isReadOnly`, because Flutter resolves
+  `readOnly: widget.readOnly || !_isEnabled` and merged flags disjoin.
+- **`IuxAdaptiveNavigation`'s old behaviour was never *silent*.** One
+  `SingleChildScrollView` produced 27 exceptions. The choice was loud in the
+  framework's words versus loud in ours.
+- **Eight of the catalog's thirteen findings were closed and still described as
+  open**, and the "396 px against 360" in the rail entry turned out to be the
+  catalog's own longer destination names rather than the package suite's.
+- **An exclusion needs the same evidence as an assertion.** The
+  distinguishability sweep had excluded the running state, justified by "the
+  progress indicator the button swaps in" — there is no progress indicator in
+  either button.
+
+### Known open
+
+- **The manual validation register is still empty.** It needs a device, not a
+  decision.
+- **`find.bySemanticsLabel` is still used elsewhere in the suite**, surviving
+  only because the pages behind those modals are still destroyed or genuinely
+  absent. A sweep for that instrument is owed.
+- The duplicate-descriptor half of the form-field fix is closed by shape, not by
+  a check: nothing detects a caller who ignores `field.input` and builds a
+  second descriptor, because the form never sees what the widget was passed.
+- A running plain `IuxButton` with no `busyHint` carries the operation nowhere.
+  Documented rather than asserted, because the assertion would fire across
+  roughly twenty call sites in pattern files.
+- `surface.subtle` still equals `surface.disabled` on dark standard; every
+  alternative rung measured there costs `border.interactive` its 3:1.
+- A rail placed by hand still gets no IUX refusal and cannot get one — a `Row`
+  lays out a non-flexible child against an infinite width, so the rail is never
+  told the window it is in.
+
 ## 0.2.0-dev.1 — IUX-008.8, 008.9, 029 to 041
 
 Eight patterns, three audits, and the first application built on the framework

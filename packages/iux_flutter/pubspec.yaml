@@ -7,32 +7,18 @@ description: Human-centred foundations and UX patterns for Flutter applications.
 # the package changelog at 0.1.0-dev.1, the repository changelog at
 # 0.1.0-dev.11 — was visible for three missions before anyone reconciled it.
 # See CONTRIBUTING.md, "Versioning".
-version: 0.2.0-dev.1
+version: 0.2.0-dev.2
 
-# The package is not publishable yet, and this line is the guard rather than an
-# oversight. The repository's LICENSE is a placeholder that grants no
-# permission to use, copy or distribute anything here, so publishing would put
-# code on pub.dev that nobody is allowed to use. `dart pub publish --dry-run`
-# refuses for the same reason: "You must have a LICENSE file in the root
-# directory". Remove this line once the licence has been chosen — see
-# docs/MISSION_040_PERFORMANCE_AND_PACKAGE_AUDIT.md for the rest of the
-# checklist.
 repository: https://github.com/systm-d/IUX
 issue_tracker: https://github.com/systm-d/IUX/issues
 
-# Still not published. The licence question is settled (MIT) and
-# `dart pub publish --dry-run` is clean, but publishing is a separate
-# decision from being publishable — and several defects in
-# docs/evidence/semantic-tokens-and-accessibility.md are still open,
-# including the fact that nothing has ever been validated on a real
-# device with a screen reader.
+# Still not published. The licence question is settled — MIT, at the repository
+# root and beside this file — and `dart pub publish --dry-run` is clean. But
+# publishing is a separate decision from being publishable, and several entries
+# in docs/evidence/semantic-tokens-and-accessibility.md are still open,
+# including the one no code closes: nothing here has ever been validated on a
+# real device with a screen reader.
 publish_to: none
-
-# No `repository:` or `homepage:`. `dart pub publish --dry-run` recommends one
-# and it is deliberately absent: the working tree has no git remote, so any URL
-# written here would be a guess. Add the real one when the repository is
-# published; it is one of the two things standing between this package and
-# pub.dev.
 
 environment:
   # The two bounds answer different questions, and they are set from
