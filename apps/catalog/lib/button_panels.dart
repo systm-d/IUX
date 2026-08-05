@@ -425,19 +425,25 @@ class _OperationPanel extends StatelessWidget {
           ),
           const CatalogNote(
             'All four resolve to the same colours: a plain IuxButton carrying '
-            'a failed operation is pixel-identical to one that never ran. '
-            'IuxButtonStateResolver computes exactly one rung above enabled — '
-            'loading — and IuxButtonResolver gives it the resting palette, so '
-            'the operation is carried by the announcement and by nothing a '
-            'sighted user can see.\n\n'
-            'There used to be two more rungs. success and error sat above '
-            'hovered on the stated grounds that a result outranks a pointer '
-            'position, and both returned the resting palette — so the only '
-            'thing they achieved was to stop a settled button responding to '
-            'hover at all. They were removed, and hovering a succeeded or '
-            'failed button now moves it the same way hovering an idle one '
-            'does. A running one still does not, which is correct: it is not '
-            'accepting a tap.',
+            'a failed operation is pixel-identical to one that never ran. That '
+            'is deliberate — a lifecycle painted on a container is a colour '
+            'and nothing else — so the operation is carried by the '
+            'announcement, and by a word only in IuxAsyncActionButton.\n\n'
+            'IuxButtonStateResolver used to mirror it anyway. Three rungs sat '
+            'above the ones that had something to show — success and error '
+            'above hovered, loading above both — and all three returned the '
+            'resting palette. Being invisible was not the cost. Outranking '
+            'hovered and pressed, they swallowed the feedback those rungs '
+            'exist to give: a settled button stopped answering the pointer, '
+            'and so did a running one whose repeat policy was still accepting '
+            'taps. All three were removed, the last at IUX-040, and '
+            'IuxButtonState now has four members that each resolve to '
+            'something no other produces.\n\n'
+            'What replaced the busy rung is one sentence: engagement feedback '
+            'is offered exactly when engaging would run something. Switch the '
+            'repeat policy in the panel below and hover the running control — '
+            'under allow it tints, under ignoreWhileInProgress it does not, '
+            'because there the tap really would be dropped.',
             finding: true,
           ),
           SizedBox(height: geometry.spacingSm),

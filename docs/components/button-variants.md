@@ -241,8 +241,9 @@ IuxButton(label: 'Close', variant: IuxButtonVariant.icon)   // asserts
   whether or not it has visible text.
 - A disabled control explains itself when the caller supplied
   `unavailabilityReason`.
-- Enter and Space activate; a disabled control is skipped by focus traversal,
-  and so is a running one — see Limits.
+- Enter and Space activate; a disabled control is skipped by focus traversal. A
+  running one is not — it keeps its focus and its place in the order, because it
+  is working rather than unavailable.
 - The target meets the floor at every density and under a comfortable
   preference; the glyph does not have to grow to match it.
 - The glyph scales with text.
@@ -259,8 +260,11 @@ D-pad traversal.
   meaning is not obvious should keep its label.
 - **No loading or result state in the glyph.** Nothing replaces the icon while
   an operation runs, and the container does not recolour for a result either:
-  `succeeded` and `failed` resolve to the same palette as `idle`. Measured in
-  IUX-008.9 — see [button.md](button.md) *States*.
+  all four values of `IuxActionOperation` resolve to the same palette. Measured
+  in IUX-008.9 — see [button.md](button.md) *States*. The resolver used to
+  mirror three of them in `IuxButtonState`; those members were removed at
+  IUX-038 and IUX-040 because none of them painted anything and each outranked a
+  rung that did.
 - **There is no elevation, and no switch that offers one.** `elevateFilled`
   and `IuxButtonTokens.elevation` were removed at IUX-038 (§19): the value was
   computed, travelled, and was read by nothing, so the theme could ask for a

@@ -232,17 +232,22 @@ be one.
   The wording is yours: the framework composes none, so it announces nothing it
   was not given. (An earlier version of this document said the button announces
   "In progress". That literal was removed in IUX-008.6 — see IUX-A11Y-008.)
-- **A running button is announced as *disabled*.** Its semantics node carries
-  `hasEnabledState` without `isEnabled` and offers no tap action, exactly like
-  an unavailable control; `busyLabel` in the hint is the whole of the
-  difference, and a plain `IuxButton` may omit its `busyHint` and have none.
-  Measured in IUX-008.9 against Flutter's own disabled button, which produces
-  the same flags. WCAG 2.2 SC 4.1.2 asks for the state the control is actually
-  in, and busy is not unavailable.
+- **A running button is announced as running, not as unavailable.** Its
+  semantics node carries `isEnabled: true`, `isFocusable: true` and
+  `SemanticsAction.focus`, and withholds only `SemanticsAction.tap` — the
+  activation really would be dropped under the default repeat policy, so
+  withholding it is honest, and it is the only property a running control still
+  shares with an unavailable one. It announced itself as *disabled* until
+  IUX-038, with `hasEnabledState` and no `isEnabled`, indistinguishable from an
+  unavailable control apart from the hint; one flag fed both the node and the
+  focus node, so the same defect also threw a keyboard user off the control the
+  moment they pressed Enter. WCAG 2.2 SC 4.1.2 asks for the state the control is
+  actually in, and busy is not unavailable.
 - The failure message is a live region, so it reaches a screen reader without
   the user having to go looking for it.
 - Enter and Space activate it; a disabled or running button is not activated by
-  either.
+  either, but a running one keeps its focus and its place in the traversal
+  order — it is working, not unavailable.
 - The failure icon scales with the text beside it.
 - At least the resolved touch target floor; the cancel control keeps
   `kIuxMinimumTargetSpacing` from the button through `IuxTargetSpacing`, and

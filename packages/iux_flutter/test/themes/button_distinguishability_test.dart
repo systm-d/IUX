@@ -24,6 +24,16 @@
 // token is what reaches the eye: `theme_contrast_test.dart` measures the
 // palette, this measures the palette *after* the resolver has chosen which
 // entries of it a given button actually uses.
+//
+// The rule is swept over two different kinds of enum here, and the difference
+// matters. `IuxActionIntent`, `IuxButtonVariant` and `IuxButtonState` are all
+// answers the *resolver* gives, so every member of each must resolve to
+// something a user can tell apart. `IuxActionOperation` is not: it is the
+// action model's lifecycle, and the widget that expresses it is
+// `IuxAsyncActionButton`, which swaps the label for a word and prints the
+// failure message beneath the control. A plain `IuxButton` renders its four
+// values identically on purpose — pinned in `iux_button_qa_test.dart` — because
+// a result painted on a container is a colour and nothing else.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
@@ -52,14 +62,19 @@ const List<(String, IuxThemeConfiguration)> _profiles =
 
 /// The states a caller can put a button into, as inputs rather than outputs.
 ///
-/// `loading` is absent, and its absence is a decision rather than an oversight.
-/// A running action resolves to the resting palette on purpose: what says it is
-/// running is the progress indicator the button swaps in and the busy hint it
-/// announces, both of which reach a screen-reader user, whereas a colour would
-/// not. Including it here would demand that it differ from `enabled` and so
-/// argue for exactly the colour-only status signal the component standard
-/// refuses — the same argument that removed `IuxButtonState.success`/`.error`
-/// in IUX-038.
+/// A running action is absent, and its absence is a decision rather than an
+/// oversight. It resolves to the resting palette on purpose: what says an
+/// action is running is the word `IuxAsyncActionButton` swaps in for the label
+/// and the busy hint it announces, both of which reach a screen-reader user,
+/// whereas a colour would not. Including it here would demand that it differ
+/// from `resting` and so argue for exactly the colour-only status signal the
+/// component standard refuses — the same argument that removed
+/// `IuxButtonState.success` and `.error` in IUX-038 and `.loading` in IUX-040.
+///
+/// An earlier version of this note credited "the progress indicator the button
+/// swaps in". There is none, in either button: `IuxAsyncActionButton` documents
+/// at length why the busy state is a word rather than a spinner, since a
+/// spinner is motion and disappears under `IuxMotionPreference.none`.
 enum _Interaction { resting, hovered, pressed, unavailable }
 
 /// Whether a caller may ask for [variant] on [intent].
@@ -337,6 +352,66 @@ void main() {
         }
       });
 
+      testWidgets('every IuxButtonState member resolves to its own appearance',
+          (WidgetTester tester) async {
+        // The sweep above asks the question in terms of the *inputs* a caller
+        // supplies. This one asks it of the enum the resolver answers with,
+        // which is where a member with nothing to show hides: `_Interaction`
+        // has no value that reaches such a member, so a state that paints
+        // nothing is invisible to an input-shaped sweep.
+        //
+        // That is exactly how `IuxButtonState.success` and `.error` survived
+        // until IUX-038 — computed, documented with a precedence, and
+        // byte-identical to `enabled` everywhere. Ranking above something
+        // requires having something to say, and a rung that says nothing does
+        // not merely waste a name: because it outranks `pressed` and
+        // `hovered`, it *swallows* the feedback those rungs exist to give.
+        final List<String> collisions = <String>[];
+        for (final IuxActionIntent intent in IuxActionIntent.values) {
+          for (final IuxButtonVariant variant in IuxButtonVariant.values) {
+            if (!_isLegal(intent, variant)) continue;
+            final Map<IuxButtonState, Object> seen = <IuxButtonState, Object>{};
+            for (final IuxButtonState state in IuxButtonState.values) {
+              final (IuxActionDescriptor action, bool hovered, bool pressed) =
+                  _reach(state, intent);
+              final IuxButtonTokens tokens = await _resolveIn(
+                tester,
+                configuration: configuration,
+                action: action,
+                variant: variant,
+                hovered: hovered,
+                pressed: pressed,
+              );
+              expect(
+                tokens.state,
+                state,
+                reason: 'the sweep could not put a button into ${state.name}, '
+                    'so it proves nothing about it',
+              );
+              final Object shape = _shape(tokens);
+              for (final MapEntry<IuxButtonState, Object> other
+                  in seen.entries) {
+                if (shape == other.value) {
+                  collisions.add('${state.name} == ${other.key.name} '
+                      '(${intent.name}, ${variant.name})');
+                }
+              }
+              seen[state] = shape;
+            }
+          }
+        }
+
+        expect(
+          collisions,
+          isEmpty,
+          reason: 'in $profile, the resolver reports a state it does not '
+              'draw. Either give it a resolved difference, or take it out of '
+              'IuxButtonState — a rung that paints nothing still outranks the '
+              'rungs below it, so it costs the feedback they would have given '
+              '(PROJECT_PROMPT §19).',
+        );
+      });
+
       testWidgets('an unavailable action looks the same whatever it meant',
           (WidgetTester tester) async {
         // Pinned rather than left implicit, because it is the one place the
@@ -408,6 +483,67 @@ void main() {
       expect(_shape(once), _shape(twice));
     });
   });
+}
+
+/// The inputs that put a button into [state].
+///
+/// A `switch` with no default, so a member added to [IuxButtonState] without a
+/// way to reach it stops compiling here rather than being quietly skipped by
+/// the sweep that is supposed to be exhaustive.
+(IuxActionDescriptor, bool, bool) _reach(
+  IuxButtonState state,
+  IuxActionIntent intent,
+) {
+  IuxActionDescriptor descriptor({
+    IuxActionAvailability availability = IuxActionAvailability.enabled,
+  }) =>
+      IuxActionDescriptor(
+        semantics: const IuxActionSemantics(label: 'Act'),
+        intent: intent,
+        availability: availability,
+      );
+
+  return switch (state) {
+    IuxButtonState.enabled => (descriptor(), false, false),
+    IuxButtonState.hovered => (descriptor(), true, false),
+    IuxButtonState.pressed => (descriptor(), false, true),
+    IuxButtonState.disabled => (
+        descriptor(availability: IuxActionAvailability.disabled),
+        false,
+        false,
+      ),
+  };
+}
+
+/// Resolves an arbitrary descriptor, for the sweeps that vary more than intent.
+Future<IuxButtonTokens> _resolveIn(
+  WidgetTester tester, {
+  required IuxThemeConfiguration configuration,
+  required IuxActionDescriptor action,
+  required IuxButtonVariant variant,
+  required bool hovered,
+  required bool pressed,
+}) async {
+  late IuxButtonTokens tokens;
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: IuxTheme.fromConfiguration(configuration),
+      home: Builder(
+        builder: (BuildContext context) {
+          tokens = IuxButtonResolver.resolve(
+            context,
+            action,
+            variant: variant,
+            hovered: hovered,
+            pressed: pressed,
+          );
+          return const SizedBox.shrink();
+        },
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return tokens;
 }
 
 Future<IuxButtonTokens> _tokens(

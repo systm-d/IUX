@@ -44,28 +44,40 @@ enum IuxButtonVariant {
 /// in a list where one wins. It is drawn additively by [IuxFocusable], outside
 /// the container, and never resolved here.
 ///
-/// A finished operation is absent for a different reason. `success` and `error`
-/// members existed until IUX-038 and nothing painted them: a result on the
-/// container would be a colour and nothing else, which the component standard
-/// refuses for exactly the user it fails. They also sat above [hovered] in the
-/// resolver's precedence, so a settled button silently stopped answering the
-/// pointer. A result belongs in wording — see `IuxAsyncActionButton`, which
-/// shows the failure message the operation supplied.
+/// The operation is absent too, and for the reason that removed three members
+/// from this enum across two missions. `success` and `error` went at IUX-038,
+/// `loading` at IUX-040; all three were computed, documented with a precedence,
+/// and byte-identical to [enabled] in every token, on all four colour profiles,
+/// in all seventeen legal intent/variant pairs — 68 cells measured, 68
+/// collisions. A lifecycle painted on the container would be a colour and
+/// nothing else, which the component standard refuses for exactly the user it
+/// fails.
+///
+/// Being inert was never the cost. All three sat *above* [pressed] or [hovered]
+/// in the resolver's precedence, so the rung that showed nothing swallowed the
+/// feedback the rungs beneath it existed to give: a settled button stopped
+/// answering the pointer before IUX-038, and a running one that genuinely
+/// accepted a second tap did the same until IUX-040. Ranking above something
+/// requires having something to say.
+///
+/// A lifecycle belongs in wording — see `IuxAsyncActionButton`, which swaps the
+/// label for the caller's busy word and shows the failure message the operation
+/// supplied.
 enum IuxButtonState {
   /// Resting and available.
+  ///
+  /// Also the state of a control whose action is running: what says it is
+  /// running is the word the caller supplies, never this.
   enabled,
 
   /// Unavailable.
   disabled,
 
-  /// A pointer is resting on it.
+  /// A pointer is resting on it, and a tap would run something.
   hovered,
 
   /// Being activated.
   pressed,
-
-  /// Its operation is running.
-  loading,
 }
 
 /// Everything needed to paint a button, and nothing about how to paint it.
@@ -277,17 +289,28 @@ abstract final class IuxButtonStateResolver {
   /// Precedence, highest first:
   ///
   /// 1. `disabled` — nothing else matters if it cannot be used;
-  /// 2. `loading` — the operation is what the user is waiting on;
-  /// 3. `pressed` — activation feedback must never be swallowed, otherwise
+  /// 2. `pressed` — activation feedback must never be swallowed, otherwise
   ///    the user cannot tell their tap registered;
-  /// 4. `hovered`;
-  /// 5. `enabled`.
+  /// 3. `hovered`;
+  /// 4. `enabled`.
   ///
-  /// A finished operation is not a rung. `error` and `success` used to sit
-  /// above `hovered` on the stated grounds that "a result outranks a pointer
-  /// position", and both resolved to the resting palette — so the only thing
-  /// the rungs achieved was to stop a settled button responding to hover at
-  /// all. Ranking above something requires having something to say.
+  /// **Engagement feedback is offered exactly when engaging would run
+  /// something.** [IuxActionDescriptor.isActivatable] is the same question the
+  /// tap action and the gesture handlers ask, so the container cannot come to
+  /// promise a tap the policy will decline. It answers *no* in two cases, and
+  /// they resolve differently on purpose: an unavailable action is `disabled`,
+  /// because the user is owed the state the control is actually in; an action
+  /// that is merely running is `enabled`, because it *is* enabled — it is
+  /// working. What withholds the hover tint there is not a busy palette but the
+  /// absence of anything to promise.
+  ///
+  /// The operation is not a rung, and it was one until IUX-040. `loading` sat
+  /// second and resolved to the resting palette, so a running action whose
+  /// repeat policy accepts a second tap answered neither the pointer nor the
+  /// finger — the same shape as the `error` and `success` rungs IUX-038 removed
+  /// on the same grounds. Ranking above something requires having something to
+  /// say. What a running action has to say is a word, and only
+  /// `IuxAsyncActionButton` has one to show.
   ///
   /// Focus is not in this list either, but for the opposite reason: it must
   /// stay visible in every one of these states, so it cannot be a value where
@@ -300,11 +323,10 @@ abstract final class IuxButtonStateResolver {
     if (action.availability == IuxActionAvailability.disabled) {
       return IuxButtonState.disabled;
     }
-    if (action.operation == IuxActionOperation.inProgress) {
-      return IuxButtonState.loading;
+    if (action.isActivatable) {
+      if (pressed) return IuxButtonState.pressed;
+      if (hovered) return IuxButtonState.hovered;
     }
-    if (pressed) return IuxButtonState.pressed;
-    if (hovered) return IuxButtonState.hovered;
     return IuxButtonState.enabled;
   }
 }

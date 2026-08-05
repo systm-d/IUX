@@ -51,13 +51,56 @@ void main() {
       );
     });
 
-    test('loading outranks pressed', () {
+    test('a running action that drops the tap shows no press feedback', () {
+      // It resolves to `enabled`, not to a busy rung: the control *is* enabled,
+      // and what withholds the pressed palette is that the default repeat
+      // policy would decline the activation. Feedback promising a tap that is
+      // dropped is worse than none.
       expect(
         IuxButtonStateResolver.resolve(
           idle.copyWith(operation: IuxActionOperation.inProgress),
           pressed: true,
         ),
-        IuxButtonState.loading,
+        IuxButtonState.enabled,
+      );
+    });
+
+    test('a running action that still accepts a tap shows it', () {
+      // The half that was lost until IUX-040. `IuxButtonState.loading` sat
+      // above `pressed`, resolved to the resting palette in all 68 measured
+      // cells, and so swallowed the activation feedback of a control that was
+      // genuinely accepting activations. Measured on the filled primary in
+      // light standard: idle pressed to #0A2C63, inProgress stayed at #1560B0.
+      const IuxActionDescriptor busy = IuxActionDescriptor(
+        semantics: label,
+        operation: IuxActionOperation.inProgress,
+        repeatPolicy: IuxActionRepeatPolicy.allow,
+      );
+      expect(
+        IuxButtonStateResolver.resolve(busy, pressed: true),
+        IuxButtonState.pressed,
+      );
+      expect(
+        IuxButtonStateResolver.resolve(busy, hovered: true),
+        IuxButtonState.hovered,
+      );
+    });
+
+    test('an unavailable action is disabled, not merely unengaged', () {
+      // Both fail `isActivatable`, and they must not resolve alike: the user is
+      // owed the state the control is actually in (WCAG 2.2 SC 4.1.2). A busy
+      // control is working; an unavailable one is not.
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(availability: IuxActionAvailability.disabled),
+        ),
+        IuxButtonState.disabled,
+      );
+      expect(
+        IuxButtonStateResolver.resolve(
+          idle.copyWith(operation: IuxActionOperation.inProgress),
+        ),
+        IuxButtonState.enabled,
       );
     });
 
@@ -106,14 +149,16 @@ void main() {
     });
 
     test('every state is reachable', () {
+      // Reachability is half the rule; the other half — that each one resolves
+      // to an appearance no other state produces — is swept over all four
+      // profiles in `button_distinguishability_test.dart`. A state that is
+      // reachable and invisible is what this enum lost three members to.
       final Set<IuxButtonState> reached = <IuxButtonState>{
         IuxButtonStateResolver.resolve(idle),
         IuxButtonStateResolver.resolve(idle, hovered: true),
         IuxButtonStateResolver.resolve(idle, pressed: true),
         IuxButtonStateResolver.resolve(
             idle.copyWith(availability: IuxActionAvailability.disabled)),
-        IuxButtonStateResolver.resolve(
-            idle.copyWith(operation: IuxActionOperation.inProgress)),
       };
       expect(reached, hasLength(IuxButtonState.values.length));
     });

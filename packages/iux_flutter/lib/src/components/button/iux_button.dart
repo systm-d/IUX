@@ -423,6 +423,14 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
   Widget build(BuildContext context) {
     assert(_debugPolicyIsHonoured(widget.action));
 
+    // The pointer state is reported as it truly is, and the resolver decides
+    // what to do with it: engagement feedback is offered exactly when engaging
+    // would run something, and that precedence is stated once, in
+    // `IuxButtonStateResolver`, so no second button widget can disagree with
+    // this one about a pressed-while-running control. Withholding the state
+    // here instead would also lose it — a pointer that entered before the
+    // operation started would have to leave and come back before the tint
+    // returned when the operation finished.
     final IuxButtonTokens tokens = IuxButtonResolver.resolve(
       context,
       widget.action,

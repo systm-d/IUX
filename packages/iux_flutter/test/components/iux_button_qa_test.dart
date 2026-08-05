@@ -354,6 +354,141 @@ void main() {
     });
   });
 
+  group('engagement feedback is offered exactly when engaging would run', () {
+    // The other half of IUX-BUTTON-DEAD-001, closed at IUX-040.
+    // `IuxButtonState.loading` was the last rung of the resolver that painted
+    // nothing: measured byte-identical to `enabled` on all four profiles, in
+    // all seventeen legal intent/variant pairs, in every token. Being inert was
+    // not the cost. It sat *above* `pressed` and `hovered`, so a running action
+    // whose repeat policy genuinely accepts a second tap answered neither the
+    // pointer nor the finger — measured, on the filled primary: idle moved
+    // #1560B0 -> #0F4289 on hover and -> #0A2C63 on press, inProgress did not
+    // move at all. Exactly what `success` and `error` had done before IUX-038
+    // removed them, left behind by that mission.
+    //
+    // The rule that replaced it is one sentence and holds in both directions:
+    // the container answers the pointer when, and only when, activating would
+    // run something. `IuxActionDescriptor.isActivatable` is the same question
+    // the tap action and the gesture handlers already ask, so the three cannot
+    // drift apart.
+
+    Future<(Color, Color, Color)> palette(
+      WidgetTester tester, {
+      required IuxActionOperation operation,
+      required IuxActionRepeatPolicy policy,
+      IuxActionAvailability availability = IuxActionAvailability.enabled,
+    }) async {
+      await host(
+        tester,
+        IuxButton(
+          label: 'Save',
+          busyHint: 'Saving',
+          variant: IuxButtonVariant.filled,
+          action: idle.copyWith(
+            operation: operation,
+            repeatPolicy: policy,
+            availability: availability,
+          ),
+          onActivate: () {},
+        ),
+      );
+      final Color resting = decorationOf(tester).color!;
+
+      final TestGesture pointer =
+          await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: Offset.zero);
+      await tester.pump();
+      await pointer.moveTo(tester.getCenter(find.byType(IuxButton)));
+      await tester.pumpAndSettle();
+      final Color hovered = decorationOf(tester).color!;
+      await pointer.removePointer();
+      await tester.pumpAndSettle();
+
+      final TestGesture finger =
+          await tester.startGesture(tester.getCenter(find.byType(IuxButton)));
+      await tester.pumpAndSettle();
+      final Color pressed = decorationOf(tester).color!;
+      await finger.up();
+      await tester.pumpAndSettle();
+
+      return (resting, hovered, pressed);
+    }
+
+    testWidgets('a running action that still accepts a tap answers the pointer',
+        (WidgetTester tester) async {
+      final (Color resting, Color hovered, Color pressed) = await palette(
+        tester,
+        operation: IuxActionOperation.inProgress,
+        policy: IuxActionRepeatPolicy.allow,
+      );
+      expect(
+        hovered,
+        isNot(equals(resting)),
+        reason: 'this button accepts a second activation — isActivatable is '
+            'true — and gave the pointer nothing back. The busy rung outranked '
+            'hovered while having no colour of its own to show for it.',
+      );
+      expect(
+        pressed,
+        isNot(equals(resting)),
+        reason: 'and the tap it accepted registered invisibly. Activation '
+            'feedback that does not change is activation feedback the user '
+            'never receives.',
+      );
+      expect(pressed, isNot(equals(hovered)));
+    });
+
+    testWidgets('it matches an idle button exactly, because it is one',
+        (WidgetTester tester) async {
+      // Not "some feedback" but the same feedback. A running control that
+      // accepts taps differs from a resting one in nothing the container can
+      // say, so inventing a third palette for it would be a colour-only status
+      // signal — which is what the component standard refuses and what the
+      // removed rung was one careless commit away from becoming.
+      expect(
+        await palette(
+          tester,
+          operation: IuxActionOperation.inProgress,
+          policy: IuxActionRepeatPolicy.allow,
+        ),
+        equals(await palette(
+          tester,
+          operation: IuxActionOperation.idle,
+          policy: IuxActionRepeatPolicy.allow,
+        )),
+      );
+    });
+
+    testWidgets('a running action that drops the tap stays still',
+        (WidgetTester tester) async {
+      // The direction that matters more. Under the default repeat policy the
+      // activation *is* dropped, so hover feedback would be the container
+      // promising a tap it will not honour — and this used to be guaranteed
+      // only as a side effect of the busy rung outranking hovered. It is now
+      // stated: `isActivatable` gates the pointer state before the resolver
+      // ever sees it.
+      final (Color resting, Color hovered, Color pressed) = await palette(
+        tester,
+        operation: IuxActionOperation.inProgress,
+        policy: IuxActionRepeatPolicy.ignoreWhileInProgress,
+      );
+      expect(hovered, equals(resting));
+      expect(pressed, equals(resting));
+    });
+
+    testWidgets('and neither does an unavailable one',
+        (WidgetTester tester) async {
+      final (Color resting, Color hovered, Color pressed) = await palette(
+        tester,
+        operation: IuxActionOperation.idle,
+        policy: IuxActionRepeatPolicy.allow,
+        availability: IuxActionAvailability.disabled,
+      );
+      expect(hovered, equals(resting));
+      expect(pressed, equals(resting));
+    });
+  });
+
   group('a settled operation is a message, not a colour on the container', () {
     testWidgets('succeeded and failed render exactly like idle',
         (WidgetTester tester) async {
