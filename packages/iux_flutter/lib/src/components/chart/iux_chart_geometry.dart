@@ -15,6 +15,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import 'iux_chart_model.dart';
+
 /// Maps a value onto a fraction of the extent it is plotted in.
 @immutable
 final class IuxChartScale {
@@ -119,4 +121,68 @@ double pathLength(Path path) {
     total += metric.length;
   }
   return total;
+}
+
+/// One path per unbroken run of readings in [points].
+///
+/// A null reading ends the current run and the next reading starts a new one,
+/// which is what puts a hole in the line instead of a straight segment across
+/// the missing stretch. Joining across a gap would draw a week of steady
+/// weather nobody observed.
+///
+/// A run holding a single reading has no length to stroke, so it is drawn as a
+/// dot of radius [dotRadius]. Left as a zero-length line it would disappear,
+/// and a reading that exists and is not shown is the failure this component
+/// exists to prevent.
+///
+/// [horizontal] and [vertical] are the value ranges; [size] is the area to draw
+/// in. The vertical axis is flipped on the way out, because screen coordinates
+/// grow downwards and readings grow upwards — an easy sign error that produces
+/// an upside-down chart and no other symptom.
+List<Path> seriesPaths(
+  List<IuxChartPoint> points, {
+  required IuxChartScale horizontal,
+  required IuxChartScale vertical,
+  required Size size,
+  required TextDirection direction,
+  required double dotRadius,
+}) {
+  final List<Path> paths = <Path>[];
+  List<Offset> run = <Offset>[];
+
+  void flush() {
+    if (run.isEmpty) return;
+    final Path path = Path();
+    if (run.length == 1) {
+      path.addOval(Rect.fromCircle(center: run.single, radius: dotRadius));
+    } else {
+      path.moveTo(run.first.dx, run.first.dy);
+      for (final Offset point in run.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+    paths.add(path);
+    run = <Offset>[];
+  }
+
+  for (final IuxChartPoint point in points) {
+    final double? value = point.value;
+    if (value == null) {
+      flush();
+      continue;
+    }
+    run.add(
+      Offset(
+        horizontalOffset(
+          horizontal.fractionOf(point.position),
+          size.width,
+          direction,
+        ),
+        size.height - vertical.fractionOf(value) * size.height,
+      ),
+    );
+  }
+  flush();
+
+  return paths;
 }
