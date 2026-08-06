@@ -2465,6 +2465,26 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   that has moved below the row's text still reads as a *second* target rather
   than as part of the row is unverified on a device: the geometry and the
   sibling semantics node are asserted, the perception is a hypothesis.
+- **Independent corroboration, and a methodology correction it exposed**: the
+  QuoiD'Neuf pilot's own accessibility bench (its task 22) first measured what
+  looked like a violation of this entry's principle at 320×640, 200% text —
+  two `IuxListItem` rows (no `trailingAction` involved; height came from
+  `subtitle` wrap, a distinct cause reaching the same shape) at 552 px and
+  592 px tall, bottoms landing at 744 and 784 against a 641 px fold. The
+  instrument was the defect: the check compared `RenderBox.localToGlobal`
+  against the viewport rectangle directly, the exact naive geometry this
+  entry's own §"Also rejected" already argued against for a row taller than
+  its viewport. Re-measured with `Finder.hitTestable()` — a real hit test at
+  the row's centre, run after `Scrollable.ensureVisible` — both rows resolve
+  centres at y=468 and y=488, comfortably inside the 640 px window, and both
+  report `hitTestable: true`. The rows were reachable the entire time; only
+  the rectangle comparison said otherwise. Two more rows on an unrelated
+  screen (`a-propos`, 540 px and 492 px tall, same false rectangle failure)
+  corroborate. **The lesson for anyone else writing a device-scale
+  accessibility gate**: "does the target's full bounding box fit inside the
+  viewport" is not the same claim as "can the user reach and press the
+  target", and only the latter is the one that matters — a scrollable makes
+  the former routinely false for perfectly honest content.
 
 ### IUX-MAP-001 — A map without its list equivalent is unconstructible
 
