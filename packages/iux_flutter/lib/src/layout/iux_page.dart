@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../semantics/iux_semantic_colors.dart';
 import 'iux_content_width.dart';
+import 'iux_material_ground.dart';
 import 'iux_spacing_primitives.dart';
 
 /// Which system insets a page consumes.
@@ -153,7 +154,14 @@ class IuxPage extends StatelessWidget {
       child: body,
     );
 
-    if (!background) return body;
-    return ColoredBox(color: colors.surface.base, child: body);
+    // The medium, outermost, so it reaches the insets as well as the content.
+    // A page is a route root on its own — `IuxScreen` documents exactly that
+    // for a screen with no name worth showing — and a route root is what
+    // nothing wraps.
+    return IuxMaterialGround(
+      child: background
+          ? ColoredBox(color: colors.surface.base, child: body)
+          : body,
+    );
   }
 }

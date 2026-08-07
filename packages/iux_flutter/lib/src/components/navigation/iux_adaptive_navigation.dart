@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_accessibility.dart';
+import '../../layout/iux_material_ground.dart';
 import '../transient/iux_transient_layer.dart';
 import 'iux_bottom_navigation.dart';
 import 'iux_navigation_destination.dart';
@@ -245,77 +246,85 @@ class IuxAdaptiveNavigation extends StatelessWidget {
     // different ways depending on the device it was found on.
     assert(IuxTransientLayer.debugCheckNotPlacedOver(context));
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        // Before the rule rather than inside it: an unbounded axis is not a
-        // window this component may choose an arrangement for, and the choice
-        // it used to make there was the bar, reached without a measurement.
-        assert(_debugCheckHasBoundedBox(constraints));
+    // Around the whole arrangement, not around [child]: the destinations are
+    // the child's siblings, so a medium established inside the page never
+    // reaches them. Measured before this line existed, with this component as
+    // the route root — the page read against IUX's body style and the two
+    // destination labels read against Flutter's fallback, monospace and all.
+    // See `IuxMaterialGround`.
+    return IuxMaterialGround(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          // Before the rule rather than inside it: an unbounded axis is not a
+          // window this component may choose an arrangement for, and the choice
+          // it used to make there was the bar, reached without a measurement.
+          assert(_debugCheckHasBoundedBox(constraints));
 
-        if (_prefersRail(context, constraints)) {
-          final bool startIsLeft =
-              Directionality.of(context) == TextDirection.ltr;
-          return Row(
-            // Stretched, so the rail runs the full height of the window
-            // rather than the height of its five destinations. A rail that
-            // stopped halfway down leaves its own edge line stopping with it,
-            // and the boundary between navigation and content disappears
-            // exactly where the content is longest.
+          if (_prefersRail(context, constraints)) {
+            final bool startIsLeft =
+                Directionality.of(context) == TextDirection.ltr;
+            return Row(
+              // Stretched, so the rail runs the full height of the window
+              // rather than the height of its five destinations. A rail that
+              // stopped halfway down leaves its own edge line stopping with it,
+              // and the boundary between navigation and content disappears
+              // exactly where the content is longest.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                IuxNavigationRail(
+                  label: label,
+                  destinations: destinations,
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: onDestinationSelected,
+                ),
+                Expanded(
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    // The rail already stands on the start inset, so for the
+                    // content that inset no longer exists. Left in place it
+                    // would be applied twice from one cutout — once by the rail
+                    // that is covering it and once by a page that still
+                    // believes it is exposed — and the content would sit a
+                    // notch's width away from a rail it is supposed to touch.
+                    removeLeft: startIsLeft,
+                    removeRight: !startIsLeft,
+                    child: child,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              IuxNavigationRail(
-                label: label,
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onDestinationSelected: onDestinationSelected,
-              ),
               Expanded(
+                // The bar consumes the bottom inset itself, so the content
+                // above is no longer exposed to it. Same double-inset,
+                // different edge.
                 child: MediaQuery.removePadding(
                   context: context,
-                  // The rail already stands on the start inset, so for the
-                  // content that inset no longer exists. Left in place it
-                  // would be applied twice from one cutout — once by the rail
-                  // that is covering it and once by a page that still
-                  // believes it is exposed — and the content would sit a
-                  // notch's width away from a rail it is supposed to touch.
-                  removeLeft: startIsLeft,
-                  removeRight: !startIsLeft,
+                  removeBottom: true,
                   child: child,
+                ),
+              ),
+              ConstrainedBox(
+                // Bounded by the window, which is what lets the bar's own
+                // degradation happen: given unbounded height a scrolling bar
+                // simply takes all of it, and the content above would be laid
+                // out at zero height without ever being told why. This is also
+                // what `Scaffold` does with its own navigation slot.
+                constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+                child: IuxBottomNavigation(
+                  label: label,
+                  destinations: destinations,
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: onDestinationSelected,
                 ),
               ),
             ],
           );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Expanded(
-              // The bar consumes the bottom inset itself, so the content
-              // above is no longer exposed to it. Same double-inset,
-              // different edge.
-              child: MediaQuery.removePadding(
-                context: context,
-                removeBottom: true,
-                child: child,
-              ),
-            ),
-            ConstrainedBox(
-              // Bounded by the window, which is what lets the bar's own
-              // degradation happen: given unbounded height a scrolling bar
-              // simply takes all of it, and the content above would be laid
-              // out at zero height without ever being told why. This is also
-              // what `Scaffold` does with its own navigation slot.
-              constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-              child: IuxBottomNavigation(
-                label: label,
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onDestinationSelected: onDestinationSelected,
-              ),
-            ),
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../layout/iux_material_ground.dart';
 import '../../layout/iux_page.dart';
 import 'iux_app_bar.dart';
 
@@ -27,8 +28,8 @@ const double _maximumChromeShare = 0.5;
 /// An app bar over a page, which is what most screens are.
 ///
 /// ```dart
-/// Scaffold(
-///   body: IuxScreen(
+/// MaterialPageRoute<void>(
+///   builder: (BuildContext context) => IuxScreen(
 ///     appBar: IuxAppBar(
 ///       title: l10n.orders,
 ///       leading: IuxAppBarLeading.back(
@@ -48,7 +49,29 @@ const double _maximumChromeShare = 0.5;
 /// **Do not use it** for a screen with no name worth showing — that is an
 /// `IuxPage` on its own — nor as a `Scaffold` replacement. It owns the top
 /// chrome and the content, and nothing else: navigation goes around it
-/// (`IuxAdaptiveNavigation`), and so does the modal layer.
+/// (`IuxAdaptiveNavigation`), and so does the modal layer, and a `Scaffold`
+/// still owns the floating action button, the drawers and the snack bars.
+///
+/// ## It no longer needs a `Scaffold` to render
+///
+/// It used to. This component sat directly under a route and required the
+/// caller to supply a `Material` ancestor, and the example above began with
+/// `Scaffold(body: …)` for that reason and no other. **Two consumer
+/// applications out of two got it wrong** — one on the single screen it pushed
+/// as its own route, one on all five of its screens — and both shipped a build
+/// where every word on the affected screens, the title in this bar included,
+/// rendered in Flutter's *"you forgot Material"* fallback: monospace, double
+/// underlined in yellow.
+///
+/// Neither test suite could see it, and one of them was a golden suite over all
+/// five screens whose committed PNGs were pictures of the defect. See
+/// `IuxMaterialGround`, which this now establishes, for why that happened and
+/// why documentation was the wrong instrument for the job.
+///
+/// A `Scaffold` above this is still correct and still recommended — it is what
+/// paints the scaffold background and owns the rest of the chassis — and
+/// nothing about it changed. It is simply no longer what stands between a
+/// screen and legible text.
 ///
 /// ## Why this exists at all
 ///
@@ -151,16 +174,22 @@ class IuxScreen extends StatelessWidget {
   final IuxPage page;
 
   @override
-  Widget build(BuildContext context) => _IuxScreenFrame(
-        bar: appBar,
-        body: MediaQuery.removePadding(
-          context: context,
-          // The bar consumed it, inside its own background, and a `SafeArea`
-          // only removes what it consumes for its own subtree. This is the
-          // sibling case that removal cannot reach, and the whole reason a
-          // component owns both halves.
-          removeTop: true,
-          child: page,
+  Widget build(BuildContext context) => IuxMaterialGround(
+        // Around both halves, not inside the page: the bar is the page's
+        // sibling, so a ground established within the page cannot reach it —
+        // which is why a screen missing this rendered its *title* in the
+        // fallback style too.
+        child: _IuxScreenFrame(
+          bar: appBar,
+          body: MediaQuery.removePadding(
+            context: context,
+            // The bar consumed it, inside its own background, and a `SafeArea`
+            // only removes what it consumes for its own subtree. This is the
+            // sibling case that removal cannot reach, and the whole reason a
+            // component owns both halves.
+            removeTop: true,
+            child: page,
+          ),
         ),
       );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../layout/iux_material_ground.dart';
 import '../navigation/iux_navigation_drawer.dart';
 import 'iux_bottom_sheet.dart';
 import 'iux_dialog.dart';
@@ -102,52 +103,61 @@ class IuxModalLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Widget? modal = dialog ?? sheet ?? drawer;
-    return Stack(
-      // The Stack is here whether or not anything is open, and that is the
-      // whole of IUX-OVERLAY-001.
-      //
-      // While the layer returned [child] directly, opening a modal changed the
-      // page's depth in the element tree. Flutter cannot reuse an element at a
-      // different depth under a different parent widget, so it threw the page
-      // away and inflated a new one: every `State` below disposed, every
-      // controller rebuilt, every list back to offset zero — and any callback
-      // the page had already handed to the modal now closed over a defunct
-      // `State`, so the tap that *answered* the dialog threw `setState()
-      // called after dispose()`. A modal that destroys the page it interrupts
-      // is not an ergonomic cost, it is a crash on the ordinary path.
-      //
-      // `expand`, unchanged, and now applied while nothing is open as well.
-      // That is deliberate rather than incidental: the layer used to hand the
-      // page whatever loose constraints it was given while closed and a tight
-      // `constraints.biggest` the moment a modal appeared, so the page
-      // relaid out — a second, quieter half of the same defect. One
-      // arrangement in both states is the point. `passthrough` was tried and
-      // rejected: under the loose constraints a `Scaffold` body supplies it
-      // shrinks the layer to the page's content, and the modal is then
-      // laid out inside a box the size of the page rather than the screen.
-      //
-      // The cost is that a layer placed in an unbounded box now fails while
-      // closed instead of failing when the user opens something. A modal layer
-      // that cannot show a modal is not usable there either way, and the early
-      // failure is the one a developer can act on.
-      fit: StackFit.expand,
-      children: <Widget>[
-        child,
-        // Painted after the page, which is what lets its `BlockSemantics` drop
-        // the page from the semantics tree. Reversing the order would leave
-        // the page readable to a screen reader while it is unreachable by
-        // touch.
+    // Around the Stack, so it covers the modal as well as the page. The modal
+    // is slot one and the page is slot zero — siblings — so the medium the page
+    // establishes for itself stops at the page. Measured with this layer as the
+    // route root: the page read against IUX's body style while the dialog's
+    // title, message and dismiss label all read against Flutter's fallback.
+    // A confirmation dialog in monospace and yellow rules is the worst place
+    // this defect could have surfaced. See `IuxMaterialGround`.
+    return IuxMaterialGround(
+      child: Stack(
+        // The Stack is here whether or not anything is open, and that is the
+        // whole of IUX-OVERLAY-001.
         //
-        // Nothing here excludes the page a second time. That was written, and
-        // then removed: with the Stack permanent, the covered page was
-        // measured absent from the semantics tree and from the simulated
-        // screen-reader traversal in all three slots, with and without the
-        // extra exclusion. A second mechanism no test can distinguish is a
-        // mechanism that will rot — the guarantee is pinned by
-        // 'the page behind a modal is unreachable' instead, which fails
-        // whichever way it is broken.
-        if (modal != null) modal,
-      ],
+        // While the layer returned [child] directly, opening a modal changed the
+        // page's depth in the element tree. Flutter cannot reuse an element at a
+        // different depth under a different parent widget, so it threw the page
+        // away and inflated a new one: every `State` below disposed, every
+        // controller rebuilt, every list back to offset zero — and any callback
+        // the page had already handed to the modal now closed over a defunct
+        // `State`, so the tap that *answered* the dialog threw `setState()
+        // called after dispose()`. A modal that destroys the page it interrupts
+        // is not an ergonomic cost, it is a crash on the ordinary path.
+        //
+        // `expand`, unchanged, and now applied while nothing is open as well.
+        // That is deliberate rather than incidental: the layer used to hand the
+        // page whatever loose constraints it was given while closed and a tight
+        // `constraints.biggest` the moment a modal appeared, so the page
+        // relaid out — a second, quieter half of the same defect. One
+        // arrangement in both states is the point. `passthrough` was tried and
+        // rejected: under the loose constraints a `Scaffold` body supplies it
+        // shrinks the layer to the page's content, and the modal is then
+        // laid out inside a box the size of the page rather than the screen.
+        //
+        // The cost is that a layer placed in an unbounded box now fails while
+        // closed instead of failing when the user opens something. A modal layer
+        // that cannot show a modal is not usable there either way, and the early
+        // failure is the one a developer can act on.
+        fit: StackFit.expand,
+        children: <Widget>[
+          child,
+          // Painted after the page, which is what lets its `BlockSemantics` drop
+          // the page from the semantics tree. Reversing the order would leave
+          // the page readable to a screen reader while it is unreachable by
+          // touch.
+          //
+          // Nothing here excludes the page a second time. That was written, and
+          // then removed: with the Stack permanent, the covered page was
+          // measured absent from the semantics tree and from the simulated
+          // screen-reader traversal in all three slots, with and without the
+          // extra exclusion. A second mechanism no test can distinguish is a
+          // mechanism that will rot — the guarantee is pinned by
+          // 'the page behind a modal is unreachable' instead, which fails
+          // whichever way it is broken.
+          if (modal != null) modal,
+        ],
+      ),
     );
   }
 }

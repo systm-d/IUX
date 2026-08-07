@@ -7,6 +7,7 @@ import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
 import '../../accessibility/iux_touch_target.dart';
 import '../../layout/iux_content_width.dart';
+import '../../layout/iux_material_ground.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import '../../motion/iux_motion_policy.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
@@ -257,26 +258,32 @@ class IuxTransientLayer extends StatelessWidget {
     // a message appeared: the subtree would be rebuilt from scratch, taking
     // scroll offsets, keyboard focus and in-flight animations with it. That is
     // a spectacular price to pay for a notice nobody needed.
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        child,
-        // Positioned rather than a second full-screen layer: the message
-        // occupies the bottom strip and nothing else, so the rest of the page
-        // stays tappable underneath it. A transient message that swallowed
-        // taps across the whole screen would be an invisible modal.
-        if (current != null)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _IuxTransientSurface(
-              message: current,
-              onDismissed: onDismissed,
-              minimumDwell: minimumDwell,
+    // Around the Stack, for the reason `IuxModalLayer` carries one: the message
+    // is the page's sibling, so the medium the page establishes cannot reach
+    // it. This layer is documented as the outermost of the three, which makes
+    // it the route root more often than either.
+    return IuxMaterialGround(
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          child,
+          // Positioned rather than a second full-screen layer: the message
+          // occupies the bottom strip and nothing else, so the rest of the page
+          // stays tappable underneath it. A transient message that swallowed
+          // taps across the whole screen would be an invisible modal.
+          if (current != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _IuxTransientSurface(
+                message: current,
+                onDismissed: onDismissed,
+                minimumDwell: minimumDwell,
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

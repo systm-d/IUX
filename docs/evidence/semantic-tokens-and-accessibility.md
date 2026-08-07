@@ -2618,3 +2618,87 @@ Material glyph rendered blank — while 1976 tests passed over it, because
 `flutter_test` substitutes a font that draws every glyph as a filled box
 regardless of the pubspec. No test in this repository could have caught it, and
 a person holding a phone caught it immediately.
+
+### IUX-MATERIAL-GROUND-001 — Every layer that can be a route root now carries its own Material (FIXED)
+
+- **Level**: standard
+- **Scope**: IUX-001 onward; found by two consumer applications, fixed after
+  IUX-043
+- **Sources**: Flutter's own `_errorTextStyle` (`material/app.dart:45`), whose
+  `debugLabel` reads *"fallback style; consider putting your text in a
+  Material"*; WCAG 2.2 SC 1.4.3 (contrast), SC 1.4.12 (text spacing) — a screen
+  rendered in the fallback style meets neither, and nothing in this repository
+  measured that it was happening
+- **Status**: implemented in `IuxMaterialGround`, applied by `IuxScreen`,
+  `IuxPage`, `IuxModalLayer`, `IuxTransientLayer` and `IuxAdaptiveNavigation`;
+  measured in `test/layout/iux_material_ground_test.dart`
+
+**What was measured.** `MaterialApp` installs a deliberately hostile
+`DefaultTextStyle` at the root — monospace, 48 point, double-underlined in
+yellow — which `Material` is meant to displace. In an ordinary Material
+application `Scaffold` does that, and a route whose root is not a `Scaffold`
+never gets one. Every IUX component required that ancestor and none provided it;
+`grep -c 'Material('` over `lib/src` returned zero.
+
+Probed with each layer as the route root, reading `DefaultTextStyle.of(context)`
+at the text itself:
+
+| layer | its own content | the page it wraps |
+| --- | --- | --- |
+| `IuxScreen` | title: **fallback** | ok |
+| `IuxPage` | **fallback** | — |
+| `IuxModalLayer` | dialog title, message, dismiss label: **fallback** | ok |
+| `IuxTransientLayer` | message: **fallback** | ok |
+| `IuxAdaptiveNavigation` | every destination label: **fallback** | ok |
+
+The three layers place their content as a **sibling** of the page in a `Stack`
+or a `Row`, so a medium the page establishes for itself can never reach them.
+That is why the fix could not stop at `IuxScreen`: a confirmation dialog in
+monospace with yellow rules is the worst place this could have surfaced, and it
+was still there after the first correction.
+
+**Why documentation was the wrong instrument.** The contract was written down —
+`IuxScreen` said in as many words that it was not a `Scaffold` replacement and
+needed a `Material` ancestor. **Two consumer applications out of two got it
+wrong.** That is not an error rate, it is an API result.
+
+- One had four screens inside a chassis `Scaffold` and one pushed as its own
+  route. That screen rendered yellow on the device. Its two widget tests passed
+  throughout, because the test host supplied the `Scaffold` the route did not.
+  The source comment asserting the invariant — *"the Scaffold is here and
+  nowhere else"* — was true only of what sat **under** it.
+- The other had five screens, each a route root, and no `Scaffold` anywhere in
+  the application. Every screen rendered yellow, and it had **golden tests over
+  all five**. The committed PNGs were pictures of the defect: under
+  `flutter_test` every glyph is a filled black box, so a thin yellow rule
+  beneath a black box reads as a style flourish. They were regenerated,
+  reviewed by eye, and approved.
+
+**The second case is the finding.** A golden suite is the strongest instrument
+this class of defect can meet, and it recorded the defect as the expectation.
+The same font substitution that hid the missing icons hid this — one level up,
+and against a stronger instrument.
+
+**The rule this adds.** *A contract that only documentation enforces is a
+contract that measurement cannot see.* Where a component depends on an ancestor
+it does not provide, either provide it or make its absence fail loudly; leaving
+it to the caller means the failure surfaces as a rendering artefact, and a
+rendering artefact is exactly what a harness is worst at seeing.
+
+**The exclusion, and its evidence.** `IuxSection` still resolves against the
+fallback when mounted alone, and deliberately: it is content, documented as
+living inside an `IuxPage`, and is never a route root. The distinction drawn is
+*can this be the outermost widget of a route* — not *does this contain text*.
+
+**What it is not.** `MaterialType.transparency`: it paints no background,
+absorbs no hit test and clips nothing, so the surface decision stays with the
+semantic tokens rather than moving to `canvasColor`. A `Scaffold` above any of
+these is still correct and still recommended — it owns the scaffold background,
+the floating action button, the drawers and the snack bars. It is simply no
+longer what stands between a screen and legible text.
+
+**Nesting is accepted rather than avoided.** Composed, the five layers give five
+transparent Materials. A conditional ground — one that checked for an ancestor
+before inserting itself — was rejected without being tried: conditional
+structure changes a subtree's depth, and `IUX-OVERLAY-001` is the record of what
+that costs when it happens on a page.

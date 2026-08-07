@@ -5,6 +5,17 @@ package directory that names the current version, so it names it and points at
 the one changelog. Every entry, for every version, is in
 [`CHANGELOG.md`](../../CHANGELOG.md) at the repository root.
 
+## Unreleased
+
+Every layer that can be a route root — `IuxScreen`, `IuxPage`, `IuxModalLayer`,
+`IuxTransientLayer`, `IuxAdaptiveNavigation` — now provides its own transparent
+`Material`. Without one, text resolves against Flutter's monospace,
+yellow-underlined fallback style; two consumer applications shipped a build that
+did, and neither test suite could see it.
+
+Additive; callers need change nothing. See [`CHANGELOG.md`](../../CHANGELOG.md)
+at the repository root.
+
 ## 0.2.0-dev.3
 
 Three chart primitives — `IuxLineChart`, `IuxBarChart`, `IuxSparkline` — and the

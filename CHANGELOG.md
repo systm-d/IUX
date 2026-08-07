@@ -3,6 +3,42 @@
 The version in `packages/iux_flutter/pubspec.yaml` decides; the heading below
 repeats it. See CONTRIBUTING.md, "Versioning".
 
+## Unreleased
+
+### Every layer that can be a route root now provides its own `Material`
+
+**Behaviour change, and the reason to take this build.** `IuxScreen`, `IuxPage`,
+`IuxModalLayer`, `IuxTransientLayer` and `IuxAdaptiveNavigation` each establish a
+transparent `Material` around their own subtree. Until now they required the
+caller to supply one — `Scaffold`'s job in an ordinary Material application — and
+a route whose root is not a `Scaffold` never has one. Text in that position
+resolves against the style Flutter labels *"fallback style; consider putting your
+text in a Material"*: monospace, double-underlined in yellow.
+
+**Two consumer applications out of two shipped a build with it.** One on the
+single screen it pushed as its own route; one on all five of its screens, with no
+`Scaffold` anywhere. Neither test suite could see it, and one of them was a
+**golden suite over all five screens** whose committed PNGs were pictures of the
+defect — under `flutter_test` every glyph is a filled black box, so a thin yellow
+rule beneath a black box reads as a style flourish. They were reviewed by eye and
+approved. The same font substitution that hid the missing icons hid this, one
+level up and against a stronger instrument.
+
+The fix could not stop at `IuxScreen`. The three layers place their content as a
+**sibling** of the page, so a medium established inside the page never reaches
+them: with the first correction in place, a dialog's title, message and dismiss
+label still rendered in the fallback style. Each addition here is backed by a
+measurement, tabulated in `IUX-MATERIAL-GROUND-001`.
+
+**What this does not change.** `MaterialType.transparency` paints no background,
+absorbs no hit test and clips nothing, so surface colour stays with the semantic
+tokens. A `Scaffold` above any of these is still correct and still recommended —
+it owns the scaffold background, the floating action button, the drawers and the
+snack bars. It is simply no longer what stands between a screen and legible text.
+
+Callers need change nothing. A route root that was already correct stays correct;
+one that was not now renders.
+
 ## 0.2.0-dev.3 — IUX-043
 
 Three chart primitives, and the first painting code in the package.
