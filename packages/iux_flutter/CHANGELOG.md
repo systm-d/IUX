@@ -7,6 +7,11 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+`IuxListItem` painted its press tint over its own content rather than behind it.
+The colour is opaque and the opacity is 1, so a pressed row was a blank band:
+8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row
+that stayed selected.
+
 Every layer that can be a route root — `IuxScreen`, `IuxPage`, `IuxModalLayer`,
 `IuxTransientLayer`, `IuxAdaptiveNavigation` — now provides its own transparent
 `Material`. Without one, text resolves against Flutter's monospace,

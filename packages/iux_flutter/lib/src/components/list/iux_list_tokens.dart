@@ -93,7 +93,21 @@ final class IuxListItemTokens {
   /// assumption. Never the only signal that a row is chosen: the tick is.
   final Color? background;
 
-  /// The tint painted over the row while it is pressed or hovered.
+  /// The tint painted behind the row while it is pressed or hovered.
+  ///
+  /// **Behind**, not over, and the word is the whole of `IUX-LISTITEM-STATE-001`.
+  /// Every colour in this package is opaque — `IuxStateColors` says why: an
+  /// opacity over an unknown background has no predictable contrast ratio — so
+  /// a tint painted *above* the content at full opacity does not tint anything,
+  /// it replaces it. Measured on a pressed row: 8226 dark pixels at rest, **0
+  /// while pressed**, 8226 again after release. The title, the supporting line
+  /// and the value were all gone for the length of the press.
+  ///
+  /// Painted underneath, the same opaque colour is the row's background for the
+  /// duration of the press, which is what the palette entry always described.
+  /// The contrast of the text over it is measured in `iux_list_test.dart`
+  /// rather than assumed, because until the layer moved there was no pair to
+  /// measure.
   final Color overlayColor;
 
   /// How much of [overlayColor] is visible: one while reacting, zero at rest.

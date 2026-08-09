@@ -1,10 +1,13 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
+
+import '../support/contrast.dart';
 
 /// The four profiles every visual guarantee has to survive.
 const List<IuxThemeConfiguration> _profiles = <IuxThemeConfiguration>[
@@ -1542,6 +1545,344 @@ void main() {
 
       expect(reduced, lessThan(full));
       expect(reduced, greaterThan(Duration.zero));
+    });
+  });
+
+  group('the six states a row can be in', () {
+    /// Everything the row painted, as raw pixels, at one device pixel per
+    /// logical one.
+    ///
+    /// A capture, deliberately not a golden. Nothing here is compared against
+    /// a file, so nothing here can be blessed into agreeing with a defect —
+    /// which is exactly how this package's press tint survived: it was
+    /// reviewed on screenshots that were photographs of it. Every assertion
+    /// below compares **two captures of the same widget in two states**, and
+    /// that relation holds whatever the font, the theme or the renderer is.
+    Future<Uint8List> capture(WidgetTester tester) async {
+      final RenderRepaintBoundary boundary =
+          tester.renderObject<RenderRepaintBoundary>(
+        find.byType(RepaintBoundary).first,
+      );
+      late ByteData? data;
+      await tester.runAsync(() async {
+        final ui.Image image = await boundary.toImage();
+        data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        image.dispose();
+      });
+      return data!.buffer.asUint8List();
+    }
+
+    /// How many pixels the row painted in [colour].
+    ///
+    /// Under `flutter_test` a glyph is a filled box, which makes this an exact
+    /// count of the ink the row put on screen rather than an estimate of it —
+    /// and an exact count is what a covered row fails.
+    int pixelsOf(Uint8List pixels, Color colour) {
+      final int r = (colour.r * 255).round();
+      final int g = (colour.g * 255).round();
+      final int b = (colour.b * 255).round();
+      int found = 0;
+      for (int i = 0; i < pixels.length; i += 4) {
+        if (pixels[i] == r && pixels[i + 1] == g && pixels[i + 2] == b) found++;
+      }
+      return found;
+    }
+
+    /// The colour at a logical position inside the capture.
+    int pixelAt(Uint8List pixels, int x, int y, int width) {
+      final int i = (y * width + x) * 4;
+      return (pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2];
+    }
+
+    /// A row on its own, wrapped in the boundary the captures are taken from.
+    ///
+    /// Not inside an `IuxListGroup`: the group clips and insets, so a capture
+    /// taken through it would measure the group's rounding as well as the
+    /// row's states.
+    Future<void> pumpCapturable(
+      WidgetTester tester, {
+      IuxThemeConfiguration configuration = const IuxThemeConfiguration(),
+      VoidCallback? onActivate,
+      WidgetBuilder? destination,
+    }) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(configuration),
+          home: Scaffold(
+            body: Builder(
+              builder: (BuildContext context) => RepaintBoundary(
+                child: IuxListItem.tappable(
+                  title: 'Order 3141',
+                  subtitle: 'Delivered on Tuesday',
+                  trailingText: '82.40 EUR',
+                  onActivate: onActivate ??
+                      () {
+                        if (destination == null) return;
+                        Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: destination));
+                      },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a pressed row still shows everything it showed at rest',
+        (WidgetTester tester) async {
+      // IUX-LISTITEM-STATE-001, and the measurement that found it. The tint
+      // was the last child of the row's stack, painted over the content; every
+      // colour in this package is opaque, so at the opacity the resolver hands
+      // it the layer replaced the row rather than tinting it. The first run of
+      // this test read 8226 ink pixels at rest and **zero** while pressed.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await pumpCapturable(tester, configuration: configuration);
+        final Color ink = IuxSemanticColors.of(
+          tester.element(find.byType(IuxListItem)),
+        ).content.primary;
+
+        final int atRest = pixelsOf(await capture(tester), ink);
+        expect(
+          atRest,
+          greaterThan(0),
+          reason: 'sanity: the capture found no title at all, so it is not '
+              'looking at the row — failed on $configuration',
+        );
+
+        final TestGesture gesture =
+            await tester.startGesture(tester.getCenter(tapRegion()));
+        await tester.pumpAndSettle();
+        final int whilePressed = pixelsOf(await capture(tester), ink);
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(
+          whilePressed,
+          atRest,
+          reason: 'the press tint has to go behind the row, not over it: a '
+              'user who cannot read the row they are pressing cannot tell a '
+              'press from a screen that has already changed — failed on '
+              '$configuration',
+        );
+      }
+    });
+
+    testWidgets('the tint reaches the corners a tap reaches',
+        (WidgetTester tester) async {
+      // The focus ring reserves a strip all around the content, and the
+      // gesture detector wraps that strip rather than sitting inside it — so
+      // a tint that stopped at the ring would leave a band that responds and
+      // does not react. P0.5: "la zone visuellement réactive correspond à
+      // toute la cible tactile".
+      await pumpCapturable(tester);
+      final Size size = tester.getSize(tapRegion());
+      final int width = size.width.round();
+      final int height = size.height.round();
+
+      final Uint8List atRest = await capture(tester);
+      final TestGesture gesture =
+          await tester.startGesture(tester.getCenter(tapRegion()));
+      await tester.pumpAndSettle();
+      final Uint8List pressed = await capture(tester);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      for (final (String corner, int x, int y) in <(String, int, int)>[
+        ('top leading', 0, 0),
+        ('top trailing', width - 1, 0),
+        ('bottom leading', 0, height - 1),
+        ('bottom trailing', width - 1, height - 1),
+      ]) {
+        expect(
+          pixelAt(pressed, x, y, width),
+          isNot(pixelAt(atRest, x, y, width)),
+          reason: 'the $corner corner of the target did not react to the '
+              'press, so the row responds further than it reacts',
+        );
+      }
+    });
+
+    testWidgets('the row is back at rest once the screen it opened is closed',
+        (WidgetTester tester) async {
+      // The acceptance criterion this whole group exists for: "le retour
+      // depuis le détail ne laisse pas une ligne sélectionnée sans raison".
+      // Compared against the capture taken before the press, so a row that
+      // came back tinted, half-faded or still holding its hover fails whatever
+      // the reason.
+      await pumpCapturable(
+        tester,
+        destination: (BuildContext context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Back'),
+            ),
+          ),
+        ),
+      );
+
+      final Uint8List atRest = await capture(tester);
+
+      final TestGesture gesture =
+          await tester.startGesture(tester.getCenter(tapRegion()));
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Back'), findsOneWidget,
+          reason: 'sanity: the row did '
+              'not open anything, so returning from it proves nothing');
+
+      await tester.tap(find.text('Back'));
+      await tester.pumpAndSettle();
+
+      expect(
+        await capture(tester),
+        atRest,
+        reason: 'a row that opens a screen has no selection to persist, so it '
+            'has to be pixel for pixel what it was before the tap',
+      );
+    });
+
+    testWidgets('a press the user takes back leaves nothing behind',
+        (WidgetTester tester) async {
+      // The other way a press ends: a finger that slides off the row, which
+      // the framework reports as a cancellation rather than as a tap. A row
+      // that only cleared its tint on release would keep it for good here.
+      await pumpCapturable(tester);
+      final Uint8List atRest = await capture(tester);
+
+      final TestGesture gesture =
+          await tester.startGesture(tester.getCenter(tapRegion()));
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.moveBy(const Offset(0, 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(await capture(tester), atRest);
+    });
+
+    testWidgets('resting, hovered, pressed and chosen are four answers',
+        (WidgetTester tester) async {
+      // Not a check that a colour is the colour it was written as: it is a
+      // check that four states the user has to tell apart resolve to four
+      // different things, on every profile the package ships. Conflating any
+      // two of them is the failure P0.5 reports, and it is the one a palette
+      // change can reintroduce without touching this component at all.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await pump(
+          tester,
+          IuxListItem.tappable(title: 'Order 3141', onActivate: () {}),
+          configuration: configuration,
+        );
+        final BuildContext context = tester.element(find.byType(IuxListItem));
+        final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+        final Color pressed =
+            IuxListItemResolver.resolve(context, pressed: true).overlayColor;
+        final Color hovered =
+            IuxListItemResolver.resolve(context, hovered: true).overlayColor;
+        final Color chosen =
+            IuxListItemResolver.resolve(context, selected: true).background!;
+
+        expect(
+          <Color>{pressed, hovered, chosen, colors.state.focus},
+          hasLength(4),
+          reason: 'two of the four states resolved to the same colour on '
+              '$configuration, so the user has no way to tell them apart',
+        );
+        expect(
+          IuxListItemResolver.resolve(context).overlayOpacity,
+          0,
+          reason: 'a row at rest that paints a tint is a row that looks '
+              'engaged when nothing is touching it',
+        );
+      }
+    });
+
+    testWidgets('the row stays readable in every state it can take',
+        (WidgetTester tester) async {
+      // Contrast is a relation, not a value, which is why measuring it is not
+      // the same as restating the palette. Until the tint moved behind the
+      // content there was no pair to measure here at all: text under an opaque
+      // rectangle has no ratio, it has no text.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await pump(
+          tester,
+          IuxListItem.tappable(
+            title: 'Order 3141',
+            subtitle: 'Delivered on Tuesday',
+            trailingText: '82.40 EUR',
+            onActivate: () {},
+          ),
+          configuration: configuration,
+        );
+        final BuildContext context = tester.element(find.byType(IuxListItem));
+        final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+        for (final (String state, Color background) in <(String, Color)>[
+          ('resting', colors.surface.subtle),
+          (
+            'pressed',
+            IuxListItemResolver.resolve(context, pressed: true).overlayColor
+          ),
+          (
+            'hovered',
+            IuxListItemResolver.resolve(context, hovered: true).overlayColor
+          ),
+          (
+            'chosen',
+            IuxListItemResolver.resolve(context, selected: true).background!
+          ),
+        ]) {
+          final IuxListItemTokens tokens = IuxListItemResolver.resolve(context);
+          void expectRatio(String what, Color? colour, double floor) {
+            final double measured = ContrastMetric.ratio(colour!, background);
+            expect(
+              measured,
+              greaterThanOrEqualTo(floor),
+              reason: 'the $what of a $state row measured '
+                  '${measured.toStringAsFixed(2)}:1 against the background it '
+                  'sits on, below ${floor.toStringAsFixed(1)}:1 — on '
+                  '$configuration',
+            );
+          }
+
+          expectRatio(
+              'title', tokens.titleStyle.color, ContrastMetric.normalText);
+          expectRatio('supporting line', tokens.subtitleStyle.color,
+              ContrastMetric.normalText);
+          expectRatio(
+              'value', tokens.valueStyle.color, ContrastMetric.normalText);
+        }
+      }
+    });
+
+    testWidgets('a row that opens a screen is never chosen',
+        (WidgetTester tester) async {
+      // The audit's other half: "une ligne qui ouvre immédiatement un autre
+      // écran n'a normalement aucune raison de porter un état selected
+      // persistant". A tappable row cannot be given one — there is no
+      // parameter for it — and this is the check that it stays that way.
+      await pump(
+        tester,
+        IuxListItem.tappable(title: 'Order 3141', onActivate: () {}),
+      );
+
+      await tester.tap(tapRegion());
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSemantics(find.byType(IuxListItem)),
+        isSemantics(isChecked: false, isSelected: false, isButton: true),
+      );
     });
   });
 

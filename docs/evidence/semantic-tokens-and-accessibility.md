@@ -2582,6 +2582,54 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   check, since the alternatives are throwing at the user or a logging channel
   IUX does not have. Four pieces of caller state per validated field remain.
 
+### IUX-LISTITEM-STATE-001 — The press tint did not tint the row, it covered it
+
+- **Level**: standard
+- **Scope**: `IuxListItem` since IUX-019; `IuxCard`, `IuxTabs`,
+  `IuxBottomNavigation`, `IuxNavigationRail` and `IuxNavigationDrawer` still
+  carry the same arrangement
+- **Sources**: WCAG 2.2 SC 1.4.3 (contrast), SC 1.4.11 (non-text contrast);
+  reported from a device by the QuoiD'Neuf UX audit of 2026-08-09, §P0.5
+- **Status**: fixed for `IuxListItem`, measured in
+  `test/components/iux_list_test.dart`, group *the six states a row can be in*
+- **What was measured**: an `IuxListItem.tappable` rendered at one device pixel
+  per logical one, counting the pixels it painted in `content.primary` — an
+  exact count, because a glyph under `flutter_test` is a filled box. **8226 at
+  rest, 0 while pressed, 8226 after release.** The title, the supporting line
+  and the value were all absent for the length of every tap.
+- **The cause is one line of paint order, and it was invisible in review.** The
+  tint was the last child of the row's stack, so it painted above the content;
+  every colour in this package is opaque, on purpose — `IuxStateColors` records
+  why: an opacity over an unknown background has no predictable contrast ratio —
+  and the resolver hands the layer an opacity of exactly 1 while engaged. A
+  translucent overlay would have tinted. An opaque one at full opacity replaces.
+- **The report from the device was "the line stays selected".** That is what a
+  blank grey band looks like when the text that identified the row is gone, and
+  it is why the audit filed it under selection rather than under press.
+- **The fix is the layer moving below the content**, above the chosen
+  background. The same opaque colour is then the row's background for the
+  duration of the press — which is what the palette entry always described — and
+  the state becomes measurable for the first time: text over a tint has a
+  contrast ratio, text under a rectangle has none. Measured after the move, on
+  all four profiles, the title clears 10.5:1 and the supporting line 6.5:1 over
+  both tints.
+- **Limits, and they are the load-bearing part.**
+  - The five other components listed above still paint their state layer over
+    their content, from the same tokens. `IuxCard` was read and carries the
+    arrangement verbatim. None was measured here.
+  - **`state.hovered` equals `surface.subtle` in all four profiles**
+    (light `#F6F7F9`, light high contrast `#ECEEF2`, dark `#222834`, dark high
+    contrast `#222834`), and `IuxListGroup` draws itself on `surface.subtle`.
+    A hovered row inside a group is therefore byte-identical to a resting one:
+    hover is not merely quiet there, it is absent. Not fixed here — the token is
+    read by the button, the tabs, the rails, the drawer, the selection controls
+    and the input theme, so moving it is a palette mission with its own
+    four-profile re-measurement, not a side effect of a row fix.
+  - Nothing here was seen on a device. The measurement is a pixel capture under
+    `flutter_test`, which proves occlusion and contrast and proves nothing about
+    how long a real tap holds the tint on a Pixel 7.
+
+
 ## Deferred to later missions
 
 | Subject | Mission |

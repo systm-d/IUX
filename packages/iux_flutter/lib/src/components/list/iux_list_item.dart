@@ -1065,6 +1065,41 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
             decoration: BoxDecoration(color: tokens.background),
           ),
         ),
+        // The press and hover tint, above the chosen background and *below*
+        // the content — which is the whole of `IUX-LISTITEM-STATE-001`.
+        //
+        // It used to be the last child of this stack, painted over everything.
+        // Every colour in this package is opaque, on purpose, so at the full
+        // opacity the resolver hands it that layer did not tint the row: it
+        // covered it. Measured by counting the row's own dark pixels — 8226 at
+        // rest, **0 while pressed**, 8226 after release. For the length of
+        // every tap the title, the supporting line and the value were simply
+        // not there, and the audit that found it on a device reported the row
+        // as "staying selected", because a blank grey band is what a selected
+        // row looks like when you cannot read what is in it.
+        //
+        // Underneath, the same colour is the row's background for the duration
+        // of the press. That also makes the state measurable for the first
+        // time: text over a tint has a contrast ratio, text under an opaque
+        // rectangle has none.
+        //
+        // It stays *outside* the focus ring's reserved gap, like the chosen
+        // background and like the gesture detector below it. A tint that
+        // stopped at the ring would leave an unreacting strip all around a row
+        // that does respond there — the audit's "la zone visuellement réactive
+        // correspond à toute la cible tactile".
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: tokens.overlayOpacity,
+              duration: tokens.motion.duration,
+              curve: tokens.motion.curve,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: tokens.overlayColor),
+              ),
+            ),
+          ),
+        ),
         // The gesture wraps the focus ring rather than sitting inside it,
         // which is the one place this row departs from IuxCard. A card is an
         // object with space around it; a row spans the whole list, so the
@@ -1088,18 +1123,6 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
               borderRadius: BorderRadius.circular(tokens.focusRadius),
               onActivate: _activate,
               child: padded,
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: tokens.overlayOpacity,
-              duration: tokens.motion.duration,
-              curve: tokens.motion.curve,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: tokens.overlayColor),
-              ),
             ),
           ),
         ),

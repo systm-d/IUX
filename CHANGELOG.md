@@ -5,6 +5,33 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxListItem` painted its press tint over the row instead of behind it
+
+**Behaviour change, and the reason to take this build.** An interactive row drew
+its press and hover tint as the topmost layer of its own stack. Every colour in
+this package is opaque — `IuxStateColors` records why — and the resolver hands
+that layer an opacity of exactly 1 while the row is engaged. So the tint did not
+tint anything: for the whole length of every tap it replaced the row with a
+blank rectangle. Measured by counting the pixels the row painted in
+`content.primary`, at one device pixel per logical one: **8226 at rest, 0 while
+pressed, 8226 again after release.**
+
+The layer now sits below the content and above the chosen background. The same
+colour is the row's background for the duration of the press, which is what the
+palette entry always described.
+
+**It was reported from a device as "the row stays selected".** That is what a
+grey band reads as once the text identifying the row is gone, and it is why the
+report arrived filed under selection rather than under press. A row that opens a
+screen has no selection to persist and never had one; nothing about selection
+changed.
+
+**The same arrangement is still in five other components** — `IuxCard`,
+`IuxTabs`, `IuxBottomNavigation`, `IuxNavigationRail`, `IuxNavigationDrawer` —
+and none was measured here. See `IUX-LISTITEM-STATE-001`.
+
+Callers need change nothing.
+
 ### Every layer that can be a route root now provides its own `Material`
 
 **Behaviour change, and the reason to take this build.** `IuxScreen`, `IuxPage`,
