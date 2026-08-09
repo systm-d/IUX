@@ -347,12 +347,24 @@ and then failed to save would be showing the user something untrue. Asserted.
 | State | Plain | Tappable | Selectable |
 | --- | --- | --- | --- |
 | default | ✓ | ✓ | ✓ |
-| pressed | — | tint from `state.pressed`, faded under `IuxMotionRole.stateChange` | same |
-| hovered | — | tint from `state.hovered` | same |
+| pressed | — | `state.pressed` **behind** the content, faded under `IuxMotionRole.stateChange` | same |
+| hovered | — | `state.hovered`, same layer | same |
 | focused | — | focus ring, drawn outside the content so it never covers it | same |
 | selected | — | — | `surface.selected` **and** a tick |
 | disabled | not modelled | not modelled | not modelled |
 | loading, error, empty | the parent's, rendered as content | same | same |
+
+**Behind the content, and the word is load-bearing.** The tint was the topmost
+layer of the row's stack until `IUX-LISTITEM-STATE-001`. Every colour in this
+package is opaque and the engaged opacity is 1, so it did not tint the row, it
+replaced it: 8226 ink pixels at rest, **0 while pressed**. The layer spans the
+whole target, including the strip the focus ring reserves, because the gesture
+detector does too — a tint that stopped at the ring would leave a band that
+responds without reacting.
+
+**Every state returns to rest, including after the screen it opened closes.** A
+tappable row has no selection to persist. Both endings are measured: release,
+and the cancellation the framework reports when a finger slides off the row.
 
 **Disabled is deliberately absent**, and it is the same decision `IuxCard` took.
 `onActivate` and `onSelectedChanged` are non-nullable, so there is no state
@@ -378,7 +390,21 @@ theme profiles.
 
 ### `IuxListItem.tappable`
 
-Adds `onActivate` (required), `semanticLabel`, `hint`, `autofocus`, `focusNode`.
+Adds `onActivate` (required), `semanticLabel`, `hint`, `disclosure`,
+`autofocus`, `focusNode`.
+
+`disclosure: IuxListItemDisclosure.opensScreen` draws a chevron after the value,
+in `content.tertiary`, excluded from the semantic tree because the row is
+already announced as a button and `hint` is where the destination belongs. It is
+**off by default** and the component refuses to guess: only the caller knows
+whether `onActivate` pushes a route, expands something in place, or leaves the
+application. A chevron promises the screen the back button returns from, so on a
+row that opens a browser it would be a lie — and a mark that appears on rows
+leading nowhere is one users stop reading. There is deliberately no value for
+"leaves the application": that would be a second glyph nobody has measured.
+
+The chevron and `trailingText` are separate elements, in that order — "Médecins
+12 ›" — so a count and an affordance never merge into one.
 
 ### `IuxListItem.selectable`
 

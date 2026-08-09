@@ -19,6 +19,39 @@ import 'iux_list_tokens.dart';
 /// changing anything the user can see.
 enum _IuxListItemKind { plain, tappable, selectable }
 
+/// Whether a tappable row says, on its face, that it leads somewhere.
+///
+/// Public where [_IuxListItemKind] is private, and the difference is what the
+/// two decide. The kind decides what a tap *does*, which no call site may
+/// change without changing what the user can see. This decides only whether the
+/// row shows the mark for it — a question the row cannot answer, because only
+/// the caller knows whether `onActivate` pushes a route, expands something in
+/// place, or leaves the application altogether.
+///
+/// It defaults to [none] deliberately. A chevron placed on every tappable row
+/// would restyle every list in every application that already ships this
+/// package, including the rows that toggle something in place and the rows that
+/// open a browser — and a mark that appears on rows that do not lead anywhere
+/// is worse than no mark at all, because the user stops reading it.
+enum IuxListItemDisclosure {
+  /// No mark. The row does its work where it stands.
+  none,
+
+  /// The row opens another screen, and shows a chevron pointing that way.
+  ///
+  /// The chevron is decorative and is excluded from the semantic tree: the row
+  /// is already announced as a button, and `hint` is where "opens the order"
+  /// belongs. A screen reader that read the glyph as well would announce every
+  /// row of the list twice over.
+  ///
+  /// **Not for a row that leaves the application.** A chevron promises the
+  /// screen the back button returns from. There is deliberately no value here
+  /// for "opens a browser": inventing one would mean inventing a second glyph
+  /// nobody has measured, and a row whose destination is outside the
+  /// application is better served by saying so in [IuxListItem.hint].
+  opensScreen,
+}
+
 /// One item in a list: a title, optionally a supporting line, a value, an
 /// icon, and at most one control.
 ///
@@ -148,6 +181,7 @@ class IuxListItem extends StatelessWidget {
         semanticLabel = null,
         hint = null,
         onActivate = null,
+        disclosure = IuxListItemDisclosure.none,
         selected = IuxSelectionState.unselected,
         onSelectedChanged = null,
         autofocus = false,
@@ -176,6 +210,7 @@ class IuxListItem extends StatelessWidget {
   ///   subtitle: message.preview,
   ///   trailingText: l10n.time(message.receivedAt),
   ///   hint: l10n.opensTheMessage,
+  ///   disclosure: IuxListItemDisclosure.opensScreen,
   ///   onActivate: () => open(message),
   /// )
   /// ```
@@ -184,6 +219,10 @@ class IuxListItem extends StatelessWidget {
   /// by [hint]. [onActivate] is non-nullable: there is no state in which the
   /// row looks activatable and is not, because a disabled row that still
   /// occupies a target is a target that lies.
+  ///
+  /// [disclosure] adds the chevron for a row that opens a screen. It is off by
+  /// default because only the caller knows where activation leads, and a mark
+  /// that appears on rows leading nowhere is one the user stops reading.
   ///
   /// **The row must not contain a control.** [title], [subtitle] and
   /// [trailingText] are strings, so they cannot; [leading] is checked in debug
@@ -200,6 +239,7 @@ class IuxListItem extends StatelessWidget {
     this.trailingAction,
     this.semanticLabel,
     this.hint,
+    this.disclosure = IuxListItemDisclosure.none,
     this.autofocus = false,
     this.focusNode,
   })  : _kind = _IuxListItemKind.tappable,
@@ -267,6 +307,10 @@ class IuxListItem extends StatelessWidget {
     this.focusNode,
   })  : _kind = _IuxListItemKind.selectable,
         onActivate = null,
+        // A chosen row already carries a mark at its leading edge. A second
+        // one at the other end, saying the row leads somewhere it does not,
+        // would be two answers to "what does this row do".
+        disclosure = IuxListItemDisclosure.none,
         assert(
           title.length > 0,
           'A selectable row must say what is being chosen. An unnamed choice '
@@ -349,6 +393,12 @@ class IuxListItem extends StatelessWidget {
   /// Called once per accepted activation. Null unless the row is tappable.
   final VoidCallback? onActivate;
 
+  /// Whether the row shows that it opens a screen.
+  ///
+  /// Always [IuxListItemDisclosure.none] unless the row is tappable. The mark
+  /// is decorative and never announced; see [IuxListItemDisclosure].
+  final IuxListItemDisclosure disclosure;
+
   /// Whether the row is chosen. Always unselected unless the row is selectable.
   ///
   /// [IuxSelectionState.partial] is refused: see [IuxListItem.selectable].
@@ -382,6 +432,7 @@ class IuxListItem extends StatelessWidget {
       semanticLabel: semanticLabel,
       hint: hint,
       onActivate: onActivate,
+      disclosure: disclosure,
       selected: selected,
       onSelectedChanged: onSelectedChanged,
       autofocus: autofocus,
@@ -944,6 +995,7 @@ class _IuxListItemRegion extends StatefulWidget {
     required this.semanticLabel,
     required this.hint,
     required this.onActivate,
+    required this.disclosure,
     required this.selected,
     required this.onSelectedChanged,
     required this.autofocus,
@@ -959,6 +1011,7 @@ class _IuxListItemRegion extends StatefulWidget {
   final String? semanticLabel;
   final String? hint;
   final VoidCallback? onActivate;
+  final IuxListItemDisclosure disclosure;
   final IuxSelectionState selected;
   final ValueChanged<bool>? onSelectedChanged;
   final bool autofocus;
@@ -1019,6 +1072,7 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
               selected: widget.selected.isSelected,
             )
           : null,
+      disclosure: widget.disclosure,
       // Only an interactive row is checked. A control inside a row that is not
       // itself a control is legal — it is simply another target on the line.
       guardLeading: interactive,
@@ -1169,6 +1223,7 @@ class _IuxListItemContent extends StatelessWidget {
     required this.trailingText,
     required this.leading,
     required this.mark,
+    required this.disclosure,
     required this.guardLeading,
   });
 
@@ -1178,6 +1233,7 @@ class _IuxListItemContent extends StatelessWidget {
   final String? trailingText;
   final Widget? leading;
   final Widget? mark;
+  final IuxListItemDisclosure disclosure;
   final bool guardLeading;
 
   @override
@@ -1239,7 +1295,50 @@ class _IuxListItemContent extends StatelessWidget {
             ),
           ),
         ],
+        // After the value and separated from it, so a count and a chevron
+        // stay two things — "Médecins 12 ›" and not a number wearing an
+        // arrow. Outside the `Expanded` that holds the value, so it never
+        // takes the place of the thing the row reports.
+        if (disclosure == IuxListItemDisclosure.opensScreen) ...<Widget>[
+          SizedBox(width: tokens.gap),
+          _FirstLineBand(
+            extent: tokens.lineExtent,
+            child: _IuxDisclosureChevron(tokens: tokens),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// The mark on a row that opens a screen.
+///
+/// Drawn from the row's own tokens rather than through `IuxIcon`, for the
+/// reason `IuxIcon` itself states: a component that already sizes and colours
+/// its glyphs must not take one from outside, or the contrast guarantee leaves
+/// with the widget. `_IuxSelectionMark` is the same decision one slot over.
+class _IuxDisclosureChevron extends StatelessWidget {
+  const _IuxDisclosureChevron({required this.tokens});
+
+  final IuxListItemTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    // Chosen from the reading direction rather than from `matchTextDirection`,
+    // which mirrors the glyph's *painting* and leaves an arrow that is a
+    // mirrored right-chevron rather than the left one the font already has.
+    final bool rtl = Directionality.of(context) == TextDirection.rtl;
+
+    return ExcludeSemantics(
+      child: Icon(
+        rtl ? Icons.chevron_left : Icons.chevron_right,
+        size: tokens.disclosureSize,
+        color: tokens.disclosureColor,
+        // Already scaled once, by the resolver, through the same runtime every
+        // other IUX component reads. Letting Flutter scale it again would
+        // enlarge the chevron past the line it belongs to.
+        applyTextScaling: false,
+      ),
     );
   }
 }

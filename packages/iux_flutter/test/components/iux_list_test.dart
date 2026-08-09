@@ -1820,6 +1820,7 @@ void main() {
             title: 'Order 3141',
             subtitle: 'Delivered on Tuesday',
             trailingText: '82.40 EUR',
+            disclosure: IuxListItemDisclosure.opensScreen,
             onActivate: () {},
           ),
           configuration: configuration,
@@ -1861,6 +1862,9 @@ void main() {
               ContrastMetric.normalText);
           expectRatio(
               'value', tokens.valueStyle.color, ContrastMetric.normalText);
+          // A graphic rather than text: WCAG 2.2 SC 1.4.11, not 1.4.3.
+          expectRatio(
+              'chevron', tokens.disclosureColor, ContrastMetric.nonText);
         }
       }
     });
@@ -1873,7 +1877,11 @@ void main() {
       // parameter for it — and this is the check that it stays that way.
       await pump(
         tester,
-        IuxListItem.tappable(title: 'Order 3141', onActivate: () {}),
+        IuxListItem.tappable(
+          title: 'Order 3141',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: () {},
+        ),
       );
 
       await tester.tap(tapRegion());
@@ -1882,6 +1890,175 @@ void main() {
       expect(
         tester.getSemantics(find.byType(IuxListItem)),
         isSemantics(isChecked: false, isSelected: false, isButton: true),
+      );
+    });
+  });
+
+  group('a row that opens a screen says so', () {
+    Future<void> pumpDisclosing(
+      WidgetTester tester, {
+      IuxListItemDisclosure disclosure = IuxListItemDisclosure.opensScreen,
+      String? trailingText = '12',
+      TextDirection direction = TextDirection.ltr,
+      double textScale = 1,
+      Size size = const Size(400, 800),
+    }) =>
+        pump(
+          tester,
+          IuxListItem.tappable(
+            title: 'Medecins',
+            trailingText: trailingText,
+            hint: 'Shows the places in this category.',
+            disclosure: disclosure,
+            onActivate: () {},
+          ),
+          direction: direction,
+          textScale: textScale,
+          size: size,
+        );
+
+    testWidgets('the chevron appears only when the caller asks for it',
+        (WidgetTester tester) async {
+      await pumpDisclosing(tester);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+
+      await pumpDisclosing(tester, disclosure: IuxListItemDisclosure.none);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+
+      // Written without the parameter at all, which is the case the default
+      // decides and the one an earlier version of this test could not see: it
+      // named `none` explicitly, so flipping the default to `opensScreen` left
+      // it green. The default has to stay bare, because a chevron on every
+      // tappable row would mark the ones that open a browser or toggle
+      // something in place as leading to a screen they do not lead to.
+      await pump(
+        tester,
+        IuxListItem.tappable(title: 'Medecins', onActivate: () {}),
+      );
+      expect(
+        find.byIcon(Icons.chevron_right),
+        findsNothing,
+        reason: 'a row that said nothing about where it leads was marked as '
+            'leading to a screen',
+      );
+    });
+
+    testWidgets('a plain row and a chosen row never carry one',
+        (WidgetTester tester) async {
+      await pump(tester, const IuxListItem(title: 'Postcode'));
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+
+      await pump(
+        tester,
+        IuxListItem.selectable(
+          title: 'March invoice',
+          selected: IuxSelectionState.selected,
+          onSelectedChanged: (bool _) {},
+        ),
+      );
+      expect(
+        find.byIcon(Icons.chevron_right),
+        findsNothing,
+        reason: 'a chosen row already carries a mark; a second one saying it '
+            'leads elsewhere would be two answers to what the row does',
+      );
+    });
+
+    testWidgets('the count and the chevron stay two separate things',
+        (WidgetTester tester) async {
+      // P1.4's own example: "Médecins  12  ›". A chevron drawn in place of the
+      // value, or hard against it, is a number wearing an arrow.
+      await pumpDisclosing(tester);
+
+      expect(find.text('12'), findsOneWidget);
+      final Rect value = tester.getRect(find.text('12'));
+      final Rect chevron = tester.getRect(find.byIcon(Icons.chevron_right));
+
+      expect(
+        chevron.left,
+        greaterThanOrEqualTo(value.right),
+        reason: 'the chevron overlapped the value it follows',
+      );
+      expect(
+        tester.getRect(find.byType(IuxListItem)).right,
+        greaterThanOrEqualTo(chevron.right),
+        reason: 'the chevron was laid out past the end of the row',
+      );
+    });
+
+    testWidgets('the chevron is not announced', (WidgetTester tester) async {
+      await pumpDisclosing(tester, disclosure: IuxListItemDisclosure.none);
+      final SemanticsNode bare = tester.getSemantics(find.byType(IuxListItem));
+      final String bareLabel = announced(bare);
+      final int bareStops = stopsBelow(bare);
+
+      await pumpDisclosing(tester);
+      final SemanticsNode marked =
+          tester.getSemantics(find.byType(IuxListItem));
+
+      expect(
+        announced(marked),
+        bareLabel,
+        reason: 'the chevron repeats the button role the row already carries; '
+            'announcing it too would read every row of the list twice',
+      );
+      expect(stopsBelow(marked), bareStops);
+    });
+
+    testWidgets('the chevron points where reading goes',
+        (WidgetTester tester) async {
+      await pumpDisclosing(tester);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      final Rect ltr = tester.getRect(find.byIcon(Icons.chevron_right));
+      expect(
+        ltr.center.dx,
+        greaterThan(tester.getRect(find.byType(IuxListItem)).center.dx),
+      );
+
+      await pumpDisclosing(tester, direction: TextDirection.rtl);
+      expect(
+        find.byIcon(Icons.chevron_left),
+        findsOneWidget,
+        reason: 'a right-pointing chevron in a right-to-left interface points '
+            'back at the list rather than forward out of it',
+      );
+      expect(
+        tester.getRect(find.byIcon(Icons.chevron_left)).center.dx,
+        lessThan(tester.getRect(find.byType(IuxListItem)).center.dx),
+      );
+    });
+
+    testWidgets('a marked row still meets the target floor',
+        (WidgetTester tester) async {
+      await pumpDisclosing(tester, trailingText: null);
+      expect(
+        tester.getSize(tapRegion()).height,
+        greaterThanOrEqualTo(IuxTouchTarget.minimum),
+      );
+      expect(
+        tester.getRect(tapRegion()),
+        tester.getRect(find.byType(IuxListItem)),
+        reason: 'the whole row still responds, chevron or not',
+      );
+    });
+
+    testWidgets('a value and a chevron together survive 300% on 320',
+        (WidgetTester tester) async {
+      // The arrangement that broke this component once already
+      // (IUX-LISTITEM-TRAILING-001): a fixed-width element beside a flexed
+      // column, measured at the scale where the fixed one has tripled.
+      await pumpDisclosing(
+        tester,
+        textScale: 3,
+        size: const Size(320, 800),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.text('Medecins')).width,
+        greaterThan(0),
+        reason: 'the chevron took the whole line and left the title a column '
+            'no character fits in',
       );
     });
   });

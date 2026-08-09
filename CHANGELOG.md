@@ -32,6 +32,17 @@ and none was measured here. See `IUX-LISTITEM-STATE-001`.
 
 Callers need change nothing.
 
+### `IuxListItem.tappable` can show that it opens a screen
+
+`disclosure: IuxListItemDisclosure.opensScreen` adds a chevron after the row's
+value, excluded from the semantic tree because the row is already announced as a
+button. It is **off by default**: of the four tappable rows in the pilot
+application three open a screen and one opens a browser, and a chevron promises
+the screen the back button returns from. Only the caller knows which it is.
+
+There is deliberately no value for "leaves the application". Additive; a row that
+names nothing is drawn exactly as before.
+
 ### Every layer that can be a route root now provides its own `Material`
 
 **Behaviour change, and the reason to take this build.** `IuxScreen`, `IuxPage`,

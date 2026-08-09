@@ -43,6 +43,8 @@ final class IuxListItemTokens {
     required this.background,
     required this.overlayColor,
     required this.overlayOpacity,
+    required this.disclosureColor,
+    required this.disclosureSize,
     required this.focusRadius,
     required this.focusReservation,
     required this.titleStyle,
@@ -117,6 +119,23 @@ final class IuxListItemTokens {
   /// read as a second state nobody defined.
   final double overlayOpacity;
 
+  /// The colour of the chevron on a row that opens a screen.
+  ///
+  /// The quietest content role, because the chevron repeats what the row's
+  /// button role and hint already say. It is still measured against every
+  /// background the row can take — a mark nobody can see is not a discreet
+  /// mark, it is an absent one.
+  final Color disclosureColor;
+
+  /// The edge length of that chevron.
+  ///
+  /// Scaled by the user's text setting, like every other glyph in the package:
+  /// the affordance is read by the same eyes as the title beside it, so it
+  /// grows with it. It is laid out as a fixed-size child beside a flexed text
+  /// column, so growing takes room from the text rather than from the row's
+  /// width — no arrangement of it can overflow.
+  final double disclosureSize;
+
   /// The corner radius of the focus indicator.
   final double focusRadius;
 
@@ -184,6 +203,8 @@ final class IuxListItemTokens {
           other.background == background &&
           other.overlayColor == overlayColor &&
           other.overlayOpacity == overlayOpacity &&
+          other.disclosureColor == disclosureColor &&
+          other.disclosureSize == disclosureSize &&
           other.focusRadius == focusRadius &&
           other.focusReservation == focusReservation &&
           other.titleStyle == titleStyle &&
@@ -204,6 +225,8 @@ final class IuxListItemTokens {
         background,
         overlayColor,
         overlayOpacity,
+        disclosureColor,
+        disclosureSize,
         focusRadius,
         focusReservation,
         titleStyle,
@@ -253,6 +276,10 @@ abstract final class IuxListItemResolver {
       // no feedback at all.
       overlayColor: pressed ? colors.state.pressed : colors.state.hovered,
       overlayOpacity: pressed || hovered ? 1 : 0,
+      disclosureColor: colors.content.tertiary,
+      // The same base the selection mark takes, so a row that opens a screen
+      // and a row that is chosen carry marks of one size rather than two.
+      disclosureSize: accessibility.scaleText(geometry.spacingLg),
       // The subtle radius, not the medium one. A row is a slice of a group
       // rather than an object of its own, and a heavily rounded focus ring on
       // a full-width row reads as a button the user has never seen before.

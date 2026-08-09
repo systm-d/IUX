@@ -2629,6 +2629,36 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
     `flutter_test`, which proves occlusion and contrast and proves nothing about
     how long a real tap holds the tint on a Pixel 7.
 
+### IUX-LISTITEM-DISCLOSURE-001 — A row that opens a screen now says so, and only when asked
+
+- **Level**: strong_guidance
+- **Scope**: `IuxListItem.tappable`, additive
+- **Sources**: WCAG 2.2 SC 1.3.3 (not by shape alone), SC 4.1.2; QuoiD'Neuf UX
+  audit §P1.4 and §8
+- **Status**: implemented as `IuxListItemDisclosure`, measured in
+  `test/components/iux_list_test.dart`, group *a row that opens a screen says
+  so*
+- **The argued half is the default.** An automatic chevron on every tappable row
+  needs no parameter and was rejected on a measurement: of the four
+  `IuxListItem.tappable` call sites in the pilot application, three open a screen
+  and one opens a browser. A chevron promises the screen the back button returns
+  from, so on the fourth it would be a lie — and a mark that appears on rows
+  leading nowhere is one users stop reading. It is therefore opt-in, and
+  `IuxListItemDisclosure` deliberately has no value for "leaves the application":
+  that would be a second glyph nobody has measured.
+- **The cost is an eleventh parameter**, which made `IuxListItem.tappable` the
+  second constructor to reach the arity `api_consistency_test.dart` guards. The
+  argument is recorded in that test rather than here, because that list is where
+  the next arrival will be weighed.
+- **Excluded from the semantic tree**, and the exclusion is measured rather than
+  asserted: the announced label and the number of stops below the row are
+  identical with and without the mark. A named glyph *inside* the exclusion
+  changes neither, and the same glyph outside it changes both — both directions
+  are run.
+- **Limits**: the chevron's 3:1 floor is measured against the four backgrounds
+  the row can take, not against a caller's custom palette; and nothing here
+  proves TalkBack stays silent on a real device, only that the tree it reads
+  from has nothing to say.
 
 ## Deferred to later missions
 
