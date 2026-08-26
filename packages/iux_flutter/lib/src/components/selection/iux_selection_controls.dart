@@ -746,7 +746,30 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
               child: AnimatedContainer(
                 duration: tokens.motion.duration,
                 curve: tokens.motion.curve,
-                color: tokens.rowHighlight,
+                // A decoration that is always present, holding a colour that
+                // may be null — not a colour that may be null. The difference
+                // is the whole control working or not.
+                //
+                // `Container` inserts a `DecoratedBox` only when it has a
+                // decoration. Passing `color: tokens.rowHighlight` gave it one
+                // only while pressed, so the first `onPointerDown` grew a
+                // `DecoratedBox` where there had been none and reparented
+                // everything below it — including the `GestureDetector` inside
+                // `IuxTapTarget`, whose `State` was disposed along with the
+                // recognizer tracking the pointer. The `up` then landed
+                // nowhere and the control never changed state.
+                //
+                // Wrapping the colour in a `BoxDecoration` keeps the box in
+                // the tree at rest, where it paints nothing, so the shape of
+                // the tree no longer changes under the pointer. The control
+                // still inherits the surface it was placed on, which is why
+                // `rowHighlight` is nullable to begin with.
+                //
+                // It survived the suite because `tester.tap()` sends `down`
+                // and `up` with no frame between them, so the rebuild never
+                // landed mid-gesture. A finger always leaves a frame. See the
+                // regression test in `test/components/iux_selection_test.dart`.
+                decoration: BoxDecoration(color: tokens.rowHighlight),
                 // Outside the tap target, so the tint covers the region that
                 // actually responds rather than only the part that is painted.
                 child: IuxTapTarget(
