@@ -21,6 +21,14 @@ abstract final class ContrastMetric {
   /// per WCAG 2.2 SC 1.4.11.
   static const double nonText = 3.0;
 
+  /// The minimum ratio for body text, per WCAG 2.2 SC 1.4.6 (level AAA).
+  ///
+  /// Present so a test can assert that a role stays *below* it as well as
+  /// above the AA floor. A standard profile already at AAA leaves the high
+  /// contrast profile nothing to add, which is not an accessibility win but a
+  /// setting that returns nothing — `IUX-PALETTE-HEADROOM-001`.
+  static const double enhancedText = 7.0;
+
   /// Returns the relative luminance of [color], per the WCAG definition.
   ///
   /// The color must be fully opaque: a translucent color has no luminance of
