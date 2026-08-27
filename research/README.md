@@ -82,6 +82,12 @@ One question per file or per section, and each one carries:
 
 - `hci/` — attention, reading, memory, motor control. `open-questions.md` is the
   current backlog: five rules the framework enforces today on an argument alone.
+- `perception/` — colour, contrast and how they fail. `open-questions.md` holds
+  three questions of a different kind from the HCI five: numbers the framework
+  measures *correctly by the standard it cites*, and which a second instrument
+  says are wrong anyway. They come out of `IUX-PALETTE-PERCEPTION-001`, the
+  first entry in the register produced by a measurement this project made
+  itself rather than by reading a criterion.
 - `accessibility/`, `android/`, `ux/` — not yet created. They will be, when
   there is something to put in them; an empty directory is the failure this
   directory is recovering from.
@@ -92,3 +98,12 @@ Nothing in this directory has been validated on hardware or against a read
 primary source. It is a backlog with a method, which is more than the empty
 directory it replaces and less than the research programme the name promises.
 Both halves of that sentence are meant.
+
+`perception/` is the first partial exception and it is worth being precise about
+how partial. Its numbers are our own measurement — item 4 in the list above,
+method written down and checked — of the palette this framework ships. The
+*instruments* that produced them are transcribed from secondary circulation and
+verified only against properties of their own algorithms, so they remain leads:
+they may be quoted inside this repository and must not be cited outward until
+somebody has read the primaries. That distinction is the whole reason the rule
+above is stated so firmly.
