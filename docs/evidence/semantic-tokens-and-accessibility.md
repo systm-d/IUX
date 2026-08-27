@@ -3175,16 +3175,26 @@ that costs when it happens on a page.
   | at level `standard` | 74 |
   | mentioning a WCAG success criterion | 74 |
   | citing Nielsen Norman Group | 4 |
-  | citing primary HCI or cognitive-psychology literature | **0** |
+  | citing primary HCI or cognitive-psychology literature | **1** |
 
-  Counted on the register as this entry found it — that is, not counting this
-  entry, which would otherwise inflate two of its own rows.
+  Counted on `c37a1e0` — the commit the report was written against, and
+  deliberately not a later one, so that entries added by this batch of work are
+  not counted as evidence for it. The report's figure of 151 entries was right
+  when it was written.
 
-  No reading rate, no working-memory span, no pointing law, no visual search.
-  `Hick` appears twice and `Miller` once, each time in prose arguing *against*
-  a naive application of the law rather than in support of a rule. The report's
-  figure of 151 entries was right when it was written; the shape it describes is
-  unchanged.
+  **The report said zero, and one is the honest number.** `IUX-LOAD-001` cites
+  **Miller 1968 and Nielsen 1993** for the ~0.1 s response-time threshold, in
+  support and not against. It sits in that entry's prose rather than in its
+  `Sources` line, which is why a search of the source lines alone reports none —
+  and that is a finding about how this register is searched as much as about
+  what it contains.
+
+  What the correction does not change is the shape: one prose citation across
+  156 entries, and **nothing at all** on reading rate, working-memory span,
+  pointing law or visual search — the four this library's own rules would need.
+  `Hick` appears **nowhere**; an earlier count of two was a case-insensitive
+  search matching "thickness", which is the sort of mistake this entry exists to
+  make less likely.
 
 - **So the two claims are different claims.** What is delivered is a
   **conformance and semantics library, tested to an unusual standard** — every

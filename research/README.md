@@ -18,7 +18,9 @@ that are *ergonomic*. That gap was reported by an integrator
 (`IUX-RESEARCH-GAP-001`), and closing it starts with saying plainly what the
 register actually rests on.
 
-Measured on the register as it stands:
+Measured on `c37a1e0`, the commit the report was written against — deliberately
+not on a later one, so that entries added by this batch of work are not counted
+as evidence for it:
 
 | | count |
 | --- | --- |
@@ -26,10 +28,15 @@ Measured on the register as it stands:
 | at level `standard` | 74 |
 | mentioning a WCAG success criterion | 74 |
 | citing Nielsen Norman Group | 4 |
-| citing Fitts, Hick, ISO 9241, or any primary reading-rate or working-memory literature | **0** |
+| citing primary HCI or cognitive-psychology literature | **1** |
 
-`Hick` appears twice and `Miller` once — both in prose arguing *against* a naive
-application of the law, not as support for a rule.
+That one is `IUX-LOAD-001`, which cites **Miller 1968 and Nielsen 1993** for the
+~0.1 s response-time threshold — and it does so in its prose rather than in its
+`Sources` line, which is why a search of the source lines alone reports none.
+It is a real citation used in real support, and the report's "zéro" was one too
+strong. What it does not change is the shape: **one** prose citation across 156
+entries, none of it on reading rate, working-memory span, pointing law or visual
+search — the four this library's own rules would need.
 
 So: **IUX is a rigorously tested WCAG-conformance and semantics library.** That
 is a great deal, it is measured rather than asserted, and it is not the same

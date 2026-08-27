@@ -14,12 +14,15 @@ intuition is not a proof. `research/README.md` described subdirectories for
 accessibility, Android, HCI and UX material. For the whole life of the project
 `research/` held that README and nothing else.
 
-Counted on the register rather than asserted: **156 entries, 74 at level
-`standard`, 74 resting on a named WCAG success criterion, 4 citing Nielsen
-Norman Group, and zero citing primary literature in HCI or cognitive
-psychology** — no reading rate, no working-memory span, no pointing law, no
-visual search. `Hick` appears twice and `Miller` once, each time arguing
-*against* a naive application of the law.
+Counted on `c37a1e0` rather than asserted — the commit the report was written
+against, so that entries added by this batch of work are not counted as evidence
+for it: **156 entries, 74 at level `standard`, 74 resting on a named WCAG
+success criterion, 4 citing Nielsen Norman Group, and exactly one citing primary
+literature in HCI**. That one is `IUX-LOAD-001`, for the ~0.1 s response-time
+threshold (Miller 1968, Nielsen 1993), in its prose rather than in its `Sources`
+line — which is why searching the source lines alone reports none. Nothing
+anywhere rests on reading rate, working-memory span, a pointing law or visual
+search: the four this library's own rules would need.
 
 So the two claims are different claims. What is delivered is a **conformance and
 semantics library, tested to an unusual standard**. What is *also* claimed is

@@ -150,10 +150,10 @@ the finding.**
 
 **Leads (unverified).**
 
-- Hick, W. E. (1952) and Hyman, R. (1953), on choice reaction time. Note that
-  the register already cites Hick twice to argue *against* naive application —
-  the law concerns choice among known alternatives, not visual search among
-  unlabelled glyphs, and the distinction matters here.
+- Hick, W. E. (1952) and Hyman, R. (1953), on choice reaction time. Nothing in
+  the register cites either, and the law would be the wrong tool anyway: it
+  concerns choice among known alternatives, not visual search among unlabelled
+  glyphs. Recorded here so the next person does not reach for it by reflex.
 - Visual search literature (feature versus conjunction search) is the better
   fit and is entirely absent from this repository.
 

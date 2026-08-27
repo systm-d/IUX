@@ -47,16 +47,18 @@ different things are true about that word and they should not be run together.
 rigorous.** Every claim is probed rather than read: the evidence register has
 156 entries, each carrying its level and its limits, and 74 of them rest on a
 named WCAG success criterion. That is more than most libraries in this space can
-show.
+show. (Counted on `c37a1e0`, so that entries added by the work this section
+describes are not counted as evidence for it.)
 
 **What is not delivered is the ergonomics.** Counting what the register actually
-cites: **zero** entries rest on primary literature in human–computer interaction
-or cognitive psychology — no reading rate, no working-memory span, no pointing
-law, no visual search. Four cite Nielsen Norman Group, a secondary source.
-`Hick` appears twice and `Miller` once, both in prose arguing *against* applying
-those laws naively. The two rules with any ergonomic flavour — the 60–75
-character reading width and the reflow threshold for enlarged text — are graded
-`hypothesis` by IUX itself.
+cites: exactly **one** entry rests on primary literature in human–computer
+interaction — `IUX-LOAD-001`, for the ~0.1 s response-time threshold
+(Miller 1968, Nielsen 1993), and in its prose rather than in its `Sources` line.
+Four entries cite Nielsen Norman Group, a secondary source. Nothing anywhere
+rests on reading rate, working-memory span, a pointing law or visual search —
+the four that this library's own rules would need. The two rules with any
+ergonomic flavour — the 60–75 character reading width and the reflow threshold
+for enlarged text — are graded `hypothesis` by IUX itself.
 
 So read the framework as **accessibility foundations that are conformant and
 tested**, and read the ergonomics as an **explicitly unsupported ambition**. The
