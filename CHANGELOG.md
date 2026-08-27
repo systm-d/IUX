@@ -58,6 +58,44 @@ primary source and no measurement.
 
 See `IUX-RESEARCH-GAP-001`.
 
+### `IuxAppBar` has somewhere to put a brand mark, and a rule about it
+
+**Additive. `brand` is null by default and a bar that does not pass it is
+byte-identical.**
+
+`title` is a `String` and stays one: the heading a screen reader reads has to be
+text this component owns, and a free widget cannot play that part. Nothing here
+relaxes that.
+
+But an application migrating a bar that carried an **illustrated wordmark** had
+nowhere to put it, so the wordmark went to the top of the page — and the first
+screen then showed the name of the application **twice**, about ninety pixels
+apart. The application's own UX audit filed that as a defect. It was one, and
+the cause was here.
+
+**The rule comes first, and it holds with or without the parameter: identity
+does not belong in the page.** A wordmark under the bar is a duplicate to
+remove, not a placement. That sentence was missing from
+`docs/components/app-bar.md`, which explained why the title is textual and said
+nothing about what an application carrying an identity should therefore do.
+
+`brand` is drawn where the title's text would have been. The exclusion is
+structural rather than requested — `IuxSemantics.header` already excludes its
+subtree, so a mark cannot announce anything, even one built out of deliberately
+labelled widgets. `title` stays required and stays the heading.
+
+**What a mark gives up** are the two guarantees the text carries. It does not
+wrap, so where a title would break into narrower lines the bar hands the mark
+its own full-width line, and only a mark wider than the bar scales down. And it
+does not grow with the text scale: a user who enlarged their text gets a larger
+heading on every screen except this one. Where the name has to be legible at
+200%, pass no mark.
+
+Nothing can verify that a mark shows the name `title` says — SC 2.5.3 is the
+caller's to hold.
+
+See `IUX-APPBAR-BRAND-001`.
+
 ### The standard light palette had already spent the high contrast profile's room
 
 **Behaviour change for every application on the light standard profile.** Four
