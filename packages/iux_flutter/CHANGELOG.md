@@ -7,6 +7,11 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+`IuxRadioGroup.layout` takes `IuxRadioGroupLayout.row`, which puts the options
+on a shared line and wraps rather than overflowing. Four short values drop from
+276 pixels to 84. Additive; the column arrangement stays the default, and the
+target floor and spacing floor are unchanged in both.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row

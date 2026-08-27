@@ -408,6 +408,7 @@ class _SelectionPanelState extends State<_SelectionPanel> {
   bool _reminders = false;
   bool _sync = true;
   String? _channel = 'email';
+  int _interval = 5;
 
   String _optionLabel(String short, String long) =>
       widget.longLabels ? long : short;
@@ -564,6 +565,35 @@ class _SelectionPanelState extends State<_SelectionPanel> {
                 ],
                 onChanged: (String value) => setState(() => _channel = value),
               )),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('a radio group on one line'),
+          CatalogTestable(
+              what: 'The same control, arranged across the width instead of '
+                  'down the screen. Enlarge the text and the options move to '
+                  'a second line rather than shrinking.',
+              child: IuxRadioGroup<int>(
+                label: 'Refresh interval',
+                input: const IuxInputDescriptor(
+                  semantics: IuxInputSemantics(label: 'Refresh interval'),
+                ),
+                value: _interval,
+                layout: IuxRadioGroupLayout.row,
+                options: const <IuxRadioOption<int>>[
+                  IuxRadioOption<int>(value: 3, label: '3 min'),
+                  IuxRadioOption<int>(value: 5, label: '5 min'),
+                  IuxRadioOption<int>(value: 10, label: '10 min'),
+                  IuxRadioOption<int>(value: 15, label: '15 min'),
+                ],
+                onChanged: (int value) => setState(() => _interval = value),
+              )),
+          const CatalogNote(
+            'Stacked, these four measure 276 pixels; on a shared line, 148 — '
+            'and 84 once the labels are bare numerals. What costs the height '
+            'is not the spacing but the 48-pixel target every option reserves, '
+            'which no density setting lowers and none should. The ring, the '
+            'target, the spacing floor and the announcement are identical to '
+            'the group above: only the arrangement differs.',
+          ),
           const CatalogNote(
             'There is no arrow-key traversal inside the group: every option is '
             'its own Tab stop. Flutter\'s own RadioGroup adds arrows and skips '

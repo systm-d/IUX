@@ -882,6 +882,266 @@ void main() {
     });
   });
 
+  group('a group can spend width instead of height', () {
+    /// The shape the report named: four short, comparable values.
+    IuxRadioGroup<int> intervals({
+      IuxRadioGroupLayout layout = IuxRadioGroupLayout.column,
+      ValueChanged<int>? onChanged,
+    }) =>
+        IuxRadioGroup<int>(
+          label: 'Refresh interval',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(label: 'Refresh interval'),
+          ),
+          value: 5,
+          layout: layout,
+          options: <IuxRadioOption<int>>[
+            const IuxRadioOption<int>(value: 3, label: '3 min'),
+            const IuxRadioOption<int>(value: 5, label: '5 min'),
+            const IuxRadioOption<int>(value: 10, label: '10 min'),
+            const IuxRadioOption<int>(value: 15, label: '15 min'),
+          ],
+          onChanged: onChanged ?? (_) {},
+        );
+
+    /// How many distinct lines the option targets occupy.
+    ///
+    /// The arrangement rather than a pixel count, so the assertion does not
+    /// move when a font metric does.
+    int lineCount(WidgetTester tester) {
+      final int targets = find.byType(IuxTapTarget).evaluate().length;
+      final List<double> centres = <double>[];
+      for (int index = 0; index < targets; index++) {
+        final double centre =
+            tester.getRect(find.byType(IuxTapTarget).at(index)).center.dy;
+        if (!centres.any((double seen) => (seen - centre).abs() < 0.5)) {
+          centres.add(centre);
+        }
+      }
+      return centres.length;
+    }
+
+    testWidgets('four short options stop costing four lines',
+        (WidgetTester tester) async {
+      await pump(tester, intervals());
+      final double stacked =
+          tester.getSize(find.byType(IuxRadioGroup<int>)).height;
+      expect(lineCount(tester), 4);
+
+      await pump(tester, intervals(layout: IuxRadioGroupLayout.row));
+      final double shared =
+          tester.getSize(find.byType(IuxRadioGroup<int>)).height;
+
+      // The saving is the whole point of the parameter, so it is measured
+      // rather than described. On a 400-wide screen these four measure 276
+      // pixels stacked and 148 shared — two lines rather than four, because
+      // "10 min" is six glyphs and the test font gives every one of them the
+      // full font size in width.
+      expect(lineCount(tester), lessThan(4));
+      expect(
+        shared,
+        lessThan(stacked * 0.6),
+        reason: 'stacked measured $stacked, shared measured $shared — a '
+            'shared line has to be worth asking for',
+      );
+    });
+
+    testWidgets('labels short enough for it take a single line',
+        (WidgetTester tester) async {
+      // Note on every width in this group: under `flutter_test` each glyph is
+      // a square of the font size, so "10 min" measures six 16-pixel boxes.
+      // These numbers are an upper bound — a proportional face fits more per
+      // line than any assertion here can claim.
+      await pump(
+        tester,
+        IuxRadioGroup<int>(
+          label: 'Refresh interval',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(label: 'Refresh interval'),
+          ),
+          value: 5,
+          layout: IuxRadioGroupLayout.row,
+          options: const <IuxRadioOption<int>>[
+            IuxRadioOption<int>(value: 3, label: '3'),
+            IuxRadioOption<int>(value: 5, label: '5'),
+            IuxRadioOption<int>(value: 10, label: '10'),
+            IuxRadioOption<int>(value: 15, label: '15'),
+          ],
+          onChanged: (_) {},
+        ),
+        size: const Size(360, 800),
+      );
+
+      expect(lineCount(tester), 1);
+      expect(
+        tester.getSize(find.byType(IuxRadioGroup<int>)).height,
+        lessThan(100),
+        reason: 'the same four values stacked measure 276',
+      );
+    });
+
+    testWidgets('every option still meets the target floor',
+        (WidgetTester tester) async {
+      for (final IuxDensity density in IuxDensity.values) {
+        await pump(
+          tester,
+          intervals(layout: IuxRadioGroupLayout.row),
+          configuration: IuxThemeConfiguration(
+            profile: IuxAccessibilityProfile(density: density),
+          ),
+        );
+        for (int index = 0; index < 4; index++) {
+          final Size size = tester.getSize(find.byType(IuxTapTarget).at(index));
+          expect(
+            size.height,
+            greaterThanOrEqualTo(IuxTouchTarget.minimum),
+            reason: '${density.name} left option $index too short',
+          );
+          expect(
+            size.width,
+            greaterThanOrEqualTo(IuxTouchTarget.minimum),
+            reason: '${density.name} left option $index too narrow',
+          );
+        }
+      }
+    });
+
+    testWidgets('neighbours on a line keep the spacing floor',
+        (WidgetTester tester) async {
+      // A shared line is where fingers are closest together, so it is the
+      // last place the floor may be relaxed. It is not relaxed.
+      await pump(tester, intervals(layout: IuxRadioGroupLayout.row));
+
+      for (int index = 1; index < 4; index++) {
+        final Rect previous =
+            tester.getRect(find.byType(IuxTapTarget).at(index - 1));
+        final Rect current =
+            tester.getRect(find.byType(IuxTapTarget).at(index));
+        if ((current.center.dy - previous.center.dy).abs() < 0.5) {
+          expect(
+            current.left - previous.right,
+            greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
+            reason: 'option $index sat too close to the one before it',
+          );
+        } else {
+          // A neighbour that wrapped is below rather than beside, and the run
+          // spacing is the same floor.
+          expect(
+            current.top - previous.bottom,
+            greaterThanOrEqualTo(kIuxMinimumTargetSpacing),
+            reason: 'option $index sat too close to the line above it',
+          );
+        }
+      }
+    });
+
+    testWidgets('options that stop fitting move to another line',
+        (WidgetTester tester) async {
+      // What has to happen instead of shrinking a target or clipping a label,
+      // and the reason this is a Wrap rather than a Row.
+      await pump(
+        tester,
+        intervals(layout: IuxRadioGroupLayout.row),
+        size: const Size(320, 640),
+        textScale: 2,
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(lineCount(tester), greaterThan(1));
+      expect(
+        tester.getSize(find.byType(IuxRadioGroup<int>)).width,
+        lessThanOrEqualTo(320),
+        reason: 'the group must not paint outside the width it was given',
+      );
+    });
+
+    testWidgets('the arrangement changes nothing a screen reader hears',
+        (WidgetTester tester) async {
+      // A layout parameter that moved the announcement would be a second way
+      // to describe the same choice, and the two would eventually disagree.
+      // These are the expectations the stacked group is held to, verbatim.
+      await pump(tester, intervals(layout: IuxRadioGroupLayout.row));
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('5 min')),
+        matchesSemantics(
+          label: '5 min',
+          isInMutuallyExclusiveGroup: true,
+          hasCheckedState: true,
+          isChecked: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          hasFocusAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('10 min')),
+        matchesSemantics(
+          label: '10 min',
+          isInMutuallyExclusiveGroup: true,
+          hasCheckedState: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
+        ),
+      );
+    });
+
+    testWidgets('an option on a shared line answers a real press',
+        (WidgetTester tester) async {
+      // A press and a release a frame apart, because `tester.tap()` sends
+      // both with none in between and so cannot see a control that loses its
+      // recognizer to a rebuild mid-gesture — IUX-SELECTION-PRESS-001, which
+      // is exactly what a new arrangement of this component could reintroduce.
+      final List<int> chosen = <int>[];
+      await pump(
+        tester,
+        intervals(layout: IuxRadioGroupLayout.row, onChanged: chosen.add),
+      );
+
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(find.text('10 min')),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(chosen, <int>[10]);
+    });
+
+    testWidgets('the focus node still lands on the first option',
+        (WidgetTester tester) async {
+      final FocusNode node = FocusNode();
+      addTearDown(node.dispose);
+
+      await pump(
+        tester,
+        IuxRadioGroup<String>(
+          label: 'Delivery speed',
+          input: const IuxInputDescriptor(
+            semantics: IuxInputSemantics(label: 'How fast do you need it'),
+          ),
+          focusNode: node,
+          value: null,
+          layout: IuxRadioGroupLayout.row,
+          options: const <IuxRadioOption<String>>[
+            IuxRadioOption<String>(value: 'standard', label: 'Standard'),
+            IuxRadioOption<String>(value: 'express', label: 'Express'),
+          ],
+          onChanged: (_) {},
+        ),
+      );
+
+      node.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(node.hasFocus, isTrue);
+    });
+  });
+
   group('contradictions fail rather than being quietly repaired', () {
     test('a switch has no third position', () {
       expect(
