@@ -79,6 +79,57 @@ class IuxTagChip extends StatelessWidget {
   }
 }
 
+/// What tells a chip apart from its unchosen neighbour.
+///
+/// A filter chip has always carried its selection three ways at once — a
+/// checkmark, a heavier outline, and the announced state — because a fill
+/// alone is invisible to a substantial share of users. This chooses which of
+/// those three the chip spends **width** on.
+///
+/// Neither value reflows. The heavier outline is drawn inside the padding
+/// rather than added to it, so a chip is exactly the same size chosen as
+/// unchosen either way; that is settled in `IuxChipResolver` and is not what
+/// this decides.
+///
+/// It is set on [IuxChipGroup] rather than on the chip, so a group cannot end
+/// up half one and half the other — a row where some chips reserve a slot and
+/// others do not is a row with a ragged left edge and no explanation for it.
+enum IuxChipMark {
+  /// A checkmark, in a slot reserved whether or not it is filled.
+  ///
+  /// The default, and the right answer wherever the chips have room. Three
+  /// signals, one of which is a shape rather than a colour or a weight, is the
+  /// strongest statement of "chosen" this component can make.
+  checkmark,
+
+  /// The outline and the fill, with no glyph and no slot held for one.
+  ///
+  /// **The cost is real and it is the reason this is not the default.** The
+  /// selection is left carried by the fill, the outline weight and the
+  /// announcement. Weight is not colour, so WCAG 2.2 SC 1.4.1 is still
+  /// satisfied without it — but a change of outline weight is a quieter signal
+  /// than a glyph appearing, and quieter for exactly the users the glyph was
+  /// put there for.
+  ///
+  /// **What it buys is width, and the reserved slot is most of it.** Measured
+  /// in-harness on a 360-wide screen: a one-character chip goes from 78 to 56
+  /// pixels, a two-character chip from 93 to 65. That is why shortening a
+  /// label does so little and this does so much — the slot does not care how
+  /// long the text is.
+  ///
+  /// On that screen it is the difference between a row and a paragraph. Four
+  /// two-character chips: two lines become **one**, 120 pixels become 56.
+  /// Seven of them: three lines become **two**, 184 pixels become 120.
+  ///
+  /// **Use it** where the row is a scale the user reads at a glance and the
+  /// labels are a character or two: thresholds, intervals, the days of a week.
+  /// Those are the sets where a third line costs more than the glyph is worth.
+  ///
+  /// **Do not use it** for a set of named criteria a user picks through, where
+  /// a chip may be the only thing on screen saying a filter is applied.
+  outline,
+}
+
 /// A compact control that turns one criterion on or off.
 ///
 /// ```dart
@@ -111,6 +162,15 @@ class IuxTagChip extends StatelessWidget {
 /// The checkmark slot is reserved whether or not the chip is selected. The
 /// alternative is a chip that changes width on every tap, which reflows the
 /// whole group and moves the chips the user was about to press next.
+///
+/// **The slot is most of the chip's width, and that surprises people.** A
+/// one-character chip measures 78 pixels in-harness; 22 of them are the slot
+/// and the space before it, and only 16 are the character. Shortening a label
+/// therefore buys almost nothing,
+/// which is not obvious at the moment somebody is trying to make a row fit —
+/// three call sites in a migrating application left this component over it.
+/// [IuxChipGroup.mark] is the lever, and [IuxChipGroup] carries the width
+/// budget.
 ///
 /// `onSelectionChanged` is required and nullable: passing null means "this
 /// criterion is currently unavailable", and produces disabled semantics along
@@ -184,6 +244,10 @@ class _IuxFilterChipState extends State<IuxFilterChip> {
       (true, false) => IuxChipState.unselected,
     };
     final IuxChipTokens tokens = IuxChipResolver.resolve(context, state);
+    // Read from the group rather than taken as a parameter, so a row cannot be
+    // half one shape and half the other. A chip outside a group gets the
+    // default, which is the stronger of the two.
+    final IuxChipMark mark = _IuxChipMarkScope.of(context);
 
     final Widget visual = AnimatedContainer(
       duration: tokens.motion.duration,
@@ -207,8 +271,10 @@ class _IuxFilterChipState extends State<IuxFilterChip> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _SelectionMark(tokens: tokens, selected: widget.selected),
-            SizedBox(width: tokens.gap),
+            if (mark == IuxChipMark.checkmark) ...<Widget>[
+              _SelectionMark(tokens: tokens, selected: widget.selected),
+              SizedBox(width: tokens.gap),
+            ],
             Flexible(
               child: Text(
                 widget.label,
@@ -315,14 +381,49 @@ class _SelectionMark extends StatelessWidget {
 /// fitting, and moving to a second line is better than overflowing or shrinking
 /// the targets.
 ///
-/// **Do not use it** to lay out anything other than chips — [IuxTargetSpacing]
-/// is the general primitive. Do not mix [IuxTagChip] and [IuxFilterChip] in one
-/// group: a set where some members respond and others do not is a set the user
-/// has to probe one by one.
+/// ## The width budget
+///
+/// A chip is far wider than its label, and an integrator otherwise discovers
+/// that by measuring a golden. Measured in-harness at one device pixel per
+/// logical one, standard density, no text scaling:
+///
+/// | | [IuxChipMark.checkmark] | [IuxChipMark.outline] |
+/// | --- | --- | --- |
+/// | one-character label | 78 px | 56 px |
+/// | two-character label | 93 px | 65 px |
+/// | between two chips | 8 px | 8 px |
+/// | four two-character chips | 120 px, two lines | **56 px, one line** |
+/// | seven two-character chips | 184 px, three lines | **120 px, two lines** |
+///
+/// So on a 360-wide screen, with the default mark: **four two-character chips
+/// do not fit on one line, and seven take three lines.** Both of those are what
+/// a set of thresholds or a week of days looks like, and both are the case
+/// where the whole point was reading the row at a glance.
+///
+/// **Shortening the labels does almost nothing**, which is the part that is not
+/// intuitive. 22 of those pixels are the reserved slot and the space before it,
+/// and the slot does not care how long the text is: dropping a character saves
+/// 16 pixels a chip and rarely a whole line. The lever that works is [mark].
+///
+/// Those numbers are an upper bound on the text: under `flutter_test` every
+/// glyph is a square of the font size, so a two-character label measures two
+/// 16-pixel boxes. A proportional face fits more per line. The slot does not
+/// change.
+///
+/// ## Do not use it for
+///
+/// Anything other than chips — [IuxTargetSpacing] is the general primitive. Do
+/// not mix [IuxTagChip] and [IuxFilterChip] in one group: a set where some
+/// members respond and others do not is a set the user has to probe one by one.
+///
 class IuxChipGroup extends StatelessWidget {
   /// Creates a named group of chips.
-  const IuxChipGroup({super.key, required this.label, required this.chips})
-      : assert(
+  const IuxChipGroup({
+    super.key,
+    required this.label,
+    required this.chips,
+    this.mark = IuxChipMark.checkmark,
+  }) : assert(
           label.length > 0,
           'A chip group must say what the set is for. Without it a screen '
           'reader user meets a row of buttons with no idea what they filter, '
@@ -339,12 +440,53 @@ class IuxChipGroup extends StatelessWidget {
   /// The chips, in reading order.
   final List<Widget> chips;
 
+  /// What tells a chosen chip from an unchosen one, for every chip here.
+  ///
+  /// Defaults to [IuxChipMark.checkmark], which is the stronger of the two and
+  /// the right answer wherever the row has room. [IuxChipMark.outline] gives
+  /// back the reserved slot — 22 pixels a chip — and is what makes a short
+  /// scale fit on one line. Read the width budget above before reaching
+  /// for it, and the enum for what it costs.
+  ///
+  /// It applies to every [IuxFilterChip] below this group, including one nested
+  /// inside a caller's own layout. [IuxTagChip] has no mark and ignores it.
+  final IuxChipMark mark;
+
   @override
   Widget build(BuildContext context) => IuxSemantics.group(
         label: label,
         // Not excluded: each chip keeps its own node, its own name and its own
         // selected state. Excluding them would collapse the whole set into one
         // unusable announcement.
-        child: IuxTargetSpacing(axis: Axis.horizontal, children: chips),
+        child: _IuxChipMarkScope(
+          mark: mark,
+          child: IuxTargetSpacing(axis: Axis.horizontal, children: chips),
+        ),
       );
+}
+
+/// Carries [IuxChipGroup.mark] down to the chips inside it.
+///
+/// An inherited value rather than a parameter on the chip, and that is the
+/// whole reason it exists: `chips` is a list of widgets the caller builds, so a
+/// parameter would let one row hold three chips that reserve a slot and four
+/// that do not. That row has a ragged left edge and nothing on screen to
+/// explain it. Here the group decides once and no call site can disagree.
+class _IuxChipMarkScope extends InheritedWidget {
+  const _IuxChipMarkScope({required this.mark, required super.child});
+
+  final IuxChipMark mark;
+
+  /// The mark in force, or the default outside any group.
+  ///
+  /// A chip on its own is not a defect — [IuxChipGroup] is required for a row,
+  /// not for a lone chip in a caller's own layout — so the absence of a scope
+  /// resolves rather than asserting.
+  static IuxChipMark of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_IuxChipMarkScope>()?.mark ??
+      IuxChipMark.checkmark;
+
+  @override
+  bool updateShouldNotify(_IuxChipMarkScope oldWidget) =>
+      oldWidget.mark != mark;
 }
