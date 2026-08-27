@@ -15,6 +15,11 @@ purpose. The caution ramp's dark end changes hue to orange: a yellow held above
 4.5:1 on white is a khaki brown, not a warning. `IuxTheme.withSemanticColors` is
 still the way out.
 
+`IuxRadioGroup.layout` takes `IuxRadioGroupLayout.row`, which puts the options
+on a shared line and wraps rather than overflowing. Four short values drop from
+276 pixels to 84. Additive; the column arrangement stays the default, and the
+target floor and spacing floor are unchanged in both.
+
 Test infrastructure: `realTap` (`test/support/gestures.dart`) presses with a
 frame between `down` and `up`, the way a finger does, and a per-component sweep
 applies it to everything that redraws while held. `tester.tap()` cannot reach

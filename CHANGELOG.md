@@ -56,6 +56,40 @@ ceilings. An application whose users mostly need AAA should ship
 
 See `IUX-PALETTE-HEADROOM-001`.
 
+### `IuxRadioGroup` can spend width instead of height
+
+**Additive. `IuxRadioGroupLayout.column` is the default and nothing changes for
+existing callers.**
+
+`layout: IuxRadioGroupLayout.row` puts the options on a shared line, wrapping
+onto the next when they stop fitting.
+
+The group had exactly one shape, and its vertical cost took it out of a
+migrating application entirely: six exclusive choices on one settings screen
+pushed everything after them below the fold. The spacing was never the cause —
+what costs the height is the **48-pixel row each option reserves**, the
+guaranteed touch target, for a label 24 pixels tall. No lever could help, and
+none should: `IuxTapTarget.minimumSize` only ever raises the floor and
+`IuxDensity.compact` moves spacings rather than targets. Measured:
+
+| options | width | stacked | shared line |
+| --- | --- | --- | --- |
+| `3 min` `5 min` `10 min` `15 min` | 400 | 276 px | **148 px** |
+| `3` `5` `10` `15` | 360 | 276 px | **84 px** |
+| seven weekday abbreviations | 360 | 468 px | **148 px** |
+
+**`kIuxMinimumTargetSpacing` is kept.** A shared line is where fingers are
+closest together, so it is the last place that floor may be relaxed — and
+keeping it costs nothing, because what was being paid for was rows, not gaps.
+Same ring, same target at every density, same announcement: the option flags
+asserted for a shared line are the stacked group's expectations verbatim.
+
+Use it for short, comparable labels. A label long enough to wrap gives a ragged
+block in which no option owns an edge; that is documented rather than asserted,
+because the same words are short in one language and long in another.
+
+See `IUX-RADIO-LAYOUT-001`.
+
 ### The suite can now see a control that no finger can use
 
 **No library change. A test rule, and the sweep that applies it.**

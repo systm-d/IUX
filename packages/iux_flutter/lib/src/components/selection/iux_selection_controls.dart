@@ -227,6 +227,58 @@ class IuxSwitch extends StatelessWidget {
       );
 }
 
+/// How an [IuxRadioGroup] arranges its options.
+///
+/// Two arrangements rather than a density knob, because density was never the
+/// problem. The vertical cost of an option is the **48-pixel row it reserves**
+/// — the guaranteed touch target — for a label that is often 24 pixels tall.
+/// `IuxDensity.compact` multiplies spacings by 0.875 and leaves that floor
+/// alone, taking a 64-pixel step down to about 61; `IuxTapTarget.minimumSize`
+/// only ever raises it. Neither can help, and neither should: the floor is the
+/// one number here that is not a matter of taste.
+///
+/// What can help is spending the width instead of the height. Four options
+/// stacked cost about 256 pixels; the same four on one line cost 64, and the
+/// options a caller wants to compare at a glance — thresholds, intervals, days
+/// — are exactly the ones whose labels are short enough to fit.
+///
+/// Reported from a device: six exclusive choices on one settings screen pushed
+/// everything after them well below the fold, and the group was removed from
+/// the application rather than used (`IUX-RADIO-LAYOUT-001`).
+enum IuxRadioGroupLayout {
+  /// One option per line, full width.
+  ///
+  /// The default, and still right for anything a user has to read before
+  /// choosing: options whose labels are sentences, options carrying help text,
+  /// options that differ in ways the words have to explain. A column gives
+  /// every option the same left edge, which is what makes a list of choices
+  /// scannable.
+  column,
+
+  /// Options on a shared line, wrapping onto the next when they do not fit.
+  ///
+  /// **Use it for short, comparable labels** — "3 / 5 / 10 / 15 min", a scale,
+  /// the days of a week. The saving is real and it is the whole point: on a
+  /// 360-pixel screen, four options of that shape drop from roughly 256 pixels
+  /// to one 64-pixel line.
+  ///
+  /// **It gives up nothing that matters.** Every option keeps its ring, its
+  /// full touch target, and [kIuxMinimumTargetSpacing] from its neighbours —
+  /// two 48-pixel targets that touch still produce mis-taps, and a horizontal
+  /// arrangement is where fingers are closest together, so this is the last
+  /// place to relax it. Options that no longer fit move to a second line
+  /// rather than shrinking or being clipped, which is what keeps this usable
+  /// at 200% text.
+  ///
+  /// **Do not use it** for labels long enough to wrap. A wrapped label inside
+  /// a wrapped row gives a ragged block in which no option owns an edge, and
+  /// the group stops being readable at exactly the moment it stops being
+  /// short. There is no assertion for it — the same words can be short in one
+  /// language and long in another, and refusing at run time would break the
+  /// translation rather than the layout.
+  row,
+}
+
 /// A choice among mutually exclusive options.
 ///
 /// ```dart
@@ -279,6 +331,7 @@ class IuxRadioGroup<T> extends StatefulWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.layout = IuxRadioGroupLayout.column,
     this.focusNode,
   })  : assert(
           label.length > 0,
@@ -340,6 +393,18 @@ class IuxRadioGroup<T> extends StatefulWidget {
   /// radio cannot be unchosen, so that gesture changes nothing, and reporting
   /// it would have parents re-running whatever a choice triggers.
   final ValueChanged<T> onChanged;
+
+  /// Whether the options are stacked or share a line.
+  ///
+  /// Defaults to [IuxRadioGroupLayout.column], which is what a group of
+  /// choices with anything to read is. See [IuxRadioGroupLayout] for when the
+  /// other one is right and what it costs.
+  ///
+  /// It changes the arrangement and nothing else. The announcement, the
+  /// grouping, the touch targets, the separation between them and the focus
+  /// order are identical in both — a screen-reader user cannot tell which was
+  /// chosen, and should not be able to.
+  final IuxRadioGroupLayout layout;
 
   /// An externally owned node, attached to the **first option**.
   ///
@@ -426,12 +491,26 @@ class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
             Text(help, style: tokens.helpStyle),
           ],
           const IuxGap.tight(),
-          _SpacedColumn(
-            children: <Widget>[
-              for (int index = 0; index < options.length; index++)
-                _option(options[index], index),
-            ],
-          ),
+          switch (widget.layout) {
+            // Both keep `kIuxMinimumTargetSpacing` between neighbours. The
+            // horizontal one is an `IuxTargetSpacing`, the same primitive
+            // `IuxChipGroup` uses, so it wraps rather than overflowing when
+            // the options stop fitting — which is what happens first at a
+            // large text scale, and is the reason this is not a `Row`.
+            IuxRadioGroupLayout.column => _SpacedColumn(
+                children: <Widget>[
+                  for (int index = 0; index < options.length; index++)
+                    _option(options[index], index),
+                ],
+              ),
+            IuxRadioGroupLayout.row => IuxTargetSpacing(
+                axis: Axis.horizontal,
+                children: <Widget>[
+                  for (int index = 0; index < options.length; index++)
+                    _option(options[index], index),
+                ],
+              ),
+          },
           if (message != null) ...<Widget>[
             const IuxGap.tight(),
             if (_messageIsNews)
@@ -459,6 +538,11 @@ class _IuxRadioGroupState<T> extends State<IuxRadioGroup<T>> {
         input: _optionInput(option),
         onActivate: (bool _) => widget.onChanged(option.value),
         autofocus: false,
+        // A stacked option takes the width it is given, so a long label wraps
+        // inside the row instead of pushing the ring off it. A shared line
+        // gives each option only the width it asks for — claiming the whole
+        // line is what a column is.
+        fillWidth: widget.layout == IuxRadioGroupLayout.column,
         focusNode: index == _focusTargetIndex ? widget.focusNode : null,
         indicator: (
           BuildContext context,
@@ -590,6 +674,7 @@ class _IuxSelectionControl extends StatefulWidget {
     required this.autofocus,
     required this.focusNode,
     required this.indicator,
+    this.fillWidth = true,
   });
 
   final IuxSelectionRole role;
@@ -602,6 +687,14 @@ class _IuxSelectionControl extends StatefulWidget {
 
   final bool autofocus;
   final FocusNode? focusNode;
+
+  /// Whether the row takes the width it is offered.
+  ///
+  /// True everywhere except a radio group laid out on one line, where each
+  /// option must take only the width it needs. It is not a style: a `Row`
+  /// under an unbounded main-axis constraint — which is what a `Wrap` child
+  /// asking for its own width gets — cannot hold a flexible child at all.
+  final bool fillWidth;
 
   /// Builds the mark, given the appearance resolved for the current state.
   final Widget Function(
@@ -694,6 +787,9 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
       // Aligned to the top so a label wrapping to three lines keeps its
       // indicator beside the first one, where reading starts.
       crossAxisAlignment: CrossAxisAlignment.start,
+      // Only a row that claims the width can size itself by it. One sharing a
+      // line takes what it asks for and leaves the rest to its neighbours.
+      mainAxisSize: widget.fillWidth ? MainAxisSize.max : MainAxisSize.min,
       children: <Widget>[
         SizedBox(
           height: tokens.lineExtent,
@@ -702,9 +798,17 @@ class _IuxSelectionControlState extends State<_IuxSelectionControl> {
           ),
         ),
         SizedBox(width: tokens.gap),
-        // Flexible rather than fixed: without it, enlarging the text turns a
-        // wrapping label into an overflow.
-        Expanded(child: texts),
+        // Flexible either way: without it, enlarging the text turns a wrapping
+        // label into an overflow. `Expanded` when the row owns its line, so
+        // the label region is the whole of it; `Flexible` when it does not, so
+        // the row is as wide as its words and still yields when the line runs
+        // out. Both need a bounded width, which is why the shared-line
+        // arrangement is a `Wrap` — it hands its children one — rather than a
+        // `Row`, which would not.
+        if (widget.fillWidth)
+          Expanded(child: texts)
+        else
+          Flexible(child: texts),
       ],
     );
 
