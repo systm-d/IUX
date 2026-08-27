@@ -75,6 +75,26 @@ pénible.
 
 ---
 
+## Bloc F — Ce qui a été livré après l'écriture du protocole (~10 min)
+
+Différent des autres blocs : ceux-là vérifient que la plateforme fait ce que
+l'arbre annonce. **Ceux-ci vérifient des jugements** — six changements livrés le
+2026-08-27, tous argumentés depuis des chiffres, dont cinq laissent une question
+qu'un chiffre ne peut pas fermer.
+
+| ID | Où | Quoi faire | Attendu | OK |
+| --- | --- | --- | --- | :---: |
+| **F1** | **Feedback** → inline feedback, **thème clair, contraste standard** | Regarder le bloc *warning* à côté du bloc *error* | L'avertissement se lit comme un orangé, pas comme un brun, et ne se confond pas avec le rouge d'erreur | |
+| **F2** | Catalogue → **Theme** : clair, puis profil « contraste renforcé » | Regarder le lien et les quatre blocs feedback | Une différence qu'on remarque **sans qu'on ait à la chercher** | |
+| **F3** ⭐ | **Media and status** → rangée *the same chips without the reserved slot*. **Correction des couleurs → Nuances de gris** | Trouver le chip sélectionné | On y arrive, au seul poids du contour. Comparer avec la rangée standard juste au-dessus | |
+| **F4** | **Inputs** → *a radio group on one line* | Taper les quatre options **au pouce**, vite. Puis TalkBack, balayer | Aucune erreur de frappe. Chaque option annonce « 1 sur 4 » dans le groupe nommé | |
+| **F5** | **Navigation** → panneau de la barre, sélecteur *Heading* = **mark**, **police système au maximum** | Regarder, puis TalkBack et balayer sur la barre | Tout grandit **sauf la marque**. TalkBack annonce le nom de l'écran en en-tête et **ne dit rien** de la marque | |
+
+**F5 n'est pas une case à cocher** : qu'une marque ignore l'échelle de texte est
+un coût documenté, pas un défaut. Ce qu'on demande, c'est un jugement — est-ce
+acceptable à cette taille, ou le titre texte est-il la seule réponse honnête ?
+Écrire la réponse dans les Observations quoi qu'il arrive.
+
 ## Ce à quoi il ne faut **pas** perdre de temps
 
 Le temps sur appareil est cher. Ne pas revérifier ce qu'un test de widget règle
@@ -101,6 +121,11 @@ système de l'utilisateur survivent au contact du framework.
 - **D3**, parce qu'une vraie tâche sur un vrai écran à un vrai réglage
   d'accessibilité est ce qui ressemble le plus à l'utilisateur pour qui ce
   projet existe.
+
+Et un troisième qui changerait un **défaut** plutôt que le verdict : **F3**. Si
+la sélection d'un chip est introuvable en nuances de gris sans sa coche, alors
+`IuxChipMark.outline` achète de la largeur avec un signal qu'il ne devrait pas
+dépenser — et l'entrée qui l'a introduit le dit à l'avance.
 
 ---
 

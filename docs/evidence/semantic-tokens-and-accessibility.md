@@ -3255,3 +3255,64 @@ that costs when it happens on a page.
     reasoning in doc comments, which is where a good deal of this framework's
     actual argument lives — `IuxTransientTiming` being the clearest example, and
     the reason Q1 exists.
+
+### IUX-MANUAL-001 — Nothing has been validated on a device, and the register never said so in its own voice
+
+- **Level**: standard
+- **Scope**: every accessibility claim in this repository
+- **Sources**: WCAG 2.2 conformance requires testing with assistive technology
+  that the success criteria themselves do not specify; systm-d/IUX#17
+- **Status**: **open, and it is the release blocker.** A protocol exists —
+  `docs/accessibility/manual-validation-protocol.md`, with a handover runsheet
+  beside it. It has never been run.
+
+- **This entry exists because four other entries defer to an ID that had none.**
+  `IUX-MANUAL-001` is cited as the limit on the list-item press tint, the radio
+  group's shared line, the chip's outline mark and the tap target's action —
+  each saying "nothing was seen on a device". The thing they all point at was
+  never written down. That is the same shape as the two findings recorded under
+  `IUX-RESEARCH-GAP-001`: a number or an ID that the codebase leans on and the
+  register never received.
+
+- **What is and is not claimed.** Everything here is measured on Flutter's
+  semantics tree inside `flutter_test` — a model of what an assistive service
+  would be *told*. That is a great deal: 2 376 tests, every claim probed rather
+  than read. It is **not** what a screen reader says, in what order, or whether
+  it says it at all. The distinction is load-bearing for a framework whose
+  proposition is that accessibility is the design constraint.
+
+- **The instrument has a proven blind spot, and it is not hypothetical.** The
+  library shipped **no icons at all** for weeks — `uses-material-design`
+  undeclared, every Material glyph blank — while the whole suite passed, because
+  `flutter_test` substitutes a font that draws every glyph as a filled box. No
+  test here could have caught it. Someone holding a phone caught it in seconds.
+  `IUX-SELECTION-PRESS-001` is the second of the same kind.
+
+- **The protocol is scoped to what only a device settles**, and explicitly
+  refuses to re-check what a widget test already pins — labels, roles, 48 dp
+  targets, contrast ratios. Six blocks: TalkBack, Voice Access, physical
+  D-pad, system display scaling, platform contrast and inversion, and **Block F,
+  the judgements** — five decisions taken on a measurement that a measurement
+  cannot finish, all of them from the 2026-08-27 migration batch.
+
+- **Two defects are expected rather than feared**, and are named in advance:
+  `IUX-GUIDED-FORM-LIVE-001` (a live region firing in the same frame as a focus
+  move) and the inversion cases, where the platform recomposes the screen
+  *after* IUX has resolved its palette, so the ratios this project measures are
+  not the ones seen. A run that finds six defects is worth more than one that
+  finds none.
+
+- **What would close this.** Not "everything passes" — a recorded session with
+  real results, failures included. The register stops being empty. Until then
+  every entry that cites this ID is honest about resting on a model.
+
+- **Limits.**
+  - **One session on one device is not coverage.** A Pixel with TalkBack says
+    nothing about Samsung's stack, about an older Android, or about a user who
+    has TalkBack configured differently from the tester.
+  - **F3 could change a default rather than the verdict.** If a chip's selection
+    cannot be found in monochrome without its checkmark, `IuxChipMark.outline`
+    is spending a signal it should not.
+  - **F5 is a judgement to record, not a box to tick.** That a brand mark
+    ignores the text scale is a documented cost; what it costs a user at 200%
+    has never been looked at.

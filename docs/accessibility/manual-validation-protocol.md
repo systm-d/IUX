@@ -253,6 +253,84 @@ breaks.
 
 ---
 
+# Block F — What shipped after this protocol was written
+
+Roughly 10 minutes, and it is different in kind from the blocks above. Those
+check whether the platform does what the tree says. **These five check
+judgements** — decisions taken on a measurement that a measurement cannot
+finish, each one recorded in the register as resting on an eye nobody has yet
+applied.
+
+Six changes landed on 2026-08-27 from a real migration. Every one of them was
+argued from numbers, and five left a question a number cannot close.
+
+### F1 — The warning colour reads as a warning
+**Do:** **Feedback** → the inline feedback panel, light theme, standard
+contrast. Look at the warning block beside the error block.
+**Expect:** the warning reads as a warning — an orange — and is not confusable
+with the error red at a glance.
+**Fail:** it reads as a brown or a khaki, or you have to think about which of the
+two is which.
+**Status:** `IUX-PALETTE-HEADROOM-001`. The caution ramp's dark end changed hue
+because a yellow held above 4.5:1 on white stops being a yellow. `#A34A00`
+measures 5.94:1 and was chosen by a consuming application that shipped it. **That
+it reads as a warning is a judgement about perception that nothing in this
+repository tests**, and hue is exactly where a contrast ratio says least.
+
+### F2 — Reinforced contrast now returns something you can see
+**Do:** **Theme** → light, then switch the profile to high contrast. Watch the link, and
+the four feedback blocks.
+**Expect:** a difference you would notice without being told to look.
+**Fail:** no perceptible change.
+**Status:** the same entry, and the structural half of it. The standard profile
+used to sit past AAA on every chromatic content role, leaving `highContrastLight`
+one rung — so the setting whose whole purpose is separation returned almost
+nothing. Standard now stops short of AAA on purpose. Whether that reads as
+*enough room* is the question.
+
+### F3 — A chip without its checkmark is still findable in monochrome
+**Do:** **Media and status** → the row titled *the same chips without the
+reserved slot*. Turn on Android's monochrome colour correction
+(*Settings → Accessibility → Colour correction → Greyscale*) and find the
+selected chip.
+**Expect:** you can, from the outline weight alone.
+**Fail:** you cannot tell without colour.
+**Status:** `IUX-CHIP-WIDTH-001`, and **this is the check that could send a
+default back**. `IuxChipMark.outline` gives up the glyph to buy width — four
+short chips go from two lines to one — leaving the fill, the outline weight and
+the announcement. Weight is not colour, so SC 1.4.1 holds. But it is a quieter
+signal than a glyph appearing, **and quieter for exactly the users the glyph was
+put there for**. Compare against the standard row directly above it.
+
+### F4 — A shared-line radio group is still hittable with a thumb
+**Do:** **Inputs** → *a radio group on one line*. Tap each of the four options
+in turn, quickly, with a thumb rather than a fingertip. Then TalkBack on, and
+swipe through them.
+**Expect:** no mis-taps. Each option announces its position — "1 of 4" — inside
+the named group, exactly as the stacked arrangement does.
+**Fail:** you hit a neighbour, or the position is missing on a shared line.
+**Status:** `IUX-RADIO-LAYOUT-001`. `kIuxMinimumTargetSpacing` was deliberately
+kept on this arrangement, against what the reporting application did, because a
+shared line is where fingers are closest together. A mis-tap here says that
+decision was not conservative enough.
+
+### F5 — The brand mark at the largest font size
+**Do:** **Navigation** → the app bar panel, set the *Heading* choice to
+**mark**. System
+font size at maximum. Then TalkBack on, and swipe onto the bar.
+**Expect:** the title, the controls and everything else grow; **the mark does
+not**. TalkBack announces the screen's name as a heading and says nothing at all
+about the mark.
+**Record either way:** whether the result is acceptable, or whether at that scale
+the text title is the only honest answer.
+**Status:** `IUX-APPBAR-BRAND-001`. That a mark ignores the text scale is a
+documented cost, not a defect — the bar hands it a box and what is inside is the
+caller's. The documentation says "where the name has to be legible at 200%, pass
+no mark". **Nobody has looked at what that actually costs a user**, and this is
+a judgement to record rather than a box to tick.
+
+---
+
 ## What would change the release verdict
 
 Not "everything passes". The verdict changes when the register **stops being
@@ -267,3 +345,8 @@ The two results that would matter most:
    for fifteen missions, and the correction is a week old.
 2. **D3** — because a real task on a real screen at a real accessibility setting
    is the closest thing to the user this project exists for.
+
+And one that would change a **default** rather than the verdict: **F3**. If a
+chip's selection cannot be found in monochrome without its checkmark, then
+`IuxChipMark.outline` is buying width with a signal it should not be spending,
+and the entry that introduced it says so in advance.
