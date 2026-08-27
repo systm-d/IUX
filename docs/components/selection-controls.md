@@ -98,6 +98,60 @@ they probably do not belong together. Where the intent really is only spacing �
 a row of chips, a pair of buttons — use `IuxTargetSpacing` from the layout
 layer instead.
 
+## A radio group can spend width instead of height
+
+`IuxRadioGroup.layout` takes `IuxRadioGroupLayout.column` (the default) or
+`IuxRadioGroupLayout.row`.
+
+The vertical cost of an option is not its spacing — it is the **48-pixel row it
+reserves**, the guaranteed touch target, for a label that is often 24 pixels
+tall. Nothing can lower that floor, and nothing should: `IuxDensity.compact`
+multiplies spacings by 0.875 and leaves it alone, `IuxTapTarget.minimumSize`
+only ever raises it. Six exclusive choices on one settings screen therefore push
+everything after them below the fold, and that is what took the group out of a
+migrating application entirely (`IUX-RADIO-LAYOUT-001`).
+
+What can be spent instead is the width. Measured on a rendered group, at one
+device pixel per logical one:
+
+| options | width | stacked | on a shared line |
+| --- | --- | --- | --- |
+| `3 min` `5 min` `10 min` `15 min` | 400 | 276 px | **148 px** (two lines) |
+| `3` `5` `10` `15` | 360 | 276 px | **84 px** (one line) |
+| seven weekday abbreviations | 360 | 468 px | **148 px** (two lines) |
+
+Those widths are an upper bound. Under `flutter_test` every glyph is a square of
+the font size, so `10 min` measures six 16-pixel boxes; a proportional face fits
+more per line than the table claims.
+
+```dart
+IuxRadioGroup<Duration>(
+  label: l10n.refreshInterval,
+  input: const IuxInputDescriptor(
+    semantics: IuxInputSemantics(label: 'Refresh interval'),
+  ),
+  value: settings.interval,
+  layout: IuxRadioGroupLayout.row,
+  options: intervals,
+  onChanged: controller.setInterval,
+)
+```
+
+**Use a shared line for short, comparable labels** — thresholds, intervals,
+days, a scale. **Do not use it** for labels long enough to wrap: a wrapped label
+inside a wrapped row gives a ragged block in which no option owns an edge. There
+is no assertion for it, because the same words are short in one language and
+long in another, and refusing at run time would break the translation rather
+than the layout.
+
+**It gives up nothing else.** Every option keeps its ring, its full touch
+target and `kIuxMinimumTargetSpacing` from its neighbours — a shared line is
+where fingers are closest together, so it is the last place that floor may be
+relaxed. Options that stop fitting move to the next line rather than shrinking
+or being clipped, which is what keeps the arrangement usable at 200% text. The
+announcement is identical in both arrangements, and a screen-reader user cannot
+tell which was chosen.
+
 ## The parent owns the value
 
 These are controlled widgets. `value` goes in, a request comes out, and nothing
@@ -159,6 +213,7 @@ already made, which is the expensive direction to be wrong in.
 | `value` | yes | `T?` — null means unanswered, which is a real state |
 | `options` | yes | at least two, values distinct |
 | `onChanged` | yes | called with the option chosen; silent when it was already chosen |
+| `layout` | no | `IuxRadioGroupLayout.column` (default) or `.row` — see above |
 | `focusNode` | no | externally owned; **attached to the first option**, see below |
 
 `IuxRadioOption<T>` carries `value`, `label`, `helpText` and
@@ -320,6 +375,13 @@ IuxSelectionGroup(label: 'Notify me about', children: checkboxes)
   publishes the node's focus state and its `focus` action; measured here, an
   option focused from an error summary reports `isFocused: Tristate.isTrue`
   in the live semantics tree. That is `IUX-A11Y-FOCUS-001`, fixed.
+- **A shared line has no compact variant of its own.** `IuxRadioGroupLayout.row`
+  keeps the ring, the full target and the spacing floor, so it saves height by
+  using width and by nothing else. A denser mark — selection carried by the
+  outline and the fill rather than by a ring in reserve — would save more, and
+  is not offered: it is the same question `IuxFilterChip` faces about its
+  reserved checkmark slot, and it should be answered once for both rather than
+  twice differently.
 - **No arrow-key navigation within a radio group.** Each option is
   individually focusable and reachable by Tab or D-pad. Flutter's
   `RadioGroup` adds arrow-key traversal that skips unselected options; IUX does
