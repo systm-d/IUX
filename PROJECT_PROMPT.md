@@ -215,6 +215,28 @@ Les recommandations utilisées par IUX doivent provenir en priorité de :
 
 Les choix doivent toujours préciser leur niveau de confiance.
 
+**État réel de cette liste, mesuré plutôt qu'affirmé.** Les quatre premières
+entrées sont effectivement utilisées : sur les 156 entrées du registre de
+preuves, 76 s'appuient sur un critère WCAG nommé. Les trois dernières —
+littérature scientifique HCI, psychologie cognitive, ergonomie — **ne sont
+citées par aucune entrée**. Ni vitesse de lecture, ni empan de mémoire de
+travail, ni loi de pointage, ni recherche visuelle. Nielsen Norman Group
+apparaît quatre fois, en source secondaire ; `Hick` deux fois et `Miller` une,
+chaque fois pour argumenter *contre* une application naïve de la loi.
+
+Ces trois entrées sont donc une **ambition, pas une pratique**, et doivent être
+lues comme telles jusqu'à ce qu'une entrée du registre en cite une. Le travail
+qui les rendrait vraies est adossé et nommé dans
+[`research/hci/open-questions.md`](research/hci/open-questions.md) :
+cinq nombres que le framework impose aujourd'hui sur un raisonnement seul.
+Voir `IUX-RESEARCH-GAP-001`.
+
+**Une citation que personne ici n'a lue est une piste, pas une source.** Elle ne
+peut pas entrer dans la ligne `Sources` d'une entrée du registre avant que
+quelqu'un ait lu la chose et écrit ce qu'elle dit réellement — la moitié de la
+valeur d'un résultat connu tient à ce qu'il *ne couvre pas*, et cette moitié
+n'est accessible qu'à un lecteur.
+
 ---
 
 # 9. Niveaux de preuve
@@ -481,6 +503,15 @@ Chaque composant doit chercher à réduire :
 * les animations concurrentes.
 
 Chaque ajout doit être justifié.
+
+**Aucun composant n'est aujourd'hui adossé à une mesure de l'un de ces six
+points.** Ce sont de bons principes et ils orientent réellement les revues, mais
+ils ne sont pas opérationnalisés : rien n'en compte un, rien ne fixe un seuil,
+rien n'échoue quand il est dépassé. « Réduire la charge cognitive » n'est pas
+une question à laquelle on peut répondre — la découper en questions qui, elles,
+en sont une est le travail suivant, et il est commencé dans
+`research/hci/open-questions.md` (Q1 sur le temps de lecture d'un message
+transitoire, Q3 sur le nombre d'actions d'une barre).
 
 ---
 

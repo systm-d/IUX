@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+Repository claims and `research/`: the register cites zero primary HCI or
+cognitive-psychology literature, so the README now describes IUX as conformant,
+tested accessibility foundations and marks the ergonomics an explicitly
+unsupported ambition. `research/` gains a method and a five-question backlog.
+No library change.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row

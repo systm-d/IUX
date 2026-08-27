@@ -2780,3 +2780,93 @@ transparent Materials. A conditional ground — one that checked for an ancestor
 before inserting itself — was rejected without being tried: conditional
 structure changes a subtree's depth, and `IUX-OVERLAY-001` is the record of what
 that costs when it happens on a page.
+
+### IUX-RESEARCH-GAP-001 — The charter required traceable research; the directory for it was empty
+
+- **Level**: context_dependent
+- **Scope**: the repository's claims about itself, and `research/`
+- **Sources**: `PROJECT_PROMPT.md` §3 (*Evidence Informed*) and §8 (*Sources de
+  référence*); reported during the Terminus migration (systm-d/IUX#26)
+- **Status**: both halves done — claims aligned in `README.md` and
+  `PROJECT_PROMPT.md` §8 and §17; `research/` seeded with a method and a
+  five-question backlog; guarded by
+  `test/package/research_test.dart`
+
+- **What was measured, on this register.** Counted rather than asserted:
+
+  | | count |
+  | --- | --- |
+  | entries | 156 |
+  | at level `standard` | 74 |
+  | mentioning a WCAG success criterion | 74 |
+  | citing Nielsen Norman Group | 4 |
+  | citing primary HCI or cognitive-psychology literature | **0** |
+
+  Counted on the register as this entry found it — that is, not counting this
+  entry, which would otherwise inflate two of its own rows.
+
+  No reading rate, no working-memory span, no pointing law, no visual search.
+  `Hick` appears twice and `Miller` once, each time in prose arguing *against*
+  a naive application of the law rather than in support of a rule. The report's
+  figure of 151 entries was right when it was written; the shape it describes is
+  unchanged.
+
+- **So the two claims are different claims.** What is delivered is a
+  **conformance and semantics library, tested to an unusual standard** — every
+  entry carries its level and its limits, which few libraries in this space
+  manage. What is *also* claimed, in `PROJECT_PROMPT.md` §2 and in the README's
+  opening, is that the framework produces interfaces that are **ergonomic**.
+  Nothing in the register supports the second. A gap between an artefact and its
+  own description is not a defect in either, until an integrator arrives looking
+  for the thing that was advertised — which is what happened.
+
+- **Both halves of the report were taken, and the reason is that they are not
+  alternatives.** Aligning the claim without seeding the directory leaves
+  `PROJECT_PROMPT.md` §8 naming three source families nothing uses. Seeding the
+  directory without aligning the claim leaves the README promising what a
+  backlog does not yet deliver.
+
+  - **The claim**: the README now states plainly that the accessibility
+    foundations are conformant and tested and that the ergonomics is an
+    explicitly unsupported ambition, with the counts above. §8 marks its last
+    three source families as ambition rather than practice. §17 records that
+    **no component is anchored to a measurement** of any of the six things it
+    asks components to reduce.
+  - **The directory**: `research/README.md` is a working method — what counts as
+    a source, in what order, and the rule that **a citation nobody has read is a
+    lead, not a source** and may not enter a `Sources` line until somebody has
+    read it. `research/hci/open-questions.md` works the five rules the framework
+    enforces today on an argument alone.
+
+- **Two findings came out of writing the backlog, and they are the part worth
+  keeping.**
+  - **`kIuxAppBarMaximumActions = 3` has no register entry at all.** It is
+    enforced by an assertion — a fourth action throws — and argued only in a doc
+    comment. It is the most enforced unregistered number in the framework. Its
+    doc comment argues from *width*, and the bar already measures itself, so the
+    better rule is available today with no literature: refuse the action that
+    would take the title below its readable floor, which is right on a tablet
+    and on a 320-pixel phone and is not the same number on both.
+  - **`IUX-RUNTIME-006`'s 1.3× threshold needs no research either.** It is a
+    measurement against the widths IUX supports — a test somebody could write in
+    an afternoon. It has sat at `hypothesis` longest because nobody framed it as
+    measurable.
+
+- **Limits, and they are the honest part.**
+  - **This closes the gap between the claim and the artefact. It does not close
+    the gap the claim described.** `research/` now holds a method and a backlog;
+    it holds no read primary source and no measurement. It is more than an empty
+    directory and less than the research programme the name promises.
+  - **Every lead in `open-questions.md` is unverified**, marked as such, and may
+    not be cited by a register entry until read. That rule is deliberately
+    stricter than the alternative — quoting a well-known result from memory —
+    because half the value of such a result is knowing what it does *not* cover,
+    and that half is only available to a reader.
+  - **The guard is shallow on purpose.** `research_test.dart` checks that the
+    directory is not empty and that no subdirectory is an empty promise. It
+    cannot check that the contents are any good, and a test that pretended to
+    would be worse than none.
+  - The counts above are of this register only. They say nothing about the
+    reasoning in doc comments, which is where a good deal of this framework's
+    actual argument lives — `IuxTransientTiming` being the clearest example, and
+    the reason Q1 exists.

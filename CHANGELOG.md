@@ -5,6 +5,59 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `research/` was empty while the charter required traceable evidence
+
+**No library change. Claims, a method, a backlog, and a guard.**
+
+`PROJECT_PROMPT.md` §3 says decisions must rest on serious research and that an
+intuition is not a proof. `research/README.md` described subdirectories for
+accessibility, Android, HCI and UX material. For the whole life of the project
+`research/` held that README and nothing else.
+
+Counted on the register rather than asserted: **156 entries, 74 at level
+`standard`, 74 resting on a named WCAG success criterion, 4 citing Nielsen
+Norman Group, and zero citing primary literature in HCI or cognitive
+psychology** — no reading rate, no working-memory span, no pointing law, no
+visual search. `Hick` appears twice and `Miller` once, each time arguing
+*against* a naive application of the law.
+
+So the two claims are different claims. What is delivered is a **conformance and
+semantics library, tested to an unusual standard**. What is *also* claimed is
+that the framework produces **ergonomic** interfaces, and nothing in the
+register supports that.
+
+Both halves of the report were taken, because they are not alternatives:
+
+- **The claim.** The README states plainly what is delivered and marks the
+  ergonomics an explicitly unsupported ambition. §8 marks its last three source
+  families — HCI literature, cognitive psychology, ergonomics — as ambition
+  rather than practice. §17 records that no component is anchored to a
+  measurement of any of the six things it asks components to reduce.
+- **The directory.** `research/README.md` is now a working method, including the
+  rule that **a citation nobody has read is a lead, not a source** and may not
+  enter a register `Sources` line until somebody has read it.
+  `research/hci/open-questions.md` works the five rules the framework enforces
+  today on an argument alone — the transient dwell, the 60–75 character reading
+  width, the app bar's three-action limit, the 1.3× reflow threshold, and
+  reduced visual stimulation.
+
+**Two findings fell out of writing the backlog.** `kIuxAppBarMaximumActions = 3`
+has no register entry at all despite being enforced by an assertion — and its
+own doc comment argues from width, which the bar already measures, so a better
+rule needs no literature. And `IUX-RUNTIME-006`'s 1.3× threshold is a
+measurement against supported widths rather than a research question; it has sat
+at `hypothesis` longest because nobody framed it as measurable.
+
+`test/package/research_test.dart` guards the shallow part: the directory is not
+empty, and no subdirectory is an empty promise. It cannot check that the
+contents are any good, and a test that pretended to would be worse than none.
+
+**This closes the gap between the claim and the artefact. It does not close the
+gap the claim described** — `research/` holds a method and a backlog, no read
+primary source and no measurement.
+
+See `IUX-RESEARCH-GAP-001`.
+
 ### `IuxListItem` painted its press tint over the row instead of behind it
 
 **Behaviour change, and the reason to take this build.** An interactive row drew
