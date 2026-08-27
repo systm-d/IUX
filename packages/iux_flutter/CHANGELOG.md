@@ -13,6 +13,11 @@ tested accessibility foundations and marks the ergonomics an explicitly
 unsupported ambition. `research/` gains a method and a five-question backlog.
 No library change.
 
+Test infrastructure: `realTap` (`test/support/gestures.dart`) presses with a
+frame between `down` and `up`, the way a finger does, and a per-component sweep
+applies it to everything that redraws while held. `tester.tap()` cannot reach
+the defect class `IUX-SELECTION-PRESS-001` belongs to. No library change.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row
