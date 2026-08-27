@@ -133,6 +133,7 @@ and numeral form all vary and only the caller knows the language.
 | | `autofocus`, `focusNode` | no | |
 | `IuxChipGroup` | `label` | yes | names the set for a screen reader |
 | | `chips` | yes | in reading order |
+| | `mark` | no | `IuxChipMark.checkmark` (default) or `.outline` — see the width budget below |
 
 `onSelectionChanged` is `required` *and* nullable. Null means "this criterion is
 currently unavailable" and produces disabled semantics along with the disabled
@@ -143,6 +144,72 @@ one from the start.
 There is no colour, radius, elevation, icon or duration parameter anywhere in
 this family, and there will not be one. An API that accepts a colour has already
 lost the contrast guarantee.
+
+## The width budget, and the reserved slot
+
+A filter chip is far wider than its label. Measured in-harness at one device
+pixel per logical one, standard density, no text scaling, on a 360-wide screen:
+
+| | `IuxChipMark.checkmark` | `IuxChipMark.outline` |
+| --- | --- | --- |
+| one-character label | 78 px | 56 px |
+| two-character label | 93 px | 65 px |
+| between two chips | 8 px | 8 px |
+| four two-character chips | 120 px, **two lines** | 56 px, **one line** |
+| seven two-character chips | 184 px, **three lines** | 120 px, **two lines** |
+
+With the default mark, on that screen, **four two-character chips do not fit on
+one line and seven take three**. Both are what a set of thresholds or a week of
+days looks like, and both are the case where reading the row at a glance was the
+whole point.
+
+**Shortening the labels does almost nothing.** 22 of a one-character chip's 78
+pixels are the reserved slot and the space before it, and only 16 are the
+character itself. The slot does not care how long the text is, so going from
+three letters to two saves 16 pixels a chip and rarely a whole line. This is not
+intuitive at the moment somebody is trying to compact a row, and three call sites
+in a migrating application left the component over it (`IUX-CHIP-WIDTH-001`).
+
+### `IuxChipMark`
+
+`IuxChipGroup.mark` chooses which of the chip's three selection signals gets the
+width.
+
+- **`checkmark`** — the default. A glyph in a slot reserved whether or not it is
+  filled, plus the heavier outline, plus the announced state. Three signals, one
+  of them a shape rather than a colour or a weight.
+- **`outline`** — no glyph and no slot for one. The fill, the outline weight and
+  the announcement remain. Weight is not colour, so WCAG 2.2 SC 1.4.1 is still
+  satisfied — but a change of outline weight is a quieter signal than a glyph
+  appearing, and quieter for exactly the users the glyph was put there for. That
+  is why it is not the default.
+
+```dart
+IuxChipGroup(
+  label: l10n.refreshInterval,
+  mark: IuxChipMark.outline,
+  chips: intervals,
+)
+```
+
+**Use `outline`** where the row is a short scale the user reads at a glance —
+thresholds, intervals, the days of a week. **Do not** use it for a set of named
+criteria a user picks through, where a chip may be the only thing on screen
+saying a filter is applied.
+
+Neither value reflows. The heavier outline is drawn inside the padding rather
+than added to it, so a chip is the same size chosen as unchosen either way.
+
+`mark` sits on the group rather than on the chip so that a row cannot be half one
+shape and half the other — `chips` is a list of widgets the caller builds, and a
+per-chip parameter would allow a row with a ragged left edge and nothing on
+screen to explain it. It reaches every `IuxFilterChip` below the group, including
+one the caller wrapped in its own widgets. A chip outside any group gets the
+default.
+
+The text widths above are an upper bound: under `flutter_test` every glyph is a
+square of the font size, so a two-character label measures two 16-pixel boxes. A
+proportional face fits more per line. The slot does not change.
 
 ## How the non-colour signal is made structural
 
@@ -344,6 +411,17 @@ IuxStatus.error(l10n.paymentDeclined)
 
 ## Limits
 
+- **`IuxChipMark.outline` gives up a signal, and there is no way to get it back
+  cheaply.** Selection is left carried by the fill, the outline weight and the
+  announcement. A denser mark that kept a shape without holding a slot — a fill
+  covering the whole chip, a rule under the label — was not attempted: it would
+  be a fourth visual language for "chosen" in a library that already has three,
+  and it is the same question `IuxRadioGroup` faces about its ring
+  (`IUX-RADIO-LAYOUT-001`). Both should be answered together or not at all.
+- **The outline mark is still 56 pixels wide for one character.** The floor is
+  the touch target, not the content, so a row of seven still takes two lines on
+  a 360-wide screen. Nothing here can go below `minimumTouchTarget`, and nothing
+  should.
 - **No dot-only status, and no way to ask for one.** This is the most likely
   objection to the design, and the answer is that a bare dot is precisely what
   the component exists to prevent. Where a table genuinely has no room for a

@@ -13,6 +13,11 @@ the semantic tree by construction. It exists because with nowhere in the bar for
 an identity, a migrating application put its wordmark in the page and showed the
 name twice. Additive.
 
+`IuxChipGroup.mark` takes `IuxChipMark.outline`, which gives back the chip's
+reserved checkmark slot — 22 pixels a chip, enough to take four short chips from
+two lines to one. The group's documentation now carries the width budget either
+way. Additive; the reserved slot stays the default, and neither value reflows.
+
 `IuxRadioGroup.layout` takes `IuxRadioGroupLayout.row`, which puts the options
 on a shared line and wraps rather than overflowing. Four short values drop from
 276 pixels to 84. Additive; the column arrangement stays the default, and the
