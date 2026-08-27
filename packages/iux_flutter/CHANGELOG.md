@@ -12,6 +12,11 @@ reserved checkmark slot — 22 pixels a chip, enough to take four short chips fr
 two lines to one. The group's documentation now carries the width budget either
 way. Additive; the reserved slot stays the default, and neither value reflows.
 
+Test infrastructure: `realTap` (`test/support/gestures.dart`) presses with a
+frame between `down` and `up`, the way a finger does, and a per-component sweep
+applies it to everything that redraws while held. `tester.tap()` cannot reach
+the defect class `IUX-SELECTION-PRESS-001` belongs to. No library change.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row

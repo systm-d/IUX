@@ -2781,6 +2781,78 @@ before inserting itself — was rejected without being tried: conditional
 structure changes a subtree's depth, and `IUX-OVERLAY-001` is the record of what
 that costs when it happens on a page.
 
+### IUX-SELECTION-PRESS-001 — The suite could not see a control that no finger could use (FIXED)
+
+- **Level**: standard
+- **Scope**: the instrument, not one component. `IuxSwitch`, `IuxCheckbox` and
+  `IuxRadioGroup` carried the defect; every component that redraws while it is
+  held could have.
+- **Sources**: reported from a device during the Terminus migration
+  (systm-d/IUX#21); WCAG 2.2 SC 2.5.1 (pointer gestures), SC 2.1.1 (keyboard,
+  which kept working throughout and is why the report said "the mouse works")
+- **Status**: cause fixed in `c37a1e0`; the instrument closed here —
+  `realTap` in `test/support/gestures.dart`, `COMPONENT_STANDARD.md` §18.1, and
+  a per-component sweep in
+  `test/components/press_feedback_sweep_test.dart` that checks its own
+  completeness against `lib/src/`.
+
+- **The cause, in one sentence.** `Container(color: …)` inserts a
+  `DecoratedBox` only when the colour is non-null, so the first
+  `onPointerDown` grew a box where there had been none, reparented the
+  `GestureDetector` below it, and disposed the `State` holding the recogniser
+  that was tracking the pointer. The `up` landed nowhere. Wrapping the colour
+  in a `BoxDecoration` that is always present keeps the shape of the tree
+  constant under the pointer.
+
+- **What is registered here is the second half: why nothing saw it.**
+  `tester.tap()` sends `down` and `up` with **no frame between them**. The
+  rebuild that throws the recogniser away happens in that frame, so with no
+  frame there is no rebuild and no defect to observe. The instrument did not
+  miss the defect by bad luck; it could not represent it.
+
+- **Measured, both directions.** With the cause reintroduced against the
+  suite as it stands today: **4 tests of 2 332 fail** — the three in the new
+  sweep, plus the single assertion in `iux_selection_test.dart` that goes
+  through `realTap`. Of the 2 320 tests that existed *before* the fix,
+  **none** fails. Every tap test written directly against the three broken
+  controls passes with the controls unusable, including
+  *the label is part of the target › tapping the text toggles the control*,
+  which is the assertion whose whole subject is that a press reaches the
+  control.
+
+- **The sweep came back clean, and that is a finding rather than a
+  formality.** All nine sources in `lib/src` that hold a `bool _pressed` are
+  now exercised, through the twelve widgets they declare: `IuxButton`,
+  `IuxIconButton`, `IuxFilterChip`, `IuxCard.tappable`,
+  `IuxListItem.tappable`, `IuxCheckbox`, `IuxSwitch`, `IuxRadioGroup`,
+  `IuxBottomNavigation`, `IuxNavigationRail`, `IuxNavigationDrawer`,
+  `IuxTabs`. Twelve cases, twelve passes.
+
+  Of the twelve, five had been *read* and judged sound when the cause was
+  fixed, three were the controls the cause broke, and **four had never been
+  looked at** — the two navigation strips, the drawer and the tabs. Those
+  four are the reason this is a measurement rather than a restatement: they
+  all compose their state layer as `DecoratedBox(decoration: BoxDecoration(…))`
+  unconditionally, which is the shape that cannot lose a recogniser, but
+  nothing established that before this file pressed them.
+
+- **Limits.**
+  - `bool _pressed` is a proxy for "rebuilds under a pointer", and a component
+    could rebuild mid-gesture for some other reason — an incoming stream, a
+    parent's animation — and lose its recogniser the same way. Nothing here
+    watches that.
+  - The remaining ~230 `tester.tap()` call sites in the suite were **not**
+    converted. Each is subject to its own file's question, most of them about
+    a target or a refusal rather than a response, and a blanket rewrite would
+    have changed the settle behaviour of timing-sensitive suites
+    (`iux_async_button_test.dart`, `iux_transient_test.dart`) for no signal
+    the sweep does not already carry. The rule in §18.1 governs assertions
+    about *response*; the sweep is what makes it structural.
+  - `hold` defaults to 80 ms of test time, which is not 80 ms of a device.
+    This proves a frame elapses, not that a real press on real hardware
+    behaves identically. Nothing in this repository has still been validated
+    on a device — see `IUX-MANUAL-001`.
+
 ### IUX-CHIP-WIDTH-001 — The reserved slot cost half the usable width, undocumented (FIXED)
 
 - **Level**: strong_guidance
