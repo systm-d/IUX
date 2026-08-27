@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
+import '../support/gestures.dart';
+
 /// The four theme profiles every component has to survive.
 const List<IuxThemeConfiguration> _profiles = <IuxThemeConfiguration>[
   IuxThemeConfiguration(),
@@ -75,8 +77,7 @@ void main() {
       final List<bool> asked = <bool>[];
       await pump(tester, checkbox(onChanged: asked.add));
 
-      await tester.tap(find.byType(IuxCheckbox));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.byType(IuxCheckbox));
 
       expect(asked, <bool>[true]);
       expect(
@@ -96,8 +97,7 @@ void main() {
         checkbox(value: IuxSelectionState.selected, onChanged: asked.add),
       );
 
-      await tester.tap(find.byType(IuxCheckbox));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.byType(IuxCheckbox));
 
       expect(asked, <bool>[false]);
     });
@@ -112,8 +112,7 @@ void main() {
         checkbox(value: IuxSelectionState.partial, onChanged: asked.add),
       );
 
-      await tester.tap(find.byType(IuxCheckbox));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.byType(IuxCheckbox));
 
       expect(asked, <bool>[true]);
     });
@@ -204,32 +203,20 @@ void main() {
         (WidgetTester tester) async {
       // A 24-pixel box with an untappable label beside it is the classic
       // failure of this component family.
+      //
+      // Through `realTap`, which is the whole of IUX-SELECTION-PRESS-001. The
+      // press feedback rebuilds the row, and a rebuild that changes the shape
+      // of the tree throws away the recognizer tracking the pointer.
+      // `tester.tap()` cannot see that: it sends `down` and `up` with no frame
+      // between them, so the rebuild never lands mid-gesture. A finger always
+      // leaves a frame, which is why this control shipped unusable while this
+      // very assertion passed. `test/support/gestures.dart` carries the rule;
+      // `test/components/press_feedback_sweep_test.dart` applies it to every
+      // other component that redraws under a pointer.
       final List<bool> asked = <bool>[];
       await pump(tester, checkbox(onChanged: asked.add));
 
-      await tester.tap(find.text('Send me the newsletter'));
-      await tester.pumpAndSettle();
-
-      expect(asked, <bool>[true]);
-    });
-
-    testWidgets('a press and a release a frame apart still toggles the control',
-        (WidgetTester tester) async {
-      // The press feedback rebuilds the row, and a rebuild that changes the
-      // shape of the tree throws away the recognizer tracking the pointer.
-      // `tester.tap()` cannot see that: it sends `down` and `up` with no
-      // frame between them, so the rebuild never lands mid-gesture. A finger
-      // always leaves a frame, which is why this failed on a device while
-      // every tap test above passed. IUX-SELECTION-PRESS-001.
-      final List<bool> asked = <bool>[];
-      await pump(tester, checkbox(onChanged: asked.add));
-
-      final TestGesture gesture = await tester.startGesture(
-        tester.getCenter(find.text('Send me the newsletter')),
-      );
-      await tester.pump(const Duration(milliseconds: 80));
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await realTap(tester, find.text('Send me the newsletter'));
 
       expect(asked, <bool>[true]);
     });
@@ -245,8 +232,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('About once a month'));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.text('About once a month'));
 
       expect(asked, <bool>[true]);
     });
@@ -682,8 +668,7 @@ void main() {
       final List<String> chosen = <String>[];
       await pump(tester, _speedGroup(value: 'standard', onChanged: chosen.add));
 
-      await tester.tap(find.text('Express'));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.text('Express'));
 
       expect(chosen, <String>['express']);
     });
@@ -1308,8 +1293,7 @@ void main() {
       );
 
       await pump(tester, checkbox(onChanged: (_) {}));
-      await tester.tap(find.byType(IuxCheckbox));
-      await tester.pumpAndSettle();
+      await realTap(tester, find.byType(IuxCheckbox));
 
       expect(
         platform.where((MethodCall c) => c.method.startsWith('HapticFeedback')),
