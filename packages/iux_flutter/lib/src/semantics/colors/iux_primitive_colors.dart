@@ -136,18 +136,44 @@ abstract final class IuxPrimitiveColors {
   static const Color positive90 = Color(0xFFDDF2E7);
 
   // Caution ramp. Used for warning feedback.
+  //
+  // **This ramp changes hue as it darkens, and that is deliberate.** The light
+  // end is amber, around 42 degrees; the dark end is orange, around 27. A ramp
+  // that held one hue would be wrong at one end or the other, because the hue
+  // that reads as "warning" is not the same hue at every lightness.
+  //
+  // Held above 4.5:1 on white, a yellow is not a yellow any more. `#5E3F00`
+  // and `#7D5400` — this ramp's previous dark end — measure 9.60:1 and 6.69:1
+  // and read as khaki browns, which is not a warning; a consuming application
+  // had to change hue itself to get a warning anybody recognised
+  // (IUX-PALETTE-HEADROOM-001). Orange survives the darkening: `#A34A00`
+  // measures 5.94:1 and still reads as a warning, and it is the convention
+  // public transport already uses.
+  //
+  // The light end has the opposite problem and keeps amber: `caution70` and
+  // `caution80` are content on *dark* surfaces and `caution90` is a tint on a
+  // light one, where an orange bright enough to sit on `neutral90` would drift
+  // towards the critical ramp and stop being distinguishable from it.
+  //
+  // The four dark steps keep the darkness ordering and very nearly the
+  // measurements they replace: 17.46:1, 14.02:1, 8.85:1, 5.94:1 on white,
+  // against 17.37, 13.56, 9.60 and 6.69 before.
 
   /// Deepest caution value, reserved for high contrast feedback content.
-  static const Color caution10 = Color(0xFF251800);
+  static const Color caution10 = Color(0xFF2E1200);
 
   /// Deepest caution value, used for content on light caution surfaces.
-  static const Color caution20 = Color(0xFF402A00);
+  static const Color caution20 = Color(0xFF4A2000);
 
   /// Dark caution value used for caution content on light surfaces.
-  static const Color caution30 = Color(0xFF5E3F00);
+  static const Color caution30 = Color(0xFF7A3700);
 
-  /// Caution value used for caution surfaces in light conditions.
-  static const Color caution40 = Color(0xFF7D5400);
+  /// Caution value used for caution content and surfaces in light conditions.
+  ///
+  /// The one step of this ramp a user reads as body text in the standard light
+  /// profile. 5.94:1 on white — comfortably past AA, deliberately short of
+  /// AAA, so that the high contrast profile has somewhere left to go.
+  static const Color caution40 = Color(0xFFA34A00);
 
   /// Light caution value used for caution content on dark surfaces.
   static const Color caution70 = Color(0xFFEEBB3E);

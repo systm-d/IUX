@@ -7,6 +7,14 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+**Behaviour change on the light standard profile.** Four chromatic content roles
+move one rung lighter — `content.link` and the feedback contents were past AAA
+at 9.16:1 to 9.72:1, leaving the high contrast profile a single rung to
+distinguish itself with. They now clear AA with margin and stop short of AAA on
+purpose. The caution ramp's dark end changes hue to orange: a yellow held above
+4.5:1 on white is a khaki brown, not a warning. `IuxTheme.withSemanticColors` is
+still the way out.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row

@@ -52,7 +52,25 @@ abstract final class IuxColorPalettes {
       disabled: IuxPrimitiveColors.neutral45,
       inverse: IuxPrimitiveColors.neutral5,
       onAction: IuxPrimitiveColors.neutral0,
-      link: IuxPrimitiveColors.accent30,
+      // One rung lighter than it was, and the reason is the profile below
+      // rather than this one. At `accent30` a link measured 9.72:1 on white —
+      // past AAA in the *standard* profile — which left `highContrastLight`
+      // one rung to distinguish itself with, and made "increase contrast" a
+      // setting that returned almost nothing. It also read, to the first user
+      // who saw the light theme, as "too dark, dark blue, dark green, dark
+      // red, it is too much": four roles darkened until they resembled each
+      // other more than they resembled their own meanings.
+      //
+      // 6.30:1 here. Comfortably past the 4.5:1 AA asks for body text, short
+      // of the 7:1 of AAA on purpose, so that the profile whose whole job is
+      // contrast has three rungs of headroom instead of one.
+      // IUX-PALETTE-HEADROOM-001.
+      //
+      // It now matches the accent an unfilled *primary* button paints, which
+      // is the right neighbour: both are the accent applied to text on the
+      // page. `action.secondary.foreground` stays a rung darker and cannot
+      // follow — see there.
+      link: IuxPrimitiveColors.accent40,
     ),
     surface: IuxSurfaceColors(
       base: IuxPrimitiveColors.neutral0,
@@ -90,6 +108,15 @@ abstract final class IuxColorPalettes {
         disabledBackground: IuxPrimitiveColors.neutral10,
       ),
       secondary: IuxActionColors(
+        // Stays at `accent30` while `content.link` moves to `accent40`, and
+        // that is forced rather than chosen. On every unfilled variant this
+        // colour *is* the intent — `IuxButtonThemeResolver` derives primary's
+        // accent from `action.primary.background`, which is `accent40`, and
+        // secondary's from this field. Moving it here makes an outlined,
+        // tonal, text or icon secondary byte-identical to the same primary,
+        // which `button_distinguishability_test.dart` catches immediately:
+        // twelve collisions, measured. The two intents have to differ by
+        // something, and the palette has already spent every other axis.
         foreground: IuxPrimitiveColors.accent30,
         background: IuxPrimitiveColors.neutral0,
         hoveredBackground: IuxPrimitiveColors.neutral5,
@@ -114,30 +141,47 @@ abstract final class IuxColorPalettes {
         disabledBackground: IuxPrimitiveColors.neutral10,
       ),
     ),
+    // Every content and icon role here is one rung lighter than it was, for
+    // the reason `content.link` records: at level 30 all four measured between
+    // 9.16:1 and 9.72:1 on white, so the standard profile was already past AAA
+    // and `highContrastLight` — which sits at level 10 — had nothing left to
+    // add that a user would notice. Level 40 measures 5.21:1 to 5.86:1 on the
+    // tinted surface each one sits on, and 5.94:1 to 6.81:1 on the base.
+    //
+    // The borders stay where they are. They now match their own content
+    // colour, which is what a tinted panel wants: one hue, one weight, and the
+    // 3:1 SC 1.4.11 asks of an outline still measured on the base surface.
     feedback: IuxFeedbackColorSet(
       info: IuxFeedbackRoleColors(
-        content: IuxPrimitiveColors.accent30,
+        content: IuxPrimitiveColors.accent40,
         surface: IuxPrimitiveColors.accent90,
         border: IuxPrimitiveColors.accent40,
-        icon: IuxPrimitiveColors.accent30,
+        icon: IuxPrimitiveColors.accent40,
       ),
       success: IuxFeedbackRoleColors(
-        content: IuxPrimitiveColors.positive30,
+        content: IuxPrimitiveColors.positive40,
         surface: IuxPrimitiveColors.positive90,
         border: IuxPrimitiveColors.positive40,
-        icon: IuxPrimitiveColors.positive30,
+        icon: IuxPrimitiveColors.positive40,
       ),
+      // The one role where a rung was not enough. Held above 4.5:1 on white a
+      // yellow stops being a yellow: `caution30` and `caution40` used to be
+      // `#5E3F00` and `#7D5400`, which read as khaki browns rather than as a
+      // warning, and a consuming application had to leave the ramp to get one
+      // anybody recognised. The dark end of the caution ramp is now orange —
+      // see `IuxPrimitiveColors` for why the ramp bends and the light end does
+      // not. `#A34A00`, 5.94:1 on white and 5.20:1 on `caution90`.
       warning: IuxFeedbackRoleColors(
-        content: IuxPrimitiveColors.caution30,
+        content: IuxPrimitiveColors.caution40,
         surface: IuxPrimitiveColors.caution90,
         border: IuxPrimitiveColors.caution40,
-        icon: IuxPrimitiveColors.caution30,
+        icon: IuxPrimitiveColors.caution40,
       ),
       error: IuxFeedbackRoleColors(
-        content: IuxPrimitiveColors.critical30,
+        content: IuxPrimitiveColors.critical40,
         surface: IuxPrimitiveColors.critical90,
         border: IuxPrimitiveColors.critical40,
-        icon: IuxPrimitiveColors.critical30,
+        icon: IuxPrimitiveColors.critical40,
       ),
     ),
     state: IuxStateColors(

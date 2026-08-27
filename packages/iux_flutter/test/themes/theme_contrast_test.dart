@@ -148,6 +148,135 @@ void main() {
     });
   }
 
+  group('the two light profiles do different jobs', () {
+    // What IUX-PALETTE-HEADROOM-001 is about. Every chromatic content role in
+    // the standard light profile used to measure between 9.16:1 and 9.72:1 —
+    // past AAA — so `highContrastLight` had one rung left to distinguish
+    // itself with, and "increase contrast" returned almost nothing. The first
+    // user shown the light theme read the same thing from the other side:
+    // "too dark, dark blue, dark green, dark red, it is too much".
+    //
+    // The contract is therefore two-sided, and this is the only place in the
+    // suite that asserts an upper bound on contrast.
+    final IuxSemanticColors standard =
+        IuxTheme.resolve(const IuxThemeConfiguration()).colors;
+    final IuxSemanticColors high = IuxTheme.resolve(
+      const IuxThemeConfiguration(
+        profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
+      ),
+    ).colors;
+
+    /// The chromatic content roles, each with the surface it is read on.
+    ///
+    /// `content.primary` is deliberately absent: it is neutral, it carries no
+    /// meaning that a second neutral could be confused with, and it should be
+    /// as dark as the surface allows in both profiles.
+    List<(String, Color, Color)> roles(IuxSemanticColors colors) =>
+        <(String, Color, Color)>[
+          ('content.link', colors.content.link, colors.surface.base),
+          (
+            'feedback.info.content',
+            colors.feedback.info.content,
+            colors.feedback.info.surface
+          ),
+          (
+            'feedback.success.content',
+            colors.feedback.success.content,
+            colors.feedback.success.surface
+          ),
+          (
+            'feedback.warning.content',
+            colors.feedback.warning.content,
+            colors.feedback.warning.surface
+          ),
+          (
+            'feedback.error.content',
+            colors.feedback.error.content,
+            colors.feedback.error.surface
+          ),
+        ];
+
+    test('standard clears AA with margin and stops short of AAA', () {
+      for (final (String name, Color content, Color surface)
+          in roles(standard)) {
+        final double measured = ContrastMetric.ratio(content, surface);
+        expect(
+          measured,
+          greaterThanOrEqualTo(ContrastMetric.normalText),
+          reason: '$name measured ${measured.toStringAsFixed(2)}:1, below AA',
+        );
+        expect(
+          measured,
+          lessThan(ContrastMetric.enhancedText),
+          reason: '$name measured ${measured.toStringAsFixed(2)}:1. A standard '
+              'profile at AAA leaves the high contrast profile nothing to add '
+              'that a user would notice, and darkens four roles until they '
+              'resemble each other more than their own meanings',
+        );
+      }
+    });
+
+    test('high contrast clears AAA on every one of them', () {
+      for (final (String name, Color content, Color surface) in roles(high)) {
+        final double measured = ContrastMetric.ratio(content, surface);
+        expect(
+          measured,
+          greaterThanOrEqualTo(ContrastMetric.enhancedText),
+          reason: '$name measured ${measured.toStringAsFixed(2)}:1, below AAA '
+              'in the profile whose whole job is contrast',
+        );
+      }
+    });
+
+    test('and returns something visible on every one of them', () {
+      // The half that was structurally broken rather than merely dark. Asking
+      // for more contrast has to give more contrast, role by role, not on
+      // average.
+      final List<(String, Color, Color)> before = roles(standard);
+      final List<(String, Color, Color)> after = roles(high);
+
+      for (int index = 0; index < before.length; index++) {
+        final double was =
+            ContrastMetric.ratio(before[index].$2, before[index].$3);
+        final double now =
+            ContrastMetric.ratio(after[index].$2, after[index].$3);
+        expect(
+          now,
+          greaterThan(was),
+          reason: '${before[index].$1} measured '
+              '${was.toStringAsFixed(2)}:1 standard and '
+              '${now.toStringAsFixed(2)}:1 high — the setting has to be worth '
+              'switching on',
+        );
+      }
+    });
+
+    test('the warning role is not the same hue as the surface it sits on', () {
+      // A yellow held above 4.5:1 on white is a khaki brown, which is not a
+      // warning. The dark end of the caution ramp is orange for that reason,
+      // and this is what stops it drifting back: the content hue and the
+      // surface hue are measurably apart, and the content is nearer orange
+      // than the amber tint behind it.
+      final HSLColor content =
+          HSLColor.fromColor(standard.feedback.warning.content);
+      final HSLColor surface =
+          HSLColor.fromColor(standard.feedback.warning.surface);
+
+      expect(
+        content.hue,
+        lessThan(35),
+        reason: 'the warning content measured ${content.hue.round()}°, which '
+            'is amber rather than orange — at this lightness that reads as '
+            'khaki, not as a warning',
+      );
+      expect(
+        surface.hue - content.hue,
+        greaterThan(5),
+        reason: 'the ramp is meant to bend towards orange as it darkens',
+      );
+    });
+  });
+
   group('high contrast strengthens rather than merely differs', () {
     test('content contrast increases in light conditions', () {
       final IuxSemanticColors standard =
