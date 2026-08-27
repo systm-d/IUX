@@ -406,6 +406,7 @@ class _ChipPanel extends StatefulWidget {
 
 class _ChipPanelState extends State<_ChipPanel> {
   final Set<String> _selected = <String>{'Overdue'};
+  String _interval = '15';
 
   static const List<String> _filters = <String>['Draft', 'Paid', 'Overdue'];
 
@@ -487,6 +488,41 @@ class _ChipPanelState extends State<_ChipPanel> {
             'state rather than two independent dimensions. Two of the three '
             'non-colour signals survive, which is why it is a limit rather '
             'than a defect.',
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('the same chips without the reserved slot'),
+          CatalogTestable(
+            what: 'A short scale. Toggle one and watch the row not move — '
+                'there is no glyph left to appear, and the heavier outline is '
+                'drawn inside the padding rather than added to it.',
+            child: IuxChipGroup(
+              label: 'Refresh interval',
+              mark: IuxChipMark.outline,
+              chips: <Widget>[
+                for (final String minutes in <String>['5', '15', '30', '60'])
+                  IuxFilterChip(
+                    label: minutes,
+                    selected: _interval == minutes,
+                    onSelectionChanged: (bool _) =>
+                        setState(() => _interval = minutes),
+                  ),
+              ],
+            ),
+          ),
+          const CatalogNote(
+            'These four take two lines with the reserved slot and one without '
+            'it: 120 pixels against 56, on a 360-wide screen. Seven of them go '
+            'from three lines to two. What costs the width is the slot, not '
+            'the text — 22 of a one-character chip\'s 78 pixels — so '
+            'shortening a label buys almost nothing, which is the part nobody '
+            'guesses while trying to compact a row.',
+          ),
+          const CatalogNote(
+            'The price is a signal. Selection is left to the fill, the outline '
+            'weight and the announcement. Weight is not colour, so SC 1.4.1 '
+            'still holds — but it is quieter than a glyph appearing, and '
+            'quieter for exactly the users the glyph was put there for. Turn '
+            'the display monochrome and compare this row with the one above.',
           ),
           const CatalogNote(
             'The group wraps rather than scrolling sideways. A horizontally '

@@ -15,6 +15,11 @@ purpose. The caution ramp's dark end changes hue to orange: a yellow held above
 4.5:1 on white is a khaki brown, not a warning. `IuxTheme.withSemanticColors` is
 still the way out.
 
+`IuxChipGroup.mark` takes `IuxChipMark.outline`, which gives back the chip's
+reserved checkmark slot — 22 pixels a chip, enough to take four short chips from
+two lines to one. The group's documentation now carries the width budget either
+way. Additive; the reserved slot stays the default, and neither value reflows.
+
 `IuxRadioGroup.layout` takes `IuxRadioGroupLayout.row`, which puts the options
 on a shared line and wraps rather than overflowing. Four short values drop from
 276 pixels to 84. Additive; the column arrangement stays the default, and the

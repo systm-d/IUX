@@ -56,6 +56,44 @@ ceilings. An application whose users mostly need AAA should ship
 
 See `IUX-PALETTE-HEADROOM-001`.
 
+### The chip's reserved slot has a price, and now a documented one and a lever
+
+**Additive. `IuxChipMark.checkmark` is the default and nothing changes for
+existing callers.**
+
+`IuxFilterChip` reserves its checkmark slot whether or not the chip is selected,
+so that toggling one does not reflow the row. That decision is right. **Its cost
+was undocumented**, and it is large: on a 360-wide screen, four two-character
+chips do not fit on one line and seven take three.
+
+| | `checkmark` | `outline` |
+| --- | --- | --- |
+| one-character label | 78 px | 56 px |
+| two-character label | 93 px | 65 px |
+| four two-character chips | 120 px, two lines | **56 px, one line** |
+| seven two-character chips | 184 px, three lines | **120 px, two lines** |
+
+**Shortening the labels does almost nothing**, which is the part nobody guesses
+while trying to compact a row: 22 of a one-character chip's 78 pixels are the
+slot and the space before it, and only 16 are the character. Three call sites in
+a migrating application left the component over exactly this.
+
+`IuxChipGroup` now carries that budget in its own documentation, and
+`IuxChipGroup.mark` is the lever. `IuxChipMark.outline` drops the glyph and the
+slot; selection stays carried by the fill, the outline weight and the announced
+state. Nothing reflows either way — the heavier outline was already drawn inside
+the padding rather than added to it.
+
+**The price is a signal**, and it is why this is not the default: weight is not
+colour, so WCAG 2.2 SC 1.4.1 still holds, but a change of outline weight is
+quieter than a glyph appearing — and quieter for exactly the users the glyph was
+put there for. Use it for short scales the user reads at a glance, not for named
+criteria where a chip may be the only thing saying a filter is applied.
+
+`mark` sits on the group so a row cannot be half one shape and half the other.
+
+See `IUX-CHIP-WIDTH-001`.
+
 ### `IuxRadioGroup` can spend width instead of height
 
 **Additive. `IuxRadioGroupLayout.column` is the default and nothing changes for
