@@ -93,6 +93,66 @@ on a tablet where it fitted perfectly well, and would leave a long one squeezed
 into forty pixels on a phone at 100%. This component can measure, so it
 measures.
 
+## Brand identity belongs in the bar, not at the top of the page
+
+`title` is a `String` and stays one. The heading a screen reader reads has to be
+text IUX owns, and a free widget cannot play that part — that constraint is not
+negotiable and nothing below relaxes it.
+
+But an application whose bar carries an **illustrated wordmark** — a logotype, a
+name set in two colours, a strapline — has to put it somewhere, and until
+`brand` existed there was nowhere. What happened instead, in a real migration,
+is that the wordmark went to the top of the page: the first screen then showed
+the name of the application **twice**, once in the bar and once about ninety
+pixels below it, and the application's own UX audit filed it as a defect. It was
+one. The cause was here (`IUX-APPBAR-BRAND-001`).
+
+**So state the rule first, because it holds with or without the parameter:
+identity does not belong in the page.** A wordmark under the bar is not a
+placement, it is a duplicate — and the fix is to remove it, not to make room for
+it.
+
+```dart
+IuxAppBar(
+  title: l10n.appName,   // still required, still the announced heading
+  brand: const AcmeWordmark(),
+)
+```
+
+`brand` is drawn where the title's text would have been. It is **excluded from
+the semantic tree by construction**: `IuxSemantics.header` already excludes its
+subtree, so a mark cannot announce anything, even one built entirely out of
+labelled widgets. There is no way to pass a mark that reaches a screen reader,
+which is what makes this safe to open up.
+
+### What it costs
+
+**The mark must show the same name `title` says.** A logo reading "Acme" under a
+heading announcing "Orders" leaves a voice-control user asking for a control
+that is not there by that name — WCAG 2.2 SC 2.5.3. Nothing can check this: the
+name is inside an image.
+
+**A mark does not wrap and does not grow with the text scale**, so neither
+guarantee the title carries extends to it:
+
+| | a text title | a mark |
+| --- | --- | --- |
+| too narrow for the shared row | wraps into readable lines | takes its own line |
+| narrower than the mark itself | — | scales down |
+| at 200% text | 2× larger | unchanged |
+
+The stacking decision changes accordingly. For text the bar compares the room
+against a readable fragment — twelve characters — because a title can wrap into
+narrower lines and still be words. A mark cannot: it either fits beside the
+controls or it does not, so the bar compares the room against the mark's **own**
+width. Given less room than that it hands the mark its own full-width line, and
+only if the mark is wider than the bar itself does it scale down. Nothing is
+clipped and nothing paints outside.
+
+**Where the name has to be legible at 200% text, pass no mark.** An image that
+ignores the text scale is a real gap, and the text title is the version that
+does not have it.
+
 ## It is not a `PreferredSizeWidget`, and it does not wrap `AppBar`
 
 `IuxPage` composes with `Scaffold` rather than absorbing it. This does the same,
@@ -237,6 +297,7 @@ in context.
 | Parameter | Required | Note |
 | --- | --- | --- |
 | `title` | yes | the screen's name, already localised; may not be empty |
+| `brand` | no | a mark drawn in place of the title's text; excluded from semantics, `title` stays the heading |
 | `leading` | no | the way out; null for a root screen |
 | `actions` | no | at most three; typed as `IuxIconButton` |
 
@@ -362,7 +423,15 @@ IuxAppBar(title: l10n.orders, actions: <IuxIconButton>[deleteThisOrder])
   separate components; a bar that hosts them stops being a bar.
 - **No subtitle.** A second line of text under the title competes with the one
   thing the bar is for. If the screen needs context beyond its name, that
-  context is content.
+  context is content. A strapline *inside* a `brand` mark is not an exception to
+  this — it is pixels in an image the bar knows nothing about, and it carries
+  none of the guarantees a second title line would have had.
+- **`brand` does not scale with the text setting, and cannot be made to.** The
+  bar hands it a box; what is inside is the caller's. A user who enlarged their
+  text gets a larger heading on every screen except the one carrying the mark.
+  Documented, not solved.
+- **Nothing verifies that a mark says what `title` says.** The name is inside an
+  image. SC 2.5.3 is the caller's to hold.
 - **No collapsing or scroll-under behaviour.** Both need slivers, and `IuxPage`
   scrolls a `SingleChildScrollView`. A sliver-based variant is a separate
   component with a separate contract, not a parameter on this one.

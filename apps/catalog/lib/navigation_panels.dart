@@ -88,6 +88,7 @@ class _AppBarPanelState extends State<_AppBarPanel> {
   int _actionCount = 2;
   int _pressed = 0;
   String _leading = 'back';
+  String _heading = 'text';
 
   IuxAppBarLeading? get _leadingControl => switch (_leading) {
         'back' => IuxAppBarLeading.back(
@@ -127,6 +128,7 @@ class _AppBarPanelState extends State<_AppBarPanel> {
         title: widget.longLabels
             ? 'Zahlungsbestätigungen und offene Rechnungen'
             : 'Invoices',
+        brand: _heading == 'mark' ? const _Wordmark() : null,
         leading: _leadingControl,
         actions: actions,
       ),
@@ -149,6 +151,13 @@ class _AppBarPanelState extends State<_AppBarPanel> {
             values: const <String>['back', 'close', 'none'],
             naming: (String value) => value,
             onChanged: (String value) => setState(() => _leading = value),
+          ),
+          CatalogChoice<String>(
+            label: 'Heading',
+            value: _heading,
+            values: const <String>['text', 'mark'],
+            naming: (String value) => value,
+            onChanged: (String value) => setState(() => _heading = value),
           ),
           CatalogChoice<int>(
             label: 'Actions',
@@ -176,6 +185,32 @@ class _AppBarPanelState extends State<_AppBarPanel> {
             ('Controls pressed', '$_pressed'),
             ('Maximum actions', '$kIuxAppBarMaximumActions'),
           ]),
+          const CatalogNote(
+            'Switch the heading to "mark" and the announced name does not '
+            'change: the title stays a String, stays required, and stays the '
+            'header a screen reader jumps to. The mark is drawn in its place '
+            'and is excluded from the semantic tree by construction — the '
+            'header helper excludes its subtree, so a mark cannot publish a '
+            'label even when it is built out of labelled widgets. Probe the '
+            'semantics and compare.',
+          ),
+          const CatalogNote(
+            'What the mark gives up is the two guarantees the text carries. It '
+            'does not wrap, so where a title would break into narrower lines '
+            'the mark takes a line of its own — raise the action count and '
+            'watch the threshold move. And it does not grow with the text '
+            'setting: turn the scale to 200% and the mark is the one thing on '
+            'screen that did not change size. That is the reason to prefer the '
+            'text wherever the name has to be legible enlarged.',
+          ),
+          const CatalogNote(
+            'It exists because the alternative was measured and was worse. '
+            'With nowhere in the bar for a wordmark, an application put it at '
+            'the top of the page and its first screen then showed the name '
+            'twice, ninety pixels apart. Identity does not belong in the '
+            'page — a wordmark under the bar is a duplicate to remove, not a '
+            'placement.',
+          ),
           const CatalogNote(
             'The back and close constructors are separate because they are '
             'different promises. Back returns to where the user came from; '
@@ -887,4 +922,58 @@ class _NavigationRefusalPanel extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// A stand-in for the kind of illustrated wordmark `IuxAppBar.brand` exists
+/// for: a glyph, a name in two colours, and a strapline under it.
+///
+/// Built out of widgets rather than shipped as an image so the catalog stays
+/// asset-free — an application would pass an `Image.asset` or an `SvgPicture`
+/// here and the bar would treat it identically. Note that this deliberately
+/// reads its colours from the theme; a real wordmark usually would not, which
+/// is one more reason it is the caller's widget rather than the bar's.
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+    final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(Icons.receipt_long, color: colors.content.link),
+        SizedBox(width: geometry.spacingXxs),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text.rich(
+              TextSpan(
+                children: <TextSpan>[
+                  TextSpan(
+                    text: 'Acme',
+                    style: typography.title
+                        .copyWith(color: colors.content.primary),
+                  ),
+                  TextSpan(
+                    text: 'Bill',
+                    style:
+                        typography.title.copyWith(color: colors.content.link),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'invoices',
+              style: typography.supporting
+                  .copyWith(color: colors.content.secondary),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

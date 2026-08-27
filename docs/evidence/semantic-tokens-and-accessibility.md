@@ -2780,3 +2780,72 @@ transparent Materials. A conditional ground — one that checked for an ancestor
 before inserting itself — was rejected without being tried: conditional
 structure changes a subtree's depth, and `IUX-OVERLAY-001` is the record of what
 that costs when it happens on a page.
+
+### IUX-APPBAR-BRAND-001 — A textual title alone pushed brand identity into the page (FIXED)
+
+- **Level**: strong_guidance
+- **Scope**: `IuxAppBar.brand`, additive; null by default and nothing changes
+  for a bar that does not pass it
+- **Sources**: WCAG 2.2 SC 4.1.2 (name, role, value), SC 2.5.3 (label in name),
+  SC 1.4.4 (resize text); reported from a device during the Terminus migration
+  (systm-d/IUX#25)
+- **Status**: implemented, measured in `test/components/iux_app_bar_test.dart`,
+  group *a brand mark, drawn where the title would be*; sampled in
+  `apps/catalog/lib/navigation_panels.dart`
+
+- **The report, and it was filed as a discussion rather than a defect.**
+  `IuxAppBar.title` is a `String` on purpose: the heading a screen reader reads
+  has to be text this component owns, and a free widget cannot play that part.
+  The reasoning holds. What the report records is the friction it produced —
+  an application migrating a bar that carried an **illustrated wordmark** (a
+  glyph, a name set in two colours, a strapline) had nowhere to put it, so the
+  wordmark went to the top of the page. The first screen then showed the name
+  of the application **twice**, about ninety pixels apart, and the
+  application's own UX audit filed that as a defect. It was one. The cause was
+  here.
+
+- **The rule comes first, and it holds with or without the parameter.**
+  Identity does not belong in the page. A wordmark under the bar is not a
+  placement, it is a duplicate, and the fix is to remove it. That sentence was
+  missing from `docs/components/app-bar.md`, which explained why the title is
+  textual and said nothing about what an application carrying an identity
+  should therefore do. It is now there, and it is the half of this the reporter
+  said was most missing.
+
+- **The parameter does not reopen anything.** `brand` is drawn where the
+  title's text would have been; `title` stays required and stays the announced
+  heading. The exclusion is **structural rather than requested**:
+  `IuxSemantics.header` already sets `excludeSemantics`, so nothing below that
+  node reaches the tree. Measured with a mark built out of a deliberately
+  labelled `Semantics` widget — the label is absent from the tree and the title
+  string is what is announced.
+
+- **The layout decision changes shape, and had to.** For a text title the bar
+  compares the room left by the controls against a *readable fragment* — twelve
+  characters — because a title that does not fit can wrap into narrower lines
+  and still be words. A mark cannot wrap: it either fits beside the controls or
+  it does not. `readableTitle` is therefore infinity when a mark is present, so
+  the comparison is against the mark's own width and a mark that does not fit
+  takes its own full-width line. Only a mark wider than the bar itself scales
+  down, which is the last degradation available and is bounded. Both branches
+  are measured, and so is the intrinsic protocol `IUX-APPBAR-PAGE-001` bought.
+
+- **Limits, and the first two are real accessibility costs.**
+  - **A mark does not grow with the text scale.** A user who enlarged their
+    text gets a larger heading on every screen except the one carrying the
+    mark. The bar hands the mark a box; what is inside is the caller's, and
+    nothing here can reflow an image. Documented on the parameter, in the
+    component page and in the catalog. **Where the name has to be legible at
+    200%, the answer is to pass no mark.**
+  - **Nothing verifies that a mark says what `title` says.** A logo reading
+    "Acme" under a heading announcing "Orders" leaves a voice-control user
+    asking for a control that is not there by that name (SC 2.5.3). The name is
+    inside an image; the caller holds this.
+  - **A strapline inside a mark is not the subtitle this component still
+    refuses.** It is pixels the bar knows nothing about, and it carries none of
+    the guarantees a second title line would have had. The refusal is unchanged.
+  - The alternative design — a separate decorative slot beside the title, which
+    is what the report proposed first — was not taken. It would have put the
+    identity and the screen name side by side, which for the reporting
+    application means the name of the application twice again, in a narrower
+    strip. Replacing the text is what actually removes the duplicate.
