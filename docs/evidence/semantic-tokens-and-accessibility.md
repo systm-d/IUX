@@ -2924,3 +2924,79 @@ that costs when it happens on a page.
     proportional face fits more per line than any number here claims. Nothing
     was measured on a device — `IUX-MANUAL-001`.
   - Arrow-key traversal within a group is still absent, in both arrangements.
+
+### IUX-CHIP-WIDTH-001 — The reserved slot cost half the usable width, undocumented (FIXED)
+
+- **Level**: strong_guidance
+- **Scope**: `IuxChipGroup.mark`, additive; the default is unchanged
+- **Sources**: WCAG 2.2 SC 1.4.1 (use of colour), SC 2.5.8 (target size);
+  reported from a device during the Terminus migration (systm-d/IUX#23)
+- **Status**: implemented as `IuxChipMark`, measured in
+  `test/components/iux_status_test.dart`, group *the reserved slot is a choice,
+  and it has a price in width*; sampled in
+  `apps/catalog/lib/status_panels.dart`
+
+- **The report.** Three usages left `IuxFilterChip` for this reason alone — all
+  of them short value scales (thresholds, intervals, days), which is precisely
+  the case where reading the row at a glance was the point. The decision to
+  reserve the checkmark slot is documented and correct; **its cost was not
+  documented at all**, and an integrator met it by measuring a golden.
+
+- **Measured here**, at one device pixel per logical one, standard density, no
+  text scaling, on a 360-wide screen:
+
+  | | `checkmark` | `outline` |
+  | --- | --- | --- |
+  | one-character label | 78 px | 56 px |
+  | two-character label | 93 px | 65 px |
+  | between two chips | 8 px | 8 px |
+  | four two-character chips | 120 px, **two lines** | 56 px, **one line** |
+  | seven two-character chips | 184 px, **three lines** | 120 px, **two lines** |
+
+  The three-line result for seven chips reproduces the report exactly.
+
+- **The counter-intuitive part, and the reason the report exists.** 22 of a
+  one-character chip's 78 pixels are the reserved slot and the space before it;
+  only 16 are the character. The slot does not scale with the text, so dropping
+  a letter saves 16 pixels a chip and rarely a whole line — which is why the
+  reporter tried three letters, then two, and gained nothing. It is asserted
+  rather than described: the test proves the slot is worth more than a second
+  character is.
+
+- **The fix has two halves and the first is the one the issue asked for.**
+  `IuxChipGroup` now carries the width budget in its own documentation, with
+  the table above. `docs/components/badges-and-chips.md` repeats it where an
+  integrator looks first.
+
+- **The second half is `IuxChipMark.outline`**: no glyph and no slot for one.
+  Selection is left to the fill, the outline weight and the announced state.
+  **Nothing reflows** — the heavier outline was already drawn inside the
+  padding rather than added to it, and with no glyph in either state there is
+  nothing left to appear, so the guarantee the slot existed for holds without
+  it.
+
+- **It is set on the group, not the chip.** `chips` is a list of widgets the
+  caller builds, so a per-chip parameter would permit a row with three chips
+  reserving a slot and four not — a ragged left edge with nothing on screen to
+  explain it. An inherited scope inside `IuxChipGroup` makes that
+  unrepresentable; a chip outside any group resolves to the default, which is
+  the stronger of the two.
+
+- **Limits.**
+  - **It gives up a signal, and that is why it is not the default.** Weight is
+    not colour, so SC 1.4.1 still holds without the glyph — but a change of
+    outline weight is quieter than a glyph appearing, and quieter for exactly
+    the users the glyph was put there for. Documented on the enum value, in the
+    component page, and in the catalog beside a standard row to compare
+    against.
+  - **56 pixels is still the floor for one character**, because the floor is
+    the touch target rather than the content. Seven chips still take two lines
+    at 360. Nothing here can go below `minimumTouchTarget` and nothing should.
+  - **No third option was attempted.** A mark that kept a shape without holding
+    a slot — a fill covering the whole chip, a rule under the label — would be a
+    fourth visual language for "chosen" in a library that already has three, and
+    it is the same open question `IUX-RADIO-LAYOUT-001` records about the radio
+    group's ring. Both should be answered together or not at all.
+  - The text widths are an upper bound: under `flutter_test` every glyph is a
+    square of the font size. A proportional face fits more per line; the slot
+    does not change. Nothing was measured on a device — `IUX-MANUAL-001`.

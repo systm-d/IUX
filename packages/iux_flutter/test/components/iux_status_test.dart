@@ -508,6 +508,298 @@ void main() {
     });
   });
 
+  group('the reserved slot is a choice, and it has a price in width', () {
+    /// A group of chips of [labels], measured on a 360-wide screen.
+    ///
+    /// The width every measurement below is taken at, because it is the
+    /// narrowest ordinary phone and the case the report was written from.
+    Future<void> row(
+      WidgetTester tester,
+      List<String> labels, {
+      IuxChipMark mark = IuxChipMark.checkmark,
+      double textScale = 1,
+    }) =>
+        host(
+          tester,
+          SizedBox(
+            width: 360,
+            child: IuxChipGroup(
+              label: 'Refresh interval',
+              mark: mark,
+              chips: <Widget>[
+                for (final String label in labels)
+                  IuxFilterChip(
+                    label: label,
+                    selected: label == labels.first,
+                    onSelectionChanged: (bool _) {},
+                  ),
+              ],
+            ),
+          ),
+          size: const Size(360, 800),
+          textScale: textScale,
+        );
+
+    /// How many lines the chips occupy.
+    int lineCount(WidgetTester tester, int count) {
+      final List<double> tops = <double>[];
+      for (int index = 0; index < count; index++) {
+        final double top =
+            tester.getRect(find.byType(IuxFilterChip).at(index)).top;
+        if (!tops.any((double seen) => (seen - top).abs() < 0.5)) tops.add(top);
+      }
+      return tops.length;
+    }
+
+    double chipWidth(WidgetTester tester) =>
+        tester.getSize(find.byType(IuxFilterChip).first).width;
+
+    Finder checkGlyph() => find.descendant(
+          of: find.byType(IuxFilterChip),
+          matching: find.byIcon(Icons.check),
+        );
+
+    /// The outline a chip actually paints, read from what it was given.
+    Border outlineOf(WidgetTester tester, int index) {
+      final AnimatedContainer container = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byType(IuxFilterChip).at(index),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      return (container.decoration! as BoxDecoration).border! as Border;
+    }
+
+    testWidgets('the slot costs more than the label it sits beside',
+        (WidgetTester tester) async {
+      // The number that is not intuitive, and the reason three call sites in
+      // a migrating application shortened their labels and gained nothing.
+      await row(tester, <String>['5']);
+      final double reserved = chipWidth(tester);
+
+      await row(tester, <String>['5'], mark: IuxChipMark.outline);
+      final double given = chipWidth(tester);
+
+      await row(tester, <String>['15']);
+      final double twoCharacters = chipWidth(tester);
+
+      expect(
+        reserved - given,
+        greaterThan(twoCharacters - reserved),
+        reason: 'one character measured $reserved with the slot and $given '
+            'without it, while a second character adds only '
+            '${twoCharacters - reserved} — so the slot is worth more than the '
+            'text, and shortening a label is the wrong lever',
+      );
+    });
+
+    testWidgets('four short chips stop needing a second line',
+        (WidgetTester tester) async {
+      const List<String> intervals = <String>['5', '15', '30', '60'];
+
+      await row(tester, intervals);
+      expect(lineCount(tester, 4), 2);
+      final double reserved = tester.getSize(find.byType(IuxChipGroup)).height;
+
+      await row(tester, intervals, mark: IuxChipMark.outline);
+      expect(lineCount(tester, 4), 1);
+      expect(
+        tester.getSize(find.byType(IuxChipGroup)).height,
+        lessThan(reserved),
+      );
+    });
+
+    testWidgets('seven short chips drop a line', (WidgetTester tester) async {
+      const List<String> days = <String>[
+        'Lu',
+        'Ma',
+        'Me',
+        'Je',
+        'Ve',
+        'Sa',
+        'Di',
+      ];
+
+      await row(tester, days);
+      expect(lineCount(tester, 7), 3);
+
+      await row(tester, days, mark: IuxChipMark.outline);
+      expect(lineCount(tester, 7), 2);
+    });
+
+    testWidgets('an outline group draws no glyph, chosen or not',
+        (WidgetTester tester) async {
+      await row(
+        tester,
+        <String>['5', '15'],
+        mark: IuxChipMark.outline,
+      );
+
+      expect(checkGlyph(), findsNothing);
+    });
+
+    testWidgets('and still does not reflow when one is chosen',
+        (WidgetTester tester) async {
+      // The guarantee the reserved slot existed for. Without a glyph in either
+      // state there is nothing left to appear, and the heavier outline is
+      // already drawn inside the padding rather than added to it.
+      await host(
+        tester,
+        IuxChipGroup(
+          label: 'Refresh interval',
+          mark: IuxChipMark.outline,
+          chips: <Widget>[
+            IuxFilterChip(
+              label: '15',
+              selected: false,
+              onSelectionChanged: (bool _) {},
+            ),
+          ],
+        ),
+      );
+      final double unselected = chipWidth(tester);
+
+      await host(
+        tester,
+        IuxChipGroup(
+          label: 'Refresh interval',
+          mark: IuxChipMark.outline,
+          chips: <Widget>[
+            IuxFilterChip(
+              label: '15',
+              selected: true,
+              onSelectionChanged: (bool _) {},
+            ),
+          ],
+        ),
+      );
+
+      expect(chipWidth(tester), unselected);
+    });
+
+    testWidgets('the two signals it keeps are the two that were not the glyph',
+        (WidgetTester tester) async {
+      // The heavier outline survives a monochrome screen, and the announced
+      // state survives having no screen at all. Dropping the glyph leaves both.
+      await row(tester, <String>['5', '15'], mark: IuxChipMark.outline);
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('5')),
+        matchesSemantics(
+          label: '5',
+          isButton: true,
+          isSelected: true,
+          hasSelectedState: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          hasFocusAction: true,
+          hasTapAction: true,
+        ),
+      );
+
+      final Border chosen = outlineOf(tester, 0);
+      final Border unchosen = outlineOf(tester, 1);
+      expect(chosen.top.width, greaterThan(unchosen.top.width));
+    });
+
+    testWidgets('every chip still meets the target floor',
+        (WidgetTester tester) async {
+      for (final IuxDensity density in IuxDensity.values) {
+        await host(
+          tester,
+          SizedBox(
+            width: 360,
+            child: IuxChipGroup(
+              label: 'Refresh interval',
+              mark: IuxChipMark.outline,
+              chips: <Widget>[
+                for (final String label in <String>['5', '15', '30'])
+                  IuxFilterChip(
+                    label: label,
+                    selected: false,
+                    onSelectionChanged: (bool _) {},
+                  ),
+              ],
+            ),
+          ),
+          configuration: IuxThemeConfiguration(
+            profile: IuxAccessibilityProfile(density: density),
+          ),
+          size: const Size(360, 800),
+        );
+
+        for (int index = 0; index < 3; index++) {
+          final Size size =
+              tester.getSize(find.byType(IuxFilterChip).at(index));
+          expect(
+            size.shortestSide,
+            greaterThanOrEqualTo(IuxTouchTarget.minimum),
+            reason: '${density.name} left chip $index below the floor',
+          );
+        }
+      }
+    });
+
+    testWidgets('a chip outside any group keeps the slot',
+        (WidgetTester tester) async {
+      // The default is the stronger of the two, so the absence of a group
+      // resolves rather than guessing.
+      await host(
+        tester,
+        IuxFilterChip(
+          label: '15',
+          selected: true,
+          onSelectionChanged: (bool _) {},
+        ),
+      );
+
+      expect(checkGlyph(), findsOneWidget);
+    });
+
+    testWidgets('the group decides for chips nested inside a caller layout',
+        (WidgetTester tester) async {
+      // Inherited rather than passed, so a row cannot be half one shape and
+      // half the other. A chip the caller wrapped in its own widgets is still
+      // in the group.
+      await host(
+        tester,
+        IuxChipGroup(
+          label: 'Refresh interval',
+          mark: IuxChipMark.outline,
+          chips: <Widget>[
+            Padding(
+              padding: EdgeInsets.zero,
+              child: IuxFilterChip(
+                label: '15',
+                selected: true,
+                onSelectionChanged: (bool _) {},
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(checkGlyph(), findsNothing);
+    });
+
+    testWidgets('it still wraps rather than overflowing at 200% text',
+        (WidgetTester tester) async {
+      await row(
+        tester,
+        <String>['5', '15', '30', '60'],
+        mark: IuxChipMark.outline,
+        textScale: 2,
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(IuxChipGroup)).width,
+        lessThanOrEqualTo(360),
+      );
+    });
+  });
+
   group('a read-only chip does not pretend to be a control', () {
     testWidgets('it is announced as a label, with no button flag',
         (WidgetTester tester) async {
