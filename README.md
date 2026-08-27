@@ -37,6 +37,38 @@ user, and names the compositions to avoid.
 No manual accessibility validation has been performed on hardware. Every
 accessibility claim here rests on widget tests.
 
+## What it is, and what it is not yet
+
+IUX is described — in `PROJECT_PROMPT.md` §2, and by this README's own opening —
+as a way to build applications that are, among other things, **ergonomic**. Two
+different things are true about that word and they should not be run together.
+
+**What is delivered is a conformance and semantics library, and it is
+rigorous.** Every claim is probed rather than read: the evidence register has
+156 entries, each carrying its level and its limits, and 74 of them rest on a
+named WCAG success criterion. That is more than most libraries in this space can
+show. (Counted on `c37a1e0`, so that entries added by the work this section
+describes are not counted as evidence for it.)
+
+**What is not delivered is the ergonomics.** Counting what the register actually
+cites: exactly **one** entry rests on primary literature in human–computer
+interaction — `IUX-LOAD-001`, for the ~0.1 s response-time threshold
+(Miller 1968, Nielsen 1993), and in its prose rather than in its `Sources` line.
+Four entries cite Nielsen Norman Group, a secondary source. Nothing anywhere
+rests on reading rate, working-memory span, a pointing law or visual search —
+the four that this library's own rules would need. The two rules with any
+ergonomic flavour — the 60–75 character reading width and the reflow threshold
+for enlarged text — are graded `hypothesis` by IUX itself.
+
+So read the framework as **accessibility foundations that are conformant and
+tested**, and read the ergonomics as an **explicitly unsupported ambition**. The
+gap was reported by an integrator (`IUX-RESEARCH-GAP-001`); the work that would
+close it is now a named backlog in
+[research/hci/open-questions.md](research/hci/open-questions.md) — five numbers
+the framework enforces today on an argument alone, each with what would settle
+it. One of the five turns out to need no research at all, and one of them is
+enforced by an assertion without appearing in the register.
+
 ## Repository structure
 
 - `packages/iux_flutter/`: primary Flutter package.
@@ -48,7 +80,9 @@ accessibility claim here rests on widget tests.
   only written record of the correct composition.
 - `docs/`: architecture, accessibility, component, foundation, pattern, and
   decision documentation.
-- `research/`: traceable research material for future UX decisions.
+- `research/`: the evidence behind decisions that standards do not settle — a
+  method and an open backlog, honest about being neither yet a bibliography nor
+  a research programme.
 - `tools/`: shared development tooling when it becomes necessary.
 
 ## Prerequisites

@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+Repository claims and `research/`: the register cites zero primary HCI or
+cognitive-psychology literature, so the README now describes IUX as conformant,
+tested accessibility foundations and marks the ergonomics an explicitly
+unsupported ambition. `research/` gains a method and a five-question backlog.
+No library change.
+
 `IuxAppBar.brand` draws a wordmark where the title's text would have been, while
 `title` stays required and stays the announced heading; the mark is excluded from
 the semantic tree by construction. It exists because with nowhere in the bar for
