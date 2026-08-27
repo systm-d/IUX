@@ -13,6 +13,11 @@ the semantic tree by construction. It exists because with nowhere in the bar for
 an identity, a migrating application put its wordmark in the page and showed the
 name twice. Additive.
 
+Test infrastructure: `realTap` (`test/support/gestures.dart`) presses with a
+frame between `down` and `up`, the way a finger does, and a per-component sweep
+applies it to everything that redraws while held. `tester.tap()` cannot reach
+the defect class `IUX-SELECTION-PRESS-001` belongs to. No library change.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row
