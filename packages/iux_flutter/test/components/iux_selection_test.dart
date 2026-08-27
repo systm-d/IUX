@@ -1077,22 +1077,18 @@ void main() {
 
     testWidgets('an option on a shared line answers a real press',
         (WidgetTester tester) async {
-      // A press and a release a frame apart, because `tester.tap()` sends
-      // both with none in between and so cannot see a control that loses its
-      // recognizer to a rebuild mid-gesture — IUX-SELECTION-PRESS-001, which
-      // is exactly what a new arrangement of this component could reintroduce.
+      // Through `realTap`, as COMPONENT_STANDARD.md §18.1 requires of any
+      // assertion that a component *responds* to a press: `tester.tap()` sends
+      // `down` and `up` with no frame between them and so cannot see a control
+      // that loses its recognizer to a rebuild mid-gesture. A new arrangement
+      // of this component is exactly what could reintroduce that.
       final List<int> chosen = <int>[];
       await pump(
         tester,
         intervals(layout: IuxRadioGroupLayout.row, onChanged: chosen.add),
       );
 
-      final TestGesture gesture = await tester.startGesture(
-        tester.getCenter(find.text('10 min')),
-      );
-      await tester.pump(const Duration(milliseconds: 80));
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await realTap(tester, find.text('10 min'));
 
       expect(chosen, <int>[10]);
     });
