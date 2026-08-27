@@ -2853,6 +2853,78 @@ that costs when it happens on a page.
     behaves identically. Nothing in this repository has still been validated
     on a device — see `IUX-MANUAL-001`.
 
+### IUX-RADIO-LAYOUT-001 — The group had one shape, and its height made it unusable (FIXED)
+
+- **Level**: strong_guidance
+- **Scope**: `IuxRadioGroup.layout`, additive; the default is unchanged
+- **Sources**: WCAG 2.2 SC 2.5.8 (target size), SC 2.5.5 (target size, enhanced);
+  reported from a device during the Terminus migration (systm-d/IUX#21..#26,
+  issue #22)
+- **Status**: implemented as `IuxRadioGroupLayout`, measured in
+  `test/components/iux_selection_test.dart`, group *a group can spend width
+  instead of height*; sampled in `apps/catalog/lib/input_panels.dart`
+
+- **The report.** `IuxRadioGroup` was tried on the six exclusive choices of one
+  settings screen, then removed from the whole project after three attempts.
+  Six groups of that shape pushed the section after them well below the fold.
+  The application shipped a replacement built out of `IuxTapTarget`,
+  `IuxSemantics.selection` and `IuxSemantics.radioGroup` — the IUX pieces,
+  reassembled, because the component would not do it.
+
+- **The diagnosis in the report is right, and it is worth restating.** The
+  spacing was never the problem: `_SpacedColumn` applies 8 pixels, which is
+  correct. What costs the height is the **48-pixel row each option reserves** —
+  the guaranteed touch target — for a label 24 pixels tall. A 64-pixel step per
+  option, 256 for four values. And there is no lever, by design:
+  `IuxTapTarget.minimumSize` "only ever raises it"; `IuxDensity.compact`
+  multiplies *spacings* by 0.875 and leaves the floor alone, taking 64 to about
+  61. Both refusals are correct. The floor is the one number here that is not a
+  matter of taste.
+
+- **So the answer is not a smaller option, it is a second arrangement.**
+  `IuxRadioGroupLayout.row` lays the options out with `IuxTargetSpacing` on the
+  horizontal axis — the same primitive `IuxChipGroup` uses, a spaced `Wrap`.
+  Measured at one device pixel per logical one:
+
+  | options | width | stacked | shared line |
+  | --- | --- | --- | --- |
+  | `3 min` `5 min` `10 min` `15 min` | 400 | 276 px | **148 px** |
+  | `3` `5` `10` `15` | 360 | 276 px | **84 px** |
+  | seven weekday abbreviations | 360 | 468 px | **148 px** |
+
+- **The spacing floor is kept, and that is a departure from the report.** The
+  application's replacement lets its targets touch, justified on SC 2.5.8 being
+  satisfied by size alone at 48 pixels. That is true of the success criterion
+  and beside the point of the IUX rule, which exists because a finger landing
+  near a seam has no margin whichever side it drifts to — and a shared line is
+  the arrangement where fingers are closest together. Keeping the floor still
+  delivers the whole saving, because what was being paid for was rows, not gaps.
+
+- **Nothing else changes.** Same ring, same target floor at every density, same
+  announcement — the option flags asserted for a shared line are the stacked
+  group's expectations verbatim, so a screen-reader user cannot tell which was
+  chosen. Options that stop fitting move to the next line rather than shrinking
+  or clipping, which is what keeps this usable at 200% text: measured on a
+  320-wide screen at twice the text size, the group wraps, reports no exception
+  and stays inside its width.
+
+- **Limits.**
+  - **No compact mark.** A shared line saves height by using width and by
+    nothing else. Selection carried by the outline and the fill, rather than by
+    a ring in permanent reserve, would save more — and is the same question
+    `IuxFilterChip` faces about its reserved checkmark slot (issue #23). It
+    should be answered once for both rather than twice differently.
+  - **Long labels are not refused.** A label long enough to wrap gives a ragged
+    block in which no option owns an edge. There is no assertion, because the
+    same words are short in one language and long in another and a run-time
+    refusal would break the translation rather than the layout. Documented on
+    the enum value and in `docs/components/selection-controls.md`.
+  - **The widths above are an upper bound.** Under `flutter_test` every glyph is
+    a square of the font size, so `10 min` measures six 16-pixel boxes. A
+    proportional face fits more per line than any number here claims. Nothing
+    was measured on a device — `IUX-MANUAL-001`.
+  - Arrow-key traversal within a group is still absent, in both arrangements.
+
 ### IUX-CHIP-WIDTH-001 — The reserved slot cost half the usable width, undocumented (FIXED)
 
 - **Level**: strong_guidance
