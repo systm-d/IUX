@@ -7,6 +7,14 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+**Behaviour change on the light standard profile.** Four chromatic content roles
+move one rung lighter — `content.link` and the feedback contents were past AAA
+at 9.16:1 to 9.72:1, leaving the high contrast profile a single rung to
+distinguish itself with. They now clear AA with margin and stop short of AAA on
+purpose. The caution ramp's dark end changes hue to orange: a yellow held above
+4.5:1 on white is a khaki brown, not a warning. `IuxTheme.withSemanticColors` is
+still the way out.
+
 `IuxChipGroup.mark` takes `IuxChipMark.outline`, which gives back the chip's
 reserved checkmark slot — 22 pixels a chip, enough to take four short chips from
 two lines to one. The group's documentation now carries the width budget either
