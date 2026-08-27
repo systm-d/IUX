@@ -7,6 +7,11 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+`IuxChipGroup.mark` takes `IuxChipMark.outline`, which gives back the chip's
+reserved checkmark slot — 22 pixels a chip, enough to take four short chips from
+two lines to one. The group's documentation now carries the width budget either
+way. Additive; the reserved slot stays the default, and neither value reflows.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row
