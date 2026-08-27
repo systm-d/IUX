@@ -43,6 +43,57 @@ caller's to hold.
 
 See `IUX-APPBAR-BRAND-001`.
 
+### The standard light palette had already spent the high contrast profile's room
+
+**Behaviour change for every application on the light standard profile.** Four
+content roles get one rung lighter and the caution ramp changes hue.
+
+Every chromatic content role in the standard light profile measured past AAA on
+white — `content.link` and `feedback.info.content` at 9.72:1,
+`feedback.success.content` at 9.16:1, `feedback.warning.content` at 9.60:1,
+`feedback.error.content` at 9.69:1.
+
+That cost two different things. **Structurally**, `highContrastLight` had one
+rung left for the link — `accent30` to `accent20` — so the setting whose whole
+purpose is separation returned almost nothing. **In use**, the first report from
+a user shown the light theme was "the contrast is too dark, dark blue, dark
+green, dark red, it is too much": four roles darkened until they resembled each
+other more than they resembled their own meanings.
+
+| role | was | now |
+| --- | --- | --- |
+| `content.link`, `feedback.info.*` | `accent30`, 9.72:1 | `accent40`, **6.30:1** |
+| `feedback.success.*` | `positive30`, 9.16:1 | `positive40`, **6.31:1** |
+| `feedback.error.*` | `critical30`, 9.69:1 | `critical40`, **6.81:1** |
+| `feedback.warning.*` | `caution30`, 9.60:1 | `caution40`, **5.94:1** |
+
+The contract is now two-sided, and `theme_contrast_test.dart` is the only place
+in the suite that asserts an **upper** bound on contrast: standard clears AA and
+stops short of AAA on every chromatic content role, high contrast clears AAA on
+every one of them, and high contrast measures strictly higher **role by role**
+rather than on average. `content.primary` is exempt — it is neutral and should
+be as dark as the surface allows in both profiles.
+
+**The caution ramp needed a hue change rather than a rung.** Held above 4.5:1 on
+white a yellow is not a yellow: `#5E3F00` and `#7D5400` read as khaki browns, and
+the reporting application had to leave the ramp to get a warning anybody
+recognised. Its dark end is now orange — `#A34A00`, 5.94:1 — keeping the darkness
+ordering and very nearly the ratios it replaces. The light end stays amber: an
+orange bright enough to sit on `neutral90` drifts towards the critical ramp. The
+hue that reads as "warning" is not the same hue at every lightness, so the ramp
+bends.
+
+`action.secondary.foreground` stays at `accent30`, and that is forced rather than
+chosen: on every unfilled variant it *is* the intent, and moving it made twelve
+secondary buttons byte-identical to the same primary. Measured, not assumed.
+
+**The upper bound is IUX's judgement, not a standard** — WCAG sets floors and no
+ceilings. An application whose users mostly need AAA should ship
+`IuxContrast.high` as its default rather than push the standard profile up.
+`IuxTheme.withSemanticColors` remains the way out either way.
+
+See `IUX-PALETTE-HEADROOM-001`.
+
 ### The chip's reserved slot has a price, and now a documented one and a lever
 
 **Additive. `IuxChipMark.checkmark` is the default and nothing changes for

@@ -3001,6 +3001,92 @@ that costs when it happens on a page.
     square of the font size. A proportional face fits more per line; the slot
     does not change. Nothing was measured on a device — `IUX-MANUAL-001`.
 
+### IUX-PALETTE-HEADROOM-001 — The standard light profile had already spent the high contrast profile's room (FIXED)
+
+- **Level**: context_dependent
+- **Scope**: `IuxColorPalettes.light`, and the dark end of the caution ramp in
+  `IuxPrimitiveColors`. Behaviour change for every application on the light
+  standard profile.
+- **Sources**: WCAG 2.2 SC 1.4.3 (AA, 4.5:1), SC 1.4.6 (AAA, 7:1); reported
+  from a device during the Terminus migration (systm-d/IUX#24)
+- **Status**: implemented; measured in `test/themes/theme_contrast_test.dart`,
+  group *the two light profiles do different jobs*
+
+- **The measurement that opens it.** Every chromatic content role in the
+  standard light profile was past AAA on white: `content.link` and
+  `feedback.info.content` at 9.72:1, `feedback.success.content` at 9.16:1,
+  `feedback.warning.content` at 9.60:1, `feedback.error.content` at 9.69:1.
+
+- **That cost two different things.** Structurally, `highContrastLight` had one
+  rung left for the link — `accent30` to `accent20` — so the setting whose whole
+  purpose is separation returned almost nothing, because the standard profile
+  had already spent it. In use, the first report from a user shown the light
+  theme was "the contrast is too dark, dark blue, dark green, dark red, it is
+  too much": four roles darkened until they resembled each other more than
+  their own meanings. **A semantic colour that no longer reads as its own hue
+  has stopped being semantic**, which is the part a contrast test cannot see.
+
+- **The fix is one rung on three ramps**: `accent40` (6.30:1), `positive40`
+  (6.31:1), `critical40` (6.81:1) for `content.link` and for the feedback
+  content and icon roles. Each feedback content is still measured on its own
+  tinted surface, where it lands between 5.21:1 and 5.86:1 — AA with margin,
+  short of AAA on purpose. `highContrastLight` sits at level 10 and is
+  untouched, so its headroom goes from one rung to three.
+
+- **The contract is now two-sided**, and this is the only place in the suite
+  that asserts an *upper* bound on contrast: standard clears AA and stops short
+  of AAA on every chromatic content role; high contrast clears AAA on every one
+  of them; and high contrast measures strictly higher **role by role** rather
+  than on average. `content.primary` is exempt and always will be — it is
+  neutral, no second neutral can be confused with it, and it should be as dark
+  as the surface allows in both profiles.
+
+- **`action.secondary.foreground` stays at `accent30`, and that is forced.** On
+  every unfilled variant that field *is* the intent: `IuxButtonThemeResolver`
+  derives primary's accent from `action.primary.background` (`accent40`) and
+  secondary's from this one. Moving it makes an outlined, tonal, text or icon
+  secondary byte-identical to the same primary —
+  `button_distinguishability_test.dart` reported **twelve collisions** when it
+  was tried, which is how this is known rather than assumed. So the light
+  palette keeps two accent text colours; `content.link` now matches the one an
+  unfilled *primary* paints, which is the right neighbour.
+
+- **The caution ramp needed a hue change, not a rung.** Held above 4.5:1 on
+  white a yellow is not a yellow: `#5E3F00` and `#7D5400` measure 9.60:1 and
+  6.69:1 and read as khaki browns. The consuming application had to leave the
+  ramp entirely and pick `#A34A00` — 5.94:1, recognisable as a warning, and the
+  convention public transport already uses. The dark end of the ramp is now that
+  orange (`caution10` `#2E1200`, `caution20` `#4A2000`, `caution30` `#7A3700`,
+  `caution40` `#A34A00`), keeping the darkness ordering and very nearly the
+  ratios it replaces: 17.46, 14.02, 8.85, 5.94 against 17.37, 13.56, 9.60, 6.69.
+
+  **The light end stays amber, and that is not an inconsistency.** `caution70`
+  and `caution80` are content on *dark* surfaces and `caution90` is a tint on a
+  light one; an orange bright enough to sit on `neutral90` drifts towards the
+  critical ramp and stops being distinguishable from an error. The hue that
+  reads as "warning" is not the same hue at every lightness, so the ramp bends.
+  A test holds the bend: the warning content's hue must stay below 35° and sit
+  measurably apart from the surface behind it.
+
+- **Limits, and the first is the load-bearing one.**
+  - **The upper bound is IUX's judgement, not a standard.** WCAG sets floors and
+    no ceilings. "Stop short of AAA in the standard profile" is argued from what
+    it costs the high contrast profile and from one user's report; it would be
+    wrong for an application whose users mostly need AAA and will never open a
+    settings screen, and that application should ship `IuxContrast.high` as its
+    default rather than push the standard profile up.
+  - **The caution hue rests on one report and one shipped application.** That
+    `#A34A00` reads as a warning rather than as a brown is a judgement about
+    perception; nothing here tests it, and hue is exactly where a contrast ratio
+    says least.
+  - **This is a visible change for every existing light-theme application.**
+    Four content roles get lighter and one changes hue. It is additive to
+    nothing: `IuxTheme.withSemanticColors` remains the way out, and the
+    application that reported this had already used it.
+  - Every ratio is the WCAG 2.x formula, which correlates imperfectly with
+    perceived contrast. APCA would likely disagree. Nothing was seen on a
+    device — `IUX-MANUAL-001`.
+
 ### IUX-APPBAR-BRAND-001 — A textual title alone pushed brand identity into the page (FIXED)
 
 - **Level**: strong_guidance
