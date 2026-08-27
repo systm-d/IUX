@@ -45,8 +45,9 @@ void main() {
           expect(
             call.offersActivation,
             isTrue,
-            reason: 'a Semantics node in ${source.path} sets button: true '
-                'without an onTap. If excludeSemantics is also set — and it '
+            reason: 'a Semantics node in ${source.path} can announce itself '
+                'as a button — the flag is `true` or computed — without an '
+                'onTap. If excludeSemantics is also set — and it '
                 'is, wherever the name is being replaced — the child\'s own '
                 'tap action is gone too, so a screen reader announces a '
                 'button and activating it does nothing.\n\nThe call:\n'
@@ -151,8 +152,17 @@ class _SemanticsCall {
     return buffer.toString();
   }
 
+  /// Whether this node may announce itself as a button.
+  ///
+  /// Anything but a literal `false`, which is wider than it looks and is the
+  /// point. The predicate used to require a literal `true`, so
+  /// `Semantics(button: onTap != null, …)` — the whole of `IuxTapTarget` — was
+  /// never examined, and it shipped announcing a button with nothing to
+  /// activate (`IUX-TAPTARGET-ACTION-001`). A node whose button flag is
+  /// computed is exactly the node most worth checking: it is a button
+  /// *sometimes*, and the sometimes is where the action goes missing.
   bool get declaresButton =>
-      RegExp(r'\bbutton:\s*true').hasMatch(_ownArguments);
+      RegExp(r'\bbutton:\s*(?!false\b)\S').hasMatch(_ownArguments);
 
   /// A node may be activated through `onTap`, or through the platform's
   /// increase/decrease pair, or by a slider's own gestures.

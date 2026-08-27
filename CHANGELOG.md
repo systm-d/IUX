@@ -5,6 +5,41 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxTapTarget` announced a button and offered nothing to activate
+
+**Behaviour fix, in the case the widget exists for.** Passing `semanticLabel`
+excludes the subtree — the only way to replace what an icon-only control would
+otherwise announce — and that took the child gesture detector's tap action with
+it. The node said "button, enabled" and had nothing to fire. A finger worked; a
+screen reader could not activate it at all.
+
+The fix is the line `IuxSemantics.action` already carries: `onTap` published on
+the node itself.
+
+**This is the fourth thing that one mechanism has deleted** — `onTap` on every
+IUX button (IUX-005 to IUX-011), the focus state and `focus` action on eleven
+controls (`IUX-A11Y-FOCUS-001`), the `Focus` widget's own annotations, and now
+this. So the durable half of the change is the check:
+`announced_controls_test.dart` required a **literal** `button: true`, and
+`IuxTapTarget` writes `button: onTap != null` — the file was scanned and this
+call was never examined. The predicate now matches anything that is not a
+literal `false`, because a computed button flag is the node most worth checking,
+not the least. Run across the library, it flags nothing else.
+
+Verified in both directions with three instruments: with the fix removed, the
+scanner names the file and two behavioural tests fail — one on the announcement,
+one on the effect.
+
+No IUX component was affected: all six in-library call sites pass `onTap` and
+none passes `semanticLabel`, so the exclusion never fired. This was the public
+API contract, met by callers.
+
+Also documents that **`IuxFocusable` answers Enter and Space only** and
+publishes no tap action — correct by design, since focusability is not
+activability, but undocumented until now.
+
+See `IUX-TAPTARGET-ACTION-001`.
+
 ### `research/` was empty while the charter required traceable evidence
 
 **No library change. Claims, a method, a backlog, and a guard.**

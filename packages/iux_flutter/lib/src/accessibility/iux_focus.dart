@@ -83,7 +83,19 @@ class IuxFocusable extends StatefulWidget {
   /// The content.
   final Widget child;
 
-  /// Called when the region is activated by keyboard.
+  /// Called when the region is activated by keyboard — Enter or Space.
+  ///
+  /// **Keyboard only, and deliberately.** This widget carries no gesture
+  /// recogniser and publishes no tap action: focusability is not activability,
+  /// and a focus ring that also captured pointers would compete with whatever
+  /// it is wrapped around for the gesture arena. Every IUX control pairs it
+  /// with something that owns the pointer — a `GestureDetector`, or
+  /// [IuxTapTarget].
+  ///
+  /// So a region built from this alone cannot be pressed at all, by a finger
+  /// or by a screen reader. That is correct and it is not obvious: a semantics
+  /// probe of the catalog reported it as a surprise rather than as a defect,
+  /// which is why it is written down here (`IUX-TAPTARGET-ACTION-001`).
   final VoidCallback? onActivate;
 
   /// Whether this takes focus when first built.
