@@ -92,6 +92,101 @@ void main() {
       expect(taps, 1);
     });
 
+    testWidgets('a named target offers the action it announces',
+        (WidgetTester tester) async {
+      // The defect this widget shipped with: naming it excludes the subtree,
+      // which took the gesture detector's tap action with it. The node said
+      // "button, enabled" and offered nothing to activate — a finger worked
+      // and a screen reader could not. IUX-TAPTARGET-ACTION-001.
+      await pump(
+        tester,
+        IuxTapTarget(
+          semanticLabel: 'Dismiss',
+          onTap: () {},
+          child: const SizedBox(width: 20, height: 20),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(IuxTapTarget)),
+        matchesSemantics(
+          label: 'Dismiss',
+          isButton: true,
+          isEnabled: true,
+          hasEnabledState: true,
+          hasTapAction: true,
+        ),
+      );
+    });
+
+    testWidgets('and a screen reader can actually fire it',
+        (WidgetTester tester) async {
+      // The announcement and the effect are two different claims. This one is
+      // the effect: the action published on the node runs the callback when
+      // assistive technology performs it, with no pointer involved anywhere.
+      int taps = 0;
+      await pump(
+        tester,
+        IuxTapTarget(
+          semanticLabel: 'Dismiss',
+          onTap: () => taps++,
+          child: const SizedBox(width: 20, height: 20),
+        ),
+      );
+
+      // `SemanticsController.tap` refuses a node that does not offer the
+      // action, so this fails on the announcement as well as on the effect.
+      tester.semantics.tap(find.semantics.byLabel('Dismiss'));
+      await tester.pump();
+
+      expect(taps, 1);
+    });
+
+    testWidgets('an unnamed target still offers one, through its child',
+        (WidgetTester tester) async {
+      // Without a label there is no exclusion, so the child keeps its own
+      // action. The node must not lose it either way — this is the half of the
+      // contract that was never broken, pinned so a later tidy cannot break it.
+      int taps = 0;
+      await pump(
+        tester,
+        IuxTapTarget(
+          onTap: () => taps++,
+          child: const SizedBox(width: 20, height: 20),
+        ),
+      );
+
+      await tester.tap(find.byType(IuxTapTarget));
+      await tester.pump();
+
+      expect(taps, 1);
+    });
+
+    testWidgets('a disabled target announces itself and refuses the action',
+        (WidgetTester tester) async {
+      // Publishing the action must not defeat `enabled: false`.
+      int taps = 0;
+      await pump(
+        tester,
+        IuxTapTarget(
+          semanticLabel: 'Dismiss',
+          enabled: false,
+          onTap: () => taps++,
+          child: const SizedBox(width: 20, height: 20),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(IuxTapTarget)),
+        matchesSemantics(
+          label: 'Dismiss',
+          isButton: true,
+          hasEnabledState: true,
+        ),
+      );
+      expect(taps, 0);
+    });
+
     testWidgets('reports its label and disabled state to assistive technology',
         (WidgetTester tester) async {
       await pump(

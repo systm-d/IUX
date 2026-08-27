@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+`IuxTapTarget` now publishes its own tap action. Passing `semanticLabel`
+excludes the subtree and took the child's action with it, so a named target
+announced a button and offered nothing to activate — a finger worked, a screen
+reader did not. The scan that watches for this required a literal `button: true`
+and so never examined it; its predicate is widened.
+
 Repository claims and `research/`: the register cites zero primary HCI or
 cognitive-psychology literature, so the README now describes IUX as conformant,
 tested accessibility foundations and marks the ergonomics an explicitly
