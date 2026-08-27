@@ -345,6 +345,35 @@ Chaque composant doit disposer de :
 
 Les Golden Tests sont recommandés pour les composants dont le rendu est stable.
 
+## 18.1 Appuis réalistes
+
+**Tout test qui vérifie qu'un composant réagit à un appui doit passer par
+`realTap` (`test/support/gestures.dart`).** `tester.tap()` reste correct
+lorsque seule la cible est en cause — région assez grande, libellé inclus dans
+la cible, contrôle désactivé qui refuse : ces questions ne dépendent pas de ce
+qui se passe entre l'appui et le relâchement.
+
+La raison est mécanique. `tester.tap()` envoie `down` puis `up` **sans frame
+intermédiaire** ; un doigt en laisse toujours au moins une. Tout composant qui
+se reconstruit pendant l'appui — c'est-à-dire tout composant à retour d'appui —
+dispose de cette frame pour changer la forme de son propre sous-arbre. Quand
+il le fait, le `State` qui porte le recognizer suivant le pointeur est
+détruit, le `up` n'atterrit nulle part, et le contrôle ne se déclenche jamais.
+Sans frame intermédiaire, la reconstruction n'a pas lieu avant le `up` : le
+défaut n'est pas seulement manqué, il est **inatteignable** par cet
+instrument.
+
+Ce n'est pas une hypothèse. `IUX-SELECTION-PRESS-001` a été livré ainsi :
+aucun `IuxSwitch`, `IuxCheckbox` ni `IuxRadioGroup` ne répondait au doigt,
+alors que les 2 320 tests du dépôt passaient — tests d'appui écrits contre ces
+contrôles compris.
+
+**Tout composant qui garde un état d'appui doit figurer dans
+`test/components/press_feedback_sweep_test.dart`**, où un appui réaliste par
+composant est exigé. Ce fichier vérifie lui-même sa propre exhaustivité : il
+lit `lib/src/`, y cherche les sources portant un état d'appui, et échoue si
+l'une d'elles n'y est pas exercée.
+
 ---
 
 # 19. Critères d'acceptation
