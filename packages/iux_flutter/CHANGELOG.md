@@ -15,6 +15,11 @@ purpose. The caution ramp's dark end changes hue to orange: a yellow held above
 4.5:1 on white is a khaki brown, not a warning. `IuxTheme.withSemanticColors` is
 still the way out.
 
+Test infrastructure: `realTap` (`test/support/gestures.dart`) presses with a
+frame between `down` and `up`, the way a finger does, and a per-component sweep
+applies it to everything that redraws while held. `tester.tap()` cannot reach
+the defect class `IUX-SELECTION-PRESS-001` belongs to. No library change.
+
 `IuxListItem` painted its press tint over its own content rather than behind it.
 The colour is opaque and the opacity is 1, so a pressed row was a blank band:
 8226 ink pixels at rest, **0 while pressed**. Reported from a device as a row

@@ -56,6 +56,38 @@ ceilings. An application whose users mostly need AAA should ship
 
 See `IUX-PALETTE-HEADROOM-001`.
 
+### The suite can now see a control that no finger can use
+
+**No library change. A test rule, and the sweep that applies it.**
+
+`IUX-SELECTION-PRESS-001` — three selection controls that did not respond to a
+finger while 2 320 tests passed — was fixed in `c37a1e0`. What was left open is
+that **the suite could not have seen it, and would not see the next one.**
+
+`tester.tap()` sends `down` and `up` with no frame between them. A finger
+always leaves one, and any component that redraws while it is held gets that
+frame to change the shape of its own subtree — disposing the `State` that holds
+the recogniser tracking the pointer, so the `up` lands nowhere. With no frame,
+the rebuild never happens before the `up`. The defect is not missed by that
+instrument; it is unreachable by it.
+
+Three things close it:
+
+- **`realTap`** (`test/support/gestures.dart`) — press, one frame, release.
+- **A rule** (`COMPONENT_STANDARD.md` §18.1) — every assertion that a component
+  *responds* to a press goes through `realTap`. `tester.tap()` stays correct
+  where only the target is in question: region large enough, label inside it,
+  disabled control refusing.
+- **A sweep** (`test/components/press_feedback_sweep_test.dart`) — one
+  realistic press per component that holds press state, and a check that reads
+  `lib/src` and fails if a component holding press state is missing from it. The
+  list cannot silently fall behind the library.
+
+**The sweep came back clean.** Twelve components, twelve passes — including the
+two navigation strips, the drawer and the tabs, which had never been looked at.
+Reintroducing the original cause against the suite as it stands now fails 4
+tests of 2 332; against the 2 320 that existed before the fix it fails **none**.
+
 ### `IuxListItem` painted its press tint over the row instead of behind it
 
 **Behaviour change, and the reason to take this build.** An interactive row drew
