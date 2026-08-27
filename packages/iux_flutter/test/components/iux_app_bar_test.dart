@@ -145,6 +145,193 @@ void main() {
     });
   });
 
+  group('a brand mark, drawn where the title would be', () {
+    /// A stand-in for an illustrated wordmark: a fixed box with text in it.
+    ///
+    /// [width] is what makes each case: a mark does not wrap, so its own width
+    /// against the room left by the controls is the whole of the arrangement
+    /// decision.
+    Widget wordmark({double width = 120, double height = 28}) => SizedBox(
+          key: const ValueKey<String>('wordmark'),
+          width: width,
+          height: height,
+          child: const ColoredBox(
+            color: Color(0xFF112233),
+            child: Text('ACME Rail'),
+          ),
+        );
+
+    Finder mark() => find.byKey(const ValueKey<String>('wordmark'));
+
+    testWidgets('it replaces the title text and the string stays the heading',
+        (WidgetTester tester) async {
+      await pump(
+        tester,
+        IuxAppBar(title: 'ACME Rail', brand: wordmark()),
+      );
+
+      // Drawn.
+      expect(mark(), findsOneWidget);
+      // And still announced as a header carrying the string, which is the
+      // constraint this component exists to defend.
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('ACME Rail')),
+        matchesSemantics(label: 'ACME Rail', isHeader: true),
+      );
+    });
+
+    testWidgets('nothing inside the mark reaches the semantic tree',
+        (WidgetTester tester) async {
+      // Excluded by construction rather than by asking the caller: the header
+      // helper excludes its subtree, so a mark cannot announce anything even
+      // when it is built from labelled widgets.
+      await pump(
+        tester,
+        IuxAppBar(
+          title: 'ACME Rail',
+          brand: Semantics(
+            label: 'a label the mark should not be able to publish',
+            child: wordmark(),
+          ),
+        ),
+      );
+
+      expect(
+        find.bySemanticsLabel('a label the mark should not be able to publish'),
+        findsNothing,
+      );
+      expect(find.bySemanticsLabel('ACME Rail'), findsOneWidget);
+    });
+
+    testWidgets('the title text is not drawn twice',
+        (WidgetTester tester) async {
+      // The defect the parameter exists to remove is the name appearing twice
+      // on one screen. It must not reappear inside the bar.
+      await pump(
+        tester,
+        IuxAppBar(title: 'ACME Rail', brand: wordmark()),
+      );
+
+      expect(find.text('ACME Rail'), findsOneWidget);
+    });
+
+    testWidgets('a mark that fits beside the controls keeps their row',
+        (WidgetTester tester) async {
+      await pump(
+        tester,
+        IuxAppBar(
+          title: 'ACME Rail',
+          brand: wordmark(width: 100),
+          leading: IuxAppBarLeading.back(label: 'Back', onActivate: () {}),
+        ),
+      );
+
+      final Rect drawn = tester.getRect(mark());
+      expect(
+        drawn.center.dy,
+        moreOrLessEquals(control(tester, 0).center.dy, epsilon: 1),
+        reason: 'a mark that fits shares the row with the way out',
+      );
+    });
+
+    testWidgets('a mark that does not fit takes its own line',
+        (WidgetTester tester) async {
+      // Where a text title would have wrapped into narrower lines, a mark
+      // cannot: it either fits or it does not, which is why the arrangement
+      // compares the room against the mark's own width rather than against a
+      // readable fragment.
+      await pump(
+        tester,
+        IuxAppBar(
+          title: 'ACME Rail',
+          brand: wordmark(width: 320),
+          leading: IuxAppBarLeading.back(label: 'Back', onActivate: () {}),
+          actions: <IuxIconButton>[action(Icons.search, 'Search')],
+        ),
+      );
+
+      final Rect drawn = tester.getRect(mark());
+      expect(
+        drawn.top,
+        greaterThanOrEqualTo(control(tester, 0).bottom),
+        reason: 'the mark should be below the controls, not squeezed beside '
+            'them',
+      );
+    });
+
+    testWidgets('a mark wider than the screen scales rather than overflowing',
+        (WidgetTester tester) async {
+      await pump(
+        tester,
+        IuxAppBar(title: 'ACME Rail', brand: wordmark(width: 900)),
+        size: const Size(320, 640),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(IuxAppBar)).width,
+        lessThanOrEqualTo(320),
+      );
+      expect(
+        tester.getRect(mark()).width,
+        lessThanOrEqualTo(320),
+        reason: 'the last degradation left to a mark is shrinking, and it has '
+            'to happen inside the bar',
+      );
+    });
+
+    testWidgets('the bar still reports the height it wants',
+        (WidgetTester tester) async {
+      // The intrinsic protocol is what IUX-APPBAR-PAGE-001 bought, and a new
+      // child in the title slot is exactly the sort of change that quietly
+      // takes it away again.
+      await pump(
+        tester,
+        IntrinsicHeight(
+          child: IuxAppBar(title: 'ACME Rail', brand: wordmark(height: 44)),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(IuxAppBar)).height,
+        greaterThanOrEqualTo(44),
+      );
+    });
+
+    testWidgets('it survives every profile and both directions',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        for (final TextDirection direction in TextDirection.values) {
+          await pump(
+            tester,
+            IuxAppBar(
+              title: 'ACME Rail',
+              brand: wordmark(),
+              leading: IuxAppBarLeading.back(label: 'Back', onActivate: () {}),
+            ),
+            configuration: configuration,
+            direction: direction,
+          );
+          expect(tester.takeException(), isNull);
+          expect(mark(), findsOneWidget);
+        }
+      }
+    });
+
+    testWidgets('a bar with no mark is unchanged', (WidgetTester tester) async {
+      // The parameter is additive, and the case that proves it is the one
+      // nobody passes it in.
+      await pump(tester, const IuxAppBar(title: _longTitle));
+      final Size without = tester.getSize(find.byType(IuxAppBar));
+
+      await pump(tester, const IuxAppBar(title: _longTitle, brand: null));
+
+      expect(tester.getSize(find.byType(IuxAppBar)), without);
+      expect(find.text(_longTitle), findsOneWidget);
+    });
+  });
+
   group('200% text on a 320-pixel screen', () {
     /// The case the component exists for: the narrowest place in an
     /// application, at the largest text a user is likely to ask for, with a way

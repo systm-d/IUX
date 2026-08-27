@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+`IuxAppBar.brand` draws a wordmark where the title's text would have been, while
+`title` stays required and stays the announced heading; the mark is excluded from
+the semantic tree by construction. It exists because with nowhere in the bar for
+an identity, a migrating application put its wordmark in the page and showed the
+name twice. Additive.
+
 **Behaviour change on the light standard profile.** Four chromatic content roles
 move one rung lighter — `content.link` and the feedback contents were past AAA
 at 9.16:1 to 9.72:1, leaving the high contrast profile a single rung to

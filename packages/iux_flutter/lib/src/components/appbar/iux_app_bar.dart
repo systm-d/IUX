@@ -257,6 +257,7 @@ class IuxAppBar extends StatelessWidget {
   const IuxAppBar({
     super.key,
     required this.title,
+    this.brand,
     this.leading,
     this.actions = const <IuxIconButton>[],
   }) : assert(
@@ -275,6 +276,43 @@ class IuxAppBar extends StatelessWidget {
   /// sentence: a title long enough to need three lines will get them, and will
   /// have pushed the content that far down to do it.
   final String title;
+
+  /// Drawn in place of the title's text, when the name of this screen is
+  /// something the application would rather show than spell.
+  ///
+  /// A wordmark, a logotype, a name set in two colours with a strapline under
+  /// it. Null by default, and null is the right answer for every screen that
+  /// is not the root of an application.
+  ///
+  /// **[title] stays required, and stays the announced heading.** That is the
+  /// whole design: the constraint this component defends is that the heading a
+  /// screen reader reads is a string IUX owns, and a widget cannot play that
+  /// part. Nothing here relaxes it. The mark is drawn where the text would
+  /// have been and is **excluded from the semantic tree by construction** —
+  /// `IuxSemantics.header` already excludes its subtree, so there is no way to
+  /// pass a mark that announces anything at all.
+  ///
+  /// **The mark must show the same name [title] says.** A logo reading "Acme"
+  /// under a heading announcing "Orders" leaves a voice-control user asking
+  /// for a control that is not there by that name — WCAG 2.2 SC 2.5.3. Nothing
+  /// can check this, because the name is inside an image.
+  ///
+  /// **It exists because the alternative is worse, and was measured.** With no
+  /// slot for it, an application migrating a wordmark-bearing bar put the
+  /// wordmark at the top of the page instead, and the first screen then showed
+  /// the name of the application twice — once in the bar, once ninety pixels
+  /// below it. Identity does not belong in the page; repeating it there is a
+  /// duplicate to remove rather than a place to keep it
+  /// (`IUX-APPBAR-BRAND-001`).
+  ///
+  /// **What it costs.** A mark does not wrap and does not grow with the text
+  /// scale, so the two guarantees the title carries do not extend to it: given
+  /// less room than it needs, the bar hands it its own line, and given less
+  /// than that it scales down rather than painting outside itself. A user who
+  /// enlarged their text gets a larger heading everywhere except here. Where
+  /// the name has to be legible at 200%, pass no mark and let the text do its
+  /// job.
+  final Widget? brand;
 
   /// The way up and out of the screen, or null when there is none.
   ///
@@ -392,11 +430,19 @@ class IuxAppBar extends StatelessWidget {
                     // scale in force is readable, because the render object
                     // below is deliberately given numbers rather than a
                     // `BuildContext`.
-                    readableTitle: accessibility.scaleText(
-                          titleStyle.fontSize ?? _assumedTitleSize,
-                        ) *
-                        _averageCharacterWidthRatio *
-                        _minimumTitleCharacters,
+                    // A mark has no readable-fragment width, because it does
+                    // not wrap: it either fits beside the controls or it does
+                    // not. Infinity makes the arrangement compare the room
+                    // against the mark's own width, so a mark that does not fit
+                    // takes its own line instead of being squeezed into one
+                    // that is still wide enough for words.
+                    readableTitle: brand != null
+                        ? double.infinity
+                        : accessibility.scaleText(
+                              titleStyle.fontSize ?? _assumedTitleSize,
+                            ) *
+                            _averageCharacterWidthRatio *
+                            _minimumTitleCharacters,
                   ),
                   leading: upButton,
                   actions: actions.isEmpty
@@ -410,17 +456,35 @@ class IuxAppBar extends StatelessWidget {
                           axis: Axis.horizontal,
                           children: actions,
                         ),
+                  // One node either way: the heading is announced from
+                  // `title`, and `IuxSemantics.header` excludes whatever is
+                  // inside it. That is what lets a mark be a free widget
+                  // without reopening the hole this component exists to close —
+                  // a mark cannot announce anything, because nothing below this
+                  // node reaches the tree.
                   title: IuxSemantics.header(
                     label: title,
-                    child: Text(
-                      title,
-                      style: titleStyle,
-                      // No line limit and no ellipsis, here or anywhere else in
-                      // this file. Truncation gets worse exactly when a user has
-                      // enlarged their text, which is when they can least afford
-                      // to lose the words.
-                      softWrap: true,
-                    ),
+                    child: brand != null
+                        // Scaled down only when it has to be, and never up.
+                        // A mark cannot wrap, so given a box narrower than
+                        // itself it would paint outside the bar; shrinking is
+                        // the one degradation left, and it is bounded — the
+                        // arrangement has already given it its own full-width
+                        // line before this can happen.
+                        ? FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerStart,
+                            child: brand,
+                          )
+                        : Text(
+                            title,
+                            style: titleStyle,
+                            // No line limit and no ellipsis, here or anywhere
+                            // else in this file. Truncation gets worse exactly
+                            // when a user has enlarged their text, which is when
+                            // they can least afford to lose the words.
+                            softWrap: true,
+                          ),
                   ),
                 ),
               ),
