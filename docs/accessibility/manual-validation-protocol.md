@@ -137,6 +137,23 @@ region firing in the same frame as a focus move. Expect a defect; describe it.
 it does not cover the navigation.
 **Fail:** your position is reset, or the message interrupts and is then lost.
 
+### A9b — The Announcements sample can actually be pressed
+**Do:** **Runtime** → the Announcements panel. TalkBack on, swipe onto the
+**Refresh** control and double-tap it.
+**Expect:** it announces as **"Refresh results"** — the accessible name, longer
+than the visible word, which is allowed because the visible word is contained in
+it (SC 2.5.3) — and the double-tap produces the announcement the panel exists to
+demonstrate.
+**Fail:** TalkBack says "button" and the double-tap does nothing.
+**Status:** this is `IUX-TAPTARGET-ACTION-001`, fixed but **never heard**. Until
+the fix this control was announced as a button and offered no action at all, so
+the one sample in the whole harness about announcements could not be exercised
+by anyone unable to use a pointer. It is composed of `IuxFocusable` over
+`IuxTapTarget`, so Enter and Space *did* work throughout — which is why nothing
+looked broken from a keyboard, and why a screen reader is the only thing that
+could have found it. The tree now says the action is there; whether a screen
+reader performs it on hardware is what no test here can answer.
+
 ### A10 — Progress says something true
 **Do:** **Feedback** → the progress panel. Swipe onto a determinate bar.
 **Expect:** the announced percentage matches the drawn bar.

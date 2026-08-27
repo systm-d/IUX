@@ -3256,6 +3256,82 @@ that costs when it happens on a page.
     actual argument lives — `IuxTransientTiming` being the clearest example, and
     the reason Q1 exists.
 
+### IUX-TAPTARGET-ACTION-001 — A named tap target announced a button and offered nothing (FIXED)
+
+- **Level**: standard
+- **Scope**: `IuxTapTarget`, and the scan that was supposed to be watching it
+- **Sources**: WCAG 2.2 SC 4.1.2 (name, role, value); reported from a catalog
+  sweep probing the semantics tree (systm-d/IUX#20)
+- **Status**: fixed; measured in
+  `test/accessibility/iux_runtime_widgets_test.dart`, group *IuxTapTarget*, and
+  now caught structurally by `test/accessibility/announced_controls_test.dart`
+
+- **The defect.** `IuxTapTarget` composed
+  `Semantics(button: onTap != null, …, excludeSemantics: semanticLabel != null)`.
+  The exclusion is necessary — an icon-only control has no text of its own, so
+  the name has to come from the wrapper — and it takes the child
+  `GestureDetector`'s tap action with it. The node announced "button, enabled"
+  and offered nothing to activate, **in exactly the case the widget exists
+  for**. A finger worked. A screen reader could not activate it at all.
+
+- **The fourth time this one mechanism has deleted something.** `onTap` on every
+  IUX button (IUX-005 to IUX-011), the focus state and `focus` action on eleven
+  controls (`IUX-A11Y-FOCUS-001`), the `Focus` widget's own annotations, and
+  this. The shape is identical every time: `excludeSemantics` is set to control
+  the announced name, and it silently removes something the subtree was
+  contributing.
+
+- **The fix is one line**, and it is the same one `IuxSemantics.action` already
+  carries: `onTap: enabled ? onTap : null` published on the node itself.
+
+- **The check that should have caught it, and why it did not.**
+  `announced_controls_test.dart` scans every bare `Semantics(` call and requires
+  a node declaring a button to offer an activation. Its predicate matched a
+  **literal** `button: true`. `IuxTapTarget` writes `button: onTap != null`, so
+  the file was scanned and this call was never examined. The predicate now
+  matches anything that is not a literal `false`.
+
+  That widening is the durable half of this entry. **A computed button flag is
+  the node most worth checking**, not the least: it is a button *sometimes*, and
+  the sometimes is where the action goes missing. Run against the whole library,
+  the wider predicate flags nothing else — so this was the only such site, which
+  is a measurement rather than an assumption.
+
+- **Verified in both directions**, three instruments. With the fix removed:
+  the scanner fails on `iux_touch_target.dart` by name, and two behavioural
+  tests fail — one on the announcement (`matchesSemantics` with `hasTapAction`)
+  and one on the effect (`SemanticsController.tap`, which refuses a node
+  offering no action, so it tests the announcement and the callback at once).
+  With the fix, 2380 tests pass.
+
+- **What was reported and deliberately not changed.**
+  - **`IuxFocusable` answers Enter and Space only**, with no gesture recogniser
+    and no tap action, so a region built from it alone cannot be pressed by a
+    finger or by a screen reader. That is correct — focusability is not
+    activability, and a focus ring that captured pointers would compete for the
+    gesture arena with whatever it wraps. It was undocumented, which is why the
+    probe reported it as a surprise; it is now documented on `onActivate`.
+  - **`enabled` still publishes `hasEnabledState` even when `onTap` is null.**
+    Tempting to derive control-ness from `onTap`, and wrong: `onTap == null` is
+    both how a caller says "this is only a size guarantee" *and* how the same
+    caller disables a control — `_IuxSelectionControl` writes exactly
+    `enabled: _canActivate, onTap: _canActivate ? … : null`. Deriving from it
+    would strip the enabled state off every disabled control in the library. The
+    ambiguity is real and is recorded here rather than guessed at.
+
+- **Limits.**
+  - The six `IuxTapTarget` call sites inside `lib/` all pass `onTap` and **none
+    passes `semanticLabel`**, so the exclusion never fired in-library and no IUX
+    component was affected. This was a defect in the public API contract, met by
+    callers — the catalog's Announcements "Refresh" control among them, which
+    the catalog sweep correctly refused to frame as testable.
+  - The scan reads source text with balanced-parenthesis extraction, not an
+    analysis. A call assembled across a helper, or a flag passed through a
+    variable declared elsewhere, is still invisible to it.
+  - Measured on a semantics tree under `flutter_test`. That a screen reader
+    then speaks and activates it on a device remains unverified —
+    `IUX-MANUAL-001`.
+
 ### IUX-MANUAL-001 — Nothing has been validated on a device, and the register never said so in its own voice
 
 - **Level**: standard
@@ -3276,7 +3352,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 376 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 380 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.

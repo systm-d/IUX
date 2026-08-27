@@ -38,6 +38,7 @@ pénible.
 | **A7b** | Forms, entrée pointant le groupe radio | Idem | Le focus atterrit sur la **première option** : « …, case d'option, non cochée, 1 sur 2 » | |
 | **A8** | Forms → formulaire guidé | Changer d'étape ; soumettre une étape en erreur | Une seule chose parle à la fois, rien n'est coupé | |
 | **A9** | Overlays → message transitoire | Le déclencher, y compris pendant un balayage | Annoncé sans réinitialiser la position de lecture, et sans couvrir la navigation | |
+| **A9b** ⭐ | Runtime → panneau Announcements | Balayer sur **Refresh** et **double-taper** | Il s'annonce comme bouton **et** le double-tap déclenche l'annonce. Avant `IUX-TAPTARGET-ACTION-001` il n'offrait aucune action | |
 | **A10** | Feedback → barre de progression déterminée | Balayer dessus | Le pourcentage annoncé correspond au tracé | |
 
 ## Bloc B — Voice Access (~10 min)
