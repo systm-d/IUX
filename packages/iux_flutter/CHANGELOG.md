@@ -7,6 +7,16 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+The palette is measured for the first time with instruments WCAG does not have:
+APCA lightness contrast, Oklab distance and simulation of the three
+dichromacies, all under `test/support/` and all verified against properties of
+their own algorithms before use. No shipped colour changed. Three findings —
+the same ratio buys under half the perceived contrast in dark; a dark control
+outline clears SC 1.4.11 and sits under the perceptual floor; and under
+deuteranopia the success and error feedback colours are the same colour, so the
+glyph carries the category and the suite now asserts the four glyphs are
+distinct. `IUX-PALETTE-PERCEPTION-001` and `research/perception/`.
+
 `IuxTapTarget` now publishes its own tap action. Passing `semanticLabel`
 excludes the subtree and took the child's action with it, so a named target
 announced a button and offered nothing to activate — a finger worked, a screen

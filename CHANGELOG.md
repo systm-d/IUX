@@ -5,6 +5,41 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### The palette, measured with instruments WCAG does not have
+
+**Measurement only. No shipped colour changed.** `theme_contrast_test.dart`
+holds every pair to its WCAG 2.x floor and the palette passes. Two questions
+that floor cannot answer had never been asked: whether a light role and a dark
+role tuned to the *same ratio* are equally legible — WCAG's formula is
+symmetric, so by construction it cannot tell — and whether two roles that both
+pass can be told apart *from each other*, which nothing in WCAG measures at all.
+
+New under `test/support/`: APCA lightness contrast, Oklab distance, and
+simulation of the three dichromacies. Each is checked against a property of its
+own algorithm in `perception_test.dart` before any measurement is allowed to use
+it, because a number from an unverified implementation is worse than no number —
+it looks like evidence.
+
+Three findings, in `IUX-PALETTE-PERCEPTION-001`:
+
+- **The same ratio buys less than half the contrast in dark.** `border.standard`
+  is tuned to 3.67:1 light and 3.65:1 dark, deliberately matched, and delivers
+  Lc 64.3 against Lc 27.2. The two metrics agree on *ordering* inside a polarity
+  — asserted, in all four profiles — and disagree on magnitude across them.
+- **A dark control outline clears SC 1.4.11 and sits under the perceptual
+  floor.** `border.standard` and `border.interactive` measure 3.65:1, past the
+  required 3:1, at Lc 27.2. Recorded rather than fixed: the two candidate rungs
+  are measured and choosing between them is a palette decision.
+- **Colour does not separate the feedback categories.** Under deuteranopia,
+  success and error content are 0.4 apart in dark high contrast — the same
+  colour. The glyph is what carries the category, and the test suite now asserts
+  the four glyphs are distinct instead of trusting a doc comment to say so.
+
+A fourth finding is left as a proposal: three of the four glyphs are circles, so
+the pair colour fails hardest on is a circled tick against a circled
+exclamation mark. `research/perception/open-questions.md` says what would settle
+each of these.
+
 ### The manual validation protocol covers what shipped since it was written
 
 **Documentation only.** `docs/accessibility/manual-validation-protocol.md` dates

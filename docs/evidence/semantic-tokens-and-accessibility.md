@@ -3352,7 +3352,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 380 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 405 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3392,3 +3392,114 @@ that costs when it happens on a page.
   - **F5 is a judgement to record, not a box to tick.** That a brand mark
     ignores the text scale is a documented cost; what it costs a user at 200%
     has never been looked at.
+
+### IUX-PALETTE-PERCEPTION-001 — The palette measured with instruments WCAG does not have
+
+- **Level**: context_dependent
+- **Scope**: measurement only. No shipped colour changed. Adds
+  `test/support/perception.dart`, `test/support/perception_test.dart` and
+  `test/themes/palette_perception_test.dart`.
+- **Sources**: APCA-W3 0.98G-4g; Oklab (Ottosson, 2020); dichromacy simulation
+  matrices (Machado, Oliveira & Fernandes, 2009). **All three are reproduced
+  from secondary circulation and none of the primaries has been read by anybody
+  working on this repository** — `research/README.md` is explicit that this
+  makes them leads rather than sources, so what the numbers below actually rest
+  on is `perception_test.dart`, which checks each instrument against a property
+  of the algorithm itself before any measurement is allowed to use it.
+- **Status**: implemented; 10 assertions, all passing, in
+  `test/themes/palette_perception_test.dart`. Full suite: 2405 tests pass.
+
+- **Why.** `theme_contrast_test.dart` holds every pair to its WCAG 2.x floor and
+  the palette passes. Two questions that floor cannot answer had never been
+  asked. First: is a light role and a dark role tuned to the *same ratio*
+  equally legible? WCAG's formula is symmetric — a ratio reads the same in
+  either direction — so by construction it cannot tell dark-on-light from
+  light-on-dark. Second: can two roles that both pass be told apart *from each
+  other*? Nothing in WCAG measures the distance between two foregrounds, which
+  is exactly the measurement `IUX-PALETTE-HEADROOM-001` needed and did not have
+  when it recorded a user saying four roles "resembled each other more than
+  their own meanings".
+
+- **Finding 1 — WCAG orders the palette correctly and sizes it wrongly.** Inside
+  a single polarity the two metrics rank the content roles identically, in all
+  four profiles; that is asserted, and it means reading ratios is a sound way to
+  order a palette. Across polarities they diverge sharply. `border.standard` is
+  tuned to 3.67:1 in light standard and 3.65:1 in dark standard — a deliberate
+  match, the same role equally quiet in both — and delivers **Lc 64.3 against
+  Lc 27.2**. The same ratio buys under half the perceived contrast when it is
+  read light-on-dark. `content.disabled` shows the same split at the same rung.
+
+- **Finding 2 — a dark control outline clears SC 1.4.11 and sits under the
+  perceptual floor.** `border.standard` and `border.interactive` are the
+  outlines that identify a control. In dark standard both measure 3.65:1,
+  clearing the 3:1 of WCAG 2.2 SC 1.4.11, and both land at Lc 27.2 — under the
+  Lc 30 APCA treats as the minimum for a solid non-text element, and far under
+  the Lc 45 it asks for a one-pixel line. The light profile puts the same roles
+  past Lc 64. **This is a shipped defect and it is recorded rather than fixed**:
+  the ramp rung is shared, and the last time a rung was moved on an argument
+  `button_distinguishability_test.dart` reported twelve collisions. The
+  candidate is `neutral45` (4.75:1, Lc 36.0 on `surface.base`; 4.02:1, Lc 33.9
+  on `surface.subtle`), which clears the floor by the smallest step available;
+  `neutral40` (6.62:1, Lc 49.2) clears it comfortably but is the rung
+  `content.tertiary` already holds. Choosing between them is a design decision
+  with the blast radius of a palette change, and it is deliberately left open.
+  `test/themes/palette_perception_test.dart` asserts the defect as it stands, so
+  that changing the ramp fails loudly and sends the next reader here.
+
+- **Finding 3 — colour does not separate the feedback categories, and the glyph
+  is not a nicety.** Pairwise Oklab distance between the four `feedback.content`
+  roles, re-measured under each dichromacy (×100 scale; about 2 is the smallest
+  difference most people notice with two colours side by side, and roles glanced
+  at across a screen need tens):
+
+  | profile | worst pair | normal | measured |
+  |---|---|---|---|
+  | light standard | warning/error under deuteranopia | 8.7 | **2.2** |
+  | light high contrast | warning/error under deuteranopia | 4.4 | **1.1** |
+  | dark standard | success/error under deuteranopia | 18.9 | **1.5** |
+  | dark high contrast | success/error under deuteranopia | 11.1 | **0.4** |
+
+  Success and error, the pair whose confusion costs the most, under the most
+  common dichromacy, are **0.4 apart in the dark high contrast profile** — the
+  same colour. `IuxFeedbackRoleColors` already documents that "a component must
+  always pair these colors with an icon, wording, or screen-reader semantics".
+  These are the numbers that make that sentence load-bearing rather than
+  cautious, and `palette_perception_test.dart` now asserts the glyphs are
+  distinct rather than trusting a doc comment.
+
+- **Finding 4 — the shape channel is weakest exactly where the colour channel
+  fails.** `_glyphFor` is documented as "four shapes, not four colours: a
+  circled 'i', a circled tick, a triangle and a circled '!'", and reasons that
+  "a user with deuteranopia distinguishes the triangle from the circles". True,
+  and it names the wrong pair. **Three of the four glyphs are circles.** The
+  pair colour fails hardest on — success against error, 0.4 apart — is a circled
+  tick against a circled exclamation mark, differing only in the mark inside a
+  shared silhouette at icon size. The message text and the live-region label
+  still carry the category, so this is not an SC 1.4.1 failure; it is a
+  redundancy that is thinner than the comment claims. Giving `error` a distinct
+  silhouette, or dropping the circle from `success`, would cost nothing and is
+  proposed rather than taken here.
+
+- **Finding 5 — in both dark profiles the four feedback surfaces are one
+  colour.** Pairwise distance 0.0 on all six pairs. The tint channel does no
+  work at all in dark, so the whole burden falls on content colour (Finding 3)
+  and the glyph (Finding 4).
+
+- **Limits.**
+  - Three algorithms transcribed from memory of secondary circulation. The
+    verification tests check properties — APCA's two published extremes and its
+    asymmetry, Oklab's behaviour on the sRGB primaries and along a grey ramp,
+    each dichromacy matrix leaving a neutral untinted and collapsing its own
+    chromatic axis while sparing the others — which catches a transposition, not
+    a decimal.
+  - The APCA thresholds quoted in Finding 2 (Lc 30 solid non-text, Lc 45 fine
+    line, Lc 75 body text) are recalled from the APCA readability criteria and
+    are **not** reproduced by any instrument here. They are why the numbers are
+    interesting; they are not themselves measured, and no test asserts against
+    them.
+  - Dichromacy simulation models the three complete dichromacies. Anomalous
+    trichromacy — much more common than dichromacy — is not modelled, and its
+    separations lie somewhere between the "normal" and "measured" columns above.
+  - Every measurement is of a colour pair, not of a rendered screen. Type size,
+    weight, anti-aliasing, ambient light and display calibration all move real
+    legibility and none of them is here. `IUX-MANUAL-001` still stands.
