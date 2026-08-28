@@ -40,6 +40,37 @@ the pair colour fails hardest on is a circled tick against a circled
 exclamation mark. `research/perception/open-questions.md` says what would settle
 each of these.
 
+### The manual validation protocol covers what shipped since it was written
+
+**Documentation only.** `docs/accessibility/manual-validation-protocol.md` dates
+from 2026-08-05 and predates the six changes that landed on 2026-08-27 from a
+real migration. Every one of those was argued from numbers, and five left a
+question a number cannot close.
+
+**Block F** adds them, and it is different in kind from the blocks above it:
+those check whether the platform does what the semantics tree says, these check
+**judgements**.
+
+- **F1** — the caution ramp changed hue because a yellow held above 4.5:1 on
+  white stops being a yellow. That `#A34A00` reads as a warning rather than as a
+  brown is a judgement about perception nothing here tests.
+- **F2** — the standard profile now stops short of AAA so reinforced contrast
+  has room. Whether that reads as *enough* room needs an eye.
+- **F3** — `IuxChipMark.outline` gives up the checkmark to buy width. Weight is
+  not colour, so SC 1.4.1 holds; but it is quieter, and quieter for exactly the
+  users the glyph was put there for. **This one could send a default back.**
+- **F4** — a shared-line radio group keeps the spacing floor against what the
+  reporting application did. A mis-tap says that was not conservative enough.
+- **F5** — a brand mark does not grow with the text setting. A documented cost;
+  what it costs a user at 200% has never been looked at.
+
+`IUX-MANUAL-001` also gains a register entry. It was cited as the limit on four
+other entries and had none of its own — the same shape as the two findings
+recorded under `IUX-RESEARCH-GAP-001`.
+
+The session itself still has not been run, and that is still the release
+blocker.
+
 ### `IuxTapTarget` announced a button and offered nothing to activate
 
 **Behaviour fix, in the case the widget exists for.** Passing `semanticLabel`

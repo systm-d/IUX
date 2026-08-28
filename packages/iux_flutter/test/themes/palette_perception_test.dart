@@ -127,7 +127,8 @@ void main() {
       );
     });
 
-    test('a dark control outline sits below the perceptual floor it clears '
+    test(
+        'a dark control outline sits below the perceptual floor it clears '
         'in WCAG', () {
       // A characterisation test, not a target: it asserts a defect that is
       // shipped today, so that changing the dark neutral ramp cannot happen
@@ -170,9 +171,11 @@ void main() {
     // role rather than on average. Nothing said the same held once polarity
     // was accounted for, and in the dark pair it is the less obvious claim —
     // a light-on-dark role gains Lc more slowly than its ratio suggests.
-    for (final (String label, IuxThemeConfiguration standard,
-            IuxThemeConfiguration high)
-        in const <(String, IuxThemeConfiguration, IuxThemeConfiguration)>[
+    for (final (
+          String label,
+          IuxThemeConfiguration standard,
+          IuxThemeConfiguration high
+        ) in const <(String, IuxThemeConfiguration, IuxThemeConfiguration)>[
       (
         'light',
         IuxThemeConfiguration(),

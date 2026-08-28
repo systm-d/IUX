@@ -98,9 +98,8 @@ abstract final class ApcaContrast {
 
     if (yBackground > yText) {
       // Dark text on a light background.
-      final double sapc = (math.pow(yBackground, _normBg) -
-              math.pow(yText, _normTxt)) *
-          _scale;
+      final double sapc =
+          (math.pow(yBackground, _normBg) - math.pow(yText, _normTxt)) * _scale;
       return sapc < _lowClip ? 0 : (sapc - _lowOffset) * 100;
     }
 
