@@ -5,6 +5,29 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### A cited `IUX-*` identifier must resolve, and resolve to something still true
+
+The register is the project's memory, and a citation into it is a promise: a
+level, a scope, a source, a limit. Nothing checked the promise. **Three
+identifiers were cited in earnest by source and documentation with no entry
+anywhere** — the citation looked like evidence and cost the reader the search
+before they could conclude there was none. All three have since been written
+up, so `test/package/evidence_register_test.dart` passes on the day it is
+added; it exists to stop the fourth. The register is appended to by hand at the
+end of a piece of work, which is exactly when a deadline is nearest and an ID
+is most likely to be cited from code and never registered.
+
+Writing it found a second, quieter version of the same defect. An ID may carry
+more than one entry and the register uses that deliberately — a finding first,
+its fix or refinement later, the title saying which. But a reader following a
+citation lands on the **earliest** entry. `IUX-OVERLAY-001` read "open, and
+deliberately not fixed here" for as long as it took to fix it elsewhere, with
+nothing on the page telling anyone to read on. Three IDs were in that state.
+Each earlier entry now carries a forward pointer naming what continues it, and
+the test holds the convention: a superseded entry must say so.
+
+The check does not run in reverse. An entry nobody cites yet is fine.
+
 ### The palette, measured with instruments WCAG does not have
 
 **Measurement only. No shipped colour changed.** `theme_contrast_test.dart`

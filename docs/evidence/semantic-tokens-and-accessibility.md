@@ -762,6 +762,10 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 
 ### IUX-OVERLAY-001 — Opening a modal resets the page's scroll position
 
+**Superseded below.** A later entry under this ID records what happened next:
+*the scroll loss also disposed the opener (FIXED)*. Read both — the status in
+this entry is the state at the time it was written, not the state today.
+
 - **Level**: context_dependent
 - **Scope**: found in IUX-015, affects IUX-016
 - **Sources**: measured — a list at offset 400 snaps to 0 the instant a dialog
@@ -1826,6 +1830,11 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
 
 ### IUX-A11Y-REACH-001 — Two patterns lost their only control under scaling (FIXED)
 
+**Superseded below.** A later entry under this ID records what happened next:
+*refined by the pilot: the mitigation works, the default does not*. Read both —
+the status in this entry is the state at the time it was written, not the state
+today.
+
 - **Level**: standard
 - **Scope**: `IuxEmptyState`, `IuxPermissionRationale`, `IuxSearchResults`
 - **Sources**: WCAG 2.2 SC 1.4.4, SC 1.4.10; measured at 320 px
@@ -2235,6 +2244,11 @@ Levels follow `PROJECT_PROMPT.md` §9: `standard`, `strong_guidance`,
   this pattern can express one of the four.
 
 ### IUX-LISTITEM-TRAILING-001 — Two components that only overflow together (FIXED)
+
+**Superseded below.** A later entry under this ID records what happened next:
+*the width fix bought its own defect on the other axis (FIXED)*. Read both —
+the status in this entry is the state at the time it was written, not the state
+today.
 
 - **Level**: standard
 - **Sources**: WCAG 2.2 SC 1.4.4
@@ -3352,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 405 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 408 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3503,3 +3517,53 @@ that costs when it happens on a page.
   - Every measurement is of a colour pair, not of a rendered screen. Type size,
     weight, anti-aliasing, ambient light and display calibration all move real
     legibility and none of them is here. `IUX-MANUAL-001` still stands.
+
+### IUX-REGISTER-001 — Nothing checked that a citation into the register resolves
+
+- **Level**: standard
+- **Scope**: the register itself, and every file that cites it. No library
+  change.
+- **Sources**: none needed — this is an internal consistency property, checked
+  mechanically rather than argued.
+- **Status**: implemented; three assertions in
+  `packages/iux_flutter/test/package/evidence_register_test.dart`. Full suite:
+  2408 tests pass.
+
+- **The promise nobody was keeping.** A citation into this register — from a
+  doc comment, a test, a changelog line, a research file — promises the reader a
+  level, a scope, a source and a limit at the other end. **Three identifiers
+  were cited in earnest with no entry anywhere.** A citation that resolves to
+  nothing is worse than none at all: it looks like evidence, and it costs the
+  reader the search before they can conclude there is none. All three have since
+  been written up, so the guard passes on the day it lands. It exists to stop
+  the fourth, and the moment it is guarding is a specific one — the register is
+  appended to by hand at the end of a piece of work, when a deadline is nearest
+  and an ID is most likely to be cited from code and never registered.
+
+- **Two registers, one namespace.** The check reads both `docs/evidence` files.
+  `foundations.md` declares `IUX-FND-001` to `-003` as table rows rather than as
+  headings, and a check that knew only about headings would have reported three
+  false failures — which is how the second file was found at all.
+
+- **Writing it found a quieter version of the same defect.** An identifier may
+  carry more than one entry, and the register uses that deliberately: a finding
+  first, its fix or refinement later, the second title saying which. But a
+  reader following a citation lands on the **earliest** entry.
+  `IUX-OVERLAY-001` read "open, and deliberately not fixed here" for as long as
+  it took to fix it elsewhere, with nothing on the page telling anyone to read
+  on; `IUX-A11Y-REACH-001` and `IUX-LISTITEM-TRAILING-001` were the same. Each
+  earlier entry now names what continues it, and the third assertion holds the
+  convention rather than banning it. **The convention is good and was never the
+  problem** — the problem was that only its author could see it.
+
+- **Limits.**
+  - It checks that an entry exists, never that it is any good, current, or
+    about what the citation thinks it is about. `IUX-RESEARCH-GAP-001` is the
+    entry for that gap and no test can close it.
+  - The supersession pointer is a literal marker in the earlier entry. Two
+    entries under one ID that are genuinely parallel rather than sequential
+    would be forced to declare an order they do not have. None exist today.
+  - Identifiers are matched on shape: `IUX-`, a name, three digits. The
+    register's other numbering — mission numbers like "IUX-006 onward" in
+    `Scope` lines — is deliberately excluded, so a mission cited by number is
+    not checked against anything.
