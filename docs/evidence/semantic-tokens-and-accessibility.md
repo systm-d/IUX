@@ -3632,3 +3632,55 @@ that costs when it happens on a page.
     separately is untouched and remains a wart.
   - Nothing prevents a fourth component from writing its own map. The test
     names the three that exist; a new one would have to be added to it by hand.
+
+### IUX-CONFORMANCE-001 — What binds is EN 301 549, and the RGAA does not apply
+
+- **Level**: context_dependent
+- **Scope**: documentation only. `research/accessibility/en-301-549-mapping.md`.
+  No library change.
+- **Sources**: **none that anybody here has read.** Every primary source is
+  unreachable from this environment — `etsi.org`, `w3.org`,
+  `accessibilite.numerique.gouv.fr`, `accessibilite.public.lu` and `europa.eu`
+  are all refused by the network egress proxy. What is below rests on secondary
+  summaries, is marked as leads throughout the mapping file, and **may not be
+  promoted into a `Sources` line by anyone who has not opened the documents.**
+- **Status**: partial by design. Our own half is measured and finished; the
+  clause half is empty and says so.
+
+- **The correction.** systm-d/IUX#44 asked for a mapping against EN 301 549 *and
+  RGAA*, reasoning that the RGAA is what a French audit tests against. The
+  second half is wrong. **The RGAA's technical method covers web technologies
+  only** and explicitly excludes native mobile applications, for which the
+  European standard applies directly. IUX produces native Android interfaces,
+  so the RGAA's criteria do not apply to it at all. The mobile referential is
+  **RAAM**, which verifies against EN 301 549 and whose 2.0 revision adopted the
+  RGAA's thematic structure — which is very likely why the two get conflated,
+  and how the issue came to name the wrong one. An **RGAA 5** with native mobile
+  criteria is reported to be in preparation for late 2026; the issue's framing
+  becomes correct if that lands.
+
+- **What is now counted, and it needed no reading.** 166 register entries, 85
+  citing a WCAG 2.2 success criterion, 87 at level `standard`, and **29 distinct
+  success criteria** across the whole register. Every one asserted by a test
+  rather than claimed. **What that does not establish is coverage**: 29 criteria
+  named is not 29 criteria met, and the denominator lives in a document nobody
+  here has opened.
+
+- **The asymmetry the mapping found, which no clause number can change.** The
+  requirements of the European standard that are *not* WCAG are the ones nothing
+  in this repository was written against — and the two most likely to matter
+  invert this project's own sense of its strengths. Its answer on honouring
+  platform preferences for colour, contrast and text size is probably the best
+  thing it has, and it is claimed against nothing. Its answer on exposing
+  information through the platform's accessibility service is the centre of its
+  entire proposition, and `IUX-MANUAL-001` means it cannot be evidenced at all.
+
+- **Limits.**
+  - The clause numbers in the mapping file are named from commercial summaries
+    and blog posts. Some will be wrong, and the file says which column to
+    delete when they are.
+  - Which directive binds a given application — 2016/2102, or 2019/882, the
+    European Accessibility Act — decides whether any of this is mandatory for a
+    consuming team. Neither has been read here.
+  - Whether the harmonised version is V3.2.1 or the reported V4.1.0 final draft
+    is unresolved, and it decides which document the remaining work reads.

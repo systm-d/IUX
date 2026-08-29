@@ -5,6 +5,39 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### What binds a native mobile framework is EN 301 549, and the RGAA does not apply
+
+**Documentation only.** The issue that asked for this mapping named EN 301 549
+*and RGAA*, on the reasoning that the RGAA is what a French audit tests against.
+Half of that is wrong: **the RGAA's technical method covers web technologies
+only** and explicitly excludes native mobile applications, for which the
+European standard applies directly. IUX produces native Android interfaces, so
+its 106 criteria do not apply here at all. The mobile referential is **RAAM**,
+which verifies against EN 301 549 and whose 2.0 revision adopted the RGAA's
+thematic structure — very likely why the two get conflated. Finding that cost
+nothing; discovering it after writing a mapping against the wrong criteria set
+would have cost a great deal.
+
+`research/accessibility/en-301-549-mapping.md` is **half-finished on purpose.**
+Our own side is measured and complete: 166 register entries, 85 citing a WCAG
+2.2 success criterion, 87 at level `standard`, **29 distinct success criteria**,
+each asserted by a test rather than claimed — and that still does not establish
+coverage, because the denominator is in a document nobody here has opened. The
+clause side is empty because every primary source is unreachable from this
+environment: ETSI, W3C and both government portals are refused by the network
+egress proxy. A clause number quoted from a commercial summary is exactly the
+failure `IUX-RESEARCH-GAP-001` reported, one level up, so the leads are marked
+as leads and none may reach a register `Sources` line unread.
+
+The finding that survives regardless of which clause numbers turn out right:
+**the requirements most likely to be satisfied here have never been claimed, and
+the one at the centre of the framework's proposition cannot yet be evidenced.**
+Honouring platform preferences for colour, contrast and text size is probably
+IUX's strongest answer in the whole standard and is claimed against nothing;
+exposing information through the platform's accessibility service is what the
+library is *for*, and `IUX-MANUAL-001` still means no screen reader has ever
+seen it. `IUX-CONFORMANCE-001`.
+
 ### The error glyph becomes an octagon, and the four shapes get one definition
 
 **Visual change in every application.** `IUX-PALETTE-PERCEPTION-001` measured
