@@ -34,12 +34,29 @@ const String _kEmptyBackLabel =
     'realising they moved past the screen that explained the thing they now '
     'want.';
 
-/// Why the way forward must be named.
+/// Why the way forward must be named, and named per step.
 const String _kEmptyForwardLabel =
-    'The way forward must be named. Name where it goes — "See how budgets '
-    'work" — rather than the mechanism; "Next" tells the user that something '
-    'will happen and refuses to say what, which is the one fact they are using '
-    'to decide whether to stay.';
+    'The way forward must be named, on every step but the last. Name where it '
+    'goes — "See how budgets work" — rather than the mechanism; "Next" tells '
+    'the user that something will happen and refuses to say what, which is the '
+    'one fact they are using to decide whether to stay. The label belongs to '
+    'IuxOnboardingStep.forwardLabel because it names a destination, and a flow '
+    'of four steps has three forward controls pointing at three different '
+    'places. The last step names none: it draws `finish` instead.';
+
+/// Whether the steps carry the forward labels the flow will actually draw.
+///
+/// Both halves matter. A missing label on any step but the last is a control
+/// with no name. A label *on* the last step is a label that will never be
+/// drawn, which is a caller who believes they named something and did not —
+/// silent, and the reason this is checked rather than ignored.
+bool _everyStepButTheLastNamesItsDestination(List<IuxOnboardingStep> steps) {
+  for (int index = 0; index < steps.length; index++) {
+    final bool isLast = index == steps.length - 1;
+    if ((steps[index].forwardLabel == null) != isLast) return false;
+  }
+  return true;
+}
 
 /// A sequence of screens shown before the user has done anything, which they
 /// may leave at any point.
@@ -264,14 +281,12 @@ class IuxOnboardingFlow extends StatefulWidget {
     required this.onStepChanged,
     required this.describePosition,
     required this.backLabel,
-    required this.forwardLabel,
     required this.skip,
     required this.finish,
   })  : assert(steps.length > 1, _kTooFewSteps),
         assert(
             currentStep >= 0 && currentStep < steps.length, _kStepOutOfRange),
-        assert(backLabel.length > 0, _kEmptyBackLabel),
-        assert(forwardLabel.length > 0, _kEmptyForwardLabel);
+        assert(backLabel.length > 0, _kEmptyBackLabel);
 
   /// The screens, in the order they are shown.
   final List<IuxOnboardingStep> steps;
@@ -309,13 +324,6 @@ class IuxOnboardingFlow extends StatefulWidget {
   ///
   /// Not drawn on the first step, where there is nowhere to go back to.
   final String backLabel;
-
-  /// The visible text of the control that goes forward one step, already
-  /// localised.
-  ///
-  /// Replaced by [finish] on the last step, where the control leaves the flow
-  /// rather than moving within it.
-  final String forwardLabel;
 
   /// How the user leaves the flow without reaching the end.
   ///
@@ -384,6 +392,12 @@ class _IuxOnboardingFlowState extends State<IuxOnboardingFlow> {
   /// Whether the step on screen is the last one.
   bool get _isLastStep => widget.currentStep == widget.steps.length - 1;
 
+  /// The forward label of the step on screen.
+  ///
+  /// Only read when [_isLastStep] is false, where the constructor's assertion
+  /// guarantees it is non-null. The `!` is the assertion's, not a hope.
+  String get _forwardLabel => widget.steps[widget.currentStep].forwardLabel!;
+
   /// The way back, the way out, and the way on, in reading order.
   ///
   /// **Back, skip, forward.** The order is both predecessors' at once: it is
@@ -448,9 +462,9 @@ class _IuxOnboardingFlowState extends State<IuxOnboardingFlow> {
         )
       else
         IuxButton(
-          label: widget.forwardLabel,
+          label: _forwardLabel,
           action: IuxActionDescriptor(
-            semantics: IuxActionSemantics(label: widget.forwardLabel),
+            semantics: IuxActionSemantics(label: _forwardLabel),
             role: IuxActionRole.navigate,
             intent: IuxActionIntent.primary,
             importance: IuxActionImportance.high,
@@ -462,6 +476,16 @@ class _IuxOnboardingFlowState extends State<IuxOnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
+    // Checked here rather than in the constructor, for the reason `IuxAppBar`
+    // gives for its action count: walking a list is not something a `const`
+    // invocation can evaluate, and a widget that cannot be `const` costs every
+    // call site a rebuild. It still fails on the first build, in debug, before
+    // anything is painted.
+    assert(
+      _everyStepButTheLastNamesItsDestination(widget.steps),
+      _kEmptyForwardLabel,
+    );
+
     final IuxOnboardingStep step = widget.steps[widget.currentStep];
     final Widget? content = step.content;
 

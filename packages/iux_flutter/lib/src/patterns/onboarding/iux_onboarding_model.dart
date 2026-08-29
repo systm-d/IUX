@@ -77,9 +77,15 @@ final class IuxOnboardingStep {
   const IuxOnboardingStep({
     required this.title,
     required this.body,
+    this.forwardLabel,
     this.content,
   })  : assert(title.length > 0, _kEmptyTitle),
-        assert(body.length > 0, _kEmptyBody);
+        assert(body.length > 0, _kEmptyBody),
+        assert(
+          forwardLabel == null || forwardLabel.length > 0,
+          'Pass null rather than an empty forward label. Null means "this is '
+          'the last step"; an empty string means a control with no name.',
+        );
 
   /// What this step is about, already localised.
   ///
@@ -110,6 +116,34 @@ final class IuxOnboardingStep {
   /// long body is a long announcement, heard again every time the user walks
   /// back. See the limitations in `IuxOnboardingFlow`.
   final String body;
+
+  /// The visible text of the control that leaves this step forwards, already
+  /// localised, or null on the last step.
+  ///
+  /// **It lives here, on the step, because it names a destination.**
+  /// `IuxOnboardingFlow` used to take one string for the whole flow, which
+  /// contradicted the rule its own assertion states: name where the control
+  /// goes — "See how budgets work" — rather than the mechanism. A flow of four
+  /// steps has three forward controls pointing at three different places, and
+  /// one string cannot name three destinations, so from the second step onward
+  /// it was either wrong or generic. Generic is what the assertion refuses.
+  ///
+  /// Note that the opposite argument, which `IuxOnboardingFlow.backLabel`
+  /// makes and keeps, is sound: one word for the whole flow, because going back
+  /// always goes to the step just left, and a control renamed at every step has
+  /// to be read again each time. That reasoning holds for backwards and does
+  /// not transfer to forwards. The two parameters differ because the two
+  /// directions differ.
+  ///
+  /// **Null means this is the last step**, where the flow draws
+  /// `IuxOnboardingFlow.finish` instead — a control that leaves the flow rather
+  /// than moving within it. `IuxOnboardingFlow` asserts the shape: every step
+  /// but the last names its destination, and the last names none.
+  ///
+  /// Name what the *next* screen is about, matching its [title]. The step whose
+  /// title is "Track what you spend" is reached by a control reading "See how
+  /// budgets work" — placed on the step before it, not on itself.
+  final String? forwardLabel;
 
   /// Anything the step shows beyond [title] and [body], or null.
   ///
@@ -144,10 +178,11 @@ final class IuxOnboardingStep {
       other is IuxOnboardingStep &&
           other.title == title &&
           other.body == body &&
+          other.forwardLabel == forwardLabel &&
           other.content == content;
 
   @override
-  int get hashCode => Object.hash(title, body, content);
+  int get hashCode => Object.hash(title, body, forwardLabel, content);
 
   @override
   String toString() => 'IuxOnboardingStep($title)';

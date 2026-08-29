@@ -7,6 +7,14 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+**Breaking.** `IuxOnboardingFlow.forwardLabel` is removed;
+`IuxOnboardingStep.forwardLabel` replaces it, null on the last step only. The
+pattern's assertion demanded a named destination while its API offered one
+string for the whole flow, so from the second step onward the label was either
+wrong or generic. `backLabel` stays flow-wide and keeps its argument, which is
+sound for backwards and does not transfer to forwards.
+`IUX-ONBOARDING-FORWARD-001`.
+
 Documentation: `IuxListItem.selectable` and the list documentation now name
 `IuxRadioGroup` for a one-answer question. Seven selectable rows are seven
 independent toggles with no question attached and no exclusivity — the one wrong

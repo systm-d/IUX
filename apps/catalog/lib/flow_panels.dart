@@ -1066,6 +1066,10 @@ class _OnboardingPanelState extends State<_OnboardingPanel> {
             ? 'Fotografierte Belege werden ausschließlich auf diesem Gerät '
                 'gelesen und niemals hochgeladen.'
             : 'Receipts are read on this device and never uploaded.',
+        // Each label names the step it leads to, which is the whole reason it
+        // lives on the step. This one points at "Set a budget".
+        forwardLabel:
+            long ? 'Sehen, wie Budgets funktionieren' : 'See how budgets work',
         content: content,
       ),
       IuxOnboardingStep(
@@ -1073,6 +1077,11 @@ class _OnboardingPanelState extends State<_OnboardingPanel> {
         body: long
             ? 'Wir melden uns, sobald Sie sich der festgelegten Grenze nähern.'
             : 'We tell you when you are close to it.',
+        // Points at "Share it". Under the old single-string parameter this
+        // control also read "See how budgets work", on the step that came
+        // after budgets — which is the defect systm-d/IUX#52 reported.
+        forwardLabel:
+            long ? 'Im Haushalt teilen' : 'Share it with the household',
         content: content,
       ),
       IuxOnboardingStep(
@@ -1080,6 +1089,7 @@ class _OnboardingPanelState extends State<_OnboardingPanel> {
         body: long
             ? 'Alle im Haushalt sehen dieselben Zahlen, ohne ein zweites Konto.'
             : 'Everyone in the household sees the same figures.',
+        // The last step names nothing: `finish` is what is drawn here.
         content: content,
       ),
     ];
@@ -1110,10 +1120,6 @@ class _OnboardingPanelState extends State<_OnboardingPanel> {
       onStepChanged: (int next) => setState(() => _step = next),
       describePosition: (int step, int count) => '$step of $count',
       backLabel: long ? 'Zurück' : 'Back',
-      forwardLabel: long
-          ? 'Sehen, wie Budgets funktionieren'
-          : 'See how '
-              'budgets work',
       skip: IuxNamedAction(
         label: long ? 'Einrichtung überspringen' : 'Skip setup',
         onActivate: () => setState(() => _left++),

@@ -5,6 +5,35 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxOnboardingStep.forwardLabel` — the label moves to the step it names
+
+**Breaking.** `IuxOnboardingFlow.forwardLabel` is removed;
+`IuxOnboardingStep.forwardLabel` replaces it, and is null on the last step only.
+
+The pattern's own assertion demanded something its API refused. The message
+reads *"Name where it goes — 'See how budgets work' — rather than the
+mechanism"*, and it guarded a single `String` for the entire flow. A flow of
+four steps has three forward controls pointing at three different destinations,
+so from the second step onward the label was either wrong or generic — and
+generic is exactly what the assertion refuses. The class documentation's own
+example showed it, and the catalog was shipping it: after "Set a budget", the
+control still read "See how budgets work".
+
+`backLabel` stays one word for the whole flow, and its argument is kept because
+it is right: going back always goes to the step just left, and a control renamed
+at every step has to be read again each time. That reasoning does not transfer
+to forwards, which is why the two parameters now differ and both say so.
+
+The shape is checked on the first build, in both directions: a step other than
+the last with no label is a control with no name, and a label *on* the last step
+is never drawn — the quieter half, where a caller believes they named something
+and did not.
+
+`IuxGuidedForm` carries the same single-string shape with the same demand in its
+own assertion. It is recorded in `IUX-ONBOARDING-FORWARD-001` and deliberately
+left alone: a guided form's forward control genuinely does the same thing at
+every step, and changing two patterns on one report is wider than the report.
+
 ### A one-answer question is `IuxRadioGroup`, and the list row cannot say so by refusing
 
 **Documentation only.** An integrator built a weekday chooser — one question,
