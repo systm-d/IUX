@@ -107,9 +107,9 @@ on `fd33610`:
 | at level `standard` | 87 | **89** |
 | distinct WCAG success criteria cited | 29 | **31** |
 
-`1.3.1` and `2.4.4` joined the set. This work adds one further entry,
-`IUX-EN301549-001`, taking the register to 170; the row above is the state of
-`fd33610`, before it. The caveat is unchanged and is the point:
+`1.3.1` and `2.4.4` joined the set. This work adds two further entries,
+`IUX-EN301549-001` and `IUX-EN301549-002`, taking the register to 171; the row
+above is the state of `fd33610`, before them. The caveat is unchanged and is the point:
 **thirty-one criteria named is not thirty-one criteria met**, and clause 11 now
 supplies the denominator that was missing.
 
@@ -213,6 +213,11 @@ are small and sharp rather than sprawling:
 Items 3 and 4 are the cheap ones: the behaviour exists and the register is
 simply silent. Item 1 is the real hole. Item 2 is a design decision that has
 never been taken deliberately.
+
+> **Update**: items 3 and 4 are now recorded, as `IUX-EN301549-002`. No library
+> behaviour changed; what changed is that the clauses they answer are named and
+> the tests that carry them are cited. **Items 1 and 2 remain open**, and they
+> are the ones that matter more.
 
 **And the asymmetry the previous file named survives the reading, sharpened:**
 the requirements IUX most likely satisfies (11.7 platform preferences, 5.6, 5.9)

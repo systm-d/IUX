@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 417 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 418 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3877,3 +3877,77 @@ that costs when it happens on a page.
     it was done.
   - **V4.1.0 is a draft and was not mapped.** It is 94 pages longer than V3.2.1
     and will need a re-read when it publishes.
+
+### IUX-EN301549-002 — The clause 5 requirements a component library owes, which were satisfied and unclaimed
+
+- **Level**: standard
+- **Scope**: `IuxCheckbox`, `IuxSwitch`, and the library's gesture surface as a
+  whole. **No library change** — this entry records behaviour that already
+  exists and that nothing claimed.
+- **Sources**: **EN 301 549 V3.2.1** clauses 5.5.1, 5.6.1, 5.6.2 and 5.9, read
+  (see `IUX-EN301549-001`); **RAAM 1.1** criteria 5.5, 11.10 and 11.11, all
+  level A and **none of them carrying a WCAG correspondence**.
+- **Status**: verified against existing tests; two of the four were already
+  asserted, and this entry names the clause they answer.
+
+- **Why an entry for behaviour that did not change.** `IUX-EN301549-001` found
+  that the requirements this library most likely satisfies are the ones it never
+  claimed. Three of the four sat in clause 5, which the previous research file's
+  lead had summarised as *"closed functionality, preservation of accessibility
+  information, biometrics"* — all three out of scope, which is how the two that
+  are **in** scope stayed invisible. RAAM tests them directly and derives them
+  from no WCAG criterion, so **no WCAG-derived test in this repository could
+  have reached them by accident.** Writing down "satisfied, and here is what
+  satisfies it" is the difference between a library that conforms and one that
+  can be shown to.
+
+- **5.6.1, toggle status through touch or sound — covered.**
+  `IuxSemantics.selection` sets `checked` for a checkbox and a radio, `mixed`
+  for a checkbox's partial state, and `toggled` for a switch, never both. On
+  Android these are what reach `AccessibilityNodeInfo`. Asserted in
+  `test/accessibility/iux_semantics_helpers_test.dart` — *"a checkbox announces
+  a checked state"*, *"a switch announces a toggled state, never a checked
+  one"* — and again in `test/components/iux_selection_test.dart`.
+
+- **5.6.2, toggle status visually determinable — covered, and covered in the
+  stronger form.** The clause asks only that the status be visually
+  determinable. `test/components/iux_selection_test.dart` asserts *"a chosen
+  checkbox shows a mark, not only a fill"*, so the state does not rest on colour
+  alone. That is SC 1.4.1's demand rather than 5.6.2's, and the clause is
+  satisfied by the surplus.
+
+- **5.9, simultaneous user actions — satisfied by construction.** Nothing in the
+  library requires two inputs at once. The gesture surface, counted across
+  `lib/`, is 72 `onTap` plus tap-down/up/cancel, and no multi-pointer recogniser
+  of any kind.
+
+- **5.5.1 read as complex gestures (RAAM 11.10) — satisfied, with one honest
+  qualification.** There is **no** pan, scale or drag recogniser anywhere in
+  `lib/`. There is exactly one non-tap gesture: `IuxTooltip`'s
+  `onLongPress`. It is additive rather than required —
+  `IuxSemantics.elaboration` puts the same message on the node as
+  `Semantics(tooltip:)`, so an assistive technology reads it without performing
+  the gesture, and the detector defers to the child and loses the gesture arena
+  to a quick tap, so the control underneath still activates normally. **The
+  information has a route that costs no gesture**, which is what the requirement
+  is protecting.
+
+- **Limits.**
+  - **Still measured on the semantics tree, not on the platform.** `checked` and
+    `toggled` are asserted where every other claim in this register is asserted,
+    and `IUX-MANUAL-001` applies here exactly as it does everywhere else: nobody
+    has heard TalkBack announce a switch. RAAM's own method for its criterion 5.5
+    begins by turning the screen reader on.
+  - **The long-press qualification began as a reading and is now asserted.**
+    `test/components/iux_help_test.dart`, *"the message is on the node before
+    any gesture, so nothing has to be performed to read it"*, is the one test
+    this entry added. Writing it found something the reading had not: the widget
+    wraps itself in `MergeSemantics`, so the tooltip does **not** sit on the
+    node a caller would reach for — querying `IuxTooltip` itself returns an
+    empty tooltip, and the property is only visible from inside the merged
+    control. The behaviour is correct and deliberate, and it is the kind of
+    thing that makes a claim asserted from the outside worth less than it looks.
+  - **Three of the four delta items remain open** and are the ones that matter
+    more: 11.6.2 has nothing behind it, and 11.7's font type, focus cursor and
+    units of measurement are unread platform preferences. This entry closes the
+    cheap half deliberately, and does not pretend to close the rest.
