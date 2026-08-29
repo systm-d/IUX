@@ -342,6 +342,25 @@ what the user asked for. If the parent does not re-render with a new value,
 nothing changes on screen — which is correct, because a row that marked itself
 and then failed to save would be showing the user something untrue. Asserted.
 
+**A one-answer question is `IuxRadioGroup`, not a group of selectable rows.**
+This is the composition the component cannot refuse and the one integrators
+reach for, because a selectable row *is* a checkbox and several independent
+checkboxes in a list is a perfectly good arrangement — files to delete, days to
+include. The two are byte-identical, so no assertion can separate them, and a
+one-answer question built from rows renders correctly, passes a widget test,
+and is wrong only in the semantics tree:
+
+| | seven `IuxListItem.selectable` | `IuxRadioGroup` |
+| --- | --- | --- |
+| the question | nowhere — a group of rows is not a group, so there is no heading to jump to | the group's own label |
+| announced as | seven independent toggles | "1 of 7" inside a named group |
+| exclusivity | lives in the caller's `setState` | the component's |
+| two selected at once | representable | not |
+
+Reach for the rows when the user may pick any number of things, and for
+`IuxRadioGroup` when the answer is one. `IuxRadioGroupLayout.row` puts short
+options on a shared line.
+
 ## States
 
 | State | Plain | Tappable | Selectable |

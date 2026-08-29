@@ -6,15 +6,16 @@ IuxOnboardingFlow(
   onStepChanged: controller.goToStep,
   describePosition: l10n.stepOf,              // (int, int) => String
   backLabel: l10n.back,
-  forwardLabel: l10n.seeHowBudgetsWork,
   steps: <IuxOnboardingStep>[
     IuxOnboardingStep(
       title: l10n.trackWhatYouSpend,
       body: l10n.receiptsAreReadOnThisDeviceAndNeverUploaded,
+      forwardLabel: l10n.seeHowBudgetsWork,   // names the step it leads to
     ),
     IuxOnboardingStep(
       title: l10n.setABudget,
       body: l10n.weWillTellYouWhenYouAreCloseToIt,
+      // The last step names nothing: `finish` is drawn here instead.
     ),
   ],
   skip: IuxNamedAction(
@@ -396,7 +397,6 @@ IuxOnboardingFlow({
   required ValueChanged<int> onStepChanged,        // a request, not a report
   required IuxStepPositionDescription describePosition,
   required String backLabel,                       // one word for the whole flow
-  required String forwardLabel,
   required IuxNamedAction skip,           // on every step
   required IuxNamedAction finish,         // replaces forward on the last
 })
@@ -404,18 +404,28 @@ IuxOnboardingFlow({
 IuxOnboardingStep({
   required String title,                           // non-empty
   required String body,                            // non-empty
+  String? forwardLabel,                            // null on the last step only
   Widget? content,
 })
 ```
 
-**Every parameter is required except `content`.** There is no default that is
-right half the time, and each of the nine is load-bearing:
+**Every parameter is required except `content` and `forwardLabel`.** There is no
+default that is right half the time, and each of the rest is load-bearing:
 
-- `backLabel` and `forwardLabel` are **one pair for the whole flow**, not one per
-  step. The position already says where the user is, and a control whose name
-  changes at every step has to be read again each time to be sure it still does
-  what it did. `backLabel` is not drawn on the first step, where there is nowhere
-  to go back to.
+- `backLabel` is **one word for the whole flow**, and that is an argument rather
+  than an oversight: the position already says where the user is, going back
+  always goes to the step just left, and a control whose name changes at every
+  step has to be read again each time to be sure it still does what it did. It
+  is not drawn on the first step, where there is nowhere to go back to.
+- **`forwardLabel` is per step, and that is the same argument reaching the
+  opposite conclusion.** Forwards does not always go to the same kind of place:
+  a flow of four steps has three forward controls pointing at three different
+  destinations, and one string cannot name three of them. It was one string for
+  the whole flow until systm-d/IUX#52, which is how an integrator found the
+  pattern contradicting its own assertion — the rule below demands a
+  destination, and from the second step onward the API could only supply a
+  generic label. **Null means "this is the last step"**, where `finish` is drawn
+  instead; every other step must name where it goes.
 - Name the **destination**, not the mechanism. "See how budgets work" rather than
   "Next": "Next" tells the user that something will happen and refuses to say
   what, which is the one fact they are using to decide whether to stay. The same
@@ -429,7 +439,13 @@ right half the time, and each of the nine is load-bearing:
   finishing are both `IuxActionRole.navigate`: going back discards nothing, and
   reaching the end commits nothing.
 
-### The shapes the constructor refuses
+### The shapes it refuses
+
+Most are constructor assertions. The two about the *shape of the label set*
+are checked on the first build instead, for the reason `IuxAppBar` gives for
+its action count: walking a list is not something a `const` invocation can
+evaluate, and a widget that cannot be `const` costs every call site a rebuild.
+They still fail in debug before anything is painted.
 
 | Refused | Message names the better answer |
 | --- | --- |
@@ -437,7 +453,10 @@ right half the time, and each of the nine is load-bearing:
 | `currentStep` outside `steps` | it would announce "4 of 3" |
 | an empty `title` | focus lands here; unnamed, the flow moves and says nothing |
 | an empty `body` | a title over a picture is a screen bought for one noun |
-| an empty `backLabel` or `forwardLabel` | announced as "button" and nothing else |
+| an empty `backLabel` | announced as "button" and nothing else |
+| an empty `forwardLabel` | null and empty are different answers: null is "last step", empty is a control with no name |
+| a step other than the last with no `forwardLabel` | a forward control with no name |
+| a `forwardLabel` **on** the last step | it is never drawn, so the caller named something and did not — the quieter half, and the reason the check runs both ways |
 
 `skip` and `finish` being required is the type-level half of the same rule: an
 onboarding with no way out does not compile.

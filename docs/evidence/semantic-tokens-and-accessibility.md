@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 415 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 417 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3684,3 +3684,112 @@ that costs when it happens on a page.
     consuming team. Neither has been read here.
   - Whether the harmonised version is V3.2.1 or the reported V4.1.0 final draft
     is unresolved, and it decides which document the remaining work reads.
+
+### IUX-LIST-SINGLECHOICE-001 — The list row cannot refuse the one composition integrators reach for
+
+- **Level**: standard
+- **Scope**: documentation only — `IuxListItem.selectable`'s dartdoc and
+  `docs/components/list-items.md`. No API change, and none is possible.
+- **Sources**: WCAG 2.2 SC 1.3.1, SC 4.1.2; reported from a migration
+  (systm-d/IUX#50) after the wrong arrangement shipped for several days.
+- **Status**: implemented.
+
+- **What the integrator built, and why nothing stopped them.** A weekday
+  chooser — one question, one answer, seven options — assembled from
+  `IuxListGroup` and seven `IuxListItem.selectable`. It renders correctly and
+  passes a widget test. It is seven independent toggles: a screen reader reads
+  seven controls with no question attached, because **a group of rows is not a
+  group** and there is no heading to jump to, and nothing but the caller's own
+  `setState` prevents two of them reporting `selected` at once.
+
+- **Why this one cannot be an assertion, unlike every neighbouring rule.** The
+  framework's habit is to refuse a wrong composition and name the better answer
+  — fewer than two onboarding steps, duplicate radio values, an empty app bar
+  title — and that habit is the reason a caller trusts the compositions that do
+  build. It cannot apply here. **Several independent choices in a list is a
+  legitimate arrangement** — files to delete, days to include — and it is
+  byte-identical to a single-choice question built wrongly. No runtime check can
+  separate intent from arrangement, so the answer is documentation and the
+  reporter said so themselves.
+
+- **The component's own framing is what makes the trap work.** The dartdoc says
+  a selectable row "is a checkbox in disguise", which is true, correct, and
+  exactly why *n* of them reads as a reasonable way to ask one question. Both
+  documents now name `IuxRadioGroup` at that point, with a table of what the two
+  arrangements announce.
+
+- **What worked, recorded because it is rarer than a defect.**
+  `IuxRadioGroupLayout.row` names "the days of a week" as its own use case, and
+  the reporter got the layout right on the first try once they had found the
+  component. **An example naming a concrete situation did the work the API name
+  could not.**
+
+- **Limits.** Documentation is only found by a reader who looks. The integrator
+  found `IuxRadioGroup` while checking whether the issue was worth filing, not
+  while building — so this closes the gap for the next reader of the list
+  documentation and does nothing for someone who never opens it.
+
+### IUX-ONBOARDING-FORWARD-001 — The pattern's own assertion demanded what its API refused
+
+- **Level**: standard
+- **Scope**: `IuxOnboardingFlow` and `IuxOnboardingStep`. **Breaking**:
+  `IuxOnboardingFlow.forwardLabel` is removed;
+  `IuxOnboardingStep.forwardLabel` replaces it.
+- **Sources**: WCAG 2.2 SC 2.4.6, SC 2.4.4; reported from a migration
+  (systm-d/IUX#52) where the pattern was abandoned and rebuilt by hand.
+- **Status**: implemented; the shape is asserted on the first build and
+  exercised in both failing directions. Full suite: 2417 tests pass.
+
+- **The contradiction.** `_kEmptyForwardLabel` states the rule the parameter
+  exists to enforce: *"Name where it goes — 'See how budgets work' — rather than
+  the mechanism; 'Next' tells the user that something will happen and refuses to
+  say what."* It guarded **a single `String` for the entire flow**. A flow of
+  four steps has three forward controls pointing at three different
+  destinations, so from the second step onward the label was either wrong or
+  generic — and generic is precisely what the assertion refuses. The class
+  documentation's own example showed it: `forwardLabel: l10n.seeHowBudgetsWork`
+  named step two's destination and then labelled the control on step two.
+
+- **The fix is a move, not an addition.** The label belongs to the step it
+  names, beside `title` and `body`. Null means "this is the last step", where
+  `finish` is drawn instead.
+
+- **The reverse argument was sound and is kept.** `backLabel` argues explicitly
+  for one word for the whole flow — the position already says where the user is,
+  and a control renamed at every step must be read again each time. **That holds
+  for backwards, which always goes to the step just left, and does not transfer
+  to forwards.** The two parameters now differ because the two directions do,
+  and both say why.
+
+- **The check runs in both directions**, and the second half is the quieter
+  one: a label *on* the last step is never drawn, so a caller who wrote one
+  believes they named something and did not. Silent, and the reason it is
+  checked rather than ignored.
+
+- **Checked on the first build rather than in the constructor**, for the reason
+  `IuxAppBar` gives for its action count: walking a list is not something a
+  `const` invocation can evaluate, and a widget that cannot be `const` costs
+  every call site a rebuild.
+
+- **The catalog was demonstrating the defect.** Its three-step flow passed one
+  label, so the control after "Set a budget" also read "See how budgets work".
+  Each step now names the one it leads to.
+
+- **`IuxGuidedForm` carries the same shape and is deliberately untouched here.**
+  Its assertion makes the same demand — *"Name where it goes — 'Continue to
+  payment'"* — against the same single `String`. The severity is not the same: a
+  guided form's forward control genuinely does the same thing at every step,
+  which is continue filling in this form, whereas each onboarding step sells
+  something different and naming the destination is the whole point. It is a
+  real inconsistency and it is recorded rather than fixed, because changing two
+  patterns on one integrator's report is wider than the report.
+
+- **Limits.**
+  - Nothing checks that a label actually names the *next* step rather than
+    something else. A caller can still write "Next" on every step and satisfy
+    every assertion; what the API no longer does is force them to.
+  - A caller slicing a longer list of steps now has to move the null. That is a
+    real cost of putting the label on the step, and the alternative shape —
+    `String Function(int)` on the flow — would not have had it. It was not
+    taken because a function separates the label from the thing it names, which
+    is the separation this entry exists to close.

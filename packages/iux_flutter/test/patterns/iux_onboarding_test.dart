@@ -30,18 +30,24 @@ const List<IuxThemeConfiguration> _profiles = <IuxThemeConfiguration>[
 
 const String _backLabel = 'Back';
 const String _forwardLabel = 'See how budgets work';
+const String _forwardLabel2 = 'Share it with the household';
 const String _skipLabel = 'Skip setup';
 const String _finishLabel = 'Start using Ledger';
 const String _contentText = 'A sample week of spending';
 
+/// Three steps, each naming the one it leads to — which is the arrangement
+/// `IuxOnboardingStep.forwardLabel` exists to make possible. The last names
+/// nothing: the flow draws `finish` there.
 const List<IuxOnboardingStep> _steps = <IuxOnboardingStep>[
   IuxOnboardingStep(
     title: 'Track what you spend',
     body: 'Receipts are read on this device and never uploaded',
+    forwardLabel: _forwardLabel,
   ),
   IuxOnboardingStep(
     title: 'Set a budget',
     body: 'We tell you when you are close to it',
+    forwardLabel: _forwardLabel2,
   ),
   IuxOnboardingStep(
     title: 'Share it',
@@ -105,6 +111,7 @@ class _HostState extends State<_Host> {
               IuxOnboardingStep(
                 title: each.title,
                 body: each.body,
+                forwardLabel: each.forwardLabel,
                 content: widget.content,
               ),
           ];
@@ -118,7 +125,6 @@ class _HostState extends State<_Host> {
       },
       describePosition: _position,
       backLabel: _backLabel,
-      forwardLabel: _forwardLabel,
       skip: IuxNamedAction(
         label: _skipLabel,
         onActivate: () => skipped++,
@@ -262,7 +268,6 @@ void main() {
       List<IuxOnboardingStep> steps = _steps,
       int currentStep = 0,
       String backLabel = _backLabel,
-      String forwardLabel = _forwardLabel,
     }) =>
         IuxOnboardingFlow(
           steps: steps,
@@ -270,7 +275,6 @@ void main() {
           onStepChanged: (int _) {},
           describePosition: _position,
           backLabel: backLabel,
-          forwardLabel: forwardLabel,
           skip: IuxNamedAction(label: _skipLabel, onActivate: () {}),
           finish: IuxNamedAction(label: _finishLabel, onActivate: () {}),
         );
@@ -291,9 +295,66 @@ void main() {
       expect(() => build(currentStep: -1), throwsAssertionError);
     });
 
-    test('the two navigation controls must be named', () {
+    test('the way back must be named', () {
       expect(() => build(backLabel: ''), throwsAssertionError);
-      expect(() => build(forwardLabel: ''), throwsAssertionError);
+    });
+
+    test('an empty forward label is refused by the step itself', () {
+      // Null and empty are different answers and only one of them is allowed:
+      // null means "this is the last step", empty means a control with no name.
+      expect(
+        () => IuxOnboardingStep(
+          title: 'Set a budget',
+          body: 'We tell you when you are close to it',
+          forwardLabel: '',
+        ),
+        throwsAssertionError,
+      );
+    });
+
+    testWidgets('every step but the last must name where it goes',
+        (WidgetTester tester) async {
+      // Checked on the first build rather than in the constructor — walking a
+      // list is not something a `const` invocation can evaluate — so it needs
+      // pumping to reach, unlike the constructor assertions above.
+      Future<void> pumpSteps(List<IuxOnboardingStep> steps) =>
+          tester.pumpWidget(
+            MaterialApp(
+              theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+              home: IuxOnboardingFlow(
+                steps: steps,
+                currentStep: 0,
+                onStepChanged: (int _) {},
+                describePosition: _position,
+                backLabel: _backLabel,
+                skip: IuxNamedAction(label: _skipLabel, onActivate: () {}),
+                finish: IuxNamedAction(label: _finishLabel, onActivate: () {}),
+              ),
+            ),
+          );
+
+      // A middle step with no label is a forward control with no name.
+      await pumpSteps(const <IuxOnboardingStep>[
+        IuxOnboardingStep(title: 'One', body: 'First'),
+        IuxOnboardingStep(title: 'Two', body: 'Second'),
+      ]);
+      expect(tester.takeException(), isAssertionError);
+
+      // A label on the last step is the quieter half, and the reason this is
+      // checked in both directions: it is never drawn, so a caller who wrote
+      // one believes they named something they did not.
+      await pumpSteps(const <IuxOnboardingStep>[
+        IuxOnboardingStep(title: 'One', body: 'First', forwardLabel: 'Go'),
+        IuxOnboardingStep(title: 'Two', body: 'Second', forwardLabel: 'Go'),
+      ]);
+      expect(tester.takeException(), isAssertionError);
+
+      // The shape the flow accepts.
+      await pumpSteps(const <IuxOnboardingStep>[
+        IuxOnboardingStep(title: 'One', body: 'First', forwardLabel: 'Go'),
+        IuxOnboardingStep(title: 'Two', body: 'Second'),
+      ]);
+      expect(tester.takeException(), isNull);
     });
 
     test('there is no way to build a flow without a way out', () {
@@ -797,13 +858,13 @@ void main() {
         'Allow the camera',
         _backLabel,
         _skipLabel,
-        _forwardLabel,
+        _forwardLabel2,
       ]) {
         expect(spoken, contains(label), reason: label);
       }
       expect(
         spoken.indexOf('Allow the camera'),
-        lessThan(spoken.indexOf(_forwardLabel)),
+        lessThan(spoken.indexOf(_forwardLabel2)),
         reason: 'the rationale sits in the content, above the flow\'s own '
             'controls, so its pair is met first',
       );
@@ -834,7 +895,7 @@ void main() {
 
         expect(find.text('2 of 3'), findsOneWidget);
         expect(find.text(_skipLabel), findsOneWidget);
-        expect(find.text(_forwardLabel), findsOneWidget);
+        expect(find.text(_forwardLabel2), findsOneWidget);
         expect(
           headingNode(
             tester,
