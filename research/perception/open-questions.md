@@ -86,6 +86,53 @@ device, in the conditions a dark theme is actually used in — which is
 what a measurement can do; it narrowed a ramp to two rungs and cannot choose
 between them.
 
+### Update 2026-08-29 — the suite can choose, and it excludes one of the two
+
+The instruction attached to this question was to run the full suite before
+concluding, because the last rung moved on an argument produced twelve
+collisions. **That was done, for both candidates, and it settles more than
+expected: one of the two rungs is mechanically unavailable.**
+
+Method: `border.standard` and `border.interactive` were repointed in the `dark`
+profile only — `highContrastDark` untouched — and `flutter test` was run in
+full. Both patches were reverted; nothing here ships a colour.
+
+| rung | Lc measured by the suite | Lc predicted above | failures |
+| --- | --- | --- | --- |
+| `neutral50` `#6B7382` (shipped) | 27.2 | 27.2 | baseline, green |
+| **`neutral45` `#7E8693`** | **36.015** | 36.0 | **2 — and both are the tests that pin this defect** |
+| `neutral40` `#98A0AE` | 49.234 | 49.2 | **3 — one is a real collision** |
+
+**The two instruments agree to the third decimal.** `research/perception`
+computed Lc 36.0 and 49.2 from transcribed APCA; the shipped palette resolved
+through the library's own code measures 36.015 and 49.234. That is a genuine
+cross-check of this directory's numbers against the thing they describe, and it
+is the first one available without hardware.
+
+**`neutral40` is excluded.** Its third failure is
+`test/inputs/iux_input_theme_test.dart`, *"two availabilities never paint one
+box: no two availabilities resolve to the same painted box"* — moving the
+control outline onto the rung `content.tertiary` and `border.strong` already
+hold makes two input availability states paint identically. That is the exact
+failure mode this question warned about, and it is a real regression rather
+than a stale expectation: a user could no longer tell two field states apart.
+
+**`neutral45` breaks nothing.** Zero collisions in
+`button_distinguishability_test.dart` — the suite that produced twelve last
+time — and zero anywhere else. Its two failures are
+`palette_perception_test.dart` asserting that the defect *exists*, and both
+carry a message written for this moment: *"border.standard now measures Lc
+49.2, so the divergence this test records has been fixed — update
+`IUX-PALETTE-PERCEPTION-001` and delete this expectation"*.
+
+**What this does and does not settle.** It removes a candidate and it validates
+the arithmetic. It does **not** answer the question this entry was opened for,
+which is whether the shipped 3.65:1 / Lc 27.2 outline is actually hard to find
+in the conditions a dark theme is used in. That is still a look on a device, and
+`IUX-MANUAL-001` is still the reason it has not happened. What changed is the
+shape of the remaining decision: **not "which of two rungs", but "move to
+`neutral45`, or stay".**
+
 **Note the shape of this.** P1 asks whether the instrument should have authority.
 P2 is what happens if it does, on the one role where the answer is already
 actionable. They can be answered in either order, and answering P2 first is
