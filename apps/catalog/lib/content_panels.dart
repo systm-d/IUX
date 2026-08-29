@@ -25,8 +25,81 @@ class ContentPanels extends StatelessWidget {
           _CardContrastPanel(longLabels: longLabels),
           _ListPanel(longLabels: longLabels),
           const _SelectableListPanel(),
+          const _DataTablePanel(),
           const _ContainmentPanel(),
         ],
+      );
+}
+
+/// The table, and the half of its clause that has no expression in Flutter.
+class _DataTablePanel extends StatelessWidget {
+  const _DataTablePanel();
+
+  static const List<({String day, String parcels, String late})> _week =
+      <({String day, String parcels, String late})>[
+    (day: 'Monday', parcels: '12', late: '1'),
+    (day: 'Tuesday', parcels: '9', late: '0'),
+    (day: 'Wednesday', parcels: '14', late: '3'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'A table whose cells know their row and column',
+        description: 'Built for EN 301 549 clause 11.5.2.6. A table assembled '
+            'from a Column of Rows renders identically and announces a flat '
+            'run of strings — which is why nothing here caught the gap.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxDataTable<({String day, String parcels, String late})>(
+              title: 'Deliveries this week',
+              description: 'Parcels delivered and how many arrived late.',
+              columns: <IuxTableColumn<
+                  ({String day, String parcels, String late})>>[
+                IuxTableColumn<({String day, String parcels, String late})>(
+                  label: 'Day',
+                  value: (({String day, String parcels, String late}) r) =>
+                      r.day,
+                ),
+                IuxTableColumn<({String day, String parcels, String late})>(
+                  label: 'Parcels',
+                  value: (({String day, String parcels, String late}) r) =>
+                      r.parcels,
+                ),
+                IuxTableColumn<({String day, String parcels, String late})>(
+                  label: 'Late',
+                  value: (({String day, String parcels, String late}) r) =>
+                      r.late,
+                ),
+              ],
+              rows: _week,
+            ),
+            const IuxGap.standard(),
+            const CatalogRows(<(String, String)>[
+              ('table', 'named by its title, so it can be jumped to'),
+              ('row', 'one per row, plus the header row'),
+              ('columnHeader', 'the heading each cell below is a value of'),
+              ('cell', 'every value, including an empty one'),
+            ]),
+            const CatalogNote(
+              'Flutter enforces this nesting and throws on the first frame '
+              'when it is broken, which is why the four semantics helpers are '
+              'used together or not at all.',
+            ),
+            const CatalogNote(
+              'Half of 11.5.2.6 cannot be satisfied here. SemanticsRole has '
+              'columnHeader and no rowHeader, so a first column that names its '
+              'rows announces ordinary cells. Marking them columnHeader would '
+              'have passed the tests and lied about which axis the header '
+              'belongs to.',
+            ),
+            const CatalogNote(
+              'It does not scroll sideways. SC 1.4.10 exempts tables from '
+              'reflow, so it would have been permitted — a table that scrolls '
+              'puts the row label out of sight exactly when the cell needs it.',
+            ),
+          ],
+        ),
       );
 }
 

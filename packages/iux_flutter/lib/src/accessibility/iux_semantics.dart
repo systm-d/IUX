@@ -335,6 +335,81 @@ abstract final class IuxSemantics {
     );
   }
 
+  /// Wraps [child] as a data table, named by [label].
+  ///
+  /// The four table helpers exist as a set because Flutter enforces the shape
+  /// between them: a `table`'s children must every one carry the `row` role, a
+  /// `row`'s parent must be a `table` and its children must be `cell` or
+  /// `columnHeader`. Break the nesting and the framework throws on the first
+  /// frame rather than degrading, so these are used together or not at all.
+  ///
+  /// That strictness is the point. EN 301 549 clause 11.5.2.6 asks that the row
+  /// and column of each cell be programmatically determinable, and a table
+  /// assembled out of rows of `Text` satisfies it by accident at best.
+  ///
+  /// **There is no row-header helper, and the gap is upstream.**
+  /// `SemanticsRole` has `columnHeader` and no `rowHeader`, so the half of
+  /// 11.5.2.6 that reads "headers of the row" cannot be expressed on this
+  /// platform today. A table whose first column names its rows announces those
+  /// cells as ordinary cells.
+  static Widget table({required Widget child, required String label}) {
+    assert(
+      label.length > 0,
+      'A table must be named. Unnamed, a screen-reader user meets a grid of '
+      'values with nothing saying what was tabulated.',
+    );
+    return Semantics(
+      container: true,
+      role: SemanticsRole.table,
+      label: label,
+      explicitChildNodes: true,
+      child: child,
+    );
+  }
+
+  /// Wraps [child] as one row of a table.
+  ///
+  /// Must be a direct semantic child of [table]; the framework checks it.
+  static Widget tableRow({required Widget child}) => Semantics(
+        container: true,
+        role: SemanticsRole.row,
+        explicitChildNodes: true,
+        child: child,
+      );
+
+  /// Wraps [child] as one data cell.
+  ///
+  /// [label] is the cell's own text, published on the node rather than left to
+  /// the child, so the cell announces something even when what it contains is
+  /// not text.
+  static Widget tableCell({required Widget child, required String label}) =>
+      Semantics(
+        container: true,
+        role: SemanticsRole.cell,
+        label: label,
+        excludeSemantics: true,
+        child: child,
+      );
+
+  /// Wraps [child] as the header of a column.
+  static Widget tableColumnHeader({
+    required Widget child,
+    required String label,
+  }) {
+    assert(
+      label.length > 0,
+      'A column header must be named. An unnamed one leaves every cell '
+      'beneath it announced without saying what it is a value of.',
+    );
+    return Semantics(
+      container: true,
+      role: SemanticsRole.columnHeader,
+      label: label,
+      excludeSemantics: true,
+      child: child,
+    );
+  }
+
   /// Wraps [child] as a control that holds one answer chosen from a list.
   ///
   /// The collapsed half of a select. It differs from [action] in the one way
