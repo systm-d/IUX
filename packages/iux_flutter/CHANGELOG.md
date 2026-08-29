@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+Documentation: `IuxListItem.selectable` and the list documentation now name
+`IuxRadioGroup` for a one-answer question. Seven selectable rows are seven
+independent toggles with no question attached and no exclusivity — the one wrong
+composition the component cannot refuse, because it is byte-identical to a
+legitimate one. `IUX-LIST-SINGLECHOICE-001`.
+
 Documentation: `research/accessibility/en-301-549-mapping.md`. The RGAA's
 technical method is web-only and does not apply to a native mobile framework —
 the referential that does is RAAM, and the issue asking for this mapping named

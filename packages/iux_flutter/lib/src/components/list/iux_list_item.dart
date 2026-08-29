@@ -283,6 +283,21 @@ class IuxListItem extends StatelessWidget {
   /// disguise; inventing a second set of semantics for it would give the user
   /// two controls to learn where there is one concept.
   ///
+  /// **A set of rows where only one may be chosen is `IuxRadioGroup`, not
+  /// this.** Being a checkbox in disguise is exactly what makes the wrong
+  /// arrangement seductive here: several independent choices in a list is a
+  /// legitimate composition — files to delete, days to include — and it is
+  /// byte-identical to a single-choice question built the wrong way. So
+  /// nothing can refuse it. Build a one-answer question from these rows and
+  /// you get *n* independent controls: a screen reader reads *n* toggles with
+  /// no question attached, because a group of rows is not a group and there is
+  /// no heading to jump to; and nothing but the caller's own `setState` stops
+  /// two of them reporting `selected` at once. `IuxRadioGroup` names the
+  /// question, announces each option as "1 of 4", and makes the exclusivity
+  /// the component's problem rather than yours. See
+  /// `IuxRadioGroupLayout.row` when the options are short enough to share a
+  /// line.
+  ///
   /// **Colour is never the signal.** A chosen row changes its surface *and*
   /// shows a tick. The surface alone would be invisible to a user who cannot
   /// separate the two hues, and it is the only signal a selected row normally

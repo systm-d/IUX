@@ -3684,3 +3684,47 @@ that costs when it happens on a page.
     consuming team. Neither has been read here.
   - Whether the harmonised version is V3.2.1 or the reported V4.1.0 final draft
     is unresolved, and it decides which document the remaining work reads.
+
+### IUX-LIST-SINGLECHOICE-001 — The list row cannot refuse the one composition integrators reach for
+
+- **Level**: standard
+- **Scope**: documentation only — `IuxListItem.selectable`'s dartdoc and
+  `docs/components/list-items.md`. No API change, and none is possible.
+- **Sources**: WCAG 2.2 SC 1.3.1, SC 4.1.2; reported from a migration
+  (systm-d/IUX#50) after the wrong arrangement shipped for several days.
+- **Status**: implemented.
+
+- **What the integrator built, and why nothing stopped them.** A weekday
+  chooser — one question, one answer, seven options — assembled from
+  `IuxListGroup` and seven `IuxListItem.selectable`. It renders correctly and
+  passes a widget test. It is seven independent toggles: a screen reader reads
+  seven controls with no question attached, because **a group of rows is not a
+  group** and there is no heading to jump to, and nothing but the caller's own
+  `setState` prevents two of them reporting `selected` at once.
+
+- **Why this one cannot be an assertion, unlike every neighbouring rule.** The
+  framework's habit is to refuse a wrong composition and name the better answer
+  — fewer than two onboarding steps, duplicate radio values, an empty app bar
+  title — and that habit is the reason a caller trusts the compositions that do
+  build. It cannot apply here. **Several independent choices in a list is a
+  legitimate arrangement** — files to delete, days to include — and it is
+  byte-identical to a single-choice question built wrongly. No runtime check can
+  separate intent from arrangement, so the answer is documentation and the
+  reporter said so themselves.
+
+- **The component's own framing is what makes the trap work.** The dartdoc says
+  a selectable row "is a checkbox in disguise", which is true, correct, and
+  exactly why *n* of them reads as a reasonable way to ask one question. Both
+  documents now name `IuxRadioGroup` at that point, with a table of what the two
+  arrangements announce.
+
+- **What worked, recorded because it is rarer than a defect.**
+  `IuxRadioGroupLayout.row` names "the days of a week" as its own use case, and
+  the reporter got the layout right on the first try once they had found the
+  component. **An example naming a concrete situation did the work the API name
+  could not.**
+
+- **Limits.** Documentation is only found by a reader who looks. The integrator
+  found `IuxRadioGroup` while checking whether the issue was worth filing, not
+  while building — so this closes the gap for the next reader of the list
+  documentation and does nothing for someone who never opens it.

@@ -5,6 +5,24 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### A one-answer question is `IuxRadioGroup`, and the list row cannot say so by refusing
+
+**Documentation only.** An integrator built a weekday chooser — one question,
+one answer, seven options — out of `IuxListGroup` and seven
+`IuxListItem.selectable`, and shipped it for several days. It renders correctly
+and passes a widget test. It is seven independent toggles: a screen reader reads
+seven controls with no question attached, because a group of rows is not a group
+and there is no heading to jump to, and nothing but the caller's own `setState`
+stops two of them reporting selected at once.
+
+This is the one wrong composition the framework cannot refuse, and the reason is
+worth stating: several independent choices in a list is a legitimate arrangement
+— files to delete, days to include — and it is byte-identical to a single-choice
+question built the wrong way. The row's own dartdoc is what makes the trap work,
+by saying truthfully that a selectable row "is a checkbox in disguise". Both the
+dartdoc and the component documentation now name `IuxRadioGroup` at that point,
+with a table of what the two arrangements announce.
+
 ### What binds a native mobile framework is EN 301 549, and the RGAA does not apply
 
 **Documentation only.** The issue that asked for this mapping named EN 301 549
