@@ -7,6 +7,14 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+A cited `IUX-*` identifier now has to resolve. Three were cited by source and
+documentation with no entry anywhere; all three have since been written up, so
+the new guard passes on arrival and exists to stop the fourth. It also holds a
+convention the register already used and never enforced: an ID may carry more
+than one entry, but a superseded one must now say so and name what continues
+it — a reader following a citation was landing on a Status line overtaken
+elsewhere. No library change.
+
 The palette is measured for the first time with instruments WCAG does not have:
 APCA lightness contrast, Oklab distance and simulation of the three
 dichromacies, all under `test/support/` and all verified against properties of
