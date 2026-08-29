@@ -5,6 +5,73 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### What binds a native mobile framework is EN 301 549, and the RGAA does not apply
+
+**Documentation only.** The issue that asked for this mapping named EN 301 549
+*and RGAA*, on the reasoning that the RGAA is what a French audit tests against.
+Half of that is wrong: **the RGAA's technical method covers web technologies
+only** and explicitly excludes native mobile applications, for which the
+European standard applies directly. IUX produces native Android interfaces, so
+its 106 criteria do not apply here at all. The mobile referential is **RAAM**,
+which verifies against EN 301 549 and whose 2.0 revision adopted the RGAA's
+thematic structure — very likely why the two get conflated. Finding that cost
+nothing; discovering it after writing a mapping against the wrong criteria set
+would have cost a great deal.
+
+`research/accessibility/en-301-549-mapping.md` is **half-finished on purpose.**
+Our own side is measured and complete: 166 register entries, 85 citing a WCAG
+2.2 success criterion, 87 at level `standard`, **29 distinct success criteria**,
+each asserted by a test rather than claimed — and that still does not establish
+coverage, because the denominator is in a document nobody here has opened. The
+clause side is empty because every primary source is unreachable from this
+environment: ETSI, W3C and both government portals are refused by the network
+egress proxy. A clause number quoted from a commercial summary is exactly the
+failure `IUX-RESEARCH-GAP-001` reported, one level up, so the leads are marked
+as leads and none may reach a register `Sources` line unread.
+
+The finding that survives regardless of which clause numbers turn out right:
+**the requirements most likely to be satisfied here have never been claimed, and
+the one at the centre of the framework's proposition cannot yet be evidenced.**
+Honouring platform preferences for colour, contrast and text size is probably
+IUX's strongest answer in the whole standard and is claimed against nothing;
+exposing information through the platform's accessibility service is what the
+library is *for*, and `IUX-MANUAL-001` still means no screen reader has ever
+seen it. `IUX-CONFORMANCE-001`.
+
+### The error glyph becomes an octagon, and the four shapes get one definition
+
+**Visual change in every application.** `IUX-PALETTE-PERCEPTION-001` measured
+the four feedback colours under simulated dichromacy and found `success` and
+`error` **0.4 apart** in the dark high contrast profile — the same colour, under
+the most common dichromacy, for the pair whose confusion costs the most. For
+that pair the glyph and the wording are not reinforcement; they are the signal.
+
+The glyph set was not carrying that weight. Its doc comment argued "a user with
+deuteranopia distinguishes the triangle from the circles" — true, and the wrong
+pair: the triangle is `warning`, which colour separates well. **Three of the four
+glyphs were circles**, and `success` against `error` was a circled tick against a
+circled exclamation mark at roughly twenty logical pixels. Never an SC 1.4.1
+failure, since the text always carried the category, but a redundancy that was
+thin exactly where it was load-bearing.
+
+`error` is now an octagon holding an "!" — the only octagon in the set, and the
+road sign for "stop" opposite `warning`'s for "take care". Both shapes are
+borrowed rather than designed, and separate by outline alone in a
+black-and-white screenshot.
+
+**The more dangerous finding was the duplication.** Three components drew these
+categories and each resolved its own glyph map. They happened to agree, held
+together by nothing, and because each was internally consistent **each
+component's own distinctness test would have passed while the same category
+became two shapes.** The shapes now have one definition and a test asserts all
+three read it.
+
+**No test here checks the thing the change is for.** Icons render under
+`flutter_test` through a substitute font in which every glyph is an identical
+square — this library shipped with no icons at all for weeks while the whole
+suite passed. The manual protocol gains check F6: the four blocks, greyscale
+filter on, named at arm's length from the shape alone.
+
 ### A cited `IUX-*` identifier must resolve, and resolve to something still true
 
 The register is the project's memory, and a citation into it is a promise: a

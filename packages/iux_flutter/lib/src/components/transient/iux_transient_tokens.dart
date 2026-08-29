@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
+import '../../accessibility/iux_category_glyphs.dart';
 import '../../motion/iux_motion_policy.dart';
 import '../../motion/iux_motion_role.dart';
 import '../../semantics/colors/iux_feedback_colors.dart';
@@ -154,7 +155,7 @@ abstract final class IuxTransientResolver {
       tone: tone,
       glyph: switch (tone) {
         IuxTransientTone.neutral => null,
-        IuxTransientTone.success => Icons.check_circle_outline,
+        IuxTransientTone.success => IuxCategoryGlyphs.success,
       },
       content: role.content,
       surface: role.surface,

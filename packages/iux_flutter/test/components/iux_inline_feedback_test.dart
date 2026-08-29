@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
+import 'package:iux_flutter/src/accessibility/iux_category_glyphs.dart';
 
 import '../support/contrast.dart';
 
@@ -682,7 +683,7 @@ void main() {
         );
 
         final double glyph =
-            tester.getCenter(find.byIcon(Icons.info_outline)).dx;
+            tester.getCenter(find.byIcon(IuxCategoryGlyphs.info)).dx;
         final double close = tester.getCenter(find.byIcon(Icons.close)).dx;
         expect(
           direction == TextDirection.ltr ? glyph < close : glyph > close,
@@ -791,7 +792,7 @@ void main() {
         Duration.zero,
       );
       expect(find.text('We could not charge your card.'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(IuxCategoryGlyphs.error), findsOneWidget);
       expect(tester.binding.hasScheduledFrame, isFalse);
     });
 
@@ -805,7 +806,7 @@ void main() {
           message: 'The connection is unstable.',
         ),
       );
-      expect(find.byIcon(Icons.warning_amber_outlined), findsOneWidget);
+      expect(find.byIcon(IuxCategoryGlyphs.warning), findsOneWidget);
 
       await host(
         tester,
@@ -815,8 +816,8 @@ void main() {
           message: 'The connection was lost.',
         ),
       );
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber_outlined), findsNothing);
+      expect(find.byIcon(IuxCategoryGlyphs.error), findsOneWidget);
+      expect(find.byIcon(IuxCategoryGlyphs.warning), findsNothing);
     });
   });
 
@@ -976,7 +977,7 @@ void main() {
           findsOneWidget,
           reason: '${widget.runtimeType}',
         );
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+        expect(find.byIcon(IuxCategoryGlyphs.error), findsOneWidget);
       }
     });
   });

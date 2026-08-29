@@ -88,9 +88,16 @@ One question per file or per section, and each one carries:
   says are wrong anyway. They come out of `IUX-PALETTE-PERCEPTION-001`, the
   first entry in the register produced by a measurement this project made
   itself rather than by reading a criterion.
-- `accessibility/`, `android/`, `ux/` — not yet created. They will be, when
-  there is something to put in them; an empty directory is the failure this
-  directory is recovering from.
+- `accessibility/` — the standards that bind, as opposed to the criteria set
+  they incorporate. `en-301-549-mapping.md` is deliberately half-finished: our
+  own side is measured and complete, the clause side is empty because every
+  primary source is unreachable from the environment this project is developed
+  in. It also records that half of the issue that asked for it was aimed at the
+  wrong document — the RGAA's technical method is web-only and does not apply
+  to a native mobile framework at all.
+- `android/`, `ux/` — not yet created. They will be, when there is something to
+  put in them; an empty directory is the failure this directory is recovering
+  from.
 
 ## Status
 

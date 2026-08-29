@@ -90,6 +90,15 @@ qu'un chiffre ne peut pas fermer.
 | **F3** ⭐ | **Media and status** → rangée *the same chips without the reserved slot*. **Correction des couleurs → Nuances de gris** | Trouver le chip sélectionné | On y arrive, au seul poids du contour. Comparer avec la rangée standard juste au-dessus | |
 | **F4** | **Inputs** → *a radio group on one line* | Taper les quatre options **au pouce**, vite. Puis TalkBack, balayer | Aucune erreur de frappe. Chaque option annonce « 1 sur 4 » dans le groupe nommé | |
 | **F5** | **Navigation** → panneau de la barre, sélecteur *Heading* = **mark**, **police système au maximum** | Regarder, puis TalkBack et balayer sur la barre | Tout grandit **sauf la marque**. TalkBack annonce le nom de l'écran en en-tête et **ne dit rien** de la marque | |
+| **F6** ⭐ | **Feedback** → les quatre catégories ensemble, puis **Status**. **Correction des couleurs → Nuances de gris** | Nommer chaque bloc **à bout de bras**, sans se pencher, à la seule forme | Un rond, un rond à coche, un triangle, un **octogone**. Surtout : *success* et *error* ne se ressemblent pas. Mêmes formes dans les deux panneaux | |
+
+**F6 est la raison d'être du changement de glyphes.** `IUX-PALETTE-PERCEPTION-001`
+a mesuré *success* et *error* à **0,4** l'un de l'autre sous deutéranopie dans le
+profil sombre à contraste renforcé — la même couleur. Le filtre nuances de gris
+retire ce canal au lieu de demander de l'imaginer absent. Et la suite de tests ne
+peut pas faire cette vérification : sous `flutter_test`, **tous les glyphes sont
+le même carré**, et cette bibliothèque a déjà navigué des semaines sans aucune
+icône pendant que tous les tests passaient.
 
 **F5 n'est pas une case à cocher** : qu'une marque ignore l'échelle de texte est
 un coût documenté, pas un défaut. Ce qu'on demande, c'est un jugement — est-ce

@@ -7,6 +7,23 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+Documentation: `research/accessibility/en-301-549-mapping.md`. The RGAA's
+technical method is web-only and does not apply to a native mobile framework —
+the referential that does is RAAM, and the issue asking for this mapping named
+the wrong one. Our own side is counted (166 entries, 29 distinct WCAG success
+criteria, each tested); the clause side is empty because every primary source is
+blocked from this environment, and a clause quoted from a summary is not a
+source. `IUX-CONFORMANCE-001`. No library change.
+
+**Visual change in every application.** The error glyph becomes an octagon.
+`success` and `error` were measured 0.4 apart under deuteranopia in the dark
+high contrast profile — the same colour — and the glyph set had three circles,
+putting `error` in a family with the one category it is least affordable to
+confuse it with. The four shapes also get a single definition: three components
+drew them from three independent maps that happened to agree, so each one's own
+distinctness test would have passed while a category became two shapes. No API
+change; the glyph was never overridable. `IUX-GLYPH-SILHOUETTE-001`.
+
 A cited `IUX-*` identifier now has to resolve. Three were cited by source and
 documentation with no entry anywhere; all three have since been written up, so
 the new guard passes on arrival and exists to stop the fourth. It also holds a

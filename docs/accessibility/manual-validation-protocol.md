@@ -273,13 +273,16 @@ breaks.
 # Block F — What shipped after this protocol was written
 
 Roughly 10 minutes, and it is different in kind from the blocks above. Those
-check whether the platform does what the tree says. **These five check
+check whether the platform does what the tree says. **These six check
 judgements** — decisions taken on a measurement that a measurement cannot
 finish, each one recorded in the register as resting on an eye nobody has yet
 applied.
 
 Six changes landed on 2026-08-27 from a real migration. Every one of them was
-argued from numbers, and five left a question a number cannot close.
+argued from numbers, and five left a question a number cannot close. F6 was
+added afterwards, from the measurement in `IUX-PALETTE-PERCEPTION-001`: it is
+the only check here whose subject is a change the numbers **caused** rather
+than a number they left unfinished.
 
 ### F1 — The warning colour reads as a warning
 **Do:** **Feedback** → the inline feedback panel, light theme, standard
@@ -345,6 +348,30 @@ documented cost, not a defect — the bar hands it a box and what is inside is t
 caller's. The documentation says "where the name has to be legible at 200%, pass
 no mark". **Nobody has looked at what that actually costs a user**, and this is
 a judgement to record rather than a box to tick.
+
+### F6 — Four categories, four shapes, no colour at all
+**Do:** **Feedback** → the inline feedback panel, showing all four categories at
+once. Then, on the device, turn on the **greyscale / monochrome** display filter
+(Android: Settings → Accessibility → Colour correction → Greyscale, or the
+Developer options *Simulate colour space* → Monochromacy). Look at the four
+blocks from arm's length, without leaning in. Then repeat in **Status** → the
+status indicator panel.
+**Expect:** you can name which block is which from the glyph alone — a round
+one, another round one with a tick, a triangle, an octagon. In particular
+**success and error do not look like the same thing.**
+**Fail:** you have to read the message text to tell two of them apart, or the
+octagon and the circles resolve to the same blob at that distance.
+**Also record:** whether the same four shapes appear in both panels. They come
+from one definition now, but a person is the only check that the definition is
+the right one.
+**Status:** `IUX-GLYPH-SILHOUETTE-001`. This is the check the whole change was
+made for and the one the suite comes closest to being unable to do at all:
+icons render in `flutter_test` through a substitute font in which **every glyph
+is an identical square**, so the suite can assert four distinct code points and
+nothing beyond that. This library has already shipped with no icons at all for
+weeks while every test passed. The greyscale filter is what makes the check
+honest — it removes the channel `IUX-PALETTE-PERCEPTION-001` measured as
+failing, rather than asking you to imagine it failing.
 
 ---
 
