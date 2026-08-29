@@ -3793,3 +3793,87 @@ that costs when it happens on a page.
     `String Function(int)` on the flow — would not have had it. It was not
     taken because a function separates the label from the thing it names, which
     is the separation this entry exists to close.
+
+### IUX-EN301549-001 — The standard was read, and it named four things nothing here addresses
+
+- **Level**: standard
+- **Scope**: the register as a whole, read against EN 301 549. No library
+  change; no test count moves.
+- **Sources**: **EN 301 549 V3.2.1 (2021-03)**, ETSI, read in full
+  (sha256 `1eee3a18…5b49`); **RAAM 1.1**, Service information et presse
+  (Luxembourg), 2025-02-24, 108 criteria, read; final draft **EN 301 549
+  V4.1.0 (2026-06)** consulted for status only. Working notes in
+  `research/accessibility/en-301-549-mapping.md`.
+- **Status**: mapping complete for clause 5 and clause 11. Clauses 9 and 10 are
+  out of IUX's scope; clauses 6, 7 and 13 belong to the application.
+
+- **This is the first entry in this register whose `Sources` line cites a
+  standard somebody here has opened.** `research/README.md` ranks a standard
+  first among sources and a lead nowhere, and until now the accessibility
+  research directory held only leads, because every primary source was
+  unreachable from the development environment. The block on `etsi.org` turned
+  out to be a **user-agent filter rather than an egress rule** — the same URL
+  serves the PDF to a browser `User-Agent`. That is worth knowing for the other
+  hosts on the same list.
+
+- **The four requirements with nothing behind them.** Named as the deliverable
+  rather than the mapping, because the WCAG overlap was already tested and the
+  non-WCAG remainder was not:
+  - **11.6.2, no disruption of documented platform accessibility features** —
+    nothing in 169 entries is written against this. RAAM tests it directly as
+    its criterion 12.3, level A, **with no WCAG correspondence**, so no
+    WCAG-derived test here can reach it.
+  - **11.7 font type, focus cursor and units of measurement** — three of the six
+    platform preferences the clause names verbatim are not read.
+  - **5.6.1 / 5.6.2, toggle status non-visually and visually** — `IuxSwitch` and
+    `IuxCheckbox` almost certainly satisfy both and no entry claims it.
+  - **5.5.1 / 5.9, complex gestures and simultaneous actions** — satisfied by
+    construction (the library registers no `onPan*`, `onScale*` or multi-pointer
+    recogniser) and claimed nowhere.
+
+- **11.7 was the best answer and is now a specific one.** The clause requires a
+  user interface to follow platform settings for *units of measurement, colour,
+  contrast, font type, font size, and focus cursor*. Read against
+  `lib/src/accessibility/iux_accessibility.dart`: contrast and font size are
+  covered, colour is partial, and **font type, focus cursor and units are
+  absent**. The previous research file predicted the font-type gap without being
+  able to check it; the document confirms font type is in scope.
+
+- **11.5 is where the proposition lives, and the standard describes it in its
+  own words.** Clause 11.5.2.3 says *"It is best practice to develop software
+  using toolkits that automatically implement the underlying platform
+  accessibility services."* That is the strongest external support this
+  project's premise has — and it makes `IUX-MANUAL-001` sharper rather than
+  softer, because the toolkit earns that sentence by implementing the platform
+  services, and nobody here has observed the platform services. Every claim is
+  measured on Flutter's semantics tree; clauses 11.5.2.5 to 11.5.2.17 require
+  the properties to be determinable *by assistive technologies* through
+  `AccessibilityNodeInfo`. The inference between the two is sound and it is an
+  inference.
+
+- **RAAM, not RGAA, and not RAAM 2.0.** The previous file established that the
+  RGAA is web-only and does not bind a native mobile framework; that survives.
+  Its companion lead — that **RAAM 2.0** adopts the RGAA's structure — is
+  **wrong and is deleted**: there is no RAAM 2.0, `raam2.0` is a 404 on the
+  publisher's site, and 1.1 (2025-02-24) is current. RAAM's own most load-bearing
+  criterion for this project is **5.1**, which maps to nine sub-clauses of 11.5.2
+  plus 11.6.2 and whose evaluation method opens with *"Activer le lecteur
+  d'écran"* — the step `IUX-MANUAL-001` records as never performed.
+
+- **Limits.**
+  - **The harmonising act has not been read.** EUR-Lex answers `202` with an
+    empty body to every automated request. That V3.2.1 is the harmonised version
+    rests on the **European Commission's own page** describing Implementing
+    Decision (EU) 2021/1339, corroborated by RAAM testing against V3.2.1 and by
+    ETSI publishing only V3.2.1 with a `_60` suffix. Three sources that agree,
+    none of which is the Decision. **Sufficient to choose which document to
+    read; not sufficient for a legal conformance claim.**
+  - **The verdicts are this repository reading its own code**, not an audit.
+    "Not applicable, checked" means somebody checked and wrote down why; it does
+    not mean an assessor agreed.
+  - **Clauses 11.1 to 11.4 were not walked line by line.** The 31 distinct WCAG
+    criteria the register cites are asserted by tests; whether each EN clause
+    built on them is satisfied is a separate pass, and this entry does not claim
+    it was done.
+  - **V4.1.0 is a draft and was not mapped.** It is 94 pages longer than V3.2.1
+    and will need a re-read when it publishes.
