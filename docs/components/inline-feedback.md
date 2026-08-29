@@ -194,11 +194,22 @@ inside it.
   announcement API here: on Android that clears TalkBack's speech queue, and a
   message that is on screen has no business interrupting. A user who heard it
   announced and then reached it by swiping would hear it twice.
-- **Never colour alone.** Glyph, wording and colour say the same thing three
-  times, so any one of them can fail. The four glyphs are four shapes — a
-  circled "i", a circled tick, a triangle, a circled "!" — not four colours, so
-  the category survives deuteranopia and a black-and-white screenshot. The
-  glyph is fixed per category and cannot be overridden.
+- **Never colour alone — and for one pair, never colour at all.** Glyph,
+  wording and colour say the same thing three times, so any one of them can
+  fail. Under deuteranopia one of them *does*: `IUX-PALETTE-PERCEPTION-001`
+  measured `success` and `error` at **0.4 apart** on the Oklab ×100 scale in the
+  dark high contrast profile, where about 2 is the smallest difference most
+  people notice. They are the same colour, so for that pair the glyph and the
+  wording are not reinforcement — they are the signal.
+
+  The four glyphs are therefore four **silhouettes**, separable before any
+  interior mark resolves: a circled "i", a circled tick, a triangle, and an
+  **octagon** holding an "!". The two road-sign shapes are borrowed rather than
+  designed, and they are the load-bearing pair. `error` used to be a circled
+  "!" — the obvious choice, and a third circle, opposite the one category it is
+  least affordable to confuse it with. The glyph is fixed per category, cannot
+  be overridden, and is defined once in `IuxCategoryGlyphs` so that
+  `IuxStatusIndicator` cannot disagree with this component about any of them.
 - **Measured against the surface it sits on.** Text is held to 4.5:1 and the
   glyph to 3:1 against the message's own tinted surface, on all four theme
   profiles, and the outline to 3:1 against the page behind it. That is asserted

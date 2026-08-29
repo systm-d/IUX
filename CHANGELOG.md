@@ -5,6 +5,40 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### The error glyph becomes an octagon, and the four shapes get one definition
+
+**Visual change in every application.** `IUX-PALETTE-PERCEPTION-001` measured
+the four feedback colours under simulated dichromacy and found `success` and
+`error` **0.4 apart** in the dark high contrast profile — the same colour, under
+the most common dichromacy, for the pair whose confusion costs the most. For
+that pair the glyph and the wording are not reinforcement; they are the signal.
+
+The glyph set was not carrying that weight. Its doc comment argued "a user with
+deuteranopia distinguishes the triangle from the circles" — true, and the wrong
+pair: the triangle is `warning`, which colour separates well. **Three of the four
+glyphs were circles**, and `success` against `error` was a circled tick against a
+circled exclamation mark at roughly twenty logical pixels. Never an SC 1.4.1
+failure, since the text always carried the category, but a redundancy that was
+thin exactly where it was load-bearing.
+
+`error` is now an octagon holding an "!" — the only octagon in the set, and the
+road sign for "stop" opposite `warning`'s for "take care". Both shapes are
+borrowed rather than designed, and separate by outline alone in a
+black-and-white screenshot.
+
+**The more dangerous finding was the duplication.** Three components drew these
+categories and each resolved its own glyph map. They happened to agree, held
+together by nothing, and because each was internally consistent **each
+component's own distinctness test would have passed while the same category
+became two shapes.** The shapes now have one definition and a test asserts all
+three read it.
+
+**No test here checks the thing the change is for.** Icons render under
+`flutter_test` through a substitute font in which every glyph is an identical
+square — this library shipped with no icons at all for weeks while the whole
+suite passed. The manual protocol gains check F6: the four blocks, greyscale
+filter on, named at arm's length from the shape alone.
+
 ### A cited `IUX-*` identifier must resolve, and resolve to something still true
 
 The register is the project's memory, and a citation into it is a promise: a

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
+import '../../accessibility/iux_category_glyphs.dart';
 import '../../motion/iux_motion_policy.dart';
 import '../../motion/iux_motion_role.dart';
 import '../../semantics/colors/iux_feedback_colors.dart';
@@ -233,14 +234,16 @@ abstract final class IuxInlineFeedbackResolver {
 
   /// The glyph for a category.
   ///
-  /// Four shapes, not four colours: a circled "i", a circled tick, a triangle
-  /// and a circled "!". A user with deuteranopia distinguishes the triangle
-  /// from the circles without seeing a single hue, and a user reading a
-  /// black-and-white screenshot of your app does too.
+  /// Four shapes, not four colours, and the shapes are defined once in
+  /// [IuxCategoryGlyphs] because `IuxStatusIndicator` draws the same four
+  /// categories and must not disagree about any of them. Read that file for
+  /// why the set is what it is: `IUX-PALETTE-PERCEPTION-001` measured
+  /// `success` and `error` at 0.4 apart under deuteranopia, so for that pair
+  /// the shape and the words are not reinforcement, they are the signal.
   static IconData _glyphFor(IuxFeedbackCategory category) => switch (category) {
-        IuxFeedbackCategory.info => Icons.info_outline,
-        IuxFeedbackCategory.success => Icons.check_circle_outline,
-        IuxFeedbackCategory.warning => Icons.warning_amber_outlined,
-        IuxFeedbackCategory.error => Icons.error_outline,
+        IuxFeedbackCategory.info => IuxCategoryGlyphs.info,
+        IuxFeedbackCategory.success => IuxCategoryGlyphs.success,
+        IuxFeedbackCategory.warning => IuxCategoryGlyphs.warning,
+        IuxFeedbackCategory.error => IuxCategoryGlyphs.error,
       };
 }

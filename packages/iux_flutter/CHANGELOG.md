@@ -7,6 +7,15 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+**Visual change in every application.** The error glyph becomes an octagon.
+`success` and `error` were measured 0.4 apart under deuteranopia in the dark
+high contrast profile — the same colour — and the glyph set had three circles,
+putting `error` in a family with the one category it is least affordable to
+confuse it with. The four shapes also get a single definition: three components
+drew them from three independent maps that happened to agree, so each one's own
+distinctness test would have passed while a category became two shapes. No API
+change; the glyph was never overridable. `IUX-GLYPH-SILHOUETTE-001`.
+
 A cited `IUX-*` identifier now has to resolve. Three were cited by source and
 documentation with no entry anywhere; all three have since been written up, so
 the new guard passes on arrival and exists to stop the fourth. It also holds a

@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
+import 'package:iux_flutter/src/accessibility/iux_category_glyphs.dart';
 
 import '../support/contrast.dart';
 
@@ -957,7 +958,7 @@ void main() {
       // reading order, so an Arabic interface gets the glyph on the right
       // without the widget knowing which language it is in.
       final double glyph =
-          tester.getCenter(find.byIcon(Icons.check_circle_outline)).dx;
+          tester.getCenter(find.byIcon(IuxCategoryGlyphs.success)).dx;
       final double close = tester.getCenter(find.byIcon(Icons.close)).dx;
       expect(glyph, greaterThan(close));
     });

@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 408 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 415 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3567,3 +3567,68 @@ that costs when it happens on a page.
     register's other numbering — mission numbers like "IUX-006 onward" in
     `Scope` lines — is deliberately excluded, so a mission cited by number is
     not checked against anything.
+
+### IUX-GLYPH-SILHOUETTE-001 — The shape channel was weakest where the colour channel fails
+
+- **Level**: standard
+- **Scope**: `IuxInlineFeedback`, `IuxStatusIndicator` and `IuxTransientLayer`.
+  **Visual change in every application**: the error glyph becomes an octagon.
+  No API change; the glyph was never overridable.
+- **Sources**: WCAG 2.2 SC 1.4.1; the measurement in
+  `IUX-PALETTE-PERCEPTION-001`. Reported as systm-d/IUX#45.
+- **Status**: implemented; six assertions in
+  `test/accessibility/category_glyphs_test.dart`. Full suite: 2415 tests pass.
+  **The property that matters is not among them** — see Limits, and
+  `IUX-MANUAL-001` check F6.
+
+- **The claim that was wrong, and the way it was wrong.** `_glyphFor` defended
+  its set with "four shapes, not four colours: a circled 'i', a circled tick, a
+  triangle and a circled '!'. A user with deuteranopia distinguishes the
+  triangle from the circles". Every word of that is true and it names the wrong
+  pair. The triangle is `warning`, which colour separates comparatively well.
+  **Three of the four glyphs were circles**, and the pair colour fails hardest
+  on — `success` against `error`, measured at 0.4 apart under deuteranopia in
+  the dark high contrast profile, which is the same colour — was a circled tick
+  against a circled exclamation mark, differing only in the mark inside a
+  shared outline at roughly twenty logical pixels.
+
+  This was never an SC 1.4.1 failure: the message text and the live-region
+  label carry the category, so the information was never conveyed by colour
+  alone. It was a redundancy that read as generous in a doc comment and was
+  thin exactly where it was load-bearing.
+
+- **The fix is one constant.** `error` becomes `Icons.report_outlined`, an
+  octagon holding an "!" — the only octagon in the set, and the road sign for
+  "stop" opposite `warning`'s road sign for "take care". Both are borrowed
+  rather than designed: a triangle and an octagon separate by outline alone, at
+  small size, in a black-and-white screenshot, and are already learned by
+  anyone who has crossed a street.
+
+- **The duplication was the more dangerous finding.** Three components draw
+  these categories and **each resolved its own glyph map**.
+  `IuxInlineFeedback` and `IuxStatusIndicator` carried the full four,
+  independently, and they happened to agree; `IuxTransientLayer` carried
+  `success`. Nothing held them together. The first edit to one would have made
+  a category two different shapes depending on which component a user met it
+  in — and because each map was internally consistent, **each component's own
+  distinctness test would still have passed.** `IuxStatusResolver.glyph` was
+  already public specifically so distinctness could be asserted, which is how
+  close this came to being caught and was not. The shapes now have one
+  definition, `IuxCategoryGlyphs`, and a test asserts all three components
+  read it.
+
+- **Limits.**
+  - **No test here checks the thing the change is for.** Icons render under
+    `flutter_test` through a substitute font in which every glyph is an
+    identical square, so the suite can assert four distinct code points and
+    nothing about silhouette. This library shipped with **no icons at all** for
+    weeks while the whole suite passed. `IUX-MANUAL-001` gains check F6, which
+    is the greyscale, arm's-length look that would actually settle it.
+  - An octagon at small sizes and low resolution tends toward a circle. Whether
+    the distinction survives at the smallest glyph size this library draws is
+    exactly what F6 asks and nothing here answers.
+  - `IuxStatusTone.neutral` and `IuxFeedbackCategory.info` are the same
+    category under two names and now share a shape. That the two enums exist
+    separately is untouched and remains a wart.
+  - Nothing prevents a fourth component from writing its own map. The test
+    names the three that exist; a new one would have to be added to it by hand.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
+import '../../accessibility/iux_category_glyphs.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import '../../motion/iux_motion_policy.dart';
 import '../../motion/iux_motion_role.dart';
@@ -104,12 +105,18 @@ abstract final class IuxStatusResolver {
   /// Public so the rule can be asserted directly: the four glyphs must stay
   /// distinct from one another, because two tones drawn with the same shape are
   /// two tones separated by hue alone — exactly the failure this component
-  /// exists to prevent.
+  /// exists to prevent. `IUX-PALETTE-PERCEPTION-001` measured how completely
+  /// the colour channel fails for two of these four under deuteranopia, which
+  /// is why the shapes are defined once, in [IuxCategoryGlyphs], rather than
+  /// per component.
+  ///
+  /// [IuxStatusTone.neutral] takes the info shape: the two enums name the
+  /// resting category differently and mean the same thing by it.
   static IconData glyph(IuxStatusTone tone) => switch (tone) {
-        IuxStatusTone.neutral => Icons.info_outline,
-        IuxStatusTone.success => Icons.check_circle_outline,
-        IuxStatusTone.warning => Icons.warning_amber_outlined,
-        IuxStatusTone.error => Icons.error_outline,
+        IuxStatusTone.neutral => IuxCategoryGlyphs.info,
+        IuxStatusTone.success => IuxCategoryGlyphs.success,
+        IuxStatusTone.warning => IuxCategoryGlyphs.warning,
+        IuxStatusTone.error => IuxCategoryGlyphs.error,
       };
 
   /// Resolves the tokens for [tone] at [context].
