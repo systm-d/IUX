@@ -15,9 +15,8 @@ import '../../inputs/iux_input_descriptor.dart';
 import '../../inputs/iux_input_model.dart';
 import '../../inputs/iux_input_theme.dart';
 import '../../layout/iux_spacing_primitives.dart';
-import '../../motion/iux_motion_policy.dart';
-import '../../motion/iux_motion_role.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
+import 'iux_field_parts.dart';
 
 /// How many lines a multi-line field shows before it starts to grow.
 ///
@@ -494,7 +493,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
           child: IuxFocusRing(
             focused: tokens.focused,
             borderRadius: BorderRadius.circular(
-              _resolveRadius(tokens),
+              resolveFieldRadius(tokens),
             ),
             child: MouseRegion(
               onEnter: (_) => _setHovered(true),
@@ -502,7 +501,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.input.isFocusable ? _handleTap : null,
-                child: _IuxFieldContainer(
+                child: IuxFieldContainer(
                   tokens: tokens,
                   geometry: geometry,
                   child: _IuxFieldRow(
@@ -537,7 +536,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
           SizedBox(height: gap),
           Padding(
             padding: textInset,
-            child: _IuxValidationMessage(
+            child: IuxFieldValidationMessage(
               message: message,
               style: tokens.messageStyle,
               announce: _messageIsNews,
@@ -547,13 +546,6 @@ class _IuxTextFieldState extends State<IuxTextField> {
       ],
     );
   }
-
-  /// [IuxShape.full] arrives as infinity, because the theme cannot know how
-  /// tall the field will be. Half the minimum target is the answer for a
-  /// single-line field and an under-estimate for a multi-line one, which
-  /// rounds its corners less than asked rather than clipping its own text.
-  double _resolveRadius(IuxInputTokens tokens) =>
-      tokens.radius.isFinite ? tokens.radius : tokens.minimumSize / 2;
 }
 
 /// Attaches the field's name, role and state to the node the user lands on.
@@ -607,52 +599,6 @@ class _IuxFieldSemantics extends StatelessWidget {
           SemanticsValidationResult.none,
       },
       inputType: content.semanticInputType,
-      child: child,
-    );
-  }
-}
-
-/// The outlined box itself.
-class _IuxFieldContainer extends StatelessWidget {
-  const _IuxFieldContainer({
-    required this.tokens,
-    required this.geometry,
-    required this.child,
-  });
-
-  final IuxInputTokens tokens;
-  final IuxGeometryTheme geometry;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    // Declared as a state change, so a reduced-motion preference shortens it
-    // and no motion removes it — without the colour change itself ever being
-    // lost.
-    final IuxResolvedMotion motion = IuxMotionPolicy.resolve(
-      context,
-      role: IuxMotionRole.stateChange,
-      scale: IuxMotionScale.short,
-    );
-
-    // An invalid field draws a thicker outline. Left uncompensated, that
-    // thickening would grow the box by two pixels and push the help text and
-    // the error down the screen — so the padding gives back exactly what the
-    // border takes, and the field stays where the user left it.
-    final double reserved = geometry.strongBorderWidth - tokens.borderWidth;
-
-    return AnimatedContainer(
-      duration: motion.duration,
-      curve: motion.curve,
-      constraints: BoxConstraints(minHeight: tokens.minimumSize),
-      padding: tokens.padding + EdgeInsets.all(reserved),
-      decoration: BoxDecoration(
-        color: tokens.background,
-        borderRadius: BorderRadius.circular(
-          tokens.radius.isFinite ? tokens.radius : tokens.minimumSize / 2,
-        ),
-        border: Border.all(color: tokens.border, width: tokens.borderWidth),
-      ),
       child: child,
     );
   }
@@ -815,49 +761,5 @@ class _IuxReadOnlyMarker extends StatelessWidget {
         applyTextScaling: false,
       ),
     );
-  }
-}
-
-/// The validation message, announced when it appears.
-///
-/// A live region rather than an announcement: Android deprecated
-/// `announceForAccessibility` because it clears TalkBack's speech queue, so an
-/// announcement cuts off whatever the user was listening to. A live region is
-/// spoken in place, once, and the user can go back and re-read it.
-///
-/// The text is also always on screen. An error that only a screen reader hears
-/// is an error a sighted user with a cognitive impairment never finds.
-///
-/// [announce] is what makes "when it appears" true. A message the field was
-/// already showing when it arrived on screen keeps its node and its words and
-/// loses only the flag, so nothing is unreachable — it is simply not shouted
-/// over whatever moved the user here.
-class _IuxValidationMessage extends StatelessWidget {
-  const _IuxValidationMessage({
-    required this.message,
-    required this.style,
-    required this.announce,
-  });
-
-  final String message;
-  final TextStyle style;
-
-  /// Whether this message is a change the user did not see arrive.
-  final bool announce;
-
-  @override
-  Widget build(BuildContext context) {
-    // The visual repeats the label verbatim, so it is excluded to keep the
-    // message from being read twice — the same shape the progress indicator
-    // uses.
-    final Widget text = IuxSemantics.decorative(
-      child: Text(message, style: style),
-    );
-    // The same container either way, so turning the flag on later changes one
-    // property of one node rather than replacing it — which is what keeps a
-    // message that becomes news from being announced twice.
-    return announce
-        ? IuxSemantics.liveRegion(label: message, child: text)
-        : IuxSemantics.group(label: message, child: text);
   }
 }

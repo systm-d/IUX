@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 418 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 439 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3951,3 +3951,76 @@ that costs when it happens on a page.
     more: 11.6.2 has nothing behind it, and 11.7's font type, focus cursor and
     units of measurement are unread platform preferences. This entry closes the
     cheap half deliberately, and does not pretend to close the rest.
+
+### IUX-SELECT-001 — A chooser for the case where the radio group stops working
+
+- **Level**: context_dependent
+- **Scope**: new `IuxSelectField<T>`; new `IuxSemantics.choice`; the field
+  chrome moved to `lib/src/components/input/iux_field_parts.dart` and shared
+  with `IuxTextField`. `docs/components/select-field.md`.
+- **Sources**: WCAG 2.2 SC 1.3.1, SC 4.1.2, SC 1.4.4; **EN 301 549 V3.2.1**
+  clause 11.5.2.5 (role, state, name, value made programmatically determinable)
+  — see `IUX-EN301549-001`; `IUX-LIST-SINGLECHOICE-001`.
+- **Status**: implemented and tested
+  (`test/components/iux_select_field_test.dart`, 18 tests). Full suite: 2439
+  tests pass.
+
+- **Why it exists, stated as a limit rather than a feature.** A radio group
+  shows every option at once, which is the best arrangement a chooser can have.
+  This component is worse in that respect and better in exactly one: the resting
+  state is short. It is the right answer only where a radio group has stopped
+  being one, and `IUX-LIST-SINGLECHOICE-001` already established that the
+  library's answer to "one question, one answer" is `IuxRadioGroup`.
+
+- **It takes the arguments `IuxRadioGroup` takes, deliberately.** A question that
+  outgrows one becomes the other by changing the class name. The moment the two
+  APIs diverge, the choice between them stops being about the user and starts
+  being about migration cost — and the component that is worse for the user is
+  the one that wins that argument.
+
+- **Open, it does not render a list of its own: it renders `IuxRadioGroup`.**
+  The arrangement a screen-reader user meets when the options are showing had
+  tests before this component existed — the group semantics, the "1 of n", the
+  heading. Re-implementing it would have been a second thing to keep correct.
+
+- **`SemanticsRole.comboBox` is declared upstream and unusable.** Flutter maps
+  it to `_unimplemented`, which throws *"Missing checks for role
+  SemanticsRole.comboBox"* on the first frame of any debug or profile build —
+  the only builds this library's assertions run in. `spinButton`, `dragHandle`,
+  `tooltip` and `hotKey` are in the same state (flutter/flutter#159741). **This
+  matters beyond the select**: `spinButton` is what a numeric stepper would have
+  wanted, and it rules out a whole shape of component until upstream lands. The
+  node is therefore a button carrying a value and an expanded state, and a test
+  asserts the absent role so it fails usefully when that changes.
+
+- **The helper reproduced `IUX-A11Y-FOCUS-001` on its first draft.**
+  `IuxSemantics.choice` was written by copying `IuxSemantics.action` and
+  dropping what looked redundant. What was dropped was `onFocus`, so the control
+  announced itself correctly and offered assistive technology no way to move
+  accessibility focus onto it. **A read-only select is what exposed it** — it is
+  not editable, so `enabled` is false, and it is still a stop the user must
+  reach. The library's own `announced_controls_test.dart` sweep now covers the
+  new file and confirms the fix independently of the test that found it.
+
+- **The name and the value are two strings and stay two strings.** The platform
+  joins them in the user's language; composing `"Country, France"` writes a
+  sentence in a language the framework cannot read. An unanswered control
+  announces **no** value rather than the placeholder, because a placeholder read
+  as a value says the question is answered and that sentence is the answer.
+
+- **Limits.**
+  - **Opening is one-way.** Choosing is what closes the list; there is no
+    cancel. A radio cannot be un-chosen, so an answered list has nothing left to
+    offer — but a user who opens thirty options to look around scrolls past them
+    rather than dismissing them. **This is the sharpest cost of the composition
+    and the first thing to revisit**, and it is the reason the documentation
+    caps the component at about thirty options rather than leaving it open.
+  - **No search.** Past thirty options this is the wrong component, the
+    documentation says so, and nothing enforces it.
+  - **Nothing checks that two option labels are distinguishable.** "Ireland" and
+    "Iceland" in a list of thirty is a real hazard and it stays the caller's.
+  - **The chrome extraction is behaviour-neutral by test, not by proof.**
+    `IuxFieldContainer` and `IuxFieldValidationMessage` moved out of
+    `iux_text_field.dart` unchanged; the text field's existing tests are the
+    whole argument that nothing moved with them.
+  - **No device has heard any of this.** `IUX-MANUAL-001` applies unchanged.
