@@ -178,6 +178,35 @@ void main() {
       expect(tooltipText(), findsNothing);
     });
 
+    testWidgets(
+        'the message is on the node before any gesture, so nothing has to be '
+        'performed to read it', (WidgetTester tester) async {
+      // EN 301 549 clause 5.5.1, which RAAM tests as its criterion 11.10 with
+      // no WCAG correspondence behind it: what a gesture reveals needs a route
+      // that costs no gesture. The long press below is additive, and this is
+      // the route — `IuxSemantics.elaboration` sets `Semantics(tooltip:)`,
+      // which is `AccessibilityNodeInfo.setTooltipText` on Android. Recorded
+      // as an untested reading in `IUX-EN301549-002`; this is the test that
+      // limit asked for.
+      await host(
+        tester,
+        IuxTooltip(message: _message, child: _iconAction()),
+      );
+
+      expect(
+        tooltipText(),
+        findsNothing,
+        reason: 'nothing is shown, and the message is still readable',
+      );
+      // Read from inside the control rather than from the wrapper: the
+      // widget merges name, role, message and gesture into one node, so the
+      // wrapper above the merge carries none of it.
+      expect(
+        tester.getSemantics(find.byIcon(Icons.archive_outlined)).tooltip,
+        _message,
+      );
+    });
+
     testWidgets('a long press opens it, which is the touch route',
         (WidgetTester tester) async {
       // Hover does not exist on a phone, and Android is this framework's
