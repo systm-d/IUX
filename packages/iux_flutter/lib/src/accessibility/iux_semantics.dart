@@ -582,6 +582,33 @@ abstract final class IuxSemantics {
         child: child,
       );
 
+  /// Wraps [child] as one named field built out of several boxes.
+  ///
+  /// The date field is why this exists. A date entered as three boxes has to
+  /// announce the question — "Date of birth" — and still let the user land on
+  /// each box, so neither [group] nor [contentContainer] is right on its own:
+  /// the first collapses the boxes into one utterance, the second keeps them
+  /// and says nothing about what they are parts of.
+  ///
+  /// The alternative was to compose the question into each box's name — "Date
+  /// of birth day" — which is a sentence the framework would be writing in a
+  /// language it cannot read, and which `no_composed_strings_test.dart`
+  /// refuses. A named container is the platform's own mechanism for the same
+  /// thing, and it is the analogue of a `fieldset` and its `legend`.
+  static Widget fieldGroup({required Widget child, required String label}) {
+    assert(
+      label.length > 0,
+      'A composite field must be named, or its boxes are announced as "Day" '
+      'and "Month" with nothing saying what date is being asked for.',
+    );
+    return Semantics(
+      container: true,
+      label: label,
+      explicitChildNodes: true,
+      child: child,
+    );
+  }
+
   /// Hides [child] from assistive technology.
   ///
   /// Only for content that is genuinely redundant — an icon beside a label
