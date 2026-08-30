@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 439 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 452 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -4024,3 +4024,67 @@ that costs when it happens on a page.
     `iux_text_field.dart` unchanged; the text field's existing tests are the
     whole argument that nothing moved with them.
   - **No device has heard any of this.** `IUX-MANUAL-001` applies unchanged.
+
+### IUX-TABLE-001 — The clause nothing exercised, and the half of it Flutter cannot express
+
+- **Level**: standard
+- **Scope**: new `IuxDataTable<T>` and `IuxTableColumn<T>`; four new semantics
+  helpers — `IuxSemantics.table`, `.tableRow`, `.tableCell`,
+  `.tableColumnHeader`. `docs/components/data-table.md`.
+- **Sources**: **EN 301 549 V3.2.1 clause 11.5.2.6**, read — *"make the row and
+  column of each cell in a data table, including headers of the row and column
+  if present, programmatically determinable by assistive technologies"* (see
+  `IUX-EN301549-001`); **RAAM 1.1** criteria 4.1–4.5, all level A; WCAG 2.2 SC
+  1.3.1, SC 1.4.10.
+- **Status**: implemented and tested
+  (`test/components/iux_data_table_test.dart`, 12 tests).
+
+- **Why the gap survived so long.** A table built from a `Column` of `Row`s
+  **renders identically** to this one and announces a flat run of strings with
+  no structure at all. There was nothing to see, no test could have failed, and
+  the clause that names the requirement had never been read here. It took
+  reading the standard to find a component-shaped hole.
+
+- **The framework enforces the shape, which is why the shape is built here.**
+  Flutter checks that a `table`'s children all carry the `row` role, that a
+  `row`'s parent is a `table`, and that a `row`'s children are `cell` or
+  `columnHeader` — throwing on the first frame rather than degrading. The four
+  helpers are therefore a set: used together or not at all. A caller assembling
+  the roles by hand would meet the assertion, not a warning.
+
+- **Half of 11.5.2.6 cannot be satisfied on this platform, and the honest answer
+  was to record it.** `SemanticsRole` has `columnHeader` and **no `rowHeader`**.
+  A table whose first column names its rows announces those cells as ordinary
+  cells, so *"headers of the row"* has no expression in Flutter today. Using
+  `columnHeader` in the first column would have made the tests pass and would
+  have been **a lie about which axis the header belongs to** — and a lie in the
+  semantics tree is worse than a gap, because it is the one place a user cannot
+  check the framework's work.
+
+- **It does not scroll sideways, and that is a decision rather than an
+  omission.** SC 1.4.10 exempts tables from reflow, so horizontal scrolling was
+  *permitted*. It was not taken: a table that scrolls sideways puts the row's own
+  label out of sight exactly when the reader needs it to interpret the cell in
+  front of them, and at 200% text it does so immediately. The columns share the
+  width and wrap instead. **The cost is a column cap**, and it is documentation
+  rather than an assertion because the right number depends on the words.
+
+- **Limits.**
+  - **No row headers.** The sharpest one, because it is half of the clause this
+    component was built for. Revisit if `SemanticsRole.rowHeader` lands.
+  - **No sorting, selection, pagination or row actions.** Each changes what
+    every cell announces, and a table that grew them one at a time would arrive
+    at each without a decision having been taken.
+  - **RAAM 4.2 and 4.4 ask that the description and title be *relevant***, which
+    no test can decide. The component can require that they exist and does.
+  - **The parameter is `description`, not `summary`.** RAAM calls it a *résumé*
+    and `summary` was the obvious name; `api_consistency_test.dart` refused it,
+    because `summary` already carries three unrelated meanings here and that
+    test exists to catch the fourth. **It caught this one before review did**,
+    which is the second time in this batch a guard in this repository found
+    something a careful reading had not.
+  - **`IUX-MANUAL-001` bites harder here than usual.** Table navigation is a
+    mode a screen reader *enters* — row by row, column by column — and nobody
+    here has watched that happen. The roles are asserted on the semantics tree;
+    whether TalkBack's table mode reads this as a table is exactly the kind of
+    thing only a device answers.
