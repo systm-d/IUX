@@ -335,6 +335,89 @@ abstract final class IuxSemantics {
     );
   }
 
+  /// Wraps [child] as a control that holds one answer chosen from a list.
+  ///
+  /// The collapsed half of a select. It differs from [action] in the one way
+  /// that matters to a screen reader: a button announces what it does, and this
+  /// announces **what the answer currently is**. [value] is published as the
+  /// node's value rather than composed into [label], because the platform
+  /// speaks a name and a value with its own punctuation and in the user's own
+  /// language — and because a framework that concatenates the two has invented
+  /// a sentence in a language it does not know it is writing.
+  ///
+  /// [value] is null when the user has not answered. Null is absent rather than
+  /// empty: a control announcing an empty value says there is an answer and
+  /// declines to read it.
+  ///
+  /// [expanded] is never null here, unlike on [action]. A select always has an
+  /// open state, so "collapsed" is information rather than noise.
+  ///
+  /// **There is deliberately no `SemanticsRole.comboBox` here, and the reason
+  /// is upstream rather than ours.** `comboBox` is declared in the enum and its
+  /// debug role checks are not written: Flutter maps it to `_unimplemented`,
+  /// which throws *"Missing checks for role SemanticsRole.comboBox"* on the
+  /// first frame in any debug or profile build — the only builds this library
+  /// runs its assertions in. The same holds for `spinButton`, `dragHandle`,
+  /// `tooltip` and `hotKey` (flutter/flutter#159741). So the node is a button
+  /// that carries a value and an expanded state, which is what the platform can
+  /// actually speak today. Revisit when the upstream checks land.
+  static Widget choice({
+    required Widget child,
+    required String label,
+    required String? value,
+    required bool expanded,
+    String? hint,
+    bool enabled = true,
+    bool readOnly = false,
+    bool isRequired = false,
+    VoidCallback? onTap,
+    FocusNode? focusNode,
+    bool focusable = true,
+  }) {
+    assert(
+      label.length > 0,
+      'A choice must be named. Unnamed, it is announced as "combo box" and '
+      'nothing else, so the user is asked a question they cannot hear.',
+    );
+    assert(
+      value == null || value.length > 0,
+      'An empty value announces that an answer exists and then declines to '
+      'read it. Pass null while the question is unanswered.',
+    );
+    return _IuxFocusAwareSemantics(
+      focusNode: focusNode,
+      focusable: focusable,
+      builder: (bool isFocusable, FocusNode? node) => Semantics(
+        container: true,
+        button: true,
+        enabled: enabled,
+        // Only ever set, never cleared: `readOnly: false` would announce a
+        // state this control does not have.
+        readOnly: readOnly ? true : null,
+        isRequired: isRequired ? true : null,
+        expanded: expanded,
+        label: label,
+        value: value,
+        hint: hint,
+        onTap: enabled ? onTap : null,
+        focusable: isFocusable,
+        focused: isFocusable ? node!.hasPrimaryFocus : null,
+        // Without this the control is announced correctly and assistive
+        // technology has no way to move accessibility focus onto it —
+        // IUX-A11Y-FOCUS-001, which this helper reproduced on its first
+        // draft because it was copied from [action] without it. A read-only
+        // control is the case that exposes it: it is not editable, so
+        // `enabled` is false, and it is still a stop the user must be able
+        // to reach.
+        onFocus: isFocusable && defaultTargetPlatform != TargetPlatform.iOS
+            ? node!.requestFocus
+            : null,
+        excludeSemantics: true,
+        child: child,
+      ),
+    );
+  }
+
   /// Wraps [child] as an editable value, keeping the actions that edit it.
   ///
   /// [child] is the editing widget itself, and its semantics are merged into

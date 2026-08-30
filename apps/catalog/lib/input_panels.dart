@@ -26,8 +26,104 @@ class InputPanels extends StatelessWidget {
           _ValidationPanel(longLabels: longLabels),
           _ContentTypePanel(longLabels: longLabels),
           _SelectionPanel(longLabels: longLabels),
+          const _SelectPanel(),
           const _SelectionRefusalPanel(),
         ],
+      );
+}
+
+/// The select, and the boundary at which it is the wrong component.
+class _SelectPanel extends StatefulWidget {
+  const _SelectPanel();
+
+  @override
+  State<_SelectPanel> createState() => _SelectPanelState();
+}
+
+class _SelectPanelState extends State<_SelectPanel> {
+  static const List<IuxRadioOption<String>> _countries =
+      <IuxRadioOption<String>>[
+    IuxRadioOption<String>(value: 'be', label: 'Belgium'),
+    IuxRadioOption<String>(value: 'fr', label: 'France'),
+    IuxRadioOption<String>(value: 'de', label: 'Germany'),
+    IuxRadioOption<String>(value: 'ie', label: 'Ireland'),
+    IuxRadioOption<String>(value: 'it', label: 'Italy'),
+    IuxRadioOption<String>(value: 'lu', label: 'Luxembourg'),
+    IuxRadioOption<String>(value: 'nl', label: 'Netherlands'),
+    IuxRadioOption<String>(value: 'pt', label: 'Portugal'),
+    IuxRadioOption<String>(value: 'es', label: 'Spain'),
+    IuxRadioOption<String>(value: 'ch', label: 'Switzerland'),
+  ];
+
+  String? _answered = 'fr';
+  String? _unanswered;
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'Choosing one answer from a long list',
+        description: 'IuxSelectField exists because IuxRadioGroup stops '
+            'working past about a dozen options, not because a dropdown looks '
+            'tidier. Open one: what appears is IuxRadioGroup, unchanged.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxSelectField<String>(
+              label: 'Country',
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Country'),
+              ),
+              value: _answered,
+              options: _countries,
+              onChanged: (String value) => setState(() => _answered = value),
+            ),
+            const IuxGap.standard(),
+            IuxSelectField<String>(
+              label: 'Delivery country',
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Delivery country'),
+                requirement: IuxInputRequirement.required,
+                helpText: 'Where the order will be sent.',
+                validation: IuxInputValidation.invalid('Choose a country.'),
+              ),
+              value: _unanswered,
+              options: _countries,
+              placeholder: 'Choose a country',
+              onChanged: (String value) => setState(() => _unanswered = value),
+            ),
+            const IuxGap.standard(),
+            IuxSelectField<String>(
+              label: 'Billing country',
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Billing country'),
+                availability: IuxInputAvailability.readOnly,
+              ),
+              value: 'lu',
+              options: _countries,
+              onChanged: (String _) {},
+            ),
+            const IuxGap.standard(),
+            const CatalogRows(<(String, String)>[
+              ('answered', 'the option is the announced value'),
+              ('unanswered', 'no value announced — never the placeholder'),
+              ('read-only', 'keeps its place in the focus order'),
+              ('open', 'becomes IuxRadioGroup, semantics and all'),
+            ]),
+            const CatalogNote(
+              'There is no cancel. Choosing is what closes the list, because a '
+              'radio cannot be un-chosen — so a user who opens it to look '
+              'around scrolls past it instead. That is the sharpest cost of '
+              'building the open state out of a radio group, and it is why the '
+              'documentation caps this component at about thirty options.',
+            ),
+            const CatalogNote(
+              'The node is a button carrying a value, not a combo box. '
+              'SemanticsRole.comboBox is declared in Flutter and its debug '
+              'checks are not written, so setting it throws on the first '
+              'frame — flutter/flutter#159741. spinButton is in the same '
+              'state, which rules out a numeric stepper for now too.',
+            ),
+          ],
+        ),
       );
 }
 
