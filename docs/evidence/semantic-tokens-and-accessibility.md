@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 452 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 469 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3921,9 +3921,11 @@ that costs when it happens on a page.
   `lib/`, is 72 `onTap` plus tap-down/up/cancel, and no multi-pointer recogniser
   of any kind.
 
-- **5.5.1 read as complex gestures (RAAM 11.10) — satisfied, with one honest
-  qualification.** There is **no** pan, scale or drag recogniser anywhere in
-  `lib/`. There is exactly one non-tap gesture: `IuxTooltip`'s
+- **5.5.1 read as complex gestures (RAAM 11.10) — satisfied, with two honest
+  qualifications.** *(Amended by `IUX-SLIDER-001`: when this entry was written
+  there was **no** pan, scale or drag recogniser anywhere in `lib/`. `IuxSlider`
+  added one, and it is described at the end of this entry rather than left to
+  contradict the sentence above.)* The other non-tap gesture is `IuxTooltip`'s
   `onLongPress`. It is additive rather than required —
   `IuxSemantics.elaboration` puts the same message on the node as
   `Semantics(tooltip:)`, so an assistive technology reads it without performing
@@ -3951,6 +3953,14 @@ that costs when it happens on a page.
     more: 11.6.2 has nothing behind it, and 11.7's font type, focus cursor and
     units of measurement are unread platform preferences. This entry closes the
     cheap half deliberately, and does not pretend to close the rest.
+  - **The gesture count in this entry has changed once already.** `IuxSlider`
+    registers `onHorizontalDragUpdate` on its track — the first and only
+    path-based gesture in the library. It is permitted rather than tolerated:
+    the minus and plus buttons beside it are a single-pointer alternative to
+    every value the drag can reach, which is what SC 2.5.1 asks for and what
+    RAAM 11.10 tests. **The claim was true when it was written and the code
+    moved under it**, which is the ordinary way a register entry goes stale and
+    the reason this one now names its amender.
 
 ### IUX-SELECT-001 — A chooser for the case where the radio group stops working
 
@@ -4088,3 +4098,61 @@ that costs when it happens on a page.
     here has watched that happen. The roles are asserted on the semantics tree;
     whether TalkBack's table mode reads this as a table is exactly the kind of
     thing only a device answers.
+
+### IUX-SLIDER-001 — The one clause in this batch the platform can satisfy in full
+
+- **Level**: standard
+- **Scope**: new `IuxSlider`; new `IuxSemantics.range`. Amends
+  `IUX-EN301549-002`'s gesture count. `docs/components/slider.md`.
+- **Sources**: **EN 301 549 V3.2.1 clause 11.5.2.7**, read — *"make the current
+  value of a user interface element and any minimum or maximum values of the
+  range, if the user interface element conveys information about a range of
+  values, programmatically determinable by assistive technologies"* (see
+  `IUX-EN301549-001`); WCAG 2.2 SC 2.5.1, SC 1.4.1.
+- **Status**: implemented and tested
+  (`test/components/iux_slider_test.dart`, 15 tests).
+
+- **Clause 11.5.2.7 had nothing exercising it, because the library had no
+  range.** Every other component holds a value that is a string, a boolean or
+  one option of a set. The clause names minimum and maximum explicitly, so it
+  was written for exactly the control this library did not have.
+
+- **It is the only clause in this batch the platform satisfies completely, and
+  that is worth recording next to the three it does not.** Flutter's `Semantics`
+  publishes `slider`, `value`, `minValue`, `maxValue`, `increasedValue`,
+  `decreasedValue` and the increase and decrease actions — all of it. Against
+  `comboBox` and `spinButton` declared-and-unusable (`IUX-SELECT-001`) and no
+  row-header role (`IUX-TABLE-001`), this is the one that worked first time.
+
+- **The buttons are what make the drag permissible.** A control that can only be
+  dragged is a path-based gesture with no single-pointer alternative — SC 2.5.1
+  outright, and unreachable by a screen reader whatever the semantics say. The
+  minus and plus are therefore not optional and there is no parameter to remove
+  them. This is also the library's **first and only** path-based gesture, and
+  `IUX-EN301549-002` is amended rather than left to contradict it.
+
+- **The caller formats the value, and `format` is required.** A screen reader
+  speaks what it is given. `0.7` is the wrong answer when the range is a price,
+  a percentage or a temperature, and the framework does not know the unit. The
+  same requirement covers the ends of the range, so `minValue` and `maxValue`
+  are announced in the caller's units too.
+
+- **`divisions` is required rather than defaulted.** A continuous slider cannot
+  be operated by a keyboard or a screen reader at all, so the step is a decision
+  every caller has to take rather than one this component can guess. The value
+  snaps to it, because an unsnapped drag reports a number the buttons can never
+  reach again.
+
+- **Limits.**
+  - **A slider is for a value the user judges, not one they know.** An amount, a
+    date, an age are fields. Documented under *when not to use*, enforced
+    nowhere.
+  - **Past about a dozen steps the buttons become the only usable route**, and a
+    field is kinder than fifty taps. Also documentation.
+  - **The track has no visible thumb.** The filled portion is the position, and
+    at very small widths that is a thin distinction. It is not the only signal —
+    the value is written out beside it — but it is thinner than a handle.
+  - **`IUX-MANUAL-001`.** Whether TalkBack's slider gesture — swipe up and down
+    to adjust — actually reaches these actions is exactly what a device settles.
+    The actions are advertised and asserted; that they are *advertised* is not
+    that they *work*.

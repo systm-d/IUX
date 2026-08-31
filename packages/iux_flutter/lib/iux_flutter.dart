@@ -30,6 +30,7 @@ export 'src/components/help/iux_contextual_help.dart';
 export 'src/components/help/iux_help_tokens.dart';
 export 'src/components/help/iux_tooltip.dart';
 export 'src/components/input/iux_select_field.dart';
+export 'src/components/input/iux_slider.dart';
 export 'src/components/input/iux_text_field.dart';
 export 'src/components/list/iux_list_group.dart';
 export 'src/components/list/iux_list_item.dart';

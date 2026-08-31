@@ -657,6 +657,77 @@ abstract final class IuxSemantics {
         child: child,
       );
 
+  /// Wraps [child] as a control holding one value from a continuous range.
+  ///
+  /// The only helper in this library whose clause the platform can satisfy in
+  /// full. **EN 301 549 clause 11.5.2.7** asks that the current value *and any
+  /// minimum or maximum values of the range* be programmatically determinable,
+  /// and Flutter publishes all three — unlike `comboBox` and `spinButton`,
+  /// which are declared and unusable.
+  ///
+  /// [value], [minValue] and [maxValue] are **strings the caller formats**, not
+  /// numbers. A screen reader speaks what it is given, and "0.7" is the wrong
+  /// answer when the range is a price, a percentage or a temperature. The
+  /// framework does not know the unit and will not invent one.
+  ///
+  /// [increasedValue] and [decreasedValue] are what the value *would become*.
+  /// The platform speaks them when the user acts, so a step that changes
+  /// nothing — already at the maximum — is heard rather than met with silence.
+  ///
+  /// [onIncrease] and [onDecrease] are not optional in practice. A control that
+  /// can only be dragged is a path-based gesture with no single-pointer
+  /// alternative, which fails WCAG 2.2 SC 2.5.1, and it is unreachable by a
+  /// screen reader whatever the semantics say.
+  static Widget range({
+    required Widget child,
+    required String label,
+    required String value,
+    required String minValue,
+    required String maxValue,
+    String? increasedValue,
+    String? decreasedValue,
+    bool enabled = true,
+    VoidCallback? onIncrease,
+    VoidCallback? onDecrease,
+    FocusNode? focusNode,
+    bool focusable = true,
+  }) {
+    assert(
+      label.length > 0,
+      'A range must be named. Unnamed, it is announced as "slider" and a '
+      'number, which is a value with no question attached.',
+    );
+    assert(
+      value.length > 0 && minValue.length > 0 && maxValue.length > 0,
+      'Clause 11.5.2.7 asks for the current value and the ends of the range. '
+      'An empty one announces that a bound exists and declines to read it.',
+    );
+    return _IuxFocusAwareSemantics(
+      focusNode: focusNode,
+      focusable: focusable,
+      builder: (bool isFocusable, FocusNode? node) => Semantics(
+        container: true,
+        slider: true,
+        enabled: enabled,
+        label: label,
+        value: value,
+        minValue: minValue,
+        maxValue: maxValue,
+        increasedValue: increasedValue,
+        decreasedValue: decreasedValue,
+        onIncrease: enabled ? onIncrease : null,
+        onDecrease: enabled ? onDecrease : null,
+        focusable: isFocusable,
+        focused: isFocusable ? node!.hasPrimaryFocus : null,
+        onFocus: isFocusable && defaultTargetPlatform != TargetPlatform.iOS
+            ? node!.requestFocus
+            : null,
+        excludeSemantics: true,
+        child: child,
+      ),
+    );
+  }
+
   /// Hides [child] from assistive technology.
   ///
   /// Only for content that is genuinely redundant — an icon beside a label
