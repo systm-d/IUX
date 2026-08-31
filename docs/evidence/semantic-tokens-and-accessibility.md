@@ -3346,15 +3346,19 @@ that costs when it happens on a page.
     then speaks and activates it on a device remains unverified —
     `IUX-MANUAL-001`.
 
-### IUX-MANUAL-001 — Nothing has been validated on a device, and the register never said so in its own voice
+### IUX-MANUAL-001 — Nothing had been validated on a device, and the register never said so in its own voice
 
 - **Level**: standard
 - **Scope**: every accessibility claim in this repository
 - **Sources**: WCAG 2.2 conformance requires testing with assistive technology
   that the success criteria themselves do not specify; systm-d/IUX#17
-- **Status**: **open, and it is the release blocker.** A protocol exists —
+- **Status**: **open, and it is still the release blocker** — but no longer
+  unstarted. A protocol exists,
   `docs/accessibility/manual-validation-protocol.md`, with a handover runsheet
-  beside it. It has never been run.
+  beside it. **The mechanical half of its Block A was run on 2026-08-31** on a
+  Pixel 7, Android 17, TalkBack 17.0.1, and is recorded in
+  `docs/accessibility/session-2026-08-31-pixel7.md`. Nothing was heard, no
+  reading order was observed, and Blocks B to F were not attempted.
 
 - **This entry exists because four other entries defer to an ID that had none.**
   `IUX-MANUAL-001` is cited as the limit on the list-item press tint, the radio
@@ -3412,14 +3416,30 @@ that costs when it happens on a page.
     *enters*, row by row. `IUX-TABLE-001` asserts the roles nest correctly and
     nobody has watched that mode open.
 
-- **A device session was attempted from the development environment and cannot
-  be run there.** Recorded so the next person does not spend the time again: no
-  Android device is reachable over USB or ADB, and the Android emulator
-  **segfaults reproducibly about eighteen seconds into boot**, under every GPU
-  backend tried, whether launched in the foreground or detached. The APK builds
-  and installs nowhere. This does not change the status — it names the
-  blocker as hardware rather than effort, which is what the release-blocker
-  label already implied and nothing had written down.
+- **The blocker was hardware, and the hardware arrived.** For most of this
+  work no Android device was reachable and the emulator segfaulted reproducibly
+  about eighteen seconds into boot under every GPU backend tried. A Pixel 7 was
+  then connected, and everything downstream worked first time: the catalog
+  builds, installs, launches without crashing, **and its icons render** — the
+  `uses-material-design` class of defect is absent from `main`.
+
+- **What the first session established, and the one thing it overturned.** Full
+  account in `docs/accessibility/session-2026-08-31-pixel7.md`. Two results
+  matter here:
+  - **Names and states do reach `AccessibilityNodeInfo`.** Chips announce
+    `'Brightness: dark'` with `selected` set on exactly the chosen ones. That is
+    the first non-modelled evidence for clause 11.5.2.5, and it is positive: the
+    inference this register has rested on holds, on this device, for these
+    controls.
+  - **An inference drawn from the tree was wrong, in the pessimistic
+    direction.** Nodes appearing with `clickable=false` were read — using this
+    repository's own dartdoc wording — as *"visible, named, and unusable"*. They
+    are not. Tested rather than assumed: with TalkBack running, a double-tap
+    activated the control, because TalkBack falls back to a synthesised touch
+    when a node advertises no click action. **What survives is that the action
+    is unadvertised**, which still matters for Switch Access and Voice Access;
+    what does not survive is "unusable". No widget test could have shown this,
+    and neither could reading the platform tree.
 
 - **Limits.**
   - **One session on one device is not coverage.** A Pixel with TalkBack says
