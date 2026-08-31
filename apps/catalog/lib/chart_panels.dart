@@ -77,6 +77,108 @@ const IuxChartAxis _degrees = IuxChartAxis(
 ///
 /// A chart is the component most often shipped having only ever been looked at
 /// once, at 100%, in light mode, in English, by somebody who could see it.
+
+/// Spans on a shared axis, and the overlap resolution that keeps them honest.
+class _TimelinePanel extends StatelessWidget {
+  const _TimelinePanel();
+
+  static const IuxSpanKind _work = IuxSpanKind(
+    label: 'Declared work',
+    texture: IuxSpanTexture.solid,
+  );
+  static const IuxSpanKind _onCall = IuxSpanKind(
+    label: 'On call',
+    texture: IuxSpanTexture.hatched,
+  );
+  static const IuxSpanKind _rest = IuxSpanKind(
+    label: 'Statutory rest',
+    texture: IuxSpanTexture.dotted,
+  );
+
+  // Deliberately overlapping: Tuesday is on call across a shift that is also
+  // worked, which is the case a hand-built chart draws wrongly.
+  static const List<IuxTimelineRow> _week = <IuxTimelineRow>[
+    IuxTimelineRow(
+      label: 'Mon',
+      spans: <IuxSpan>[
+        IuxSpan(kind: _work, start: 9, end: 17),
+        IuxSpan(kind: _rest, start: 17, end: 24),
+      ],
+    ),
+    IuxTimelineRow(
+      label: 'Tue',
+      spans: <IuxSpan>[
+        IuxSpan(kind: _onCall, start: 6, end: 20),
+        IuxSpan(kind: _work, start: 9, end: 17),
+        IuxSpan(kind: _rest, start: 20, end: 24),
+      ],
+    ),
+    IuxTimelineRow(
+      label: 'Wed',
+      spans: <IuxSpan>[
+        IuxSpan(kind: _work, start: 8, end: 13),
+        IuxSpan(kind: _rest, start: 14, end: 24),
+      ],
+    ),
+  ];
+
+  static String _hours(double v) =>
+      '${v.toInt().toString().padLeft(2, '0')}:00';
+
+  static String _describe(IuxTimelineRow row, List<IuxResolvedSpan> bands) {
+    final StringBuffer buffer = StringBuffer(row.label);
+    for (final IuxResolvedSpan band in bands) {
+      buffer.write(
+        ', ${band.kind.label} ${_hours(band.start)} to ${_hours(band.end)}',
+      );
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'When, and for how long',
+        description: 'The other charts answer "how much". Reported as #51 by '
+            'an integrator who had already built it: a list saying "rest '
+            'short by one hour" is arithmetic; a band visibly thinner than '
+            'the one above it is the same fact without the arithmetic.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxTimelineChart(
+              title: 'Rest periods this week',
+              precedence: const <IuxSpanKind>[_work, _onCall, _rest],
+              rows: _week,
+              axisStart: 0,
+              axisEnd: 24,
+              formatPosition: _hours,
+              describeRow: _describe,
+            ),
+            const IuxGap.standard(),
+            const CatalogNote(
+              'Tuesday was handed three overlapping stretches — on call from '
+              '06:00 to 20:00, worked from 09:00 to 17:00, rest after. What is '
+              'drawn is four disjoint bands, because resolveSpans swept the '
+              'axis against the precedence order. A hand-built chart draws the '
+              'overlap and is silently wrong.',
+            ),
+            const CatalogNote(
+              'describeRow receives the resolved bands, never the input. The '
+              'sentence a screen reader hears cannot describe a different '
+              'arrangement from the one on screen — the framework does the '
+              'arithmetic, the caller writes the sentence.',
+            ),
+            const CatalogNote(
+              'Four kinds, two palette colours. Rather than add colours whose '
+              'distinguishability nobody has measured under dichromacy, the '
+              'kinds differ by fill: solid, hatched, dotted, open. That is the '
+              'octagon argument applied to an area.',
+            ),
+          ],
+        ),
+      );
+}
+
 /// Every panel here puts one of those assumptions under pressure.
 class ChartPanels extends StatelessWidget {
   /// Creates the chart harness.
@@ -93,6 +195,7 @@ class ChartPanels extends StatelessWidget {
           const _GapPanel(),
           _BarChartPanel(longLabels: longLabels),
           const _SparklinePanel(),
+          const _TimelinePanel(),
         ],
       );
 }

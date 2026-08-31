@@ -24,6 +24,8 @@ export 'src/components/chart/iux_chart_model.dart';
 export 'src/components/chart/iux_chart_tokens.dart';
 export 'src/components/chart/iux_line_chart.dart';
 export 'src/components/chart/iux_sparkline.dart';
+export 'src/components/chart/iux_timeline_chart.dart';
+export 'src/components/chart/iux_timeline_model.dart';
 export 'src/components/feedback/iux_inline_feedback.dart';
 export 'src/components/feedback/iux_inline_feedback_tokens.dart';
 export 'src/components/help/iux_contextual_help.dart';
