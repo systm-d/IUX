@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 490 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 523 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -4279,7 +4279,7 @@ that costs when it happens on a page.
 
 - **Why this is the register's problem specifically.** Every other artefact in
   this repository is checked by something that runs: the analyser, the
-  formatter, 2 490 tests. The register is prose, it is the project's memory, and
+  formatter, 2 523 tests. The register is prose, it is the project's memory, and
   **its corruption is the only kind here that is silent**. That is the same
   argument `IUX-REGISTER-001` makes about citations resolving, one step earlier:
   a citation that resolves to a mangled entry is worse than one that resolves to
@@ -4308,3 +4308,76 @@ that costs when it happens on a page.
   - **It runs in the library's test suite** and therefore only when that suite
     is run. A commit that touches nothing under `packages/iux_flutter` and
     mangles the register on the way past would not be stopped by it.
+
+### IUX-TIMELINE-001 — The chart family answered "how much" and nothing answered "when"
+
+- **Level**: context_dependent
+- **Scope**: new `IuxTimelineChart`, `IuxTimelineRow`, `IuxSpan`,
+  `IuxResolvedSpan`, `IuxSpanKind`, `IuxSpanTexture` and the pure function
+  `resolveSpans`. `docs/components/timeline-chart.md`.
+- **Sources**: systm-d/IUX#51, reported by an integrator; WCAG 2.2 SC 1.4.1,
+  SC 1.3.1; `IUX-GLYPH-SILHOUETTE-001` for the channel argument.
+- **Status**: implemented and tested — 17 tests on the resolver, 14 on the
+  widget.
+
+- **This is the first component in the library asked for by somebody who had
+  already built it.** The report is worth reading in full; its central sentence
+  is that a list saying *"daily rest short by one hour"* is arithmetic, whereas
+  a row whose rest band is visibly thinner than the one above it is the same
+  fact understood without doing any. Nothing here answers "when, and for how
+  long"; `IuxBarChart`, `IuxLineChart` and `IuxSparkline` all answer "how much".
+
+- **The drawing was never the hard part, and the reporter said so.** Their own
+  estimate for the visual was *"a `Row` of `Expanded` flex weights, about forty
+  lines"*. Two things are hard, and both are in the contract here rather than in
+  advice:
+  - **The bands must be disjoint before they can be drawn**, and the sets an
+    application holds are not — somebody can be on call during their working
+    hours. `resolveSpans` sweeps the axis boundary by boundary against a
+    precedence order. **Getting this wrong produces a chart that renders, looks
+    plausible and states something untrue**, which is the failure a charting
+    component should be preventing rather than passing on.
+  - **`describeRow` is handed the resolved bands, not the caller's input.** That
+    is the guarantee worth having: the sentence a screen reader hears cannot
+    describe a different arrangement from the one on screen. The framework does
+    the arithmetic, which it can verify; the caller writes the sentence, which
+    it cannot.
+
+- **Four kinds, two colours, and the answer was not to add colours.** The chart
+  palette carries `primaryStroke` and `secondaryStroke` deliberately — *"a chart
+  in which four things all claim different weight has no subject"*. The
+  reporter's case needs four. Adding a categorical palette would have meant
+  proving four fills distinguishable across four theme profiles **and** under
+  dichromacy, which `research/perception/` exists to measure and has not.
+
+  So the kinds are told apart by **fill texture** — solid, hatched, dotted, open
+  — and colour assists. This is `IUX-GLYPH-SILHOUETTE-001`'s argument applied to
+  an area rather than a glyph: where the colour channel is weakest, the shape
+  channel carries. One `paintSpan` draws both the legend swatch and the band, so
+  a kind cannot be drawn one way in the key and another on the chart.
+
+- **A gap stays a gap.** Stretches nothing covers are absent from the result
+  rather than filled with an "unallocated" band. Inventing one would be the
+  component asserting something the caller never said.
+
+- **Limits.**
+  - **The report's own caveat stands**: it says this may be deliberate scope. It
+    was built rather than documented away because the disjointness guarantee is
+    one no documentation can give — but that judgement is this project's, not
+    the reporter's.
+  - **Only the ends of the axis are labelled.** Intermediate ticks collide at
+    200% text on a row this short. The detail lives in the row's announcement,
+    which means a sighted reader who cannot judge a proportion by eye is worse
+    served than a screen-reader user — an inversion of the usual shape, and a
+    real cost.
+  - **Nothing checks that a description matches its bands.** `describeRow` is
+    handed the right data; a caller can still ignore it and return a constant.
+    The component requires a non-empty sentence and can require nothing more.
+  - **The textures are unmeasured.** That solid, hatched, dotted and open are
+    distinguishable at a band's height, at 200% text, and in high contrast is an
+    argument from the glyph work, not a measurement of these four fills.
+    `research/perception/` is where that would be settled.
+  - **`IUX-MANUAL-001`, and harder than usual.** This component's entire value
+    is a visual comparison *down a column* — one row's band against the row
+    above. A semantics tree cannot hold that claim at all, and no test here
+    asserts it.
