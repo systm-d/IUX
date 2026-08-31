@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 469 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 489 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -4035,6 +4035,70 @@ that costs when it happens on a page.
     whole argument that nothing moved with them.
   - **No device has heard any of this.** `IUX-MANUAL-001` applies unchanged.
 
+### IUX-DATE-001 — The field with the most accessibility risk, and the calendar it refuses
+
+- **Level**: context_dependent
+- **Scope**: new `IuxDateField`, `IuxDateParts`, `IuxDateFieldLabels`; new
+  `IuxSemantics.fieldGroup`. `docs/components/date-field.md`.
+- **Sources**: systm-d/IUX#49; WCAG 2.2 SC 1.3.1, SC 3.3.2, SC 4.1.2; **EN 301
+  549 V3.2.1** clause 11.5.2.5 (see `IUX-EN301549-001`).
+- **Status**: implemented and tested
+  (`test/components/iux_date_field_test.dart`, 17 tests).
+
+- **The component is a refusal.** #49 named date entry as the field with the
+  most accessibility risk, and the risk lives almost entirely in the calendar
+  picker most applications reach for: forty-two targets a screen-reader user
+  arrows through to find one, a seven-column grid that does not fit a phone at
+  200% text, and an opening gesture a component here may not perform because
+  `Navigator` is forbidden to it. Three named boxes are what audits ask for.
+
+  **The cost is stated rather than hidden**: this does not look like what most
+  people expect, and it gives no help with a date far from today. An application
+  that needs a calendar should build one and own its accessibility.
+
+- **The value type is the load-bearing decision, and `DateTime?` was wrong.** A
+  user mid-entry has typed a day and not a year, or a month of 13. `DateTime?`
+  holds neither — null, or a complete valid instant — so a field built on it
+  invents a private half-state the parent cannot see, validate or save as a
+  draft. `IuxDateParts` also carries no time and no zone: **a `DateTime` used as
+  a date moves when the device crosses a boundary**, which is a defect that
+  surfaces once a year in the field and never in a test.
+
+  Reality is checked by round trip rather than a calendar table, because Dart
+  rolls 31 February into March rather than refusing. A constructed date that
+  disagrees with its own parts is one the user did not name.
+
+- **`fieldGroup` exists because the alternative was to compose a sentence.** A
+  date needs to announce the question and still let the user land on each box.
+  `group` collapses the boxes into one utterance; `contentContainer` keeps them
+  and says nothing about what they are parts of. The remaining option was
+  "Date of birth day" as each box's name — a sentence the framework would be
+  writing in a language it cannot read, which `no_composed_strings_test.dart`
+  refuses. A named container is the platform's own mechanism, and the analogue
+  of a `fieldset` and its `legend`.
+
+- **A second Flutter limit, found the same way as the last two.**
+  `SemanticsInputType` offers text, url, phone, search and email, and **nothing
+  for a number or a date**. The keyboard is numeric; the announcement is not.
+  With `SemanticsRole.comboBox` and `spinButton` unimplemented
+  (`IUX-SELECT-001`), and with `SemanticsRole` carrying `columnHeader` and no
+  row-header equivalent, that is three platform gaps found by building
+  components against a standard — which is more than the standard reading
+  found on its own.
+
+- **Limits.**
+  - **No calendar, and no help with a date the user does not already know.**
+    Stated first because it is the trade the component is.
+  - **Day, month, year in that order**, not reordered by locale. Reordering
+    would move the boxes under a returning user, and the visible names are what
+    disambiguate them.
+  - **No two-digit-year expansion.** `90` is the year ninety; guessing 1990
+    invents data.
+  - **One message for the whole field.** Which box is wrong is usually not
+    knowable — `31/02` has no single guilty part.
+  - **`IUX-MANUAL-001`.** That three boxes beat a calendar with TalkBack is an
+    argument from audit practice. **This project has watched neither**, and this
+    entry is the one in the batch that would most benefit from being wrong.
 ### IUX-TABLE-001 — The clause nothing exercised, and the half of it Flutter cannot express
 
 - **Level**: standard

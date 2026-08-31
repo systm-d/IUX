@@ -27,6 +27,7 @@ class InputPanels extends StatelessWidget {
           _ContentTypePanel(longLabels: longLabels),
           _SelectionPanel(longLabels: longLabels),
           const _SelectPanel(),
+          const _DatePanel(),
           const _SliderPanel(),
           const _SelectionRefusalPanel(),
         ],
@@ -187,6 +188,85 @@ class _SliderPanelState extends State<_SliderPanel> {
               'This drag is the first and only path-based gesture in the '
               'library. IUX-EN301549-002 said there were none; it is amended '
               'rather than left to rot.',
+            ),
+          ],
+        ),
+      );
+}
+
+/// The date field, and the calendar it refuses.
+class _DatePanel extends StatefulWidget {
+  const _DatePanel();
+
+  @override
+  State<_DatePanel> createState() => _DatePanelState();
+}
+
+class _DatePanelState extends State<_DatePanel> {
+  IuxDateParts _birth = const IuxDateParts(day: 4, month: 7, year: 1990);
+  IuxDateParts _expiry = const IuxDateParts.empty();
+
+  static const IuxDateFieldLabels _labels = IuxDateFieldLabels(
+    day: 'Day',
+    month: 'Month',
+    year: 'Year',
+  );
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'A date, entered rather than picked',
+        description: 'Not a calendar. A month grid is forty-two targets a '
+            'screen-reader user arrows through to find one, it does not fit a '
+            'phone at 200% text, and reaching it means opening something a '
+            'component here may not open.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxDateField(
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Date of birth'),
+                helpText: 'For example, 4 7 1990.',
+              ),
+              labels: _labels,
+              value: _birth,
+              onChanged: (IuxDateParts value) => setState(() => _birth = value),
+            ),
+            const IuxGap.standard(),
+            IuxDateField(
+              input: IuxInputDescriptor(
+                semantics: const IuxInputSemantics(label: 'Expiry date'),
+                requirement: IuxInputRequirement.required,
+                validation: _expiry.isComplete && _expiry.date == null
+                    ? const IuxInputValidation.invalid(
+                        'That is not a real date.')
+                    : const IuxInputValidation.notValidated(),
+              ),
+              labels: _labels,
+              value: _expiry,
+              onChanged: (IuxDateParts value) =>
+                  setState(() => _expiry = value),
+            ),
+            const IuxGap.standard(),
+            CatalogRows(<(String, String)>[
+              ('parts', _birth.toString()),
+              (
+                'date',
+                _birth.date?.toIso8601String() ?? 'null — not a real day'
+              ),
+              ('complete', '${_birth.isComplete}'),
+            ]),
+            const CatalogNote(
+              'The value is IuxDateParts, not DateTime?. A user mid-entry has '
+              'typed a day and not yet a year — DateTime? holds null or a '
+              'complete valid instant and nothing between, so a field built on '
+              'it invents a half-state the parent cannot validate. Try 31 in '
+              'February on the expiry field: the boxes accept it and the parent '
+              'is the one that objects.',
+            ),
+            const CatalogNote(
+              'The question names the group; it is not composed into each box. '
+              '"Date of birth day" would be a sentence the framework wrote in '
+              'a language it cannot read.',
             ),
           ],
         ),
