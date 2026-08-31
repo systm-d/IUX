@@ -21,6 +21,29 @@ What only a device settles is the list below: what the platform *composes* from
 the tree, what it *reads out loud*, in what *order*, and whether the user's own
 system settings survive contact with the framework.
 
+## What this protocol does not yet cover, and should
+
+**Four components landed after these blocks were written** and none of them has
+a check here: `IuxSelectField`, `IuxDataTable`, `IuxDateField` and `IuxSlider`.
+The library went from 66 public widgets to 70.
+
+A session run against this document as it stands is still worth running — Block
+A is where the central claim lives, and that has not moved. But it is **no
+longer coverage**, and three of the four carry a claim that only a device can
+settle:
+
+| component | the claim a device would settle |
+| --- | --- |
+| `IuxDateField` | that three named boxes beat a calendar with a screen reader. An argument from audit practice; nobody here has watched either. |
+| `IuxSlider` | that TalkBack's adjust gesture — swipe up and down — actually reaches the increase and decrease actions. They are *advertised*; advertised is not reached. |
+| `IuxDataTable` | that TalkBack's table mode opens on it at all. The roles nest correctly; nobody has watched the mode open. |
+
+`IuxSelectField` is the exception: open, it *is* `IuxRadioGroup`, which Block A
+already exercises.
+
+Writing those blocks is the next piece of work on this document. It is named
+here rather than left for a tester to discover mid-session.
+
 ## Setup
 
 ```bash
