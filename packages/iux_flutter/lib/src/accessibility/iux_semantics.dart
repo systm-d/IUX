@@ -335,6 +335,81 @@ abstract final class IuxSemantics {
     );
   }
 
+  /// Wraps [child] as a data table, named by [label].
+  ///
+  /// The four table helpers exist as a set because Flutter enforces the shape
+  /// between them: a `table`'s children must every one carry the `row` role, a
+  /// `row`'s parent must be a `table` and its children must be `cell` or
+  /// `columnHeader`. Break the nesting and the framework throws on the first
+  /// frame rather than degrading, so these are used together or not at all.
+  ///
+  /// That strictness is the point. EN 301 549 clause 11.5.2.6 asks that the row
+  /// and column of each cell be programmatically determinable, and a table
+  /// assembled out of rows of `Text` satisfies it by accident at best.
+  ///
+  /// **There is no row-header helper, and the gap is upstream.**
+  /// `SemanticsRole` has `columnHeader` and no `rowHeader`, so the half of
+  /// 11.5.2.6 that reads "headers of the row" cannot be expressed on this
+  /// platform today. A table whose first column names its rows announces those
+  /// cells as ordinary cells.
+  static Widget table({required Widget child, required String label}) {
+    assert(
+      label.length > 0,
+      'A table must be named. Unnamed, a screen-reader user meets a grid of '
+      'values with nothing saying what was tabulated.',
+    );
+    return Semantics(
+      container: true,
+      role: SemanticsRole.table,
+      label: label,
+      explicitChildNodes: true,
+      child: child,
+    );
+  }
+
+  /// Wraps [child] as one row of a table.
+  ///
+  /// Must be a direct semantic child of [table]; the framework checks it.
+  static Widget tableRow({required Widget child}) => Semantics(
+        container: true,
+        role: SemanticsRole.row,
+        explicitChildNodes: true,
+        child: child,
+      );
+
+  /// Wraps [child] as one data cell.
+  ///
+  /// [label] is the cell's own text, published on the node rather than left to
+  /// the child, so the cell announces something even when what it contains is
+  /// not text.
+  static Widget tableCell({required Widget child, required String label}) =>
+      Semantics(
+        container: true,
+        role: SemanticsRole.cell,
+        label: label,
+        excludeSemantics: true,
+        child: child,
+      );
+
+  /// Wraps [child] as the header of a column.
+  static Widget tableColumnHeader({
+    required Widget child,
+    required String label,
+  }) {
+    assert(
+      label.length > 0,
+      'A column header must be named. An unnamed one leaves every cell '
+      'beneath it announced without saying what it is a value of.',
+    );
+    return Semantics(
+      container: true,
+      role: SemanticsRole.columnHeader,
+      label: label,
+      excludeSemantics: true,
+      child: child,
+    );
+  }
+
   /// Wraps [child] as a control that holds one answer chosen from a list.
   ///
   /// The collapsed half of a select. It differs from [action] in the one way
@@ -581,6 +656,77 @@ abstract final class IuxSemantics {
         explicitChildNodes: true,
         child: child,
       );
+
+  /// Wraps [child] as a control holding one value from a continuous range.
+  ///
+  /// The only helper in this library whose clause the platform can satisfy in
+  /// full. **EN 301 549 clause 11.5.2.7** asks that the current value *and any
+  /// minimum or maximum values of the range* be programmatically determinable,
+  /// and Flutter publishes all three — unlike `comboBox` and `spinButton`,
+  /// which are declared and unusable.
+  ///
+  /// [value], [minValue] and [maxValue] are **strings the caller formats**, not
+  /// numbers. A screen reader speaks what it is given, and "0.7" is the wrong
+  /// answer when the range is a price, a percentage or a temperature. The
+  /// framework does not know the unit and will not invent one.
+  ///
+  /// [increasedValue] and [decreasedValue] are what the value *would become*.
+  /// The platform speaks them when the user acts, so a step that changes
+  /// nothing — already at the maximum — is heard rather than met with silence.
+  ///
+  /// [onIncrease] and [onDecrease] are not optional in practice. A control that
+  /// can only be dragged is a path-based gesture with no single-pointer
+  /// alternative, which fails WCAG 2.2 SC 2.5.1, and it is unreachable by a
+  /// screen reader whatever the semantics say.
+  static Widget range({
+    required Widget child,
+    required String label,
+    required String value,
+    required String minValue,
+    required String maxValue,
+    String? increasedValue,
+    String? decreasedValue,
+    bool enabled = true,
+    VoidCallback? onIncrease,
+    VoidCallback? onDecrease,
+    FocusNode? focusNode,
+    bool focusable = true,
+  }) {
+    assert(
+      label.length > 0,
+      'A range must be named. Unnamed, it is announced as "slider" and a '
+      'number, which is a value with no question attached.',
+    );
+    assert(
+      value.length > 0 && minValue.length > 0 && maxValue.length > 0,
+      'Clause 11.5.2.7 asks for the current value and the ends of the range. '
+      'An empty one announces that a bound exists and declines to read it.',
+    );
+    return _IuxFocusAwareSemantics(
+      focusNode: focusNode,
+      focusable: focusable,
+      builder: (bool isFocusable, FocusNode? node) => Semantics(
+        container: true,
+        slider: true,
+        enabled: enabled,
+        label: label,
+        value: value,
+        minValue: minValue,
+        maxValue: maxValue,
+        increasedValue: increasedValue,
+        decreasedValue: decreasedValue,
+        onIncrease: enabled ? onIncrease : null,
+        onDecrease: enabled ? onDecrease : null,
+        focusable: isFocusable,
+        focused: isFocusable ? node!.hasPrimaryFocus : null,
+        onFocus: isFocusable && defaultTargetPlatform != TargetPlatform.iOS
+            ? node!.requestFocus
+            : null,
+        excludeSemantics: true,
+        child: child,
+      ),
+    );
+  }
 
   /// Wraps [child] as one named field built out of several boxes.
   ///

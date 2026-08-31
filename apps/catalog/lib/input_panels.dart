@@ -28,6 +28,7 @@ class InputPanels extends StatelessWidget {
           _SelectionPanel(longLabels: longLabels),
           const _SelectPanel(),
           const _DatePanel(),
+          const _SliderPanel(),
           const _SelectionRefusalPanel(),
         ],
       );
@@ -122,6 +123,71 @@ class _SelectPanelState extends State<_SelectPanel> {
               'checks are not written, so setting it throws on the first '
               'frame — flutter/flutter#159741. spinButton is in the same '
               'state, which rules out a numeric stepper for now too.',
+            ),
+          ],
+        ),
+      );
+}
+
+/// The slider, and the buttons that make its drag permissible.
+class _SliderPanel extends StatefulWidget {
+  const _SliderPanel();
+
+  @override
+  State<_SliderPanel> createState() => _SliderPanelState();
+}
+
+class _SliderPanelState extends State<_SliderPanel> {
+  double _scale = 1.5;
+
+  static String _percent(double v) => '${(v * 100).round()}%';
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'A value judged rather than typed',
+        description: 'The one clause in the EN 301 549 batch the platform '
+            'satisfies in full: 11.5.2.7 asks for the current value and both '
+            'ends of the range, and Flutter publishes all three.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxSlider(
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Text size'),
+                helpText: 'Applies to every screen.',
+              ),
+              value: _scale,
+              min: 1,
+              max: 2,
+              divisions: 10,
+              format: _percent,
+              decreaseLabel: 'Smaller',
+              increaseLabel: 'Larger',
+              onChanged: (double value) => setState(() => _scale = value),
+            ),
+            const IuxGap.standard(),
+            CatalogRows(<(String, String)>[
+              ('value', _percent(_scale)),
+              ('minimum', _percent(1)),
+              ('maximum', _percent(2)),
+              ('step', '10%'),
+            ]),
+            const CatalogNote(
+              'The buttons are not decoration. A control that can only be '
+              'dragged is a path-based gesture with no single-pointer '
+              'alternative — SC 2.5.1 outright, and unreachable by a screen '
+              'reader whatever its semantics say. There is no parameter to '
+              'remove them.',
+            ),
+            const CatalogNote(
+              'format is required. A screen reader speaks what it is given, '
+              'and 0.7 is the wrong answer when the range is a price or a '
+              'temperature. The framework does not know the unit.',
+            ),
+            const CatalogNote(
+              'This drag is the first and only path-based gesture in the '
+              'library. IUX-EN301549-002 said there were none; it is amended '
+              'rather than left to rot.',
             ),
           ],
         ),
