@@ -5,7 +5,8 @@ settle**.
 
 It is separate from `docs/evidence/semantic-tokens-and-accessibility.md`, and
 the split is the point. The register records *what was decided and how sure we
-are*; it has 156 entries and it is good at its job. This directory is where the
+are*; it had 156 entries when this was written and has more now, and it is good
+at its job. This directory is where the
 uncertain ones are worked on — the questions that have to be answered before an
 entry can move off `hypothesis`.
 
@@ -89,22 +90,40 @@ One question per file or per section, and each one carries:
   first entry in the register produced by a measurement this project made
   itself rather than by reading a criterion.
 - `accessibility/` — the standards that bind, as opposed to the criteria set
-  they incorporate. `en-301-549-mapping.md` is deliberately half-finished: our
-  own side is measured and complete, the clause side is empty because every
-  primary source is unreachable from the environment this project is developed
-  in. It also records that half of the issue that asked for it was aimed at the
-  wrong document — the RGAA's technical method is web-only and does not apply
-  to a native mobile framework at all.
-- `android/`, `ux/` — not yet created. They will be, when there is something to
-  put in them; an empty directory is the failure this directory is recovering
-  from.
+  they incorporate. `en-301-549-mapping.md` **was** deliberately half-finished,
+  because every primary source was unreachable from the development
+  environment. It is now finished: EN 301 549 V3.2.1 and RAAM 1.1 were fetched
+  and read, the clause column carries verbatim requirement text, and the
+  deliverable — the requirements that are not WCAG and that nothing here
+  addresses — is four items long. The block turned out to be a user-agent
+  filter on `etsi.org` rather than an egress rule; EUR-Lex is genuinely
+  unreachable and is labelled as such. The file also records that half of the
+  issue that asked for it was aimed at the wrong document — the RGAA's technical
+  method is web-only and does not apply to a native mobile framework at all.
+- `android/` — what the platform's semantics layer can and cannot express.
+  `semantics-gaps.md` is the first file, and it exists because building four
+  components against EN 301 549 hit a limit in Flutter three times out of four.
+  It is measured on a stated SDK version so it can be shown to be out of date.
+- `ux/` — not yet created. It will be, when there is something to put in it; an
+  empty directory is the failure this directory is recovering from.
 
 ## Status
 
-Nothing in this directory has been validated on hardware or against a read
-primary source. It is a backlog with a method, which is more than the empty
-directory it replaces and less than the research programme the name promises.
-Both halves of that sentence are meant.
+**Nothing in this directory has been validated on hardware.** That half of the
+old status sentence still stands, and `IUX-MANUAL-001` is why.
+
+The other half no longer does. `accessibility/` now rests on **two primary
+sources that were read** — EN 301 549 V3.2.1 from ETSI and RAAM 1.1 from its
+publisher — and `IUX-EN301549-001` is the first entry in the register whose
+`Sources` line cites a standard somebody here has opened. This directory is
+still a backlog with a method rather than the research programme its name
+promises, and it is no longer a backlog of leads only.
+
+`android/` is the second exception and a cleaner one: it reports what a
+specific version of a specific SDK accepts, which is item 4 in the list above —
+our own measurement, method written down — and it is checkable by anyone with
+the same checkout. It says nothing about what a screen reader *does* with any of
+it, which is why it is here and not quoted as conformance.
 
 `perception/` is the first partial exception and it is worth being precise about
 how partial. Its numbers are our own measurement — item 4 in the list above,

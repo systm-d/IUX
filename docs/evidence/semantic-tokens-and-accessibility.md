@@ -3366,7 +3366,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 522 tests, every claim probed rather
+  would be *told*. That is a great deal: 2 523 tests, every claim probed rather
   than read. It is **not** what a screen reader says, in what order, or whether
   it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -3396,6 +3396,31 @@ that costs when it happens on a page.
   real results, failures included. The register stops being empty. Until then
   every entry that cites this ID is honest about resting on a model.
 
+- **The surface this describes grew, and the protocol did not.** Four components
+  landed in one batch — `IuxSelectField`, `IuxDataTable`, `IuxDateField`,
+  `IuxSlider` — taking the library from 66 public widgets to 70. **None of them
+  appears in the protocol**, which was written against the components that
+  existed. Three carry claims a device is the only instrument for, and they are
+  named here so the next session does not have to find them:
+  - **The date field's whole premise.** `IUX-DATE-001` says three named boxes
+    beat a calendar with a screen reader. That is an argument from audit
+    practice, not a measurement, and this project has watched neither.
+  - **The slider's actions.** TalkBack adjusts a slider with a swipe up and
+    down. `IUX-SLIDER-001` asserts the increase and decrease actions are
+    *advertised*; that they are advertised is not that the gesture reaches them.
+  - **The table's structure.** Table navigation is a mode a screen reader
+    *enters*, row by row. `IUX-TABLE-001` asserts the roles nest correctly and
+    nobody has watched that mode open.
+
+- **A device session was attempted from the development environment and cannot
+  be run there.** Recorded so the next person does not spend the time again: no
+  Android device is reachable over USB or ADB, and the Android emulator
+  **segfaults reproducibly about eighteen seconds into boot**, under every GPU
+  backend tried, whether launched in the foreground or detached. The APK builds
+  and installs nowhere. This does not change the status — it names the
+  blocker as hardware rather than effort, which is what the release-blocker
+  label already implied and nothing had written down.
+
 - **Limits.**
   - **One session on one device is not coverage.** A Pixel with TalkBack says
     nothing about Samsung's stack, about an older Android, or about a user who
@@ -3406,6 +3431,10 @@ that costs when it happens on a page.
   - **F5 is a judgement to record, not a box to tick.** That a brand mark
     ignores the text scale is a documented cost; what it costs a user at 200%
     has never been looked at.
+  - **The protocol is now incomplete rather than merely unrun.** Its six blocks
+    cover the library as it was. Four components later it needs blocks of its
+    own before a session against it could be called coverage, and writing those
+    is work this entry does not do.
 
 ### IUX-PALETTE-PERCEPTION-001 — The palette measured with instruments WCAG does not have
 
@@ -4220,6 +4249,65 @@ that costs when it happens on a page.
     to adjust — actually reaches these actions is exactly what a device settles.
     The actions are advertised and asserted; that they are *advertised* is not
     that they *work*.
+
+### IUX-REGISTER-002 — The register can be corrupted silently, and now one thing checks
+
+- **Level**: standard
+- **Scope**: the register and every `.dart`, `.md` and `.yaml` file in the
+  repository. Adds
+  `packages/iux_flutter/test/package/no_conflict_markers_test.dart`. No library
+  change.
+- **Sources**: none needed — a mechanical property, checked rather than argued.
+  Continues the argument of `IUX-REGISTER-001`.
+- **Status**: implemented; one assertion, verified to fail on a planted marker
+  before being trusted.
+
+- **What happened.** Merging two branches that had each appended a register
+  entry and each written its own value into `IUX-MANUAL-001`'s present-tense
+  test count produced three conflicts. The first resolution deleted the marker
+  lines and kept both sides.
+
+  **Two Dart files stopped parsing immediately**, because the conflict boundary
+  ran through a declaration and removing the markers welded the first half of
+  one function to the second half of another. That was caught in seconds, by the
+  formatter, and cost nothing.
+
+  **The register was mangled the same way and said nothing.** It is Markdown. It
+  still rendered, the headings still lined up, and the corruption was two
+  sentences from different entries joined at a seam. It was found only because
+  the Dart failures prompted a check of the third file.
+
+- **Why this is the register's problem specifically.** Every other artefact in
+  this repository is checked by something that runs: the analyser, the
+  formatter, 2 523 tests. The register is prose, it is the project's memory, and
+  **its corruption is the only kind here that is silent**. That is the same
+  argument `IUX-REGISTER-001` makes about citations resolving, one step earlier:
+  a citation that resolves to a mangled entry is worse than one that resolves to
+  nothing, because the reader believes what they find.
+
+- **The guard is deliberately narrow.** It looks for the three marker lines and
+  nothing else. It cannot tell whether an entry means what it meant before a
+  merge, and no test can. What it removes is the cheapest and most likely
+  version of the failure, which is the one that just happened.
+
+  `=======` is required to be the whole line, because a row of equals signs is
+  ordinary Markdown underlining and a loose match would fail on good prose.
+
+- **It was verified by planting a marker.** The test was run against a file
+  containing a real conflict, seen to fail, and run again after removing it —
+  `IUX-QA-VACUOUS-001` is the entry that explains why a guard which has only
+  ever passed is not yet known to work.
+
+- **Limits.**
+  - **The right fix is still the human one.** Take one side of the file whole
+    and re-apply the other side's change to it. The test catches the shortcut;
+    it does not teach the method, which is why the failure message names it.
+  - **A conflict resolved *wrongly* but cleanly is invisible to this.** Keeping
+    the wrong side, or dropping an entry entirely, leaves no marker and no
+    trace.
+  - **It runs in the library's test suite** and therefore only when that suite
+    is run. A commit that touches nothing under `packages/iux_flutter` and
+    mangles the register on the way past would not be stopped by it.
 
 ### IUX-TIMELINE-001 — The chart family answered "how much" and nothing answered "when"
 
