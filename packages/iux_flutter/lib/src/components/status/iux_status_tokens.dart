@@ -236,22 +236,34 @@ abstract final class IuxBadgeResolver {
     // "the accent". A badge is deliberately not toned: red for "3 unread" would
     // be reporting an error that has not happened, and a per-tone badge would
     // duplicate the status indicator with none of its words.
-    final Color background = colors.action.primary.background;
+    // Untoned beside a label, and red on a glyph. Not a contradiction: a badge
+    // in reading order reports a count, and red would claim a fault that has
+    // not happened. A marker on the corner of a glyph is quoting the launcher
+    // convention instead, which is red on every phone anyone has used — and a
+    // corner marker in the accent colour reads as decoration there.
+    //
+    // The destructive action pair rather than a chosen red, so the contrast
+    // between the numeral and its disc stays the theme's guarantee.
+    final Color background = compact
+        ? colors.action.destructive.background
+        : colors.action.primary.background;
+    final Color foreground = compact
+        ? colors.action.destructive.foreground
+        : colors.action.primary.foreground;
 
     // The numeral is small and it is the whole content, so it takes the label
     // role rather than a supporting one and never shrinks below it.
     final TextStyle textStyle =
-        (compact ? typography.supporting : typography.label).copyWith(
-      color: colors.action.primary.foreground,
-    );
+        (compact ? typography.supporting : typography.label)
+            .copyWith(color: foreground);
 
     final double extent = accessibility.scaleText(
-      compact ? geometry.spacingMd : geometry.spacingLg,
+      compact ? geometry.spacingSm : geometry.spacingLg,
     );
 
     return IuxBadgeTokens(
       background: background,
-      foreground: colors.action.primary.foreground,
+      foreground: foreground,
       padding: compact
           ? EdgeInsets.symmetric(horizontal: geometry.spacingXxs)
           : EdgeInsets.symmetric(

@@ -10,7 +10,11 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 A badge on a glyph resolves compact tokens — the supporting type role, a
 tighter minimum extent, horizontal padding only. Measured first: a counted
 badge at the label role is 28.5 wide against a 24-pixel glyph, so at full size
-it does not sit in a corner, it replaces the icon. The size is asked for by the
+it does not sit in a corner, it replaces the icon. It is also red there, from the
+destructive action pair so the contrast stays the theme's guarantee — a badge
+in reading order stays untoned because it reports a count and red would claim a
+fault, while a corner marker is quoting the launcher convention, which is red on
+every phone anyone has used. The size is asked for by the
 component that owns the placement and never by the caller; a public size knob
 would let two applications draw two different badges for the same meaning.
 
