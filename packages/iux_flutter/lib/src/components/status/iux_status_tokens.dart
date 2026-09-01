@@ -253,9 +253,19 @@ abstract final class IuxBadgeResolver {
 
     // The numeral is small and it is the whole content, so it takes the label
     // role rather than a supporting one and never shrinks below it.
-    final TextStyle textStyle =
-        (compact ? typography.supporting : typography.label)
-            .copyWith(color: foreground);
+    // A corner marker is a shape with a number in it, not text on a line, so
+    // the compact numeral is sized from the mark rather than from the type
+    // ramp — whose smallest role is still built to be read as prose and is
+    // wider than the corner it has to fit. Scaled by the accessibility profile
+    // like everything else, so enlarging text still enlarges this.
+    final TextStyle supporting = typography.supporting;
+    final TextStyle textStyle = compact
+        ? supporting.copyWith(
+            color: foreground,
+            fontSize: (supporting.fontSize ?? 12) * 0.8,
+            height: 1,
+          )
+        : typography.label.copyWith(color: foreground);
 
     final double extent = accessibility.scaleText(
       compact ? geometry.spacingSm : geometry.spacingLg,
