@@ -471,18 +471,44 @@ class _IuxNavigationCellContent extends StatelessWidget {
 
     final Widget? badge = destination.badge;
 
+    // The corner can only be asked for, and only granted while the bar is in
+    // its compact arrangement. Once it has rearranged into rows — which is
+    // what it does when the text grows — there is no corner left to sit in,
+    // and a badge that clipped at the size somebody chose in order to read
+    // would fail exactly the person it was drawn for.
+    //
+    // Read from the resolved tokens rather than from `MediaQuery`: a component
+    // does not reach below the layers it is given, and the arrangement is
+    // already the answer to the question being asked.
+    final bool onGlyph = badge != null &&
+        destination.badgePlacement == IuxBadgePlacement.onGlyph &&
+        !tokens.stacked;
+
+    final Widget glyph = onGlyph
+        ? Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              indicator,
+              // Positioned against the indicator's own box, so the badge
+              // follows the glyph rather than a guessed offset.
+              Positioned(top: 0, right: 0, child: badge),
+            ],
+          )
+        : indicator;
+    final Widget? trailingBadge = onGlyph ? null : badge;
+
     if (tokens.stacked) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          indicator,
+          glyph,
           SizedBox(width: tokens.gap),
           // Flexible rather than fixed: without it, a long name in a wide row
           // is an overflow instead of a second line.
           Expanded(child: name),
-          if (badge != null) ...<Widget>[
+          if (trailingBadge != null) ...<Widget>[
             SizedBox(width: tokens.gap),
-            badge,
+            trailingBadge,
           ],
         ],
       );
@@ -492,15 +518,15 @@ class _IuxNavigationCellContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        indicator,
+        glyph,
         SizedBox(height: tokens.gap),
         name,
         // Under the name rather than beside it. A fifth of a phone screen has
         // no room for both on one line, and squeezing the name is the wrong
         // half to give up: the badge says how many, the name says of what.
-        if (badge != null) ...<Widget>[
+        if (trailingBadge != null) ...<Widget>[
           SizedBox(height: tokens.gap),
-          badge,
+          trailingBadge,
         ],
       ],
     );

@@ -2,6 +2,39 @@ import 'package:flutter/widgets.dart';
 
 import '../status/iux_badge.dart';
 
+/// Where a destination's badge sits.
+enum IuxBadgePlacement {
+  /// After the label, in reading order. The default, and the safe one.
+  ///
+  /// Nothing is covered, nothing clips at any text size, and the number sits
+  /// beside the noun it counts.
+  afterLabel,
+
+  /// On the corner of the glyph, the way a launcher badges an application.
+  ///
+  /// **Opt in knowingly.** [afterLabel] remains the recommendation and the
+  /// default; this exists because the corner badge is the most widely learned
+  /// convention on a phone, and a navigation bar is where a user has already
+  /// spent years learning it.
+  ///
+  /// What it costs, and what it does not:
+  ///
+  ///   * **It covers part of the glyph.** Accepted here and nowhere else,
+  ///     because a destination's glyph is decorative by construction — the
+  ///     label beside it carries the meaning and is drawn at every size.
+  ///   * **It does not clip.** The corner exists only while the bar is in its
+  ///     compact arrangement; once the text grows enough that the bar lays its
+  ///     destinations out in rows, the badge goes back after the label on its
+  ///     own. The overlay is an enhancement for the sizes that can carry it,
+  ///     never a layout that breaks at the size somebody chose in order to
+  ///     read.
+  ///   * **It does not lose the number.** The badge is merged into the
+  ///     destination's single announcement either way, so a screen reader
+  ///     hears "Aujourd'hui, 10 notifications retenues, sélectionné" whichever
+  ///     placement is drawn.
+  onGlyph,
+}
+
 /// One place the user can go, described rather than drawn.
 ///
 /// ```dart
@@ -40,6 +73,7 @@ final class IuxNavigationDestination {
     required this.icon,
     this.selectedIcon,
     this.badge,
+    this.badgePlacement = IuxBadgePlacement.afterLabel,
   }) : assert(
           label.length > 0,
           'A destination must be named. An unnamed one is a glyph the user has '
@@ -87,24 +121,32 @@ final class IuxNavigationDestination {
   /// three of what; [IuxBadge] already refuses that, and accepting any widget
   /// here would be a second, unchecked way to put a number on a destination.
   ///
-  /// The badge is laid out after the label, in reading order, and it is merged
-  /// into the destination's single announcement — "Messages, 3 unread messages,
-  /// checked". Never over the glyph: an overlay covers the thing it counts,
-  /// clips as soon as the user enlarges their text, and leaves the number and
-  /// its subject in two unrelated places for a screen reader.
+  /// The badge is merged into the destination's single announcement either
+  /// way — "Messages, 3 unread messages, checked" — so the number and its
+  /// subject are never in two places for a screen reader, whichever placement
+  /// is drawn.
+  ///
+  /// It is laid out after the label unless [badgePlacement] says otherwise.
   final IuxBadge? badge;
+
+  /// Where [badge] sits. [IuxBadgePlacement.afterLabel] unless asked.
+  ///
+  /// The default is the recommendation. See [IuxBadgePlacement.onGlyph] for
+  /// what the other one costs and what it is careful not to.
+  final IuxBadgePlacement badgePlacement;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is IuxNavigationDestination &&
+          other.badgePlacement == badgePlacement &&
           other.label == label &&
           other.icon == icon &&
           other.selectedIcon == selectedIcon &&
           other.badge == badge;
 
   @override
-  int get hashCode => Object.hash(label, icon, selectedIcon, badge);
+  int get hashCode => Object.hash(label, icon, selectedIcon, badge, badgePlacement);
 
   @override
   String toString() => 'IuxNavigationDestination($label)';

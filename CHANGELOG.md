@@ -5,6 +5,38 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxNavigationDestination.badgePlacement` — the corner, asked for and never assumed
+
+The badge on a destination was laid out after the label, and the documentation
+gave three reasons: an overlay covers the glyph, clips as soon as the text
+grows, and leaves the number and its subject in two unrelated places for a
+screen reader. Two of those are avoidable, and the third does not apply here.
+
+`IuxBadgePlacement.onGlyph` puts the badge on the corner of the glyph, which is
+the most widely learned convention on a phone and the one a user has already
+spent years reading. `afterLabel` remains the default and the recommendation:
+nothing changes for any existing caller.
+
+What the exception is careful about:
+
+* **Covering the glyph is accepted here and nowhere else**, because a
+  destination's glyph is decorative by construction — the label beside it
+  carries the meaning and is drawn at every size.
+* **It does not clip.** The corner exists only while the bar is in its compact
+  arrangement; once the text grows enough that destinations lay out in rows,
+  the badge returns after the label on its own. The overlay is an enhancement
+  for the sizes that can carry it, never a layout that breaks at the size
+  somebody chose in order to read.
+* **It does not lose the number.** The badge is merged into the destination's
+  single announcement either way, so a screen reader hears the same sentence
+  and finds the same one stop whichever placement is drawn. A test asserts it
+  for both.
+
+The arrangement is read from the resolved tokens rather than from `MediaQuery`,
+because a component does not reach below the layers it is given — the standard
+test says so, and said so about the first attempt at this.
+
+
 ### `IuxOnboardingStep.forwardLabel` — the label moves to the step it names
 
 **Breaking.** `IuxOnboardingFlow.forwardLabel` is removed;

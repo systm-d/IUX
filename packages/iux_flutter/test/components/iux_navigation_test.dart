@@ -946,4 +946,78 @@ void main() {
       expect(home.toString(), contains('Home'));
     });
   });
+
+  group('a badge on the glyph', () {
+    /// Three destinations, the middle one badged, placed as asked.
+    Widget badged(IuxBadgePlacement placement) => IuxBottomNavigation(
+          label: 'Main navigation',
+          selectedIndex: 0,
+          onDestinationSelected: (int _) {},
+          destinations: <IuxNavigationDestination>[
+            const IuxNavigationDestination(
+              label: 'Home',
+              icon: Icons.home_outlined,
+            ),
+            IuxNavigationDestination(
+              label: 'Messages',
+              icon: Icons.mail_outline,
+              badge: const IuxBadge.count(
+                count: '3',
+                label: '3 unread messages',
+              ),
+              badgePlacement: placement,
+            ),
+            const IuxNavigationDestination(
+              label: 'Search',
+              icon: Icons.search_outlined,
+            ),
+          ],
+        );
+
+    /// Whether the badge is drawn within the glyph's own box.
+    ///
+    /// Asked of the glyph rather than of the name, because "on the glyph" is
+    /// what the placement means and the bar rearranges itself into a row at
+    /// large text sizes — where a badge beside the name shares its height and
+    /// a vertical comparison stops saying anything.
+    bool overlaysGlyph(WidgetTester tester) => tester
+        .getRect(find.byIcon(Icons.mail_outline))
+        .inflate(8)
+        .contains(tester.getCenter(find.text('3')));
+
+    testWidgets('is asked for, never assumed', (WidgetTester tester) async {
+      // A destination that says nothing keeps the documented placement: the
+      // badge under the name, where nothing covers and nothing clips.
+      await pump(tester, badged(IuxBadgePlacement.afterLabel));
+      expect(overlaysGlyph(tester), isFalse);
+    });
+
+    testWidgets('sits on the glyph when it is', (WidgetTester tester) async {
+      await pump(tester, badged(IuxBadgePlacement.onGlyph));
+      expect(overlaysGlyph(tester), isTrue);
+    });
+
+    testWidgets('gives the corner up rather than clip it',
+        (WidgetTester tester) async {
+      // Past the scale the corner can hold, the bar returns to the documented
+      // placement on its own. The badge somebody enlarged their text to read
+      // must not be the one that gets cut off.
+      await pump(tester, badged(IuxBadgePlacement.onGlyph), textScale: 2);
+      expect(overlaysGlyph(tester), isFalse);
+    });
+
+    testWidgets('is announced either way', (WidgetTester tester) async {
+      // The placement is a drawing decision and must not be an accessibility
+      // one: the destination is still one stop, still saying how many.
+      for (final IuxBadgePlacement placement in IuxBadgePlacement.values) {
+        await pump(tester, badged(placement));
+        expect(
+          dataOf(tester, 'Messages').label,
+          contains('3 unread messages'),
+          reason: 'placement $placement lost the count',
+        );
+        expect(stopsBelow(tester.getSemantics(find.text('Messages'))), 0);
+      }
+    });
+  });
 }
