@@ -489,9 +489,12 @@ class _IuxNavigationCellContent extends StatelessWidget {
             clipBehavior: Clip.none,
             children: <Widget>[
               indicator,
-              // Positioned against the indicator's own box, so the badge
-              // follows the glyph rather than a guessed offset.
-              Positioned(top: 0, right: 0, child: badge),
+              // Overhanging the indicator rather than sitting inside it. A
+              // counted badge is wider than a 24-pixel glyph — measured, not
+              // assumed — so a badge placed *within* the corner covers the
+              // thing it counts. Outside it, the glyph stays readable and the
+              // result is the corner marker a launcher draws.
+              Positioned(top: -6, right: -12, child: badge),
             ],
           )
         : indicator;
