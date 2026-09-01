@@ -3,6 +3,24 @@ import 'package:flutter/material.dart';
 import '../../accessibility/iux_semantics.dart';
 import 'iux_status_tokens.dart';
 
+/// Marks a subtree where badges are drawn small enough to sit on a glyph.
+///
+/// Internal to IUX on purpose. A caller chooses a *placement*; the component
+/// that owns the placement knows how much room it has and asks for the size.
+/// A public size knob would let two applications draw two different badges for
+/// the same meaning, which is the thing a design system exists to prevent.
+class IuxBadgeOnGlyph extends InheritedWidget {
+  /// Wraps [child] so the badges inside it resolve compact tokens.
+  const IuxBadgeOnGlyph({super.key, required super.child});
+
+  /// Whether [context] sits inside one.
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<IuxBadgeOnGlyph>() != null;
+
+  @override
+  bool updateShouldNotify(IuxBadgeOnGlyph oldWidget) => false;
+}
+
 /// A count or a marker attached to something else.
 ///
 /// ```dart
@@ -97,7 +115,10 @@ class IuxBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final IuxBadgeTokens tokens = IuxBadgeResolver.resolve(context);
+    final IuxBadgeTokens tokens = IuxBadgeResolver.resolve(
+      context,
+      compact: IuxBadgeOnGlyph.of(context),
+    );
     final String? count = _count;
 
     final Widget visual = count == null

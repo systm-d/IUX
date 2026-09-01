@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_semantics.dart';
+import '../status/iux_badge.dart';
 import '../transient/iux_transient_layer.dart';
 import 'iux_navigation_destination.dart';
 import 'iux_navigation_tokens.dart';
@@ -494,7 +495,11 @@ class _IuxNavigationCellContent extends StatelessWidget {
               // assumed — so a badge placed *within* the corner covers the
               // thing it counts. Outside it, the glyph stays readable and the
               // result is the corner marker a launcher draws.
-              Positioned(top: -6, right: -12, child: badge),
+              Positioned(
+                top: -4,
+                right: -8,
+                child: IuxBadgeOnGlyph(child: badge),
+              ),
             ],
           )
         : indicator;

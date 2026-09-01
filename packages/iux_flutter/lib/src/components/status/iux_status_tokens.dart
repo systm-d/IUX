@@ -219,7 +219,13 @@ final class IuxBadgeTokens {
 /// Resolves the appearance of a badge.
 abstract final class IuxBadgeResolver {
   /// Resolves the tokens in force at [context].
-  static IuxBadgeTokens resolve(BuildContext context) {
+  ///
+  /// [compact] is asked for by the component that owns the placement, never by
+  /// the caller: a badge sitting on a glyph has a 24-pixel corner to fit into,
+  /// and one sitting beside a label has a line. Letting an application choose
+  /// the size directly would let two callers draw two different badges for the
+  /// same meaning.
+  static IuxBadgeTokens resolve(BuildContext context, {bool compact = false}) {
     final IuxAccessibility accessibility = IuxAccessibility.of(context);
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
@@ -234,19 +240,24 @@ abstract final class IuxBadgeResolver {
 
     // The numeral is small and it is the whole content, so it takes the label
     // role rather than a supporting one and never shrinks below it.
-    final TextStyle textStyle = typography.label.copyWith(
+    final TextStyle textStyle =
+        (compact ? typography.supporting : typography.label).copyWith(
       color: colors.action.primary.foreground,
     );
 
-    final double extent = accessibility.scaleText(geometry.spacingLg);
+    final double extent = accessibility.scaleText(
+      compact ? geometry.spacingMd : geometry.spacingLg,
+    );
 
     return IuxBadgeTokens(
       background: background,
       foreground: colors.action.primary.foreground,
-      padding: EdgeInsets.symmetric(
-        horizontal: geometry.spacingXs,
-        vertical: geometry.spacingXxs,
-      ),
+      padding: compact
+          ? EdgeInsets.symmetric(horizontal: geometry.spacingXxs)
+          : EdgeInsets.symmetric(
+              horizontal: geometry.spacingXs,
+              vertical: geometry.spacingXxs,
+            ),
       minimumExtent: extent,
       // Half the counted extent: large enough to be seen against a busy row,
       // small enough that it reads as a marker rather than as a control.
