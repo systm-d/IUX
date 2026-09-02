@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../foundations/iux_foundations.dart';
 import '../semantics/colors/iux_action_colors.dart';
+import '../semantics/colors/iux_avatar_accent_colors.dart';
 import '../semantics/colors/iux_border_colors.dart';
 import '../semantics/colors/iux_comparison_colors.dart';
 import '../semantics/colors/iux_content_colors.dart';
@@ -224,6 +225,43 @@ abstract final class IuxColorPalettes {
       pressed: IuxPrimitiveColors.neutral10,
       dragged: IuxPrimitiveColors.neutral20,
     ),
+    // Not the feedback roles under another name, and not the comparison
+    // roles either — ADR-0014. Four hues with no meaning attached, each
+    // filled rather than tinted: `content` is white on all four, at 6.30:1,
+    // 6.31:1, 5.94:1 and 6.81:1 — the same "level 40 on the base surface"
+    // measurement `feedback` already records above, reused rather than
+    // remeasured because it is the same primitive value. `icon` repeats
+    // `content` for the reason given on `IuxAvatarAccentRoleColors.icon`:
+    // the safest available colour clears both floors, so there is nothing to
+    // gain by choosing a worse one merely to make the two fields disagree.
+    // `border` repeats `surface`: the fill already reaches 3:1 against the
+    // page unassisted, so a separate ring would be decoration on decoration.
+    avatarAccent: IuxAvatarAccentColorSet(
+      one: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.accent40,
+        border: IuxPrimitiveColors.accent40,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      two: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.positive40,
+        border: IuxPrimitiveColors.positive40,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      three: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.caution40,
+        border: IuxPrimitiveColors.caution40,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      four: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.critical40,
+        border: IuxPrimitiveColors.critical40,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+    ),
   );
 
   /// Standard contrast, dark conditions.
@@ -375,6 +413,36 @@ abstract final class IuxColorPalettes {
       hovered: IuxPrimitiveColors.neutral80,
       pressed: IuxPrimitiveColors.neutral70,
       dragged: IuxPrimitiveColors.neutral60,
+    ),
+    // Not the feedback roles under another name — ADR-0014. `content` and
+    // `icon` are `neutral95` on all four fills: measured this round at
+    // 9.70:1, 9.70:1, 10.63:1 and 8.90:1. `border` repeats `surface`, for the
+    // reason given on the light mapping above.
+    avatarAccent: IuxAvatarAccentColorSet(
+      one: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.accent70,
+        border: IuxPrimitiveColors.accent70,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      two: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.positive70,
+        border: IuxPrimitiveColors.positive70,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      three: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.caution70,
+        border: IuxPrimitiveColors.caution70,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      four: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.critical70,
+        border: IuxPrimitiveColors.critical70,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
     ),
   );
 
@@ -530,6 +598,37 @@ abstract final class IuxColorPalettes {
       pressed: IuxPrimitiveColors.neutral20,
       dragged: IuxPrimitiveColors.neutral30,
     ),
+    // Not the feedback roles under another name — ADR-0014. Level 10 is
+    // near-black on all four ramps, so white content and icon clear their
+    // floors with room to spare: measured this round at 17.58:1, 17.21:1,
+    // 17.46:1 and 17.43:1. `border` repeats `surface`, for the reason given
+    // on the light mapping above.
+    avatarAccent: IuxAvatarAccentColorSet(
+      one: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.accent10,
+        border: IuxPrimitiveColors.accent10,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      two: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.positive10,
+        border: IuxPrimitiveColors.positive10,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      three: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.caution10,
+        border: IuxPrimitiveColors.caution10,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+      four: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral0,
+        surface: IuxPrimitiveColors.critical10,
+        border: IuxPrimitiveColors.critical10,
+        icon: IuxPrimitiveColors.neutral0,
+      ),
+    ),
   );
 
   /// High contrast, dark conditions.
@@ -676,6 +775,37 @@ abstract final class IuxColorPalettes {
       hovered: IuxPrimitiveColors.neutral80,
       pressed: IuxPrimitiveColors.neutral70,
       dragged: IuxPrimitiveColors.neutral60,
+    ),
+    // Not the feedback roles under another name — ADR-0014. Level 80 is a
+    // pale tint on all four ramps, so `neutral95` content and icon clear
+    // their floors with room to spare: measured this round at 12.83:1,
+    // 13.19:1, 13.65:1 and 12.51:1. `border` repeats `surface`, for the
+    // reason given on the light mapping above.
+    avatarAccent: IuxAvatarAccentColorSet(
+      one: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.accent80,
+        border: IuxPrimitiveColors.accent80,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      two: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.positive80,
+        border: IuxPrimitiveColors.positive80,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      three: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.caution80,
+        border: IuxPrimitiveColors.caution80,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
+      four: IuxAvatarAccentRoleColors(
+        content: IuxPrimitiveColors.neutral95,
+        surface: IuxPrimitiveColors.critical80,
+        border: IuxPrimitiveColors.critical80,
+        icon: IuxPrimitiveColors.neutral95,
+      ),
     ),
   );
 }

@@ -516,6 +516,32 @@ void main() {
           pressed: Color(0xFFE8E8E8),
           dragged: Color(0xFFD0D0D0),
         ),
+        avatarAccent: IuxAvatarAccentColorSet(
+          one: IuxAvatarAccentRoleColors(
+            content: Color(0xFFFFFFFF),
+            surface: Color(0xFF0000EE),
+            border: Color(0xFF0000EE),
+            icon: Color(0xFFFFFFFF),
+          ),
+          two: IuxAvatarAccentRoleColors(
+            content: Color(0xFFFFFFFF),
+            surface: Color(0xFF0A5330),
+            border: Color(0xFF0A5330),
+            icon: Color(0xFFFFFFFF),
+          ),
+          three: IuxAvatarAccentRoleColors(
+            content: Color(0xFFFFFFFF),
+            surface: Color(0xFF7A3700),
+            border: Color(0xFF7A3700),
+            icon: Color(0xFFFFFFFF),
+          ),
+          four: IuxAvatarAccentRoleColors(
+            content: Color(0xFFFFFFFF),
+            surface: Color(0xFFB00020),
+            border: Color(0xFFB00020),
+            icon: Color(0xFFFFFFFF),
+          ),
+        ),
       );
 
       final ThemeData theme = IuxTheme.withSemanticColors(

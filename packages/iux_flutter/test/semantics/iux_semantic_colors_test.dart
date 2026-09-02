@@ -23,6 +23,7 @@ void main() {
         feedback: dark.feedback,
         comparison: dark.comparison,
         state: dark.state,
+        avatarAccent: dark.avatarAccent,
       );
       expect(copy, equals(dark));
     });
@@ -36,6 +37,7 @@ void main() {
       expect(copy.feedback, equals(light.feedback));
       expect(copy.comparison, equals(light.comparison));
       expect(copy.state, equals(light.state));
+      expect(copy.avatarAccent, equals(light.avatarAccent));
     });
 
     test('reaches every role of every group', () {
@@ -59,6 +61,15 @@ void main() {
             )
             .at,
         light.comparison.above,
+      );
+      expect(light.avatarAccent.one.copyWith(icon: probe).icon, probe);
+      expect(
+        light.avatarAccent
+            .copyWith(
+              four: light.avatarAccent.one,
+            )
+            .four,
+        light.avatarAccent.one,
       );
     });
 

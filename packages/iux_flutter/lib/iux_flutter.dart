@@ -116,6 +116,7 @@ export 'src/patterns/permission/iux_permission_rationale.dart';
 export 'src/patterns/search/iux_search_field.dart';
 export 'src/patterns/search/iux_search_results.dart';
 export 'src/semantics/colors/iux_action_colors.dart';
+export 'src/semantics/colors/iux_avatar_accent_colors.dart';
 export 'src/semantics/colors/iux_border_colors.dart';
 export 'src/semantics/colors/iux_comparison_colors.dart';
 export 'src/semantics/colors/iux_content_colors.dart';

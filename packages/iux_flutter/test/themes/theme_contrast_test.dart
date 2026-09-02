@@ -174,6 +174,43 @@ void main() {
         );
       });
 
+      test('every avatar accent is readable on its own circle', () {
+        // ADR-0014's roles, held to the same floors as the feedback and
+        // comparison roles they deliberately are not: `content` at the text
+        // floor because initials are read, `icon` at the graphical-object
+        // floor because a caller-supplied glyph is not.
+        final Map<String, IuxAvatarAccentRoleColors> roles =
+            <String, IuxAvatarAccentRoleColors>{
+          'one': colors.avatarAccent.one,
+          'two': colors.avatarAccent.two,
+          'three': colors.avatarAccent.three,
+          'four': colors.avatarAccent.four,
+        };
+        roles.forEach((String role, IuxAvatarAccentRoleColors accent) {
+          expectRatio('avatarAccent.$role content', accent.content,
+              accent.surface, ContrastMetric.normalText);
+          expectRatio('avatarAccent.$role icon', accent.icon, accent.surface,
+              ContrastMetric.nonText);
+          expectRatio('avatarAccent.$role border', accent.border,
+              colors.surface.base, ContrastMetric.nonText);
+        });
+      });
+
+      test('the four accents are not one colour', () {
+        // Four accents a palette painted identically would be one accent —
+        // and the entire reason a caller reaches for a second one is to tell
+        // two circles apart. `IuxAvatarAccentColorSet`'s own dartdoc warns
+        // against reading rank into these; distinctness is the one property
+        // that is not optional.
+        final List<Color> surfaces = <Color>[
+          colors.avatarAccent.one.surface,
+          colors.avatarAccent.two.surface,
+          colors.avatarAccent.three.surface,
+          colors.avatarAccent.four.surface,
+        ];
+        expect(surfaces.toSet(), hasLength(surfaces.length));
+      });
+
       test('focus is visible and never transparent', () {
         expect(colors.state.focus.a, 1.0);
         expectRatio('state.focus on base', colors.state.focus,

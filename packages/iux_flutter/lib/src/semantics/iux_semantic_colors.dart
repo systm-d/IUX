@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'colors/iux_action_colors.dart';
+import 'colors/iux_avatar_accent_colors.dart';
 import 'colors/iux_border_colors.dart';
 import 'colors/iux_comparison_colors.dart';
 import 'colors/iux_content_colors.dart';
@@ -35,6 +36,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
     required this.feedback,
     required this.comparison,
     required this.state,
+    required this.avatarAccent,
   });
 
   /// Colors for text, icons and other content.
@@ -60,6 +62,12 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
 
   /// Interaction states applying to any element.
   final IuxStateColors state;
+
+  /// The four decorative accents available to tint an icon's container.
+  ///
+  /// Not feedback and not a comparison — see [IuxAvatarAccentColorSet] and
+  /// `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`.
+  final IuxAvatarAccentColorSet avatarAccent;
 
   /// Resolves the semantic colors installed on the ambient theme.
   ///
@@ -97,6 +105,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
     IuxFeedbackColorSet? feedback,
     IuxComparisonColorSet? comparison,
     IuxStateColors? state,
+    IuxAvatarAccentColorSet? avatarAccent,
   }) =>
       IuxSemanticColors(
         content: content ?? this.content,
@@ -106,6 +115,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
         feedback: feedback ?? this.feedback,
         comparison: comparison ?? this.comparison,
         state: state ?? this.state,
+        avatarAccent: avatarAccent ?? this.avatarAccent,
       );
 
   @override
@@ -126,6 +136,11 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
         t,
       ),
       state: IuxStateColors.lerp(state, other.state, t),
+      avatarAccent: IuxAvatarAccentColorSet.lerp(
+        avatarAccent,
+        other.avatarAccent,
+        t,
+      ),
     );
   }
 
@@ -139,7 +154,8 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
           other.action == action &&
           other.feedback == feedback &&
           other.comparison == comparison &&
-          other.state == state;
+          other.state == state &&
+          other.avatarAccent == avatarAccent;
 
   @override
   int get hashCode => Object.hash(
@@ -150,5 +166,6 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
         feedback,
         comparison,
         state,
+        avatarAccent,
       );
 }
