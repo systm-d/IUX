@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
 
 import '../support/contrast.dart';
+import '../support/gestures.dart';
 
 /// The four profiles every visual guarantee has to survive.
 const List<IuxThemeConfiguration> _profiles = <IuxThemeConfiguration>[
@@ -2094,6 +2095,372 @@ void main() {
         platform.where((MethodCall c) => c.method.startsWith('HapticFeedback')),
         isEmpty,
       );
+    });
+  });
+
+  group('a dense row folds rather than overflows', () {
+    const List<IuxRowDetail> palmares = <IuxRowDetail>[
+      IuxRowDetail(
+        glyph: Icons.wb_sunny_outlined,
+        label: 'Longest dry spell (5 days or more)',
+        value: '36 days',
+      ),
+      IuxRowDetail(
+        value: '434 mm',
+        // An IuxValue and not an IuxStatus. ADR-0012 left the qualifier's
+        // vocabulary open by name and ADR-0013 settled it: a rainfall total
+        // read against a normal is a reading, and IuxStatusTone.error would
+        // ship "this is a malfunction" as a colour.
+        qualifier: IuxValue.below(
+          'Very dry',
+          label: 'among the driest years on record',
+        ),
+      ),
+    ];
+
+    Widget row({VoidCallback? onActivate}) => IuxListItem.dense(
+          title: '2022',
+          subtitle: '112 days of rain',
+          leading: const IuxAvatar.decorative(initials: '1'),
+          details: palmares,
+          hint: 'Opens 2022',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: onActivate ?? () {},
+        );
+
+    /// The chassis the pilot is read on. Every number in this group was taken
+    /// on it or on a width named beside it, never on a harness default: a
+    /// wider harness reports that everything fits, which is exactly how
+    /// `IUX-LISTITEM-TRAILING-001` stayed invisible.
+    const Size pixel7 = Size(411.43, 914.29);
+
+    /// The width at which this row stops folding at 100%, measured.
+    ///
+    /// 440.0 px of screen. 442 keeps the line and 438 does not, and the two
+    /// are pinned below so that moving the rule moves this pair.
+    const Size beside = Size(442, 1400);
+    const Size under = Size(438, 1400);
+
+    /// Whether the details have left the line.
+    ///
+    /// Read off the *label*, not off the value under it: a detail's value sits
+    /// below its own label, so two details' values are never on one line even
+    /// when the details are.
+    bool folded(WidgetTester tester) =>
+        (tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dx -
+                tester.getTopLeft(find.text('2022')).dx)
+            .abs() <
+        1;
+
+    testWidgets('every fact is drawn', (WidgetTester tester) async {
+      await pump(tester, row(), size: pixel7);
+      expect(find.text('2022'), findsOneWidget);
+      expect(find.text('112 days of rain'), findsOneWidget);
+      expect(find.text('Longest dry spell (5 days or more)'), findsOneWidget);
+      expect(find.text('36 days'), findsOneWidget);
+      expect(find.text('434 mm'), findsOneWidget);
+      expect(find.text('Very dry'), findsOneWidget);
+      expect(find.byIcon(Icons.wb_sunny_outlined), findsOneWidget);
+      expect(find.byType(IuxVerticalSeparator), findsOneWidget);
+    });
+
+    testWidgets('the row is one stop, not six', (WidgetTester tester) async {
+      // The merge is what makes a dense row usable with a screen reader: six
+      // stops per row, over five rows, is thirty swipes to read a table of
+      // five years.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await pump(tester, row(), size: pixel7);
+      final SemanticsNode node = tester.getSemantics(find.byType(IuxListItem));
+
+      expect(node, isSemantics(isButton: true));
+      expect(
+        stopsBelow(node),
+        0,
+        reason: 'a dense row is one stop, whatever it carries',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('a folded row announces exactly what an unfolded one does',
+        (WidgetTester tester) async {
+      // The question a fold has to answer for a screen reader: nothing is lost
+      // and nothing is reordered because the room ran out. The arrangement
+      // moves a block; it never drops one and never re-reads the row.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      await pump(tester, row(), size: beside);
+      expect(folded(tester), isFalse);
+      final String onTheLine =
+          announced(tester.getSemantics(find.byType(IuxListItem)));
+
+      await pump(tester, row(), size: pixel7, textScale: 2);
+      expect(folded(tester), isTrue);
+      final String underneath =
+          announced(tester.getSemantics(find.byType(IuxListItem)));
+
+      expect(underneath, onTheLine);
+
+      // And what it says is the row in reading order: the title, the
+      // supporting line, then each detail's label, its value, and the sentence
+      // its pill carries.
+      int at(String fragment) {
+        final int index = onTheLine.indexOf(fragment);
+        expect(index, isNonNegative, reason: '"$fragment" was not announced');
+        return index;
+      }
+
+      final List<int> order = <int>[
+        at('2022'),
+        at('112 days of rain'),
+        at('Longest dry spell (5 days or more)'),
+        at('36 days'),
+        at('434 mm'),
+        at('among the driest years on record'),
+      ];
+      expect(
+        order,
+        orderedEquals(<int>[...order]..sort()),
+        reason: 'the row is announced out of the order it is read in',
+      );
+      // The pill announces its sentence, not its own visible text, and the
+      // glyph announces nothing at all.
+      expect(onTheLine, isNot(contains('Very dry')));
+      handle.dispose();
+    });
+
+    testWidgets('the details keep the line while they fit',
+        (WidgetTester tester) async {
+      await pump(tester, row(), size: beside);
+
+      expect(folded(tester), isFalse);
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dy,
+        closeTo(tester.getTopLeft(find.text('2022')).dy, 1),
+        reason: "the details start on the title's line",
+      );
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dx,
+        greaterThan(tester.getBottomRight(find.text('2022')).dx),
+        reason: 'the details sit after the row text rather than over it',
+      );
+    });
+
+    testWidgets('the fold has a measured threshold, not a feeling',
+        (WidgetTester tester) async {
+      // 440.0 px of screen width at 100%, on this row, in this font — the
+      // pair below is the measurement, and the width in the documentation is
+      // read off it. The rule it pins is "the text and the details can both be
+      // laid out without a word being broken": 65 px for the text, 12 for the
+      // gap and 235 for the two blocks, against the 314 px of line that 442
+      // leaves once the rank mark and the chevron have taken theirs.
+      await pump(tester, row(), size: beside);
+      expect(folded(tester), isFalse, reason: '442 px is above the threshold');
+
+      await pump(tester, row(), size: under);
+      expect(folded(tester), isTrue, reason: '438 px is below it');
+    });
+
+    testWidgets(
+        'at 200% text on a Pixel 7 the details move below the text, '
+        'and nothing overflows', (WidgetTester tester) async {
+      await pump(tester, row(), size: pixel7, textScale: 2);
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dy,
+        greaterThan(tester.getBottomLeft(find.text('112 days of rain')).dy - 1),
+        reason: "the details have moved under the row's text",
+      );
+      // And they line up with the text rather than with the edge of the group.
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dx,
+        closeTo(tester.getTopLeft(find.text('2022')).dx, 1),
+      );
+    });
+
+    testWidgets(
+        'the details that have left the line take the row, not the '
+        'gap they were refused', (WidgetTester tester) async {
+      // The half of the fold that is not the fold. A block moved below the
+      // text and left with the width that was between the rank mark and the
+      // chevron has been moved and not helped: measured on this row at 300% on
+      // a Pixel 7, 155.4 px between the two against 371.4 across the row, and
+      // at the narrower of the two the qualifier's pill overflows inside
+      // itself — the glyph and its gap against what is left for them, which is
+      // `IUX-LISTITEM-TRAILING-001`'s own residual, one component over.
+      await pump(tester, row(), size: pixel7);
+
+      expect(folded(tester), isTrue);
+      expect(
+        tester.getSize(find.byType(IntrinsicHeight)).width,
+        greaterThan(300),
+        reason: 'the details were given the 283.4 px that was left between the '
+            'rank mark and the chevron rather than the 319.4 px the row has '
+            'from where its text starts',
+      );
+      expect(
+        tester.getBottomRight(find.byType(IntrinsicHeight)).dx,
+        closeTo(tester.getBottomRight(find.byType(IuxListItem)).dx - 20, 1),
+        reason: 'the details stop at the row content edge, chevron or no '
+            'chevron: nothing is on that line to collide with',
+      );
+    });
+
+    testWidgets('all the details move, or none, at every scale',
+        (WidgetTester tester) async {
+      // A row where the first detail keeps the line and the second drops is a
+      // row in steps, and the reader cannot tell the block underneath belongs
+      // to this row rather than the next. Unreachable rather than avoided —
+      // the details are one child of the arrangement — and swept rather than
+      // sampled, across the scales where the row changes shape.
+      for (final (Size size, double scale) at in <(Size, double)>[
+        (beside, 1),
+        (under, 1),
+        (pixel7, 1),
+        (pixel7, 1.15),
+        (pixel7, 1.5),
+        (pixel7, 2),
+        (pixel7, 3),
+      ]) {
+        await pump(tester, row(), size: at.$1, textScale: at.$2);
+        expect(
+          tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dy,
+          closeTo(tester.getTopLeft(find.text('434 mm')).dy, 1),
+          reason: 'the two details parted company at ${at.$1} / ${at.$2}',
+        );
+      }
+    });
+
+    testWidgets('nothing is truncated at 300%', (WidgetTester tester) async {
+      await pump(tester, row(), size: pixel7, textScale: 3);
+
+      expect(tester.takeException(), isNull);
+      for (final String fragment in <String>[
+        '2022',
+        '112 days of rain',
+        'Longest dry spell (5 days or more)',
+        '36 days',
+        '434 mm',
+        'Very dry',
+      ]) {
+        final Text text = tester.widget<Text>(find.text(fragment));
+        expect(text.overflow, isNot(TextOverflow.ellipsis));
+        expect(text.maxLines, isNull);
+      }
+    });
+
+    testWidgets('a dense row answers a press that spans a frame',
+        (WidgetTester tester) async {
+      // COMPONENT_STANDARD §18.1. The dense row rebuilds while it is held and
+      // its subtree is a new one, so the sweep's `IuxListItem.tappable` case
+      // does not reach this arrangement.
+      final List<int> opened = <int>[];
+      await pump(tester, row(onActivate: () => opened.add(0)), size: pixel7);
+
+      await realTap(tester, find.text('2022'));
+
+      expect(opened, <int>[0]);
+    });
+
+    test('a dense row must have something to be dense about', () {
+      expect(
+        () => IuxListItem.dense(
+          title: '2022',
+          details: const <IuxRowDetail>[],
+          onActivate: () {},
+        ),
+        throwsAssertionError,
+        reason: 'a dense row with no details is IuxListItem.tappable',
+      );
+      expect(
+        () => IuxRowDetail(value: ''),
+        throwsAssertionError,
+        reason: 'a detail with no value reserves a column for a measurement '
+            'that never arrives',
+      );
+      expect(
+        () => IuxRowDetail(value: '36 days', label: ''),
+        throwsAssertionError,
+      );
+    });
+
+    testWidgets('it renders in RTL and on every theme profile',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await pump(
+          tester,
+          IuxListItem.dense(
+            title: '٢٠٢٢',
+            subtitle: '١١٢ يوم مطر',
+            details: const <IuxRowDetail>[
+              IuxRowDetail(value: '٣٦ يوما', label: 'أطول فترة جفاف'),
+              IuxRowDetail(value: '٤٣٤ ملم'),
+            ],
+            onActivate: () {},
+          ),
+          configuration: configuration,
+          direction: TextDirection.rtl,
+          size: pixel7,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('in RTL the details sit where reading arrives from',
+        (WidgetTester tester) async {
+      await pump(
+        tester,
+        IuxListItem.dense(
+          title: '٢٠٢٢',
+          subtitle: '١١٢ يوم مطر',
+          details: const <IuxRowDetail>[
+            IuxRowDetail(value: '٣٦ يوما', label: 'أطول فترة جفاف'),
+          ],
+          onActivate: () {},
+        ),
+        direction: TextDirection.rtl,
+        size: pixel7,
+      );
+
+      expect(
+        tester.getTopLeft(find.text('أطول فترة جفاف')).dx,
+        lessThan(tester.getTopLeft(find.text('٢٠٢٢')).dx),
+        reason: 'the details were laid out on the side reading leaves from',
+      );
+    });
+
+    testWidgets('a detail stays readable on every profile',
+        (WidgetTester tester) async {
+      // The two styles the dense form adds are the two nobody else measures.
+      // A label in the quietest content role would pass every layout test in
+      // this group and be unreadable on the surface it sits on.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await pump(tester, row(), configuration: configuration, size: pixel7);
+        final BuildContext context = tester.element(find.byType(IuxListItem));
+        final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+        for (final (String state, Color background) in <(String, Color)>[
+          ('resting', colors.surface.subtle),
+          (
+            'pressed',
+            IuxListItemResolver.resolve(context, pressed: true).overlayColor
+          ),
+        ]) {
+          final IuxListItemTokens tokens = IuxListItemResolver.resolve(context);
+          for (final (String what, Color? colour) in <(String, Color?)>[
+            ("a detail's label", tokens.detailLabelStyle.color),
+            ("a detail's value", tokens.detailValueStyle.color),
+          ]) {
+            final double measured = ContrastMetric.ratio(colour!, background);
+            expect(
+              measured,
+              greaterThanOrEqualTo(ContrastMetric.normalText),
+              reason: '$what on a $state row measured '
+                  '${measured.toStringAsFixed(2)}:1 on $configuration',
+            );
+          }
+        }
+      }
     });
   });
 }

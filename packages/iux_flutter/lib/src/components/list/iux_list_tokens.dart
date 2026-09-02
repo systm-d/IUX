@@ -50,6 +50,9 @@ final class IuxListItemTokens {
     required this.titleStyle,
     required this.subtitleStyle,
     required this.valueStyle,
+    required this.detailGap,
+    required this.detailLabelStyle,
+    required this.detailValueStyle,
     required this.stacksTrailingText,
     required this.motion,
   });
@@ -160,6 +163,26 @@ final class IuxListItemTokens {
   /// the other.
   final TextStyle valueStyle;
 
+  /// Between two detail blocks, and between a block and the rule beside it.
+  ///
+  /// The tighter step, not [gap]: the rule between two blocks already says
+  /// where one ends, so spending the row's main gap on both sides of it takes
+  /// width from the measurements for a boundary that is already drawn.
+  final double detailGap;
+
+  /// The style of a detail's label and of its note.
+  ///
+  /// The supporting role: a detail's label qualifies its value, which is
+  /// exactly what that role is for, and it must not compete with the row's
+  /// title.
+  final TextStyle detailLabelStyle;
+
+  /// The style of a detail's value.
+  ///
+  /// The same role the trailing value takes, so a dense row and a plain one
+  /// print a measurement the same way.
+  final TextStyle detailValueStyle;
+
   /// Whether the value belongs under the text rather than beside it.
   ///
   /// True once text is enlarged enough that a horizontal split stops fitting.
@@ -210,6 +233,9 @@ final class IuxListItemTokens {
           other.titleStyle == titleStyle &&
           other.subtitleStyle == subtitleStyle &&
           other.valueStyle == valueStyle &&
+          other.detailGap == detailGap &&
+          other.detailLabelStyle == detailLabelStyle &&
+          other.detailValueStyle == detailValueStyle &&
           other.stacksTrailingText == stacksTrailingText &&
           other.motion == motion;
 
@@ -232,6 +258,9 @@ final class IuxListItemTokens {
         titleStyle,
         subtitleStyle,
         valueStyle,
+        detailGap,
+        detailLabelStyle,
+        detailValueStyle,
         stacksTrailingText,
         motion,
       ]);
@@ -256,6 +285,12 @@ abstract final class IuxListItemResolver {
     final IuxSemanticColors colors = IuxSemanticColors.of(context);
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
+
+    // Resolved once and handed to both fields: a dense row's detail prints a
+    // measurement, and a measurement printed two ways in one list is two
+    // vocabularies for one thing.
+    final TextStyle valueStyle =
+        typography.label.copyWith(color: colors.content.secondary);
 
     return IuxListItemTokens(
       horizontalPadding: geometry.spacingMd,
@@ -288,7 +323,11 @@ abstract final class IuxListItemResolver {
       titleStyle: typography.body.copyWith(color: colors.content.primary),
       subtitleStyle:
           typography.supporting.copyWith(color: colors.content.secondary),
-      valueStyle: typography.label.copyWith(color: colors.content.secondary),
+      valueStyle: valueStyle,
+      detailGap: geometry.spacingXs,
+      detailLabelStyle:
+          typography.supporting.copyWith(color: colors.content.secondary),
+      detailValueStyle: valueStyle,
       stacksTrailingText: accessibility.prefersStackedLayout,
       // A state change, at the short scale. The tint appearing answers "what
       // just changed"; a reduced preference shortens it and no motion removes

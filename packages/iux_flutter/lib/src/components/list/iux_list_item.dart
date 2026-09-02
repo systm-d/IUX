@@ -5,19 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../accessibility/iux_focus.dart';
+import '../../accessibility/iux_semantics.dart';
 import '../../inputs/iux_input_descriptor.dart';
 import '../../inputs/iux_input_model.dart';
+import '../../layout/iux_vertical_separator.dart';
 import '../selection/iux_selection_model.dart';
 import '../selection/iux_selection_tokens.dart';
+import '../status/iux_status_model.dart';
+import '../status/iux_value_indicator.dart';
 import 'iux_list_tokens.dart';
 
-/// Which of the three forms a row takes.
+/// Which of the four forms a row takes.
 ///
-/// Private, and it stays private. The three differ in what a tap *means* —
-/// nothing, "open this", "choose this" — so a public parameter choosing
-/// between them would let a call site swap one meaning for another without
-/// changing anything the user can see.
-enum _IuxListItemKind { plain, tappable, selectable }
+/// Private, and it stays private. The first three differ in what a tap
+/// *means* — nothing, "open this", "choose this" — so a public parameter
+/// choosing between them would let a call site swap one meaning for another
+/// without changing anything the user can see. [dense] means the same as
+/// [tappable] and differs in what the row *carries*, which is a difference of
+/// arrangement rather than of outcome; it is here rather than in a flag
+/// because the arrangement it selects is a different render object.
+enum _IuxListItemKind { plain, tappable, selectable, dense }
 
 /// Whether a tappable row says, on its face, that it leads somewhere.
 ///
@@ -50,6 +57,92 @@ enum IuxListItemDisclosure {
   /// nobody has measured, and a row whose destination is outside the
   /// application is better served by saying so in [IuxListItem.hint].
   opensScreen,
+}
+
+/// One measured fact on a dense row.
+///
+/// ```dart
+/// IuxRowDetail(
+///   glyph: Icons.wb_sunny_outlined,
+///   label: l10n.longestDrySpell,
+///   value: l10n.days(36),
+/// )
+/// ```
+///
+/// **Strings, an icon and one qualifier — never a widget.** [IuxListItem] runs
+/// a debug-only subtree check on [IuxListItem.leading] precisely because a
+/// widget slot lets a control into a row that is itself one control, and a
+/// screen reader then announces a button inside a button. There is nothing to
+/// check here: a `String`, an `IconData` and an [IuxValue] cannot be tapped.
+///
+/// **And a value type is what makes the fold measurable.** The row decides
+/// whether the details keep the line by asking them for their *minimum
+/// intrinsic width*, and `getMinIntrinsicWidth` throws for any subtree holding
+/// a `LayoutBuilder` — `IuxTooltip` and `IuxAppBar` both hold one. A row that
+/// asked a caller's widget for its minimum could crash on a legal child. The
+/// row builds this content itself, so it can ask without asking a stranger.
+/// See `docs/decisions/ADR-0012-dense-rows-fold.md`.
+///
+/// **A fact compared down the column, not a sentence.** [value] is what a
+/// reader reads across five rows — `36 days`, `434 mm` — and [label] names the
+/// quantity being compared. A dense row whose details are prose folds
+/// correctly and reads as a paragraph in two columns. Nothing here can refuse
+/// that, which is why ADR-0012 wrote it into the decision.
+///
+/// [glyph] is decorative and excluded from the semantic tree: it repeats what
+/// [label] says, and a glyph carrying more than the label is information a
+/// screen-reader user never receives.
+///
+/// **There is no `note`.** A second string under the value would compete with
+/// [qualifier] for the one place under it, and ADR-0012 refused to open that
+/// layout question before the first one had been measured.
+@immutable
+final class IuxRowDetail {
+  /// Creates one fact.
+  const IuxRowDetail({
+    required this.value,
+    this.label,
+    this.glyph,
+    this.qualifier,
+  })  : assert(
+          value.length > 0,
+          'A detail with no value reserves a column for a measurement that '
+          'never arrives. Leave the detail out.',
+        ),
+        assert(
+          label == null || label.length > 0,
+          'An empty label reserves a line and says nothing. Pass null.',
+        );
+
+  /// The measurement, already formatted and localised.
+  final String value;
+
+  /// What the measurement is, drawn above it and announced with it.
+  final String? label;
+
+  /// A decorative glyph beside the value. Drawn, never announced.
+  final IconData? glyph;
+
+  /// A tonal pill under the value, when the measurement has been compared.
+  ///
+  /// An [IuxValue] and not an `IuxStatus`: a rainfall total read against a
+  /// thirty-year normal is a reading, not news, and sending it through
+  /// `IuxStatusTone.error` to obtain a red pill ships the judgement *this is a
+  /// malfunction* as a colour. See
+  /// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`.
+  final IuxValue? qualifier;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IuxRowDetail &&
+          other.value == value &&
+          other.label == label &&
+          other.glyph == glyph &&
+          other.qualifier == qualifier;
+
+  @override
+  int get hashCode => Object.hash(value, label, glyph, qualifier);
 }
 
 /// One item in a list: a title, optionally a supporting line, a value, an
@@ -178,6 +271,7 @@ class IuxListItem extends StatelessWidget {
     this.leading,
     this.trailingAction,
   })  : _kind = _IuxListItemKind.plain,
+        details = null,
         semanticLabel = null,
         hint = null,
         onActivate = null,
@@ -243,6 +337,7 @@ class IuxListItem extends StatelessWidget {
     this.autofocus = false,
     this.focusNode,
   })  : _kind = _IuxListItemKind.tappable,
+        details = null,
         selected = IuxSelectionState.unselected,
         onSelectedChanged = null,
         assert(
@@ -321,6 +416,7 @@ class IuxListItem extends StatelessWidget {
     this.autofocus = false,
     this.focusNode,
   })  : _kind = _IuxListItemKind.selectable,
+        details = null,
         onActivate = null,
         // A chosen row already carries a mark at its leading edge. A second
         // one at the other end, saying the row leads somewhere it does not,
@@ -350,6 +446,79 @@ class IuxListItem extends StatelessWidget {
           'There is nowhere on it to render "partly chosen", and a user who '
           'saw such a row could not predict what tapping it would do. A '
           'summary of a set is an IuxCheckbox, which has a partial state.',
+        );
+
+  /// Creates a row that carries several measurements about one item.
+  ///
+  /// ```dart
+  /// IuxListItem.dense(
+  ///   title: l10n.year(2022),
+  ///   subtitle: l10n.rainyDays(112),
+  ///   leading: rankMark,
+  ///   details: <IuxRowDetail>[dryStreak, total],
+  ///   hint: l10n.opensTheYear,
+  ///   disclosure: IuxListItemDisclosure.opensScreen,
+  ///   onActivate: () => open(2022),
+  /// )
+  /// ```
+  ///
+  /// **The details fold.** They sit beside the row's text while what they ask
+  /// for fits in their share of the width, and *all* of them move below it
+  /// when it does not — see `docs/decisions/ADR-0012-dense-rows-fold.md`. That
+  /// is the rule this component already applies to a trailing control,
+  /// generalised: a block that cannot be re-wrapped without being destroyed
+  /// gives way by *moving*. There is no per-detail fold: the details are one
+  /// child of the arrangement, so a row in which one detail keeps the line and
+  /// another has dropped below it is not a case this layout can reach.
+  ///
+  /// **Tappable only, and there is no trailing control.** A row showing five
+  /// facts and doing nothing is a table row, and `IuxDataTable` exists. A
+  /// control beside a row already carrying two detail blocks is a fourth thing
+  /// competing for a width that has none left; put it on the screen the row
+  /// opens.
+  ///
+  /// **One stop for a screen reader.** The details are merged into the row's
+  /// single node, in reading order, after the title and the supporting line —
+  /// and the announcement is the same whether they kept the line or moved
+  /// under it. Six stops per row over five rows is thirty swipes to read a
+  /// table of five years.
+  ///
+  /// **Nine parameters, where the other two interactive rows take eleven.**
+  /// It drops `semanticLabel` — a dense row is named by its own text, of which
+  /// it has more than any other row — `autofocus`, because a row in the middle
+  /// of a list is not an entry point, `trailingText`, because a detail
+  /// carrying only a value *is* a trailing text, and `trailingAction`, for the
+  /// reason above.
+  const IuxListItem.dense({
+    super.key,
+    required this.title,
+    required VoidCallback this.onActivate,
+    required List<IuxRowDetail> this.details,
+    this.subtitle,
+    this.leading,
+    this.hint,
+    this.disclosure = IuxListItemDisclosure.none,
+    this.focusNode,
+  })  : _kind = _IuxListItemKind.dense,
+        trailingText = null,
+        trailingAction = null,
+        semanticLabel = null,
+        selected = IuxSelectionState.unselected,
+        onSelectedChanged = null,
+        autofocus = false,
+        assert(
+          title.length > 0,
+          'A dense row must say what all these measurements are about. '
+          'Without a title the row is five numbers with no subject.',
+        ),
+        assert(
+          subtitle == null || subtitle.length > 0,
+          'Empty supporting text reserves a line and says nothing. Pass null.',
+        ),
+        assert(
+          details.length > 0,
+          'A dense row with no details is IuxListItem.tappable, which is '
+          'lighter and already handles this shape.',
         );
 
   /// The primary text, already localised.
@@ -390,6 +559,14 @@ class IuxListItem extends StatelessWidget {
   /// as one item. If an item needs several actions, they belong on the detail
   /// it opens or behind a single menu control placed here.
   final Widget? trailingAction;
+
+  /// The measurements this row carries, on the dense form. Null elsewhere.
+  ///
+  /// Two is the shape this was measured for. Nothing refuses four, and four
+  /// fold at a lower text scale than two — see *Limits* in
+  /// `docs/components/list-items.md`. There is no cap, because a cap is a
+  /// number and nobody has measured one.
+  final List<IuxRowDetail>? details;
 
   /// An accessible name read before the row's own text, or null.
   ///
@@ -444,6 +621,7 @@ class IuxListItem extends StatelessWidget {
       subtitle: subtitle,
       trailingText: trailingText,
       leading: leading,
+      details: details,
       semanticLabel: semanticLabel,
       hint: hint,
       onActivate: onActivate,
@@ -1007,6 +1185,7 @@ class _IuxListItemRegion extends StatefulWidget {
     required this.subtitle,
     required this.trailingText,
     required this.leading,
+    required this.details,
     required this.semanticLabel,
     required this.hint,
     required this.onActivate,
@@ -1023,6 +1202,7 @@ class _IuxListItemRegion extends StatefulWidget {
   final String? subtitle;
   final String? trailingText;
   final Widget? leading;
+  final List<IuxRowDetail>? details;
   final String? semanticLabel;
   final String? hint;
   final VoidCallback? onActivate;
@@ -1048,6 +1228,7 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
       case _IuxListItemKind.plain:
         return;
       case _IuxListItemKind.tappable:
+      case _IuxListItemKind.dense:
         widget.onActivate!();
       case _IuxListItemKind.selectable:
         widget.onSelectedChanged!(widget.selected.requestedSelection);
@@ -1081,6 +1262,7 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
       subtitle: widget.subtitle,
       trailingText: widget.trailingText,
       leading: widget.leading,
+      details: widget.details,
       mark: _isSelectable
           ? _IuxSelectionMark(
               label: widget.semanticLabel ?? widget.title,
@@ -1212,7 +1394,10 @@ class _IuxListItemRegionState extends State<_IuxListItemRegion> {
       child: Semantics(
         container: true,
         enabled: true,
-        button: widget.kind == _IuxListItemKind.tappable ? true : null,
+        button: widget.kind == _IuxListItemKind.tappable ||
+                widget.kind == _IuxListItemKind.dense
+            ? true
+            : null,
         // "Checked", not "selected". Android reads a checked control as a
         // checkbox, which is what a selectable row is; announcing it as
         // "selected" instead leaves the user without the on/off vocabulary
@@ -1237,6 +1422,7 @@ class _IuxListItemContent extends StatelessWidget {
     required this.subtitle,
     required this.trailingText,
     required this.leading,
+    required this.details,
     required this.mark,
     required this.disclosure,
     required this.guardLeading,
@@ -1247,6 +1433,7 @@ class _IuxListItemContent extends StatelessWidget {
   final String? subtitle;
   final String? trailingText;
   final Widget? leading;
+  final List<IuxRowDetail>? details;
   final Widget? mark;
   final IuxListItemDisclosure disclosure;
   final bool guardLeading;
@@ -1278,6 +1465,38 @@ class _IuxListItemContent extends StatelessWidget {
         ],
       ],
     );
+
+    final List<IuxRowDetail>? blocks = details;
+
+    if (blocks != null) {
+      // A render object rather than a `Row`, and it owns the whole row rather
+      // than the space between the leading element and the chevron: the
+      // details that have left the line take the row's *inner* width, which is
+      // not the width that was left between two things sitting on the line.
+      return _IuxRowDetailsArrangement(
+        // The floor the details are never laid out below while they keep the
+        // line — the same fraction the trailing value and the trailing control
+        // already take, so a row does not have three different ideas of how
+        // much of itself belongs to its right-hand side.
+        share: tokens.valueFlex / (tokens.textFlex + tokens.valueFlex),
+        gap: tokens.gap,
+        direction: Directionality.of(context),
+        leading: lead == null
+            ? null
+            : _FirstLineBand(
+                extent: tokens.lineExtent,
+                child: guardLeading ? _IuxRowContentGuard(child: lead) : lead,
+              ),
+        texts: texts,
+        details: _IuxRowDetails(details: blocks, tokens: tokens),
+        disclosure: disclosure == IuxListItemDisclosure.opensScreen
+            ? _FirstLineBand(
+                extent: tokens.lineExtent,
+                child: _IuxDisclosureChevron(tokens: tokens),
+              )
+            : null,
+      );
+    }
 
     return Row(
       // Aligned to the top so a title wrapping to three lines keeps its icon
@@ -1323,6 +1542,595 @@ class _IuxListItemContent extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+/// The detail blocks of a dense row, side by side, ruled apart.
+///
+/// Built by the row rather than passed in, which is what lets the arrangement
+/// above ask it for a minimum intrinsic width without the `LayoutBuilder`
+/// hazard `ADR-0012` records against a widget slot.
+class _IuxRowDetails extends StatelessWidget {
+  const _IuxRowDetails({required this.details, required this.tokens});
+
+  final List<IuxRowDetail> details;
+  final IuxListItemTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget block(IuxRowDetail detail) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (detail.label != null) ...<Widget>[
+              // No line limit and no ellipsis, like every other string on this
+              // row: a label truncated to "Longest dry spe…" names nothing.
+              Text(detail.label!, style: tokens.detailLabelStyle),
+              SizedBox(height: tokens.textGap),
+            ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (detail.glyph != null) ...<Widget>[
+                  // Decorative: it repeats what the label says, and the label
+                  // is already in the row's merged announcement.
+                  IuxSemantics.decorative(
+                    child: Icon(
+                      detail.glyph,
+                      size: tokens.detailValueStyle.fontSize,
+                      color: tokens.detailLabelStyle.color,
+                      // Scaled by Flutter, unlike the chevron, because the
+                      // size it is given here is the *unscaled* size of the
+                      // value beside it — a `TextStyle.fontSize`, which the
+                      // framework scales at paint. Pre-scaling this one would
+                      // scale it twice.
+                      applyTextScaling: true,
+                    ),
+                  ),
+                  SizedBox(width: tokens.detailGap),
+                ],
+                Flexible(
+                  child: Text(detail.value, style: tokens.detailValueStyle),
+                ),
+              ],
+            ),
+            if (detail.qualifier != null) ...<Widget>[
+              SizedBox(height: tokens.textGap),
+              IuxValueIndicator(value: detail.qualifier!),
+            ],
+          ],
+        );
+
+    return IntrinsicHeight(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        // Stretched so the rules run the full height of the tallest block.
+        // `IuxVerticalSeparator` has no height of its own by design.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (int i = 0; i < details.length; i++) ...<Widget>[
+            if (i > 0) ...<Widget>[
+              SizedBox(width: tokens.detailGap),
+              const IuxVerticalSeparator(),
+              SizedBox(width: tokens.detailGap),
+            ],
+            Flexible(child: block(details[i])),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The four things on a dense row, in reading order.
+enum _IuxRowDetailsSlot {
+  /// The rank mark or avatar. Absent on a row that has none.
+  leading,
+
+  /// The title and the supporting line. Always present.
+  texts,
+
+  /// The measurements. Always present — this arrangement is not built without
+  /// them.
+  details,
+
+  /// The chevron. Absent unless the row says it opens a screen.
+  disclosure,
+}
+
+/// Lays the details beside the row's text, or under it when they do not fit.
+///
+/// A render object rather than a `LayoutBuilder`, for the reason
+/// [_IuxListItemArrangement] is one: the decision needs the two blocks'
+/// *minimum intrinsic width* — what they would need in order to be drawn
+/// without a word being broken, rather than what they were given — and a
+/// `LayoutBuilder` has to build before it can know anything.
+///
+/// It owns the leading element and the chevron as well, rather than sitting
+/// between them inside a `Row`, and that is not tidiness. A detail block that
+/// has left the line takes the **row's** inner width; the width left over
+/// between an avatar and a chevron is a different, smaller number, and handing
+/// it to a block that has already been refused the line is how a fold stops
+/// being a remedy. Measured on the pilot's row at 300% on a Pixel 7: 155.4
+/// pixels between the two against 371.4 across the row, and the narrower of
+/// the two overflows inside the qualifier's pill.
+class _IuxRowDetailsArrangement
+    extends SlottedMultiChildRenderObjectWidget<_IuxRowDetailsSlot, RenderBox> {
+  const _IuxRowDetailsArrangement({
+    required this.share,
+    required this.gap,
+    required this.direction,
+    required this.leading,
+    required this.texts,
+    required this.details,
+    required this.disclosure,
+  });
+
+  /// The fraction of the shared width the details are never drawn below while
+  /// they keep the line.
+  final double share;
+
+  /// Between any two of the four, on whichever axis they end up separated by.
+  final double gap;
+
+  /// Which edge reading starts from.
+  final TextDirection direction;
+
+  final Widget? leading;
+  final Widget texts;
+  final Widget details;
+  final Widget? disclosure;
+
+  @override
+  Iterable<_IuxRowDetailsSlot> get slots => _IuxRowDetailsSlot.values;
+
+  @override
+  Widget? childForSlot(_IuxRowDetailsSlot slot) => switch (slot) {
+        _IuxRowDetailsSlot.leading => leading,
+        _IuxRowDetailsSlot.texts => texts,
+        _IuxRowDetailsSlot.details => details,
+        _IuxRowDetailsSlot.disclosure => disclosure,
+      };
+
+  @override
+  _RenderIuxRowDetails createRenderObject(BuildContext context) =>
+      _RenderIuxRowDetails(share: share, gap: gap, direction: direction);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderIuxRowDetails renderObject,
+  ) {
+    renderObject
+      ..share = share
+      ..gap = gap
+      ..direction = direction;
+  }
+}
+
+/// Lays a dense row onto one line, or onto two.
+///
+/// **The decision, and why it is not the share.** The trailing control's
+/// arrangement asks whether what the control wants fits inside its third. That
+/// question was measured here before it was reused, and it answers *no* at
+/// every text scale: on the pilot's row the third is 119.8 pixels at 100% on a
+/// bare Pixel 7 and the two detail blocks need 235 to be drawn without a word
+/// being broken, so a share-based decision folds the row the maquette draws
+/// unfolded. That is the failure `IUX-LISTITEM-TRAILING-001` recorded against
+/// branching on the text scale — *86 pixels is short of 180 at every scale, so
+/// it would have left the 100% case broken* — arriving from the other side.
+///
+/// So the question asked here is the one the incident's rule is *about*: can
+/// the row's text and the details both be laid out on this line without a word
+/// being broken. That is `textMin + gap + detailMin <= inner`, it is a
+/// measurement of the content the caller actually passed, and it is the
+/// weakest condition under which nothing on the line breaks inside itself.
+/// The share stays, one job smaller: it is the floor the details are never
+/// drawn below while they keep the line, so a row carrying one short detail
+/// puts it exactly where a plain row puts its trailing value.
+class _RenderIuxRowDetails extends RenderBox
+    with
+        SlottedContainerRenderObjectMixin<_IuxRowDetailsSlot, RenderBox>,
+        DebugOverflowIndicatorMixin {
+  _RenderIuxRowDetails({
+    required double share,
+    required double gap,
+    required TextDirection direction,
+  })  : _share = share,
+        _gap = gap,
+        _direction = direction;
+
+  double get share => _share;
+  double _share;
+  set share(double value) {
+    if (_share == value) return;
+    _share = value;
+    markNeedsLayout();
+  }
+
+  double get gap => _gap;
+  double _gap;
+  set gap(double value) {
+    if (_gap == value) return;
+    _gap = value;
+    markNeedsLayout();
+  }
+
+  /// Read rather than inferred from the constraints: which edge the details sit
+  /// against is a reading-order question, and a render object that guessed it
+  /// would put the block on the opposite side from the chevron in Arabic.
+  TextDirection get direction => _direction;
+  TextDirection _direction;
+  set direction(TextDirection value) {
+    if (_direction == value) return;
+    _direction = value;
+    markNeedsLayout();
+  }
+
+  RenderBox? get _leading => childForSlot(_IuxRowDetailsSlot.leading);
+  RenderBox get _texts => childForSlot(_IuxRowDetailsSlot.texts)!;
+  RenderBox get _details => childForSlot(_IuxRowDetailsSlot.details)!;
+  RenderBox? get _disclosure => childForSlot(_IuxRowDetailsSlot.disclosure);
+
+  /// Painted, hit tested and visited in reading order.
+  ///
+  /// Written against the nullable slots for the reason
+  /// [_RenderIuxListItemArrangement.children] gives: the mixin walks this
+  /// during `attach`, once per slot as each child arrives, so for one call the
+  /// later slots are genuinely still empty.
+  @override
+  Iterable<RenderBox> get children => <RenderBox>[
+        for (final _IuxRowDetailsSlot slot in _IuxRowDetailsSlot.values)
+          if (childForSlot(slot) case final RenderBox child) child,
+      ];
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! BoxParentData) child.parentData = BoxParentData();
+  }
+
+  /// Mirrors an offset measured from the leading edge under a right-to-left
+  /// directionality, so the row's text still starts where reading starts.
+  Offset _place(double start, double top, double extent, double available) =>
+      Offset(
+        _direction == TextDirection.ltr ? start : available - start - extent,
+        top,
+      );
+
+  /// The whole arrangement, shared by [performLayout] and [computeDryLayout].
+  ///
+  /// `positionChild` is null for the dry pass, which is what keeps the two from
+  /// drifting: one description of the arrangement, measured twice.
+  Size _arrange(
+    BoxConstraints constraints,
+    ChildLayouter layoutChild, {
+    void Function(RenderBox child, Offset offset)? positionChild,
+  }) {
+    final RenderBox? leading = _leading;
+    final RenderBox? chevron = _disclosure;
+    final RenderBox texts = _texts;
+    final RenderBox details = _details;
+
+    // Unbounded width is left alone rather than guessed at, for the reason
+    // [_RenderIuxListItemArrangement] gives: there is no share to take a
+    // fraction of and nothing to be too narrow for, so every part takes what
+    // it asks for and the row keeps its line.
+    if (!constraints.hasBoundedWidth) {
+      const BoxConstraints free = BoxConstraints();
+      final Size leadSize =
+          leading == null ? Size.zero : layoutChild(leading, free);
+      final Size textSize = layoutChild(texts, free);
+      final Size detailSize = layoutChild(details, free);
+      final Size markSize =
+          chevron == null ? Size.zero : layoutChild(chevron, free);
+      double x = 0;
+      double advance(Size size, RenderBox? child) {
+        if (child != null && positionChild != null) {
+          positionChild(child, Offset(x, 0));
+        }
+        final double at = x;
+        x += size.width + _gap;
+        return at;
+      }
+
+      advance(leadSize, leading);
+      advance(textSize, texts);
+      advance(detailSize, details);
+      advance(markSize, chevron);
+      return Size(
+        x - _gap,
+        <double>[
+          leadSize.height,
+          textSize.height,
+          detailSize.height,
+          markSize.height,
+        ].reduce(math.max),
+      );
+    }
+
+    final double width = constraints.maxWidth;
+    final BoxConstraints loose = BoxConstraints(maxWidth: width);
+    // The two fixed elements are measured first: they take what they need at
+    // this text size, and what is left is what the line has to offer.
+    final Size leadSize =
+        leading == null ? Size.zero : layoutChild(leading, loose);
+    final Size markSize =
+        chevron == null ? Size.zero : layoutChild(chevron, loose);
+    final double textStart =
+        leading == null ? 0 : math.min(width, leadSize.width + _gap);
+    final double markSpace = chevron == null ? 0 : markSize.width + _gap;
+    final double line = math.max(0, width - textStart - markSpace);
+
+    final double textMin = texts.getMinIntrinsicWidth(double.infinity);
+    final double detailMin = details.getMinIntrinsicWidth(double.infinity);
+    final bool folds = textMin + _gap + detailMin > line;
+
+    if (!folds) {
+      final double shared = math.max(0, line - _gap);
+      // Never below the share a trailing value would have had, never below
+      // what the details need, and never so wide that the text is left with
+      // less than it needs. The three cannot conflict: the branch is only
+      // taken when both minima fit.
+      final double detailWidth = clampDouble(
+          shared * _share, detailMin, math.max(0, shared - textMin));
+      final double textWidth = math.max(0, shared - detailWidth);
+      final Size textSize =
+          layoutChild(texts, BoxConstraints.tightFor(width: textWidth));
+      final Size detailSize =
+          layoutChild(details, BoxConstraints.tightFor(width: detailWidth));
+      final double height = <double>[
+        leadSize.height,
+        textSize.height,
+        detailSize.height,
+        markSize.height,
+      ].reduce(math.max);
+      if (positionChild != null) {
+        if (leading != null) {
+          positionChild(leading, _place(0, 0, leadSize.width, width));
+        }
+        positionChild(texts, _place(textStart, 0, textWidth, width));
+        positionChild(
+          details,
+          _place(textStart + textWidth + _gap, 0, detailWidth, width),
+        );
+        if (chevron != null) {
+          positionChild(
+            chevron,
+            _place(width - markSize.width, 0, markSize.width, width),
+          );
+        }
+      }
+      return Size(width, height);
+    }
+
+    // Folded. The details take the row's inner width from where its text
+    // starts — about three times the share they were refused — and sit under
+    // the text, aligned with it rather than with the edge of the group,
+    // because a block that has moved below the text belongs to it.
+    final Size textSize =
+        layoutChild(texts, BoxConstraints.tightFor(width: line));
+    final double first = <double>[
+      leadSize.height,
+      textSize.height,
+      markSize.height,
+    ].reduce(math.max);
+    final double detailWidth = math.max(0, width - textStart);
+    final Size detailSize =
+        layoutChild(details, BoxConstraints.tightFor(width: detailWidth));
+    if (positionChild != null) {
+      if (leading != null) {
+        positionChild(leading, _place(0, 0, leadSize.width, width));
+      }
+      positionChild(texts, _place(textStart, 0, line, width));
+      if (chevron != null) {
+        positionChild(
+          chevron,
+          _place(width - markSize.width, 0, markSize.width, width),
+        );
+      }
+      positionChild(
+        details,
+        _place(textStart, first + _gap, detailWidth, width),
+      );
+    }
+    return Size(width, first + _gap + detailSize.height);
+  }
+
+  /// What the two fixed elements cost the line, measured through the intrinsic
+  /// protocol.
+  double _fixed(double height) {
+    final RenderBox? leading = _leading;
+    final RenderBox? chevron = _disclosure;
+    return (leading == null ? 0 : leading.getMaxIntrinsicWidth(height) + _gap) +
+        (chevron == null ? 0 : chevron.getMaxIntrinsicWidth(height) + _gap);
+  }
+
+  /// The same arrangement, measured through the intrinsic protocol.
+  ///
+  /// Separate from [_arrange] because nothing may be laid out during an
+  /// intrinsic pass. The two agree by construction: the same decision, the
+  /// same widths handed to the same children.
+  double _intrinsicHeight(double width) {
+    final RenderBox? leading = _leading;
+    final RenderBox? chevron = _disclosure;
+    final double lead =
+        leading == null ? 0 : leading.getMaxIntrinsicHeight(double.infinity);
+    final double mark =
+        chevron == null ? 0 : chevron.getMaxIntrinsicHeight(double.infinity);
+    if (!width.isFinite) {
+      return <double>[
+        lead,
+        _texts.getMaxIntrinsicHeight(double.infinity),
+        _details.getMaxIntrinsicHeight(double.infinity),
+        mark,
+      ].reduce(math.max);
+    }
+
+    final double textStart = leading == null
+        ? 0
+        : math.min(width, leading.getMaxIntrinsicWidth(double.infinity) + _gap);
+    final double line = math.max(0, width - _fixed(double.infinity));
+    final double textMin = _texts.getMinIntrinsicWidth(double.infinity);
+    final double detailMin = _details.getMinIntrinsicWidth(double.infinity);
+
+    if (textMin + _gap + detailMin <= line) {
+      final double shared = math.max(0, line - _gap);
+      final double detailWidth = clampDouble(
+        shared * _share,
+        detailMin,
+        math.max(0, shared - textMin),
+      );
+      return <double>[
+        lead,
+        _texts.getMaxIntrinsicHeight(math.max(0, shared - detailWidth)),
+        _details.getMaxIntrinsicHeight(detailWidth),
+        mark,
+      ].reduce(math.max);
+    }
+
+    final double first = <double>[
+      lead,
+      _texts.getMaxIntrinsicHeight(line),
+      mark,
+    ].reduce(math.max);
+    return first +
+        _gap +
+        _details.getMaxIntrinsicHeight(math.max(0, width - textStart));
+  }
+
+  /// The narrowest the row can be laid out in.
+  ///
+  /// The *maximum* of the two minima and not their sum, because at that width
+  /// the arrangement has folded and each of them has the whole line. Returning
+  /// the text's minimum alone — the shape a first reading suggests — would
+  /// promise a width the details cannot be drawn in.
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      _fixed(height) +
+      math.max(
+        _texts.getMinIntrinsicWidth(height),
+        _details.getMinIntrinsicWidth(height),
+      );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _fixed(height) +
+      _texts.getMaxIntrinsicWidth(height) +
+      _gap +
+      _details.getMaxIntrinsicWidth(height);
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _intrinsicHeight(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.constrain(
+        _arrange(constraints, ChildLayoutHelper.dryLayoutChild),
+      );
+
+  /// What the arrangement asked for, before the incoming constraints had their
+  /// say.
+  ///
+  /// Kept so an overflow is *reported* rather than absorbed, which is the rule
+  /// [_RenderIuxListItemArrangement] already follows: a row that does not fit
+  /// and paints over whatever follows it in silence is worse than one that
+  /// does not fit.
+  Size _arranged = Size.zero;
+
+  final LayerHandle<ClipRectLayer> _clip = LayerHandle<ClipRectLayer>();
+
+  bool get _overflows =>
+      _arranged.width - size.width > precisionErrorTolerance ||
+      _arranged.height - size.height > precisionErrorTolerance;
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
+  }
+
+  @override
+  void performLayout() {
+    _arranged = _arrange(
+      constraints,
+      ChildLayoutHelper.layoutChild,
+      positionChild: (RenderBox child, Offset offset) =>
+          (child.parentData! as BoxParentData).offset = offset,
+    );
+    size = constraints.constrain(_arranged);
+  }
+
+  void _paintChildren(PaintingContext context, Offset offset) {
+    for (final RenderBox child in children) {
+      context.paintChild(
+        child,
+        (child.parentData! as BoxParentData).offset + offset,
+      );
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!_overflows) {
+      _clip.layer = null;
+      _paintChildren(context, offset);
+      return;
+    }
+
+    _clip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      Offset.zero & size,
+      _paintChildren,
+      oldLayer: _clip.layer,
+    );
+
+    assert(() {
+      paintOverflowIndicator(
+        context,
+        offset,
+        Offset.zero & size,
+        Offset.zero & _arranged,
+        overflowHints: <DiagnosticsNode>[
+          ErrorDescription(
+            'The dense row was given ${size.height.toStringAsFixed(1)} pixels '
+            'of height and its content needs '
+            '${_arranged.height.toStringAsFixed(1)}.',
+          ),
+          ErrorHint(
+            'A dense row moves its details under its text rather than '
+            'truncating them, so at an enlarged text size it is several times '
+            'the height of a line. Put the list in something that scrolls — '
+            'IuxPage, a ListView, a SingleChildScrollView — rather than in a '
+            'box of a fixed height.',
+          ),
+        ],
+      );
+      return true;
+    }());
+  }
+
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) =>
+      _overflows ? Offset.zero & size : null;
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    // Reverse of paint order, so the element on top is asked first.
+    for (final RenderBox child in children.toList().reversed) {
+      final BoxParentData parentData = child.parentData! as BoxParentData;
+      final bool hit = result.addWithPaintOffset(
+        offset: parentData.offset,
+        position: position,
+        hitTest: (BoxHitTestResult result, Offset transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
   }
 }
 
