@@ -1,4 +1,4 @@
-# IuxListItem, IuxListGroup and IuxListSeparator
+# IuxListItem, IuxRowDetail, IuxListGroup and IuxListSeparator
 
 ## Purpose
 
@@ -32,6 +32,18 @@ IuxListItem(
 )
 ```
 
+```dart
+IuxListItem.dense(
+  title: l10n.year(2022),
+  subtitle: l10n.rainyDays(112),
+  leading: rankMark,
+  details: <IuxRowDetail>[dryStreak, total],
+  hint: l10n.opensTheYear,
+  disclosure: IuxListItemDisclosure.opensScreen,
+  onActivate: () => open(2022),
+)
+```
+
 ## Use when
 
 - The screen shows several comparable things and the user picks one.
@@ -53,7 +65,15 @@ IuxListItem(
   Put the extra actions on the detail the row opens, or behind one menu control
   in `trailingAction`.
 
-## Tappable, or selectable, or neither — and a control is never inside it
+## Tappable, or selectable, or dense, or neither — and a control is never inside it
+
+**The fourth form differs in what the row carries, not in what a tap does.**
+`IuxListItem.dense` means what `tappable` means — activating it opens
+something — and adds a list of `IuxRowDetail`. It is tappable *only*: a row
+showing five facts and doing nothing is a table row, and `IuxDataTable` exists;
+a selectable dense row would put a checkbox, five facts and a fold on one line
+and ask the user to work out which of them the tap chooses. It carries no
+trailing control either, for the reason under *Limits*.
 
 This is the rule `IuxCard` states, applied to the element where it bites
 hardest. A row that opens a detail **and** contains a delete button gives a
@@ -240,6 +260,104 @@ no scrollable gets a reported overflow of 48 px naming the row and pointing at
 and the row's job is to name it, not to hide it by scrolling inside itself.
 - **The leading element sits beside the first line**, not opposite the middle of
   a three-line sentence.
+
+## A dense row folds
+
+A ranking row carries more than the four things this component was measured
+failing with: a rank mark, a year, a count of rainy days, a named extreme with
+its own value, a total, a qualifying pill and a chevron. Read as a request that
+asks for a fourth content slot, and answered as one it would be a row 68 pixels
+over at 150% instead of at 200% — see `ADR-0012`, which decided the shape:
+**a row may carry a set of detail blocks, and when they stop fitting they all
+move below the row's text — never clipped, never shrunk, never truncated.**
+
+### The rule, and why it is not the trailing control's
+
+The trailing control asks whether what it wants fits inside its third of the
+row, `valueFlex / (textFlex + valueFlex)`. That question was put to the details
+before it was reused, and the answer is *no at every text scale*: on the pilot's
+row the third is **119.8 px** on a bare Pixel 7 and the two blocks need **235
+px** to be drawn without a word being broken. A share-based rule folds the row
+the maquette draws unfolded, at 100%, which is the failure
+`IUX-LISTITEM-TRAILING-001` recorded against branching on the text scale — *86
+px is short of 180 at every scale, so it would have left 100% broken* — arriving
+from the other side.
+
+So the question asked is the one that rule is *about*: **can the row's text and
+the details both be laid out on this line without a word being broken.** That is
+`textMin + gap + detailMin <= line`, measured from the content the caller
+actually passed, and it is the weakest condition under which nothing on the line
+breaks inside itself. The share is kept, one job smaller: it is the floor the
+details are never drawn below while they keep the line, so a row carrying one
+short detail puts it exactly where a plain row puts its trailing value.
+
+Both minima are asked of a subtree the row **built itself**, and that is why a
+detail carries strings, an `IconData` and an `IuxValue` rather than a widget:
+`getMinIntrinsicWidth` **throws** for any subtree holding a `LayoutBuilder`, and
+`IuxTooltip` and `IuxAppBar` both hold one. A row that asked a caller's widget
+for its minimum could crash on a legal child. The value type buys a tighter
+decision than a widget slot could offer, which is a gain and not only a
+restriction.
+
+### Where it folds, measured
+
+Measured on **411.43 × 914.29** — the pilot's chassis, never a harness default,
+because a wider harness reports that everything fits and that is exactly how
+`IUX-LISTITEM-TRAILING-001` stayed invisible. The row is the maquette's: rank
+mark, title, supporting line, two details, chevron. The measurements are taken
+in the test font, which advances **one em per glyph** — `'2022'` at 16 px
+measures 65 px — so every width below is a ceiling for a proportional font.
+
+| Text scale | Folds below | Row height on 411.43 | Overflow |
+| --- | --- | --- | --- |
+| 100% | **440.0 px** | 196 px | none |
+| 115% | 481.9 px | 218 px | none |
+| 150% | 583.5 px | 418 px | none |
+| 200% | 745.5 px | 700 px | none |
+| 300% | 1069.5 px | 1876 px | none |
+
+So on a Pixel 7 this row is folded at every scale from 100% up, and the fold is
+what keeps it from overflowing at any of them. Read the other way: it keeps the
+line up to a text scale of **0.898** with its rank mark and chevron, and up to
+**1.276** without them — the two fixed elements cost 88 px of line, which is
+what decides this row on this chassis.
+
+Each further detail costs about the same again. At 100%, the width below which
+the row folds is **440.0 px with two details, 566.0 with three and 692.0 with
+four**; on the Pixel 7 the same row keeps its line up to a text scale of
+**0.898, 0.566 and 0.351**. Nothing refuses four. Four fold sooner, and the row
+stays correct and becomes tall.
+
+### All of them, or none of them
+
+There is no per-detail fold, and it is unreachable rather than discouraged: the
+details are **one child** of the arrangement, so there is no arrangement of the
+layout in which one block keeps the line and another has dropped below it. A row
+in steps gives a reader scanning a list no way to know that the block underneath
+belongs to the row above rather than to the row below, and the rank mark and the
+chevron are the only things marking a row's extent.
+
+### What a folded row announces
+
+The same thing an unfolded one does, in the same order: the title, the
+supporting line, then each detail's label, its value, and the sentence its pill
+carries. It is measured rather than argued — the two announcements are asserted
+identical — and it is true by construction: the fold moves a laid-out subtree
+and never rebuilds a different one. A dense row is **one** stop, not six; six
+stops per row over five rows is thirty swipes to read a table of five years. The
+glyph is excluded, because it repeats the label; the pill's *sentence* is
+announced and its two printed words are not.
+
+### The details that leave the line take the row
+
+A block moved below the text and left with the width that was between the rank
+mark and the chevron has been moved and not helped. The arrangement therefore
+owns the leading element and the chevron as well, and a folded block runs from
+where the row's text starts to the row's content edge: **319.4 px against the
+283.4 px** left between the two, on this row on a Pixel 7. At 300% the narrower
+of the two overflows by 23 px inside the qualifier's pill — the mark and its gap
+against what is left for them, which is `IUX-LISTITEM-TRAILING-001`'s own
+residual one component over — and the wider does not.
 
 ## Targets, in the densest thing an application has
 
@@ -433,6 +551,60 @@ stands for one item, so it is either chosen or it is not, and there is nowhere
 on it to render "partly chosen". A summary of a set is an `IuxCheckbox`, which
 has that state.
 
+### `IuxListItem.dense`
+
+| Parameter | Required | Note |
+| --- | --- | --- |
+| `title` | yes | what all these measurements are about — a year, a name |
+| `onActivate` | yes | the dense form is tappable only |
+| `details` | yes | the measurements, in reading order; never empty |
+| `subtitle` | no | the supporting line |
+| `leading` | no | a rank mark or an avatar; presentation only |
+| `hint` | no | what activating the row does |
+| `disclosure` | no | the chevron, as on `tappable` |
+| `focusNode` | no | an externally owned node |
+
+Nine parameters where the two other interactive rows take eleven, and the
+ceiling `test/api/api_consistency_test.dart` guards is untouched. Against
+`tappable` it drops four: `semanticLabel`, because a dense row is named by its
+own text and has more of it than any other row; `autofocus`, because a row in
+the middle of a list is not an entry point; `trailingText`, because a detail
+carrying only a value *is* a trailing text and two ways to say one thing is the
+defect `IUX-API-NAMING-001` already records; and `trailingAction`, argued under
+*Limits*.
+
+It cannot be written as a `const` expression: the assertion that a dense row has
+something to be dense about reads `List.length`, which no constant expression
+may. `IuxRowDetail` itself is const-constructible, so a `const
+List<IuxRowDetail>` is fine.
+
+### `IuxRowDetail`
+
+| Parameter | Required | Note |
+| --- | --- | --- |
+| `value` | yes | the measurement, already formatted and localised; never empty |
+| `label` | no | what the measurement is, drawn above it and announced with it |
+| `glyph` | no | an `IconData` beside the value; drawn, never announced |
+| `qualifier` | no | an `IuxValue` pill under the value |
+
+Strings, an icon and one qualifier — never a widget. Two reasons, and the second
+is the one that is not obvious. A widget slot lets a control into a row that is
+itself one control, which is what the debug subtree check on `leading` exists to
+catch. And a widget cannot be measured tightly enough to decide the fold well:
+`getMinIntrinsicWidth` throws on any subtree holding a `LayoutBuilder`, so a row
+that asked a caller's widget for its minimum could crash on a legal child.
+
+`qualifier` is an `IuxValue` and not an `IuxStatus`. `ADR-0012` left that open by
+name and `ADR-0013` settled it: a rainfall total read against a thirty-year
+normal is a reading compared with a reference, not news, and drawing it through
+`IuxStatusTone.error` to obtain the red the eye expects ships the judgement
+*this is a malfunction* as a colour.
+
+There is no `note`. `ADR-0012` rejected it under *Alternatives considered*: the
+qualifier already occupies the space below the value, and two independent blocks
+competing for it is a second layout question asked before the first has been
+measured.
+
 ### `IuxListGroup`
 
 | Parameter | Required | Note |
@@ -525,6 +697,19 @@ IuxListItem.tappable(title: order.reference, onActivate: () {})
 IuxListItem(title: order.reference)
 ```
 
+```dart
+// Wrong: five facts and no destination. That is a table, and IuxDataTable has
+// headers, sorting and a column vocabulary a row deliberately does not.
+IuxListItem.dense(title: '2022', details: facts, onActivate: () {})
+
+// Wrong: a detail carrying prose. It folds correctly and reads as a paragraph
+// in two columns; nothing here can refuse it.
+IuxRowDetail(value: 'It rained on more days than in any year since 1996')
+
+// Right: a fact compared down the column, and a label naming the quantity.
+IuxRowDetail(label: l10n.longestDrySpell, value: l10n.days(36))
+```
+
 ## Migration
 
 Additive. Nothing existing changes. `IuxContentGroup` keeps its meaning and its
@@ -538,7 +723,41 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
 - **`IuxListGroup` builds eagerly.** A group of two hundred rows builds two
   hundred rows. That is what `ListView.separated` is for.
 - **One trailing control, not a list.** Deliberate, and it will stay one until
-  there is a real case that a menu control cannot serve.
+  there is a real case that a menu control cannot serve.  Read this against `ADR-0012`'s
+  third bound rather than around it: the dense form carries no trailing control
+  at all.
+- **Two details is what this was measured for. Nothing refuses four, and four
+  fold at a lower text scale than two — the row stays correct and becomes
+  tall.** Measured on a Pixel 7: the row keeps its line up to a text scale of
+  0.898 with two details, 0.566 with three and 0.351 with four; at 100% it folds
+  below 440.0 px of screen width with two, 566.0 with three and 692.0 with four.
+- **A dense row cannot carry a trailing control. The details take the width a
+  control would have needed, and a row with both would be four things sharing
+  one line. Put the control on the screen the row opens.** The arrangement in
+  which the control and the details have *both* moved below the text is three
+  stacked blocks that nothing has measured and no rule here orders.
+- **The fold is all or nothing, so a row whose first detail is short and whose
+  second is long folds both. That is deliberate, and it costs a line on a row
+  that would have half fitted.**
+- **The fold is necessary and is not sufficient at every composition.**
+  `ADR-0012` wrote that down before it could be measured; this is the
+  measurement. Two details on a Pixel 7 at 300%: the row is 1876 px tall and
+  nothing overflows. **Three, with the third carrying a label and a value: 24 px
+  out of the qualifier's pill**, whose mark and its gap are the part that cannot
+  wrap. What the row would have to do instead is stop the blocks sharing a line
+  too, which is a second arrangement and a second decision. The current
+  behaviour is pinned by a test that names what should happen, so a fix fails
+  here rather than landing silently.
+- **Nothing can tell a measurement from a sentence.** `ADR-0012`'s fourth bound
+  — a detail is a fact compared down the column, not prose — is a review
+  criterion. A dense row full of sentences folds correctly, reads as a paragraph
+  in two columns, and passes every test in this component.
+- **A dense row cannot be a `const` expression.** See the API note.
+- **The two rules between the detail blocks are the only ones drawn.** The
+  maquette this was built from draws a rule between the row's text and the first
+  detail as well; a rule there would have to disappear when the details move
+  below the text, which the arrangement decides after the widget has been
+  built.
 - **The beside-or-below decision uses what the control asks for, not its
   minimum.** A control whose label is several words could sometimes wrap inside
   its third without breaking a word, and is moved below anyway. The cost is
@@ -576,10 +795,11 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
   developer who hits one after the other, but there are now two of them.
 - **Rows touch each other**, against the intra-row spacing floor. Argued above;
   context dependent.
-- **`IuxListItem`, `IuxListGroup`, `IuxListSeparator`, `IuxListItemTokens` and
-  `IuxListItemResolver` are not exported from the barrel yet.** The export lines
-  belong to whoever owns `lib/iux_flutter.dart`.
-- **No catalog entry yet.** `apps/catalog` is outside this mission's scope.
+- **The dense form's fold is a second render object, modelled on the trailing
+  control's and not shared with it.** `_IuxListItemArrangement` also enforces
+  `kIuxMinimumTargetSpacing` between two **targets**, and a block of
+  measurements is not one — sharing it would mean either relaxing that guarantee
+  or applying it where it means nothing.
 
 ## Deviation from the Component Standard
 
@@ -611,6 +831,12 @@ the sole carrier of meaning.
 recurring finding in screen-reader usability work rather than a clause in a
 specification, and for a selectable row using checkbox semantics.
 
+**Measured, on one chassis and one font.** Every number under *A dense row
+folds* was taken on 411.43 x 914.29 in the test font, which advances one em per
+glyph. The rule is a property; the thresholds are ceilings for a proportional
+font, and re-measuring them on a device is manual validation that has not been
+done.
+
 **Context dependent** for letting stacked rows touch, for the two-thirds/one-third
 split between text and value, for the enlarged-text stacking threshold (inherited
 from `IuxAccessibility.prefersStackedLayout`, itself documented as a heuristic),
@@ -622,6 +848,11 @@ where this component makes a judgement `IuxCard` did not have to make.
 a control is never laid out narrower than it asked for while the row has room to
 give it. Wherever the threshold is put, breaking a word to make a control fit
 loses content at a text size the user chose, which is SC 1.4.4.
+
+**Standard**, again, for the dense row's fold condition: a detail block laid out
+below its minimum intrinsic width breaks inside a word, which loses content at a
+text size the user chose (SC 1.4.4). **Context dependent** for what the details
+are given once they keep the line, and for the share used as their floor.
 
 **Hypothesis**, and the honest label: that a sibling trailing control on a
 tappable row is understood by users as two targets rather than one. The geometry
@@ -641,3 +872,9 @@ listed under manual validation above for exactly that reason.
 - `docs/components/selection-controls.md` — the semantics a selectable row
   reuses rather than reinvents.
 - `docs/components/component-standard.md`.
+- `docs/decisions/ADR-0012-dense-rows-fold.md` — the decision the dense form
+  implements, and the four bounds it carries.
+- `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md` — why a
+  detail's qualifier is an `IuxValue` and not an `IuxStatus`.
+- `docs/evidence/semantic-tokens-and-accessibility.md` —
+  `IUX-LISTITEM-TRAILING-001`, on both axes.

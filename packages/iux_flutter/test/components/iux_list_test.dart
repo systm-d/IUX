@@ -2349,6 +2349,47 @@ void main() {
       }
     });
 
+    testWidgets(
+        'three details at 300% still overflow, and the fold is what '
+        'kept two from doing so', (WidgetTester tester) async {
+      // A pinned defect, in the idiom IUX-008.9 established: assert what
+      // happens now, name what should happen, so that fixing it fails here
+      // rather than landing silently. ADR-0012 wrote this risk down before it
+      // could be measured — *the fold is necessary and is not yet proven
+      // sufficient* — and this is the measurement.
+      //
+      // Two details on this chassis at 300%: the row is 1876 px tall and
+      // nothing overflows. Three, with the third carrying a label and a value:
+      // 24 px out of the qualifier's pill, whose mark and gap are the part
+      // that cannot wrap — `IUX-LISTITEM-TRAILING-001`'s own residual, one
+      // component over. What should happen is that the blocks stop sharing a
+      // line too, which is a second arrangement and a second decision.
+      await pump(
+        tester,
+        IuxListItem.dense(
+          title: '2022',
+          subtitle: '112 days of rain',
+          leading: const IuxAvatar.decorative(initials: '1'),
+          details: <IuxRowDetail>[
+            ...palmares,
+            const IuxRowDetail(label: 'Hottest day', value: '38.4 °C'),
+          ],
+          hint: 'Opens 2022',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: () {},
+        ),
+        size: pixel7,
+        textScale: 3,
+      );
+
+      expect(
+        tester.takeException(),
+        isFlutterError,
+        reason: 'if this now passes, three details fit where they did not: '
+            'flip the assertion and update the Limits entry',
+      );
+    });
+
     testWidgets('a dense row answers a press that spans a frame',
         (WidgetTester tester) async {
       // COMPONENT_STANDARD §18.1. The dense row rebuilds while it is held and

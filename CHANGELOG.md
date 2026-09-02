@@ -5,6 +5,85 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxListItem.dense` — a row that carries several measurements, and folds
+
+The pilot's ranking screen (`docs/maquettes/04-palmares.png`) draws a row
+holding a rank mark, a year, a count of rainy days, a named extreme with its
+own value, a total, a qualifying pill and a chevron: seven things where this
+component was already measured failing with four
+(`IUX-LISTITEM-TRAILING-001`, 68 px over at 200% on a 320 px screen). Read as
+a request it asks for a fourth content slot; answered as one it would be a row
+68 px over at 150% instead. `IuxListItem` gains a fourth constructor instead,
+`dense`, taking `List<IuxRowDetail>` — and what the details do when they stop
+fitting is **move below the row's text, all of them, never clipped, never
+shrunk, never truncated**. `docs/decisions/ADR-0012-dense-rows-fold.md`
+records the decision.
+
+**`IuxRowDetail` holds strings, an `IconData` and an `IuxValue`, and no
+widget.** Two reasons, and the second is the one that is not obvious. A widget
+slot lets a control into a row that is itself one control, which is what the
+debug subtree check on `leading` exists to catch. And the fold is decided from
+the details' **minimum intrinsic width**, which `getMinIntrinsicWidth` cannot
+report for any subtree holding a `LayoutBuilder` — `IuxTooltip` and
+`IuxAppBar` both hold one — so a row that asked a caller's widget could crash
+on a legal child. The row builds this content itself and can therefore measure
+it. The value type buys a tighter decision than a widget slot could offer.
+A detail's qualifier is an `IuxValue`, not an `IuxStatus`: `ADR-0012` left
+that open by name and `ADR-0013` settled it.
+
+**The fold is not decided from the third the trailing control uses, and that
+is a measurement rather than a preference.** On the maquette's own row the
+third is **119.8 px** on a bare Pixel 7 and the two detail blocks need **235
+px** to be drawn without a word being broken — so the share is short of the
+minimum at *every* text scale, and a share-based rule folds at 100% the row
+the maquette draws unfolded. That is the failure `IUX-LISTITEM-TRAILING-001`
+recorded against branching on the text scale, arriving from the other side.
+The rule is instead the one that incident's fix is *about*: the details keep
+the line while the row's text and the details can both be laid out on it
+without a word being broken. The share is kept as the floor the details are
+never drawn below while they keep the line, so a row carrying one short detail
+puts it exactly where a plain row puts its trailing value.
+
+**Measured, on the pilot's chassis and written down.** On 411.43 x 914.29,
+this row folds below **440.0 px** of screen width at 100%, 481.9 at 115%,
+583.5 at 150%, 745.5 at 200% and 1069.5 at 300% — so on a Pixel 7 it is folded
+at every scale from 100% up, with no overflow at any of them and a row height
+of 196 / 218 / 418 / 700 / 1876 px. Each further detail costs about the same
+again: the fold width at 100% is 440.0 with two details, 566.0 with three and
+692.0 with four. The measurements are in the test font, which advances one em
+per glyph (`'2022'` at 16 px is 65 px wide), so they are ceilings for a
+proportional font.
+
+**The details that leave the line take the row, not the gap they were
+refused.** The arrangement owns the leading element and the chevron as well as
+the two blocks, rather than sitting between them inside a `Row`: a block moved
+below the text and left with the width that was between an avatar and a
+chevron has been moved and not helped. Measured on this row at 300%: 155.4 px
+between the two against 371.4 across the row, and at the narrower of the two
+the qualifier's pill overflows by 23 px inside itself.
+
+**The fold is necessary and it is not sufficient at every composition, and now
+there is a number for it.** `ADR-0012` wrote that risk down before it could be
+measured. Two details on a Pixel 7 at 300%: nothing overflows. Three, with the
+third carrying a label and a value: **24 px out of the qualifier's pill**,
+whose mark and gap are the part that cannot wrap. The behaviour is pinned by a
+test that names what should happen instead — the blocks would have to stop
+sharing a line too, which is a second arrangement and a second decision — so a
+fix fails that test rather than landing silently.
+
+**One stop for a screen reader, folded or not.** The details merge into the
+row's single node, in reading order, after the title and the supporting line,
+and the announcement is asserted identical in both arrangements. Six stops per
+row over five rows is thirty swipes to read a table of five years. The glyph
+is excluded because it repeats the label; the pill's sentence is announced and
+its two printed words are not.
+
+**Nine parameters, and the eleven-parameter ceiling is untouched.** Against
+`tappable`, `dense` drops `semanticLabel`, `autofocus`, `trailingText` and
+`trailingAction`. It is tappable only, and it carries no trailing control: the
+arrangement in which the control and the details have both moved below the
+text is three stacked blocks nothing has measured.
+
 ### `IuxAvatar` gains an icon and a tone, for a thing rather than a person
 
 The pilot's card (`docs/maquettes/01-saisons.png`) tops each season with a
