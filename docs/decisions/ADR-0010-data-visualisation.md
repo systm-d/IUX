@@ -1,8 +1,8 @@
-# ADR-0010 — IUX draws charts
+# ADR-0010: IUX draws charts
 
-**Status:** accepted
-**Date:** 2026-08-05
-**Mission:** IUX-043
+- Status: accepted
+- Date: 2026-08-05
+- Mission: IUX-043
 
 ## Context
 

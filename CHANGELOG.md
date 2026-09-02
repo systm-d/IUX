@@ -5,6 +5,47 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### A tab may carry a glyph, for a quantity and never for a view
+
+`ADR-0011` opens a refusal `IuxTabs` had argued for in its own dartdoc: no
+glyph, because a glyph beside a word doubles the height of the strip at the top
+of a phone screen and adds nothing the word does not already say. That argument
+still decides the default, and still decides "All / Unread / Archived". What it
+does not cover is a selector between measured quantities — a thermometer beside
+*Températures*, a drop beside *Précipitations* — where the glyph is the
+quantity's own conventional mark and is recognised before it is read.
+
+The record is bounded inside the decision rather than only in the component
+document, because a record that opens a door without saying how far ends up
+having opened it entirely: all the tabs carry an icon or none do, the icon is
+drawn beside the word and never instead of it, never above it, and the case is
+a quantity rather than a view. The first two bounds are unreachable by
+construction; the fourth is judgement and the record says so rather than
+pretending a test could hold it. **Nothing is implemented yet.** `IuxTabs` is
+unchanged, `List<IconData>? icons` does not exist, and the wrap measurement in
+`docs/components/tabs.md` was taken without icons and does not carry over. The
+decision comes first, which is the point.
+
+### `test/package/decisions_test.dart` — the manifest of what this repository decided
+
+Eleven numbered decisions with the titles their files carry, checked against
+`docs/decisions/` in both directions, plus the header and the sections every
+record keeps. A list kept complete by remembering is complete until the next
+entry, so the manifest names the decision and fails until the file exists —
+which is what makes an ADR part of a change instead of something written
+afterwards if there is time.
+
+It found a defect on the day it was added. `ADR-0010` wrote its heading with an
+em dash and its header fields in bold, where the other nine use a colon and a
+list; a reader scanning the directory sees ten records and a tool sees nine.
+The header has been brought back to the common form and nothing else in that
+file changed — the decision it records is untouched.
+
+What the manifest cannot do is read an argument. A record that states a
+decision, dates it, and never says why is green here, and so is one whose
+reasoning is wrong. It catches the two failures a machine can see and leaves
+the judgement where it was.
+
 ### `IuxNavigationDestination.badgePlacement` — the corner, asked for and never assumed
 
 A badge on a glyph resolves compact tokens — the supporting type role, a
