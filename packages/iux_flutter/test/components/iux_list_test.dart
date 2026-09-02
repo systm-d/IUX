@@ -2302,13 +2302,13 @@ void main() {
       //
       // Measured on a Pixel 7 at 100% in this font, on three rows that differ
       // in nothing but the length of their longest word. The line offers 335.4
-      // px, the two details need 235.0 of it, so 88.4 px are left for the text
-      // and a row keeps the line whenever its longest word fits in them:
+      // px, the two details need 216.5 of it, so 106.9 px are left for the
+      // text and a row keeps the line whenever its longest word fits in them:
       //
       //   September 2025  longest word 146.3  folds, title whole
-      //   March 2026      longest word  81.3  keeps the line, 88.4 px offered
+      //   March 2026      longest word  81.3  keeps the line, 106.9 px offered
       //                                       for the 162.5 its line needs
-      //   July 2025       longest word  65.0  keeps the line, 88.4 for 146.3
+      //   July 2025       longest word  65.0  keeps the line, 106.9 for 146.3
       //
       // Three rows, three renderings, and nothing between them but a word: the
       // row concluded that it fits from a width at which the title was already
@@ -2498,6 +2498,97 @@ void main() {
         isNull,
         reason: 'three details overflowed again: the room the arrow gave back '
             'has been spent on something else',
+      );
+    });
+
+    /// The pilot's own shape: a leading circle, one line of title, no
+    /// supporting line, and two details.
+    ///
+    /// **`row()` cannot see this defect and no test above it could.** Its
+    /// title and its supporting line together are exactly as tall as its
+    /// avatar in this font, so the height the fold wasted is zero on it — the
+    /// same shape of blindness `_TitleKeepsItsLine` was found by, one
+    /// measurement over: a suite whose only sample cannot express a defect is
+    /// a suite that reports its absence.
+    Widget circled() => IuxListItem.dense(
+          title: '2022',
+          leading: const IuxAvatar.decorative(initials: '1'),
+          details: palmares,
+          hint: 'Opens 2022',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: () {},
+        );
+
+    testWidgets('a folded row does not pay for its leading element twice',
+        (WidgetTester tester) async {
+      // The geometry the fold was leaving on the table. The details are laid
+      // out from `textStart`, which is past the leading element, so the column
+      // under the avatar carries nothing — and yet the row was reserving the
+      // avatar's whole height *above* the details, as if they were in its way.
+      // They are not: the two are horizontally disjoint, so they cohabit.
+      await pump(tester, circled(), size: pixel7);
+      expect(
+        (tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dx -
+                tester.getTopLeft(find.text('2022')).dx)
+            .abs(),
+        lessThan(1),
+        reason: 'this row has to be folded for the question to arise',
+      );
+
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dy -
+            tester.getBottomLeft(find.text('2022')).dy,
+        closeTo(IuxSpacing.sm, 0.5),
+        reason: 'the details start a gap below the row text, not a gap below '
+            'whichever of the text and the avatar is taller',
+      );
+    });
+
+    testWidgets('the details that moved down do not move under the avatar',
+        (WidgetTester tester) async {
+      // The other half of the same geometry, and the reason the first half is
+      // safe. The blocks keep their indent when they fold — a block that has
+      // moved below the text belongs to it — which is exactly what leaves the
+      // avatar's column free and lets the two share the vertical space. Give
+      // the details the full width instead and they collide with the circle.
+      await pump(tester, row(), size: pixel7);
+      expect(folded(tester), isTrue);
+      expect(
+        tester.getTopLeft(find.text('Longest dry spell (5 days or more)')).dx,
+        greaterThanOrEqualTo(
+            tester.getBottomRight(find.byType(IuxAvatar)).dx - 0.5),
+        reason: 'the folded details overlap the column the avatar is in',
+      );
+    });
+
+    testWidgets('a row shorter than its avatar is still as tall as its avatar',
+        (WidgetTester tester) async {
+      // The bound the change above has to keep. Letting the details begin
+      // under the text rather than under the tallest thing on the line makes
+      // the row's height a maximum of two independent columns, and a row that
+      // forgot the leading one would clip an avatar out of the bottom of
+      // itself.
+      await pump(
+        tester,
+        IuxListItem.dense(
+          title: 'A',
+          leading: const IuxAvatar.decorative(initials: '1'),
+          details: const <IuxRowDetail>[IuxRowDetail(value: '1')],
+          hint: 'Opens A',
+          onActivate: () {},
+        ),
+        size: const Size(120, 800),
+      );
+      final double avatar = tester.getSize(find.byType(IuxAvatar)).height;
+      expect(
+        tester.getSize(find.byType(IuxListItem)).height,
+        greaterThanOrEqualTo(avatar),
+      );
+      expect(
+        tester.getBottomLeft(find.byType(IuxAvatar)).dy,
+        lessThanOrEqualTo(
+            tester.getBottomLeft(find.byType(IuxListItem)).dy + 0.5),
+        reason: 'the avatar is painted outside the row that holds it',
       );
     });
 

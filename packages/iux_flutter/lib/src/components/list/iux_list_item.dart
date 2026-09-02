@@ -1644,14 +1644,14 @@ class _IuxRowDetails extends StatelessWidget {
 /// Both readings were wrong for a title, and the same measurement says so.
 /// Three dense rows on a Pixel 7 at 100% in the test font, carrying the same
 /// two details and differing only in the length of their longest word — the
-/// line offers 335.4 px, the details need 235.0, and 88.4 are left for the
+/// line offers 335.4 px, the details need 216.5, and 106.9 are left for the
 /// text:
 ///
 /// | Title | Longest word | Its line | What happened |
 /// | --- | --- | --- | --- |
 /// | `September 2025` | 146.3 | 227.5 | folds, title whole |
-/// | `March 2026` | 81.3 | 162.5 | keeps the line, 88.4 offered for 162.5 |
-/// | `July 2025` | 65.0 | 146.3 | keeps the line, 88.4 offered for 146.3 |
+/// | `March 2026` | 81.3 | 162.5 | keeps the line, 106.9 offered for 162.5 |
+/// | `July 2025` | 65.0 | 146.3 | keeps the line, 106.9 offered for 146.3 |
 ///
 /// Two of the three concluded that the row fits from a width at which their
 /// title was already in pieces, and then drew in that width. Nothing separates
@@ -1665,12 +1665,12 @@ class _IuxRowDetails extends StatelessWidget {
 /// The subtitle is deliberately left alone. A supporting line is prose and
 /// gives way by wrapping, which is what `IUX-LISTITEM-TRAILING-001`'s rule
 /// says a value does; the title is the row's identity and is what a reader
-/// scans a list by. Requiring the subtitle's line too was measured and
-/// rejected: measured on the pilot's row it moves the fold threshold from
-/// **440.00 px of screen to 603.00**, which is past every phone, so the
+/// scans a list by. Requiring the subtitle's line too was measured again this
+/// round and rejected again: on the pilot's row it moves the fold threshold
+/// from **422.0 px of screen to 585.0**, which is past every phone, so the
 /// unfolded arrangement would be unreachable for any dense row carrying a
 /// supporting line — and three of this row's own measured guarantees, the
-/// 442/438 pair among them, would have had to be rewritten to say so.
+/// 424/420 pair among them, would have had to be rewritten to say so.
 class _TitleKeepsItsLine extends SingleChildRenderObjectWidget {
   const _TitleKeepsItsLine({required Widget super.child});
 
@@ -1783,10 +1783,10 @@ class _IuxRowDetailsArrangement
 /// **The decision, and why it is not the share.** The trailing control's
 /// arrangement asks whether what the control wants fits inside its third. That
 /// question was measured here before it was reused, and it answers *no* at
-/// every text scale: on the pilot's row the third is 119.8 pixels at 100% on a
-/// bare Pixel 7 and the two detail blocks need 235 to be drawn without a word
-/// being broken, so a share-based decision folds the row the maquette draws
-/// unfolded. That is the failure `IUX-LISTITEM-TRAILING-001` recorded against
+/// every text scale: on the pilot's row the third is 90.5 pixels at 100% on a
+/// bare Pixel 7 and the two detail blocks need 216.5 to be drawn without a
+/// word being broken, so a share-based decision folds the row the maquette
+/// draws unfolded. That is the failure `IUX-LISTITEM-TRAILING-001` recorded against
 /// branching on the text scale — *86 pixels is short of 180 at every scale, so
 /// it would have left the 100% case broken* — arriving from the other side.
 ///
@@ -1984,13 +1984,23 @@ class _RenderIuxRowDetails extends RenderBox
     // starts — about three times the share they were refused — and sit under
     // the text, aligned with it rather than with the edge of the group,
     // because a block that has moved below the text belongs to it.
+    //
+    // **And under the *text*, not under the tallest thing on the line.** That
+    // indent is what makes it safe: the details begin past the leading
+    // element, so the column the leading element is in carries nothing below
+    // it, and a row that reserved the avatar's height above the details was
+    // paying for the circle and for the details one after the other when the
+    // two are side by side. Measured on the pilot's own row — a 46.0 px circle
+    // against a 28.0 px title — the fold was spending 18.0 px on empty space
+    // 46.0 wide and 89.0 tall.
+    //
+    // The row is therefore as tall as the taller of two columns rather than as
+    // tall as one stack: the leading element on one side, the text and the
+    // details on the other. The chevron stays in the first band with the text,
+    // because it sits at the far edge and the details run under it.
     final Size textSize =
         layoutChild(texts, BoxConstraints.tightFor(width: line));
-    final double first = <double>[
-      leadSize.height,
-      textSize.height,
-      markSize.height,
-    ].reduce(math.max);
+    final double first = math.max(textSize.height, markSize.height);
     final double detailWidth = math.max(0, width - textStart);
     final Size detailSize =
         layoutChild(details, BoxConstraints.tightFor(width: detailWidth));
@@ -2010,7 +2020,10 @@ class _RenderIuxRowDetails extends RenderBox
         _place(textStart, first + _gap, detailWidth, width),
       );
     }
-    return Size(width, first + _gap + detailSize.height);
+    return Size(
+      width,
+      math.max(leadSize.height, first + _gap + detailSize.height),
+    );
   }
 
   /// What the two fixed elements cost the line, measured through the intrinsic
@@ -2065,14 +2078,13 @@ class _RenderIuxRowDetails extends RenderBox
       ].reduce(math.max);
     }
 
-    final double first = <double>[
+    final double first = math.max(_texts.getMaxIntrinsicHeight(line), mark);
+    return math.max(
       lead,
-      _texts.getMaxIntrinsicHeight(line),
-      mark,
-    ].reduce(math.max);
-    return first +
-        _gap +
-        _details.getMaxIntrinsicHeight(math.max(0, width - textStart));
+      first +
+          _gap +
+          _details.getMaxIntrinsicHeight(math.max(0, width - textStart)),
+    );
   }
 
   /// The narrowest the row can be laid out in.
