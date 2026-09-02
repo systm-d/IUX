@@ -2561,34 +2561,46 @@ void main() {
       );
     });
 
-    testWidgets('a row shorter than its avatar is still as tall as its avatar',
+    testWidgets('a row is never shorter than its leading element',
         (WidgetTester tester) async {
       // The bound the change above has to keep. Letting the details begin
       // under the text rather than under the tallest thing on the line makes
       // the row's height a maximum of two independent columns, and a row that
-      // forgot the leading one would clip an avatar out of the bottom of
-      // itself.
+      // forgot the leading one would paint it outside itself.
+      //
+      // **An `IuxAvatar` cannot express this and no test using one could.** A
+      // decorative avatar is 40.0 px tall, and the shortest text-and-details
+      // column this row can have is a title, a 12.0 gap and a one-line value —
+      // 56.0 px at 100%, more at every scale above it. The maximum can never
+      // bind, so a suite that reached for the obvious leading widget would be
+      // asserting a guarantee it had made unreachable. This one hands the row
+      // a leading element taller than anything it could stack.
       await pump(
         tester,
         IuxListItem.dense(
           title: 'A',
-          leading: const IuxAvatar.decorative(initials: '1'),
+          leading: const SizedBox(
+            key: Key('tall'),
+            width: 40,
+            height: 200,
+          ),
           details: const <IuxRowDetail>[IuxRowDetail(value: '1')],
           hint: 'Opens A',
           onActivate: () {},
         ),
         size: const Size(120, 800),
       );
-      final double avatar = tester.getSize(find.byType(IuxAvatar)).height;
+      final double leading =
+          tester.getSize(find.byKey(const Key('tall'))).height;
       expect(
         tester.getSize(find.byType(IuxListItem)).height,
-        greaterThanOrEqualTo(avatar),
+        greaterThanOrEqualTo(leading),
       );
       expect(
-        tester.getBottomLeft(find.byType(IuxAvatar)).dy,
+        tester.getBottomLeft(find.byKey(const Key('tall'))).dy,
         lessThanOrEqualTo(
             tester.getBottomLeft(find.byType(IuxListItem)).dy + 0.5),
-        reason: 'the avatar is painted outside the row that holds it',
+        reason: 'the leading element is painted outside the row that holds it',
       );
     });
 
