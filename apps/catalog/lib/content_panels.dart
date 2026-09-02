@@ -24,6 +24,7 @@ class ContentPanels extends StatelessWidget {
           _CardPanel(longLabels: longLabels),
           _CardContrastPanel(longLabels: longLabels),
           _ListPanel(longLabels: longLabels),
+          const _DenseRowPanel(),
           const _SelectableListPanel(),
           const _DataTablePanel(),
           const _ContainmentPanel(),
@@ -432,6 +433,145 @@ class _ListPanelState extends State<_ListPanel> {
     );
   }
 }
+
+class _DenseRowPanel extends StatefulWidget {
+  const _DenseRowPanel();
+
+  @override
+  State<_DenseRowPanel> createState() => _DenseRowPanelState();
+}
+
+class _DenseRowPanelState extends State<_DenseRowPanel> {
+  int _opened = 0;
+
+  static const List<(int, String, String, String, String)> _years =
+      <(int, String, String, String, String)>[
+    (1, '2022', '112 days of rain', '36 days', '434 mm'),
+    (2, '2018', '115 days of rain', '32 days', '458 mm'),
+  ];
+
+  List<IuxRowDetail> _details(String streak, String total) => <IuxRowDetail>[
+        IuxRowDetail(
+          glyph: Icons.wb_sunny_outlined,
+          label: 'Longest dry spell (5 days or more)',
+          value: streak,
+        ),
+        IuxRowDetail(
+          value: total,
+          // Below its reference, not "in error". A dry year is a reading
+          // compared with a normal; drawing it through IuxStatusTone.error to
+          // get a red pill would ship the judgement as a colour.
+          qualifier: const IuxValue.below(
+            'Very dry',
+            label: 'among the driest years on record',
+          ),
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    return CatalogPanel(
+      title: 'A row carrying several measurements',
+      description: 'The details keep the line while the row text and the '
+          'details can both be laid out without a word being broken, and all '
+          'of them move under the text when they cannot. Narrow the sample '
+          'below, or raise the text scale, and watch the fold — it is all or '
+          'nothing, because a row in steps gives the reader no way to tell '
+          'which row the block underneath belongs to.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const CatalogSubheading('at its designed width'),
+          CatalogTestable(
+            what: 'Each row opens a year and the count below climbs. The row '
+                'is one target and one screen-reader stop, and the pill under '
+                '434 mm announces its sentence rather than the two words '
+                'printed on it.',
+            child: IuxListGroup(
+              children: <Widget>[
+                for (final (int, String, String, String, String) year in _years)
+                  IuxListItem.dense(
+                    title: year.$2,
+                    subtitle: year.$3,
+                    leading: IuxAvatar.decorative(initials: '${year.$1}'),
+                    details: _details(year.$4, year.$5),
+                    hint: 'Opens ${year.$2}',
+                    disclosure: IuxListItemDisclosure.opensScreen,
+                    onActivate: () => setState(() => _opened++),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: geometry.spacingXs),
+          CatalogRows(<(String, String)>[('Years opened', '$_opened')]),
+          SizedBox(height: geometry.spacingXs),
+          const CatalogSubheading('narrowed until it folds'),
+          CatalogSample(
+            caption: '240 px',
+            width: 240,
+            child: CatalogMeasured(
+              child: IuxListItem.dense(
+                title: '2022',
+                subtitle: '112 days of rain',
+                details: _details('36 days', '434 mm'),
+                hint: 'Opens 2022',
+                disclosure: IuxListItemDisclosure.opensScreen,
+                onActivate: _nothing,
+              ),
+            ),
+          ),
+          SizedBox(height: geometry.spacingXs),
+          const CatalogSubheading('one short detail, where a value would go'),
+          // Not `const`: the assertion that a dense row has something to be
+          // dense about reads `List.length`, which no constant expression may.
+          CatalogSample(
+            caption: 'the share the trailing value would have had is the floor '
+                'the details are never drawn below',
+            child: IuxListItem.dense(
+              title: 'March',
+              subtitle: 'Rainfall',
+              details: const <IuxRowDetail>[IuxRowDetail(value: '68 mm')],
+              onActivate: _nothing,
+            ),
+          ),
+          const CatalogNote(
+            'The fold is measured, not guessed. It asks whether the row text '
+            'and the details can both be laid out without a word being '
+            'broken, from the minimum intrinsic width of content the row '
+            'built itself — which is why a detail carries strings and an icon '
+            'and never a widget: getMinIntrinsicWidth throws on any subtree '
+            'holding a LayoutBuilder, and IuxTooltip and IuxAppBar both hold '
+            'one.',
+          ),
+          const CatalogNote(
+            'Details that have left the line take the row from where its text '
+            'starts, not the gap that was left between the rank mark and the '
+            'chevron. A block moved into the narrower of the two has been '
+            'moved and not helped.',
+          ),
+          const CatalogNote(
+            'Anti-pattern: a dense row that opens nothing. Five facts and no '
+            'destination is a table, and IuxDataTable has headers, sorting '
+            'and a column vocabulary this row deliberately does not. '
+            'Anti-pattern: a dense row with a trailing control. There is no '
+            'parameter for one, because the details take the width a control '
+            'would have needed.',
+          ),
+          const CatalogNote(
+            'Nothing here can tell a measurement from a sentence. A dense row '
+            'whose details are prose folds correctly and reads as a paragraph '
+            'in two columns — ADR-0012 bound 4, which is a review criterion '
+            'and cannot be a test.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _nothing() {}
 
 class _SelectableListPanel extends StatefulWidget {
   const _SelectableListPanel();
