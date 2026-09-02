@@ -5,7 +5,7 @@ package directory that names the current version, so it names it and points at
 the one changelog. Every entry, for every version, is in
 [`CHANGELOG.md`](../../CHANGELOG.md) at the repository root.
 
-## Unreleased
+## 0.2.0-dev.4
 
 **Breaking.** `IuxSemanticColors` gains a seventh required role group,
 `comparison`, so any application that builds a full palette by hand for
