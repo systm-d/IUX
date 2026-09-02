@@ -65,7 +65,7 @@ packages:
       path: "../../packages/iux_flutter"
       relative: true
     source: path
-    version: "0.2.0-dev.2"
+    version: "0.2.0-dev.3"
   leak_tracker:
     dependency: transitive
     description:

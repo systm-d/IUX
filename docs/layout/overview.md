@@ -29,6 +29,7 @@ Scaffold(
 | `IuxTargetSpacing` | the minimum separation between adjacent controls |
 | `IuxReadableWidth` | a reading-width cap that scales with text size |
 | `IuxLayoutClass` / `IuxResponsiveValue` | width-class branching |
+| `IuxVerticalSeparator` | the line between two peer columns |
 
 ## An app bar over a page is one component
 
@@ -201,6 +202,81 @@ be wrong for most of them.
 `IuxPage.footer` exists so a primary action can stay reachable without
 scrolling to the end — which is where it matters most, on long forms. Whether
 to use it is the screen's decision.
+
+## IuxVerticalSeparator
+
+**Purpose.** The line between two columns of one block — the counterpart to
+`IuxListSeparator`, which runs the other way, between rows. Neither package
+had one until a summary card needed to separate three peer figures — nights,
+days, rainfall — side by side.
+
+**Use when** one block is read in columns and the columns are peers: a summary
+card whose figures belong to the same subject, a dense row whose facts
+describe the same item.
+
+**Do not use when** the two sides are not peers. A line implies they are the
+same kind of thing, so a rule between a label and its value is wrong for the
+reason a rule between two comparable columns is right — it says "these two
+readings are one kind of thing", which is true of two columns and false of a
+label and what it labels. Do not use it to separate rows; that is
+`IuxListSeparator`, and it runs the other way. Do not use it to delimit a
+control: it is drawn in the subtle border role, exempt from the 3:1 contrast
+floor, and the exemption does not hold where a line marks where a target
+begins.
+
+**API**
+
+```dart
+const IuxVerticalSeparator()
+```
+
+No parameters. It takes no intent, no colour and no width: everything it
+draws is resolved from the ambient `IuxSemanticColors` and `IuxGeometryTheme`,
+which is what lets it stay correct across every theme without a caller
+deciding anything.
+
+**States.** One, at rest. It receives no input and holds no interaction state,
+so there is no focused, pressed or disabled form of it.
+
+**Accessibility.** It announces nothing to a screen reader. That is correct
+here, not merely permitted: the line repeats a boundary the column spacing
+already expresses, so a reader who cannot see it loses no information by not
+hearing it either. A vertical rule between three columns would otherwise cost
+a screen-reader user two extra stops on every visit to say nothing an
+`Expanded` gap did not already say through position. The moment a separator
+is the *only* thing distinguishing two readings — no label, no spacing, only
+the rule — that argument stops holding, and the fix is to give the columns
+their own accessible names, not to make the line louder.
+
+**On text growth.** It has no height of its own; it stretches to whatever
+height its parent resolves to. Inside an `IntrinsicHeight` above a `Row`, that
+height is recomputed from the tallest column, so when a column's text wraps
+onto a second or third line at a larger text scale, the row grows taller and
+the separator grows with it — it never stays the height it was drawn at while
+the columns beside it grow past it. What it does not do is decide, on its
+own, that the columns no longer belong side by side. It has no notion of its
+siblings, so the decision to fold three columns into a stack at some width or
+text scale belongs to the caller, which then reaches for `IuxListSeparator`
+and a `Column` instead of asking this widget to do something it cannot: judge
+whether its neighbours still fit.
+
+**Themes.** Drawn in the subtle border role, the one role exempt from the 3:1
+contrast minimum — correct here because the separator is decorative, not a
+target boundary. High contrast thickens `IuxGeometryTheme.borderWidth` rather
+than recolouring the role: a line that changed hue under high contrast would
+start competing with focus for the same meaning, which is the rule
+`IuxListSeparator` already records and this primitive inherits rather than
+re-deriving.
+
+**Anti-patterns.** A rule between a label and its value — the two are not
+peers, and the line claims they are. Reaching for it to delimit a tappable
+region, where the subtle role's contrast exemption does not apply.
+
+**Limits.** It has no intrinsic height. In a `Row` whose height comes from its
+tallest child, it collapses to zero unless the row stretches or an
+`IntrinsicHeight` sits above it. IUX cannot fix this from inside the widget: a
+separator that measured its siblings would have to lay them out twice, and
+`IntrinsicHeight` is the framework's name for paying that cost deliberately.
 
 ## Limits
 

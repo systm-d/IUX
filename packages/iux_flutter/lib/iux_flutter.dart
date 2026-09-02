@@ -86,6 +86,7 @@ export 'src/layout/iux_page.dart';
 export 'src/layout/iux_section.dart';
 export 'src/layout/iux_spacing_primitives.dart';
 export 'src/layout/iux_surface.dart';
+export 'src/layout/iux_vertical_separator.dart';
 export 'src/motion/iux_motion_policy.dart';
 export 'src/motion/iux_motion_role.dart';
 export 'src/patterns/destructive/iux_confirmation_prompt.dart';

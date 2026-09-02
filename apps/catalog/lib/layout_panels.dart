@@ -24,6 +24,7 @@ class LayoutPanels extends StatelessWidget {
           const _SurfacePanel(),
           const _SpacingPanel(),
           const _ReadableWidthPanel(),
+          const _VerticalSeparatorPanel(),
         ],
       );
 }
@@ -520,6 +521,114 @@ class _ReadableWidthPanel extends StatelessWidget {
             'It is the value to reach for when the content is a table or a '
             'picture rather than prose — a capped table is a table with a '
             'scrollbar nobody asked for.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerticalSeparatorPanel extends StatelessWidget {
+  const _VerticalSeparatorPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    Widget column(String label, String value) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[Text(label), Text(value)],
+        );
+
+    return CatalogPanel(
+      title: 'A line between two columns',
+      description: 'It has no height of its own — it takes the row\'s, which '
+          'is why the row needs CrossAxisAlignment.stretch or an '
+          'IntrinsicHeight above it. Raise the text scale in the header above '
+          'and watch the measured block below grow — the rule grows with the '
+          'columns instead of ending short of them, because it stretches to '
+          'whatever height the row resolves to rather than declaring one of '
+          'its own.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const CatalogSubheading('three peer figures, stretched'),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: column('Nights', '16.8 °C')),
+                const IuxVerticalSeparator(),
+                Expanded(child: column('Days', '27.1 °C')),
+                const IuxVerticalSeparator(),
+                Expanded(child: column('Rainfall', '206 mm')),
+              ],
+            ),
+          ),
+          SizedBox(height: geometry.spacingSm),
+          CatalogRows(<(String, String)>[
+            (
+              'Resolved line thickness',
+              geometry.borderWidth.toStringAsFixed(0)
+            ),
+          ]),
+          const CatalogNote(
+            'Switch the contrast axis above to high and this number moves '
+            'from 1 to 2 — the separator thickens instead of changing colour, '
+            'which is the same choice IuxListSeparator makes and for the same '
+            'reason: a line that changed hue under high contrast would start '
+            'competing with focus for the same meaning.',
+          ),
+          SizedBox(height: geometry.spacingMd),
+          const CatalogSubheading(
+            'narrow, where the text wraps and the block grows with it',
+          ),
+          SizedBox(
+            width: 200,
+            child: CatalogMeasured(
+              checksTarget: false,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Expanded(child: column('Nights', '16.8 °C')),
+                    const IuxVerticalSeparator(),
+                    Expanded(child: column('Days', '27.1 °C')),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const CatalogNote(
+            'The height printed above is measured, not guessed. At 100% text '
+            'this block is short; raise the header\'s text scale to 200% or '
+            '300% and it grows taller, because IntrinsicHeight recomputes off '
+            'the two columns\' wrapped text and the separator stretches to '
+            'match. Nothing here clips or throws.',
+          ),
+          const CatalogNote(
+            'What it does not do: fold itself into a horizontal rule when the '
+            'row can no longer hold its columns side by side. It has no notion '
+            'of its siblings, so at some width or text scale a caller has to '
+            'make that call — stacking the columns in a Column and separating '
+            'them with IuxListSeparator instead. This widget only draws the '
+            'line it is asked for.',
+          ),
+          SizedBox(height: geometry.spacingMd),
+          const CatalogNote(
+            'Anti-pattern: a rule between a label and its value. A line says '
+            'the two sides are the same kind of thing, and they are not.',
+          ),
+          const IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text('Nights'),
+                IuxVerticalSeparator(),
+                Text('16.8 °C'),
+              ],
+            ),
           ),
         ],
       ),

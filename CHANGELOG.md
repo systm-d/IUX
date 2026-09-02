@@ -5,6 +5,37 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxVerticalSeparator` — the package could only separate rows
+
+A pilot summary card needs to separate three peer columns — nights, days,
+rainfall — and neither `IuxContentGroup` nor `IuxListSeparator` runs
+vertically; both draw a line between rows only. `IuxVerticalSeparator` fills
+that gap, mirroring `IuxListSeparator`'s pattern rather than inventing a new
+one: drawn in the subtle border role, exempt from the 3:1 contrast floor
+because the line is decorative and not a target boundary, and thickened
+rather than recoloured under high contrast — `IuxGeometryTheme.borderWidth`
+resolves to 1 at standard contrast and 2 at high, so a line that changed hue
+instead would start competing with focus for the same meaning.
+
+It has no height of its own; it takes what its parent gives it, which is why
+a `Row` around it needs `CrossAxisAlignment.stretch` or an `IntrinsicHeight`
+above it. That is a documented limit rather than an oversight: a separator
+that measured its own siblings to size itself would force a double layout
+pass, and `IntrinsicHeight` is already the framework's name for paying that
+cost on purpose.
+
+**The two questions a separator always raises were decided rather than
+defaulted.** It announces nothing to a screen reader, for the reason
+`IuxListSeparator`'s own record gives: the line repeats a boundary the column
+spacing already expresses, so a reader who never sees it loses nothing. And
+it does not, on its own, decide that its columns no longer fit side by side
+and should fold into a stack — it has no notion of its siblings, so that
+switch, and the move to `IuxListSeparator` in a `Column`, is the caller's
+decision, not this widget's guess.
+
+Five widget tests, each with a mutation confirmed to fail it. See
+`docs/layout/overview.md`, `## IuxVerticalSeparator`.
+
 ### `IuxValueIndicator` — a reading is compared, not judged
 
 `ADR-0013`, and the decision `ADR-0012` left open by name. A pilot application
