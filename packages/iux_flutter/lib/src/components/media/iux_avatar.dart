@@ -102,6 +102,8 @@ class IuxAvatar extends StatelessWidget {
     required String this.name,
     this.initials,
     this.image,
+    this.icon,
+    this.tone,
     this.size = IuxAvatarSize.standard,
   })  : assert(
           name.length > 0,
@@ -116,6 +118,13 @@ class IuxAvatar extends StatelessWidget {
           'An empty initials string draws an empty circle. Pass null instead '
           'and the avatar falls back to a neutral glyph, which reads as "no '
           'photograph" rather than as "something failed to render".',
+        ),
+        assert(
+          initials == null || icon == null,
+          'An avatar shows one stand-in, not two. Initials and an icon are '
+          'both answers to "what is here until a picture arrives", and only '
+          'one of them can be drawn — so passing both means the caller '
+          'believes one of them is showing when it is not.',
         );
 
   /// Creates an avatar beside a name the user can already read.
@@ -130,12 +139,21 @@ class IuxAvatar extends StatelessWidget {
     super.key,
     this.initials,
     this.image,
+    this.icon,
+    this.tone,
     this.size = IuxAvatarSize.standard,
   })  : name = null,
         assert(
           initials == null || initials.length > 0,
           'An empty initials string draws an empty circle. Pass null instead '
           'and the avatar falls back to a neutral glyph.',
+        ),
+        assert(
+          initials == null || icon == null,
+          'An avatar shows one stand-in, not two. Initials and an icon are '
+          'both answers to "what is here until a picture arrives", and only '
+          'one of them can be drawn — so passing both means the caller '
+          'believes one of them is showing when it is not.',
         );
 
   /// Who the avatar belongs to, already localised. Null on the decorative form.
@@ -161,6 +179,38 @@ class IuxAvatar extends StatelessWidget {
   /// load is invisible rather than broken.
   final ImageProvider? image;
 
+  /// The glyph drawn when there is neither a photograph nor initials.
+  ///
+  /// For an avatar that stands for a *thing* rather than a person: a season,
+  /// a category, a place. Drawn, never announced — [name] is what the circle
+  /// says, and a glyph carrying anything else is information a screen-reader
+  /// user never receives.
+  ///
+  /// An `IconData`, taken from `Icons.*` like every other glyph in the
+  /// package. IUX ships no icon set and defines none here: which glyph means
+  /// winter is a question about the application's subject, not about IUX.
+  ///
+  /// Mutually exclusive with [initials] — both answer "what stands in for the
+  /// picture", and only one answer can be drawn. Pass at most one.
+  final IconData? icon;
+
+  /// Which of the four accents colours the circle, or null for the resting
+  /// surface.
+  ///
+  /// A closed set, never a `Color`: the fill, the glyph and the outline are
+  /// three colours the theme holds to three separate contrast floors, and a
+  /// call site that supplied one of them would take that guarantee away.
+  /// Not `IuxStatusTone` and not `IuxValueDirection` — see [IuxAvatarTone]
+  /// and `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md` for why
+  /// neither existing vocabulary is what this parameter draws from.
+  ///
+  /// **The tone is never the signal.** Two of its four members read as the
+  /// same hue to some colour-vision deficiencies in some theme profiles, so a
+  /// row of circles differing only by tone says nothing to a reader who
+  /// cannot separate them — which is why [icon] changes with the tone in
+  /// every intended use, and why [name] is required on the announced form.
+  final IuxAvatarTone? tone;
+
   /// How large to draw the circle.
   final IuxAvatarSize size;
 
@@ -169,6 +219,7 @@ class IuxAvatar extends StatelessWidget {
     final IuxAvatarTokens tokens = IuxAvatarResolver.resolve(
       context,
       size: size,
+      tone: tone,
     );
 
     final Widget visual = SizedBox.square(
@@ -244,14 +295,16 @@ class IuxAvatar extends StatelessWidget {
     );
   }
 
-  /// The initials, or a glyph that claims nothing.
+  /// The initials, the caller's glyph, or one that claims nothing.
   Widget _fallback(IuxAvatarTokens tokens) {
     final String? letters = initials;
     if (letters == null) {
       return Icon(
-        tokens.fallbackGlyph,
+        icon ?? tokens.fallbackGlyph,
         size: tokens.glyphSize,
-        color: tokens.foreground,
+        // The 3:1 pair, not the 4.5:1 one: this is a graphical object, and
+        // the letters below are not.
+        color: tokens.glyphColor,
         // Scaled once, in the resolver, along with the circle around it.
         applyTextScaling: false,
       );

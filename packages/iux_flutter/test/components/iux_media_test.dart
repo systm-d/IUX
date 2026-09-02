@@ -1071,6 +1071,174 @@ void main() {
       expect(light, isNot(dark));
     });
   });
+
+  // ==========================================================================
+  // IuxAvatar — an icon and a tone, for a thing rather than a person
+  // ==========================================================================
+
+  group('an avatar that stands for a thing rather than a person', () {
+    testWidgets('the icon is drawn where the fallback glyph was',
+        (WidgetTester tester) async {
+      await host(
+        tester,
+        const IuxAvatar(name: 'Winter 2026', icon: Icons.ac_unit),
+      );
+      final Icon icon = tester.widget<Icon>(find.byType(Icon));
+      expect(icon.icon, Icons.ac_unit);
+    });
+
+    testWidgets('an untoned avatar is drawn exactly as before',
+        (WidgetTester tester) async {
+      // The compatibility clause. Every avatar written before this change
+      // passes `tone: null` and must resolve the surface it always did.
+      late IuxAvatarTokens plain;
+      late Color subtle;
+      await host(
+        tester,
+        Builder(
+          builder: (BuildContext context) {
+            plain = IuxAvatarResolver.resolve(context);
+            subtle = IuxSemanticColors.of(context).surface.subtle;
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+      expect(plain.background, subtle);
+      expect(plain.fallbackGlyph, Icons.person_outline);
+    });
+
+    testWidgets('the four tones resolve four distinct circles',
+        (WidgetTester tester) async {
+      final Set<Color> backgrounds = <Color>{};
+      for (final IuxAvatarTone tone in IuxAvatarTone.values) {
+        late IuxAvatarTokens tokens;
+        await host(
+          tester,
+          Builder(
+            builder: (BuildContext context) {
+              tokens = IuxAvatarResolver.resolve(context, tone: tone);
+              return const SizedBox.shrink();
+            },
+          ),
+        );
+        backgrounds.add(tokens.background);
+      }
+      expect(backgrounds, hasLength(IuxAvatarTone.values.length));
+    });
+
+    testWidgets(
+        'the glyph and the initials each clear their own floor, on every '
+        'tone and profile', (WidgetTester tester) async {
+      // Initials are text and are read; a glyph is a graphical object. WCAG
+      // 2.2 puts them at 4.5:1 and 3:1, and IuxAvatarAccentRoleColors carries
+      // the two pairs in separate fields — `content` and `icon` — rather than
+      // one shared token. In this palette the safest available colour clears
+      // both floors for every accent, so the two fields hold equal values;
+      // what this test actually guards is that each is independently held to
+      // its own floor rather than that the two happen to differ, which
+      // `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md` records.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        for (final IuxAvatarTone tone in IuxAvatarTone.values) {
+          final IuxAvatarTokens tokens = await resolve(
+            tester,
+            configuration,
+            (BuildContext context) =>
+                IuxAvatarResolver.resolve(context, tone: tone),
+          );
+          expect(
+            ContrastMetric.ratio(tokens.foreground, tokens.background),
+            greaterThanOrEqualTo(ContrastMetric.normalText),
+            reason: 'initials, $tone, $configuration',
+          );
+          expect(
+            ContrastMetric.ratio(tokens.glyphColor, tokens.background),
+            greaterThanOrEqualTo(ContrastMetric.nonText),
+            reason: 'glyph, $tone, $configuration',
+          );
+        }
+      }
+    });
+
+    test('an avatar shows one stand-in, not two', () {
+      expect(
+        () => IuxAvatar(name: 'Winter', initials: 'W', icon: Icons.ac_unit),
+        throwsA(isA<AssertionError>()),
+        reason: 'Initials and an icon are two answers to the same question, '
+            'and only one of them can be drawn.',
+      );
+    });
+
+    testWidgets('the icon is never announced', (WidgetTester tester) async {
+      // The same structural guarantee the initials have: what the circle
+      // announces is `name`, and a glyph carrying anything else is
+      // information a screen-reader user never receives.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await host(
+        tester,
+        const IuxAvatar(
+          name: 'Winter 2026',
+          icon: Icons.ac_unit,
+          tone: IuxAvatarTone.one,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(IuxAvatar)).label,
+        'Winter 2026',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('a decorative toned avatar announces nothing at all',
+        (WidgetTester tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await host(
+        tester,
+        const Row(
+          children: <Widget>[
+            IuxAvatar.decorative(
+              icon: Icons.ac_unit,
+              tone: IuxAvatarTone.one,
+            ),
+            Text('Winter 2026'),
+          ],
+        ),
+      );
+      expect(tester.getSemantics(find.byType(IuxAvatar)).label, isEmpty);
+      handle.dispose();
+    });
+
+    testWidgets('a photograph still wins over an icon',
+        (WidgetTester tester) async {
+      // The fallback order is unchanged: image, then initials, then icon,
+      // then the neutral glyph. An icon is a stand-in, and a stand-in does
+      // not cover a picture that arrived.
+      await host(
+        tester,
+        IuxAvatar(
+          name: 'Winter 2026',
+          icon: Icons.ac_unit,
+          image: _ReadyImage(decoded),
+        ),
+      );
+      expect(find.byType(RawImage), findsOneWidget);
+    });
+
+    testWidgets('it renders in RTL, at 200% text, on every theme profile',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        for (final IuxAvatarTone tone in IuxAvatarTone.values) {
+          await host(
+            tester,
+            IuxAvatar(name: 'شتاء ٢٠٢٦', icon: Icons.ac_unit, tone: tone),
+            configuration: configuration,
+            direction: TextDirection.rtl,
+            textScale: 2,
+          );
+          expect(tester.takeException(), isNull);
+        }
+      }
+    });
+  });
 }
 
 /// A picture that is already decoded.

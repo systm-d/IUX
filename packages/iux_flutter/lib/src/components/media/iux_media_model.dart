@@ -171,6 +171,47 @@ enum IuxAvatarSize {
   large,
 }
 
+/// Which of the four decorative accents tints an avatar's circle.
+///
+/// **The members carry no meaning, and are named so that none can be read
+/// into them.** [one] does not outrank [four]; there is no order here the
+/// way there is an order in `IuxValueDirection`. An application maps each
+/// member to whatever it needs distinguished — a season, a workspace, a
+/// label a user picked — and that mapping belongs to the application, the
+/// same way the choice of [IuxAvatar.icon] does.
+///
+/// **This is not a fifth `IuxStatusTone` and not a fourth
+/// `IuxValueDirection`.** Neither vocabulary answers "which of several
+/// unrelated things is this" — one answers "is this good or bad news," the
+/// other "which side of a reference" — and forcing this question through
+/// either would ship a claim about the thing tinted that IUX has no way to
+/// know is true. See
+/// `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`.
+///
+/// Four, because IUX ships exactly four non-neutral hue families and
+/// inventing a fifth is palette work — new primitives, measured across four
+/// theme profiles under three simulated colour-vision deficiencies — which
+/// is out of reach for a single component.
+///
+/// **Two of the four collide under colour-vision deficiency in some
+/// profiles**, inherited from the same hues `IuxStatusTone` and
+/// `IuxCategoryGlyphs` already carry that collision for —
+/// `IUX-PALETTE-PERCEPTION-001`. [IuxAvatar.icon] is what survives where hue
+/// does not; pass a distinct one with every tone, never the tone alone.
+enum IuxAvatarTone {
+  /// The first accent.
+  one,
+
+  /// The second accent.
+  two,
+
+  /// The third accent.
+  three,
+
+  /// The fourth accent.
+  four,
+}
+
 /// What to do when a picture and its frame have different proportions.
 ///
 /// An intent rather than a `BoxFit`, because only two of Flutter's eight

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../layout/iux_spacing_primitives.dart';
+import '../../semantics/colors/iux_avatar_accent_colors.dart';
 import '../../semantics/iux_semantic_colors.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
 import '../../themes/extensions/iux_typography_theme.dart';
@@ -89,6 +90,7 @@ final class IuxAvatarTokens {
     required this.border,
     required this.borderWidth,
     required this.fallbackGlyph,
+    required this.glyphColor,
     required this.glyphSize,
     required this.initialsStyle,
     required this.padding,
@@ -127,6 +129,17 @@ final class IuxAvatarTokens {
   /// about who the avatar belongs to, and the accessible name already says.
   final IconData fallbackGlyph;
 
+  /// The colour of a caller-supplied icon, or of [fallbackGlyph].
+  ///
+  /// Held to 3:1 against [background], the floor WCAG 2.2 SC 1.4.11 sets for
+  /// a graphical object. A separate field from [foreground] rather than an
+  /// alias for it, because initials are *text* — read at a small size inside
+  /// a small circle, held to 4.5:1 — and a shared field would have hidden
+  /// which of the two floors a palette actually met. See
+  /// `IuxAvatarAccentRoleColors.icon` for why the two currently hold equal
+  /// values in every mapping this record ships.
+  final Color glyphColor;
+
   /// The fallback glyph's edge length.
   final double glyphSize;
 
@@ -149,6 +162,7 @@ final class IuxAvatarTokens {
           other.border == border &&
           other.borderWidth == borderWidth &&
           other.fallbackGlyph == fallbackGlyph &&
+          other.glyphColor == glyphColor &&
           other.glyphSize == glyphSize &&
           other.initialsStyle == initialsStyle &&
           other.padding == padding;
@@ -161,6 +175,7 @@ final class IuxAvatarTokens {
         border,
         borderWidth,
         fallbackGlyph,
+        glyphColor,
         glyphSize,
         initialsStyle,
         padding,
@@ -170,9 +185,15 @@ final class IuxAvatarTokens {
 /// Resolves the appearance of an avatar.
 abstract final class IuxAvatarResolver {
   /// Resolves the tokens for [size] at [context].
+  ///
+  /// [tone] tints the circle. Null — the default, and what every avatar
+  /// written before this parameter existed passes — keeps the resting
+  /// surface. A non-null default would have restyled every avatar in every
+  /// application for a parameter none of them asked for.
   static IuxAvatarTokens resolve(
     BuildContext context, {
     IuxAvatarSize size = IuxAvatarSize.standard,
+    IuxAvatarTone? tone,
   }) {
     final IuxAccessibility accessibility = IuxAccessibility.of(context);
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
@@ -190,22 +211,34 @@ abstract final class IuxAvatarResolver {
     // unreadable at exactly the setting chosen to make them readable.
     final double diameter = accessibility.scaleText(base);
 
+    // The four decorative accents, carrying no meaning of their own — not the
+    // feedback roles and not the comparison roles. See
+    // docs/decisions/ADR-0014-a-container-is-not-a-verdict.md.
+    final IuxAvatarAccentRoleColors? accent = switch (tone) {
+      null => null,
+      IuxAvatarTone.one => colors.avatarAccent.one,
+      IuxAvatarTone.two => colors.avatarAccent.two,
+      IuxAvatarTone.three => colors.avatarAccent.three,
+      IuxAvatarTone.four => colors.avatarAccent.four,
+    };
+
     return IuxAvatarTokens(
       diameter: diameter,
-      background: colors.surface.subtle,
-      foreground: colors.content.primary,
-      // The one border role exempt from the 3:1 floor, and its documentation
-      // forbids using it to delimit an interactive control — which is exactly
-      // right here, because an avatar is never one.
-      border: colors.border.subtle,
+      background: accent?.surface ?? colors.surface.subtle,
+      foreground: accent?.content ?? colors.content.primary,
+      // The one border role exempt from the 3:1 floor when untoned, and its
+      // documentation forbids using it to delimit an interactive control —
+      // which is exactly right here, because an avatar is never one.
+      border: accent?.border ?? colors.border.subtle,
       borderWidth: geometry.borderWidth,
       fallbackGlyph: Icons.person_outline,
+      glyphColor: accent?.icon ?? colors.content.primary,
       glyphSize: diameter / 2,
       initialsStyle: switch (size) {
         IuxAvatarSize.standard => typography.label,
         IuxAvatarSize.large => typography.title,
       }
-          .copyWith(color: colors.content.primary),
+          .copyWith(color: accent?.content ?? colors.content.primary),
       padding: EdgeInsets.all(geometry.spacingXxs),
     );
   }
