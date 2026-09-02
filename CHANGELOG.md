@@ -5,6 +5,46 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxAvatar` gains an icon and a tone, for a thing rather than a person
+
+The pilot's card (`docs/maquettes/01-saisons.png`) tops each season with a
+coloured circle carrying a glyph: a green leaf for spring, a blue snowflake
+for winter, an orange maple leaf for autumn, a yellow sun for summer.
+`IuxAvatar` already draws a circle with a fallback glyph; it now takes `icon:
+IconData?`, drawn where that fallback was and mutually exclusive with
+`initials`, and `tone: IuxAvatarTone?`, which tints the circle. Both are
+generic — the container, the icon slot and the four accent colours are IUX's.
+Which glyph and which tone mean which season is not: IUX ships no icon set
+and invents no mapping from a season to a hue, the same way it invents no
+mapping from a state to a colour anywhere else in the package.
+
+**`tone` draws from a new vocabulary, `IuxAvatarTone`, not from
+`IuxStatusTone` or `IuxValueDirection`.** Both already exist and neither fits:
+a season is not a piece of news and it is not a reading compared with a
+reference, so routing it through either would ship a claim about the season —
+"this failed", "this is above the reference" — that nothing on this side of
+the API can verify and the application has no way to state out loud. This is
+the same category error `ADR-0013` named and rejected for a sibling case one
+component over ("Reusing the four tones and letting the application map
+them … it ships a judgement as a colour"), applied here to a different
+domain. `IuxSemanticColors` gains `avatarAccent`, a fourth colour role group
+holding four decorative, meaning-free accents built from the same four hue
+families the palette already has — no new primitives, no new perceptual
+measurement, only fresh measurement of pairs the existing files had not
+already published, recorded beside each mapping in `iux_color_palettes.dart`.
+`docs/decisions/ADR-0014-a-container-is-not-a-verdict.md` records the
+decision in full, including a finding this record does not create but does
+inherit: two of the four accents read as the same hue under some colour-vision
+deficiencies in some profiles (`IUX-PALETTE-PERCEPTION-001`), which is why
+`icon` ships in the same change as `tone` rather than as a follow-up — the
+glyph is what survives where the hue does not.
+
+**The tone is never announced**, matching every other colour vocabulary this
+package ships. `IuxAvatar`'s accessible name is `name`; `icon` is drawn and
+excluded from the semantic tree, exactly like the fallback glyph it replaces.
+A tone behind a photograph is still resolved — the circle is painted before
+the network is consulted — but invisible once the photograph arrives.
+
 ### `IuxTypographyTheme` — six roles, and none that named the group posed beneath it
 
 The pilot's card (`docs/maquettes/01-saisons.png`) coifs `SAISON EN COURS` and

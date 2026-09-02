@@ -114,15 +114,24 @@ IuxAvatar({
   required String name,        // announced; never drawn
   String? initials,            // drawn; never announced
   ImageProvider? image,
+  IconData? icon,               // drawn; never announced; excludes initials
+  IuxAvatarTone? tone,           // one | two | three | four; null keeps the resting surface
   IuxAvatarSize size = IuxAvatarSize.standard,   // standard | large
 })
 
 IuxAvatar.decorative({
   String? initials,
   ImageProvider? image,
+  IconData? icon,
+  IuxAvatarTone? tone,
   IuxAvatarSize size = IuxAvatarSize.standard,
 })
 ```
+
+`icon` and `initials` are mutually exclusive — both answer "what stands in for
+the picture", and an avatar constructed with both throws. `icon` and `tone` are
+independent of each other and both independent of `initials`: a plain circle
+with a tone and no glyph, or a tone-free circle with a glyph, are both valid.
 
 ### `IuxImage`
 
@@ -186,6 +195,49 @@ carrying twenty facts.
 Pick the named form whenever the avatar stands alone: a header, a stack of
 overlapping participants, a mention with no adjacent label. There the circle is
 the only thing identifying the person.
+
+### An avatar for a thing, and why IUX ships no icon set
+
+`IuxAvatar` also stands for something that is not a person: a season, a
+category, a place — anything a caller wants to represent as a small coloured
+circle with a glyph in it, the way `01-saisons.png` tops each season with one.
+Two parameters make that possible, and IUX owns exactly one of them.
+
+**The container, the icon slot and the tint are generic, and IUX owns them.**
+The circle, its outline, the fact that it holds one glyph, and the fact that
+the glyph is drawn on top of a coloured fill — none of that is specific to
+seasons, and all of it is what `icon` and `tone` add.
+
+**Which glyph means which thing is domain, and the application owns it.**
+`icon` is a plain `IconData`, taken from `Icons.*` the way every other glyph in
+this package is — `IuxIcon.icon`, `IuxCategoryGlyphs`. IUX defines no icon set
+and ships no mapping from "winter" to a snowflake: a framework that shipped
+that mapping would be shipping meteorology, or a calendar, or whatever domain
+asked first. The same is true of `tone`: `IuxAvatarTone`'s four members —
+`one` through `four` — carry no meaning of their own, on purpose. Which one
+means spring is the caller's decision, in the caller's own code, the same way
+the choice of glyph is.
+
+**Why the tint is not `IuxStatusTone` or `IuxValueDirection`, when both already
+exist.** A season is not a piece of news and it is not a reading compared with
+a reference, so neither of IUX's existing colour vocabularies answers the
+question `tone` asks — "which of several unrelated things is this." Sending a
+season through `IuxStatusTone.error` to get a recognisable colour would assert
+that the season *failed*, which is a claim about the season IUX has no
+standing to make. `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`
+records the decision in full, including where the four accent colours come
+from and what they cost.
+
+**The tone is never announced, the same as every other colour in this
+package.** `IuxAvatar`'s accessible name is `name`; `icon` is drawn and never
+read, exactly like the existing fallback glyph. A decorative avatar with a
+tone announces nothing at all, same as one without.
+
+**Pass a distinct `icon` with every distinct `tone`.** Two of the four accents
+read as the same hue to some colour-vision deficiencies in some theme
+profiles — `IUX-PALETTE-PERCEPTION-001`, inherited unchanged because
+`IuxAvatarTone` spends the same four hues `IuxStatusTone` already does. Nothing
+compiled stops a caller from setting `tone` alone; see *Limits*.
 
 ## What happens when a picture does not arrive
 
@@ -315,19 +367,31 @@ overrode.
 | --- | --- | --- |
 | glyph, primary | `content.primary` | 4.5:1 |
 | glyph, secondary | `content.secondary` | 4.5:1 |
-| avatar fill | `surface.subtle` | — |
-| avatar initials | `content.primary` | 4.5:1 on the fill |
-| avatar outline | `border.subtle` | exempt — decoration only |
+| avatar fill, untoned | `surface.subtle` | — |
+| avatar initials, untoned | `content.primary` | 4.5:1 on the fill |
+| avatar outline, untoned | `border.subtle` | exempt — decoration only |
+| avatar fill, toned | `avatarAccent.<one\|two\|three\|four>.surface` | — |
+| avatar initials, toned | `avatarAccent.<…>.content` | 4.5:1 on the fill |
+| avatar icon, toned | `avatarAccent.<…>.icon` | 3:1 on the fill |
+| avatar outline, toned | `avatarAccent.<…>.border` | 3:1 on the page |
 | frame fill | `surface.subtle` | — |
 | frame outline | `border.standard` | 3:1 |
 | broken glyph | `content.secondary` | 4.5:1 |
 | replacement text | `content.primary` | 4.5:1 |
 
-The avatar outline takes the one border role exempt from the 3:1 floor. That is
-correct here and only here: the outline carries no information — it stops a
-pale photograph bleeding into a pale page — and `border.subtle`'s own
-documentation forbids using it to delimit an interactive control, which an
-avatar is never allowed to be.
+The avatar outline takes the one border role exempt from the 3:1 floor when
+untoned. That is correct there and only there: the outline carries no
+information — it stops a pale photograph bleeding into a pale page — and
+`border.subtle`'s own documentation forbids using it to delimit an interactive
+control, which an avatar is never allowed to be. A toned avatar's outline is
+held to 3:1 like every other role in `avatarAccent`, though in every mapping
+this package ships it repeats the fill, which already clears 3:1 against the
+page unassisted — see `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`.
+
+`avatarAccent` is not `feedback` and not `comparison`. Its four members carry
+no meaning, and nothing in the theme layer maps `one` to a season — that
+mapping is the caller's, made at the call site with `IuxAvatarTone` and
+`icon` together.
 
 The contrast pairs are asserted on all four theme profiles in
 `test/components/iux_media_test.dart`.
@@ -400,6 +464,16 @@ IuxCard.tappable(
 IuxImage(image: chart, fit: IuxImageFit.cover, ...)
 // Right:
 IuxImage(image: chart, fit: IuxImageFit.contain, ...)
+
+// Wrong: a tone with no glyph. Four of these in a row are four circles a
+// colour-vision deficiency can collapse into two.
+IuxAvatar.decorative(tone: IuxAvatarTone.one)
+// Right: the glyph carries the distinction the hue cannot promise.
+IuxAvatar.decorative(icon: Icons.ac_unit, tone: IuxAvatarTone.one)
+
+// Wrong: initials and an icon both claim to be the stand-in. The assertion
+// refuses this rather than silently drawing one of them.
+IuxAvatar(name: 'Winter 2026', initials: 'W', icon: Icons.ac_unit)
 ```
 
 ## Limits
@@ -423,6 +497,25 @@ IuxImage(image: chart, fit: IuxImageFit.contain, ...)
   a positioning problem with its own clipping, text-scaling and reading-order
   consequences. A status beside an avatar is `IuxStatusIndicator`; a count is
   `IuxBadge`, in reading order rather than floating over the circle.
+- **The tone does not change what is announced.** Four avatars differing only
+  in tone are four identical announcements, and nothing here can refuse that —
+  pass a different glyph with each tone, or accept that the distinction exists
+  for sighted readers only.
+- **A tone behind a photograph is invisible.** It is still resolved, because
+  the circle is painted before the network is consulted, but a caller who set
+  it to mean something will find that meaning gone as soon as a picture
+  arrives.
+- **Two of the four `IuxAvatarTone` members read as the same hue to some
+  colour-vision deficiencies, in some theme profiles.** `avatarAccent` spends
+  the same four hues `IuxStatusTone`'s feedback roles already carry that
+  collision for — `IUX-PALETTE-PERCEPTION-001` — rather than measuring a new,
+  separable set, which `docs/decisions/ADR-0014-*` explains is out of reach for
+  a single component. The glyph is what survives where the hue does not, and
+  nothing compiled requires a caller to supply one.
+- **`avatarAccent` is an eighth role group on `IuxSemanticColors`, and it is
+  scoped to one component.** Whether a second application ever reaches for it
+  for something other than an avatar is unproven; a brand theme now has one
+  more role group to map correctly.
 - **Two avatar sizes and two icon sizes.** No demonstrated need for a third.
   Adding one is cheap; removing one after an application depends on it is not.
 - **`IuxImage` has no shape parameter.** Always the medium radius. A full-bleed
@@ -454,6 +547,8 @@ IuxImage(image: chart, fit: IuxImageFit.contain, ...)
   and the broken glyph adds nothing.
 - A real slow connection, and airplane mode, on a list of avatars.
 - 200% text scaling on a list row containing an avatar and a name.
+- A row of four toned avatars under a colour-vision deficiency simulator:
+  confirm the glyph, not only the hue, is what tells them apart.
 
 ## Evidence level
 
@@ -471,6 +566,8 @@ IuxImage(image: chart, fit: IuxImageFit.contain, ...)
 | Two components rather than one with a shape flag | Context dependent — component standard §8 |
 | A filled frame beats a spinner per picture | Hypothesis — not user-tested |
 | A neutral glyph reads as "no photograph" | Hypothesis — conventional, not measured |
+| A tone alone does not reliably distinguish two avatars under colour-vision deficiency | Standard — `IUX-PALETTE-PERCEPTION-001`, measured |
+| A season's tint belongs in a vocabulary distinct from status and comparison | Context dependent — `docs/decisions/ADR-0014-*` |
 
 ## Sources
 
@@ -483,3 +580,6 @@ IuxImage(image: chart, fit: IuxImageFit.contain, ...)
 - `docs/accessibility/color-and-non-color-signals.md`.
 - `docs/components/component-standard.md` §5, §6, §7, §8, §11.
 - `docs/components/card.md` — why a card refuses to contain a control.
+- `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md` and
+  `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md` — why the tone on
+  `IuxAvatar` is neither `IuxStatusTone` nor `IuxValueDirection`.
