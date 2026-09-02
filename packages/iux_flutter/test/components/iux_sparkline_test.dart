@@ -149,4 +149,210 @@ void main() {
     expect(find.byType(TweenAnimationBuilder<double>), findsOneWidget);
     await tester.pumpAndSettle();
   });
+
+  group('a sparkline that carries a direction and marks where it ends', () {
+    testWidgets('an untinted sparkline is drawn exactly as before',
+        (WidgetTester tester) async {
+      // The compatibility clause. Every sparkline written before this change
+      // passes `direction: null`, and must resolve the same stroke it always
+      // did.
+      late Color plain;
+      late Color primary;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+          home: Builder(
+            builder: (BuildContext context) {
+              plain = IuxChartResolver.resolve(context).primaryStroke;
+              primary = IuxSemanticColors.of(context).action.primary.background;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(plain, primary);
+    });
+
+    testWidgets('the three directions resolve three distinct strokes',
+        (WidgetTester tester) async {
+      final Set<Color> strokes = <Color>{};
+      for (final IuxValueDirection direction in IuxValueDirection.values) {
+        late Color resolved;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+            home: Builder(
+              builder: (BuildContext context) {
+                resolved =
+                    IuxChartResolver.resolve(context, direction: direction)
+                        .primaryStroke;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+        strokes.add(resolved);
+      }
+      expect(strokes, hasLength(IuxValueDirection.values.length));
+    });
+
+    testWidgets('the end marker is drawn, and only when asked',
+        (WidgetTester tester) async {
+      // A sparkline of three readings is one continuous run, so `seriesPaths`
+      // draws no dot at all — the dot it does draw is for a run of one. What
+      // is asserted here is the extra circle, at the end of the line.
+      const List<IuxChartPoint> points = <IuxChartPoint>[
+        IuxChartPoint(position: 0, value: 1),
+        IuxChartPoint(position: 1, value: 3),
+        IuxChartPoint(position: 2, value: 2),
+      ];
+
+      Future<int> circles({required bool marksEnd}) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+            home: Scaffold(
+              body: SizedBox(
+                width: 120,
+                child: IuxSparkline(
+                  points: points,
+                  semanticsSummary: 'Up, then down.',
+                  marksEnd: marksEnd,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final TestRecordingCanvas recorder = TestRecordingCanvas();
+        tester.renderObject<RenderBox>(find.byType(CustomPaint).last).paint(
+              TestRecordingPaintingContext(recorder),
+              Offset.zero,
+            );
+        return recorder.invocations
+            .where((RecordedInvocation i) =>
+                i.invocation.memberName == #drawCircle)
+            .length;
+      }
+
+      expect(await circles(marksEnd: false), 0);
+      expect(await circles(marksEnd: true), 1);
+    });
+
+    testWidgets(
+        'the marker sits at the last measured reading, not the last '
+        'position', (WidgetTester tester) async {
+      // A series whose tail is missing ends where it was last measured. A
+      // marker at the axis end would put a dot over a stretch nothing drew.
+      const List<IuxChartPoint> points = <IuxChartPoint>[
+        IuxChartPoint(position: 0, value: 1),
+        IuxChartPoint(position: 1, value: 3),
+        IuxChartPoint(position: 2, value: null),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 120,
+              child: IuxSparkline(
+                points: points,
+                semanticsSummary: 'Up, then nothing.',
+                marksEnd: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final TestRecordingCanvas recorder = TestRecordingCanvas();
+      tester.renderObject<RenderBox>(find.byType(CustomPaint).last).paint(
+            TestRecordingPaintingContext(recorder),
+            Offset.zero,
+          );
+      final RecordedInvocation circle = recorder.invocations.firstWhere(
+        (RecordedInvocation i) => i.invocation.memberName == #drawCircle,
+      );
+      final Offset centre =
+          circle.invocation.positionalArguments.first as Offset;
+      final double width = tester.getSize(find.byType(CustomPaint).last).width;
+      // Position 1 of a 0..2 axis is the middle of the strip.
+      expect(centre.dx, closeTo(width / 2, 0.5));
+    });
+
+    testWidgets('in RTL the marker follows the line',
+        (WidgetTester tester) async {
+      // The line is mirrored by `horizontalOffset`. A marker computed any
+      // other way would sit at the opposite end of the strip from the reading
+      // it marks — and it would look deliberate.
+      const List<IuxChartPoint> points = <IuxChartPoint>[
+        IuxChartPoint(position: 0, value: 1),
+        IuxChartPoint(position: 1, value: 3),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+          home: const Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: SizedBox(
+                width: 120,
+                child: IuxSparkline(
+                  points: points,
+                  semanticsSummary: 'صعودا.',
+                  marksEnd: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final TestRecordingCanvas recorder = TestRecordingCanvas();
+      tester.renderObject<RenderBox>(find.byType(CustomPaint).last).paint(
+            TestRecordingPaintingContext(recorder),
+            Offset.zero,
+          );
+      final Offset centre = recorder.invocations
+          .firstWhere(
+              (RecordedInvocation i) => i.invocation.memberName == #drawCircle)
+          .invocation
+          .positionalArguments
+          .first as Offset;
+      expect(centre.dx, closeTo(0, 0.5),
+          reason: 'the last reading is at the reading end, which is the left '
+              'edge in a right-to-left interface');
+    });
+
+    testWidgets('the direction is never the only signal',
+        (WidgetTester tester) async {
+      // The summary is required and unchanged by the direction, so a tinted
+      // sparkline says the same thing to a screen reader as an untinted one.
+      // This asserts the parameter did not quietly become a way to ship a
+      // picture whose meaning is a hue.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
+          home: const Scaffold(
+            body: IuxSparkline(
+              points: <IuxChartPoint>[
+                IuxChartPoint(position: 0, value: 0),
+                IuxChartPoint(position: 1, value: 2),
+              ],
+              semanticsSummary: 'Warmer every month of the season.',
+              direction: IuxValueDirection.above,
+              marksEnd: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.bySemanticsLabel('Warmer every month of the season.'),
+        findsOneWidget,
+      );
+    });
+  });
 }

@@ -377,31 +377,88 @@ class _SparklinePanel extends StatelessWidget {
   const _SparklinePanel();
 
   @override
-  Widget build(BuildContext context) => const CatalogPanel(
-        title: 'Sparkline, beside the number it is about',
-        description: 'No axis, no grid, no labels: nobody can take a value off '
-            'it, and it is not meant to be read from. Two of them are scaled '
-            'independently, which is why they must never be compared — the '
-            'flat one below has the same height as the steep one.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            CatalogSubheading('Rising'),
-            IuxSparkline(
-              points: _thisYear,
-              semanticsSummary: 'Rising from January to July, then falling.',
-            ),
-            CatalogSubheading('Almost flat, at its own scale'),
-            IuxSparkline(
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    return CatalogPanel(
+      title: 'Sparkline, beside the number it is about',
+      description: 'No axis, no grid, no labels: nobody can take a value off '
+          'it, and it is not meant to be read from. Two of them are scaled '
+          'independently, which is why they must never be compared — the '
+          'flat one below has the same height as the steep one.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const CatalogSubheading('Rising'),
+          const IuxSparkline(
+            points: _thisYear,
+            semanticsSummary: 'Rising from January to July, then falling.',
+          ),
+          const CatalogSubheading('Almost flat, at its own scale'),
+          const IuxSparkline(
+            points: <IuxChartPoint>[
+              IuxChartPoint(position: 0, value: 12.0),
+              IuxChartPoint(position: 1, value: 12.1),
+              IuxChartPoint(position: 2, value: 12.0),
+              IuxChartPoint(position: 3, value: 12.2),
+            ],
+            semanticsSummary: 'Unchanged, within a tenth of a degree.',
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('tinted, and marking where the line stops'),
+          Wrap(
+            spacing: geometry.spacingSm,
+            runSpacing: geometry.spacingSm,
+            children: <Widget>[
+              for (final IuxValueDirection direction
+                  in IuxValueDirection.values)
+                CatalogSample(
+                  caption: direction.name,
+                  width: 120,
+                  child: IuxSparkline(
+                    points: const <IuxChartPoint>[
+                      IuxChartPoint(position: 0, value: 0.2),
+                      IuxChartPoint(position: 1, value: 1.1),
+                      IuxChartPoint(position: 2, value: 2.1),
+                    ],
+                    semanticsSummary:
+                        'Further from the normal each month of the season.',
+                    direction: direction,
+                    marksEnd: true,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogNote(
+            'The same axis `IuxValueIndicator` uses for its pill, reused '
+            'rather than duplicated — ADR-0013. `IuxStatusTone` was '
+            'deliberately not offered here: a sparkline of a deviation from '
+            'a normal is a comparison, not news.',
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('a series whose tail has not been published'),
+          const CatalogSample(
+            caption: 'marker on the last reading',
+            width: 120,
+            child: IuxSparkline(
               points: <IuxChartPoint>[
-                IuxChartPoint(position: 0, value: 12.0),
-                IuxChartPoint(position: 1, value: 12.1),
-                IuxChartPoint(position: 2, value: 12.0),
-                IuxChartPoint(position: 3, value: 12.2),
+                IuxChartPoint(position: 0, value: 0.2),
+                IuxChartPoint(position: 1, value: 1.1),
+                IuxChartPoint(position: 2, value: null),
               ],
-              semanticsSummary: 'Unchanged, within a tenth of a degree.',
+              semanticsSummary: 'Two months measured; the third is not in yet.',
+              marksEnd: true,
             ),
-          ],
-        ),
-      );
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogNote(
+            'Anti-pattern: two sparklines side by side differing only in '
+            'direction. Their summaries say the same thing, so the picture '
+            'carries a meaning nothing else does — which is the failure the '
+            'required summary exists to prevent.',
+          ),
+        ],
+      ),
+    );
+  }
 }

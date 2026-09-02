@@ -63,6 +63,39 @@ picture is never the only copy of what it says.
 | --- | --- | --- |
 | `points` | `List<IuxChartPoint>` | required |
 | `semanticsSummary` | `String` | required |
+| `direction` | `IuxValueDirection?` | defaults to null, the resting colour |
+| `marksEnd` | `bool` | defaults to `false` |
+
+### The tint is closed, and it is never the signal
+
+`direction` takes `IuxValueDirection` — the same three-member axis
+`IuxValueIndicator` resolves against `IuxSemanticColors.comparison` — never a
+`Color`. Component Standard §4 is why: "an API that accepts a colour has
+already lost the contrast guarantee". A sparkline of a deviation from a normal
+is the same claim a value pill makes about its latest reading, so this reuses
+`IuxValueDirection` rather than adding a second, parallel vocabulary for the
+same three-sided fact. `IuxStatusTone` was deliberately not offered: its four
+members are families of *news*, and a trend that is above, level with or below
+a reference is not news until somebody judges it — see
+`docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`, which answered
+this question for the pill this line sits beside on the pilot's card.
+
+Null, the default, keeps the primary action colour every sparkline written
+before this parameter existed already resolved. `at`, unlike null, tints the
+line with `comparison.at`'s neutral mark — stating "level with the reference"
+is a different claim from stating nothing.
+
+Whatever the direction, [semanticsSummary] says the same thing: the pill's own
+rule applies here unchanged. A pair of sparklines that differ only in tint is a
+call-site mistake this parameter cannot refuse — see *Limits*.
+
+`marksEnd` draws a filled dot, in the line's own colour, at the last measured
+reading — not at the end of the axis, so a series whose tail has not been
+published stops its marker where the data stops rather than claiming a
+measurement nothing took. It is silent: no glyph, no words, excluded from the
+accessibility tree. It answers a purely visual question — where does the line
+stop — that [semanticsSummary] already answers in words for everyone else; a
+marker that spoke too would repeat the summary rather than add to it.
 
 ## Why `semanticsSummary` is required everywhere
 
@@ -210,6 +243,12 @@ wrong reason rather than failing:
   want of the Linux desktop toolchain on the machine that built this. Widget
   tests approximate TalkBack and no more — the same limit the rest of the
   package carries, with one more layer of approximation on top.
+- Two sparklines that differ only in direction carry a difference nothing but
+  hue expresses. `semanticsSummary` is required, so neither is silent, but
+  nothing checks that the two summaries differ.
+- The end marker is a filled dot in the line's own colour. It is not a target,
+  carries no label of its own, and a series of one reading already draws a dot
+  without it — asking for both produces two circles at the same point.
 
 ## Evidence level
 
@@ -221,4 +260,5 @@ standard; the three-pattern cap and the horizontal-only bar are IUX judgement.
 - WCAG 2.2 — SC 1.1.1 Non-text Content, 1.4.1 Use of Color, 1.4.4 Resize Text,
   1.4.11 Non-text Contrast, 2.3.3 Animation from Interactions.
 - `docs/accessibility/color-and-non-color-signals.md`.
-- `docs/components/component-standard.md` §5, §6, §9, §12.
+- `docs/components/component-standard.md` §4, §5, §6, §9, §12.
+- `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`.

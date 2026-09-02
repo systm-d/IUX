@@ -5,6 +5,48 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxSparkline` — the miniature curve could not say which way it leaned, or where it stopped
+
+The pilot's card (`docs/maquettes/01-saisons.png`) draws a sparkline of
+temperature's deviation from its normal beside a warm `IuxValueIndicator`
+pill for the same reading. The sparkline had two gaps: its stroke was fixed to
+`tokens.primaryStroke`, and `dotRadius` only ever marked an isolated single
+reading, never the end of a continuous line.
+
+**`IuxSparkline` gains `direction` (`IuxValueDirection?`) and `marksEnd`
+(`bool`), not a new `IuxStatusTone` vocabulary.** The sparkline in the pilot's
+card and the pill beside it draw the same axis — the pill states the latest
+reading's side of its reference, the line states the shape of the readings
+that led to it — so `direction` reuses `IuxValueDirection` and resolves
+against `IuxSemanticColors.comparison`, exactly as `IuxValueIndicator` does.
+`IuxStatusTone` was deliberately not offered: `ADR-0013` already answered this
+for the pill, and giving the line its own tone vocabulary would recreate the
+duplication that record exists to prevent — two closed sets naming the same
+three-sided fact. Null, the default, keeps the primary action colour every
+sparkline written before this change already resolved.
+
+**Measured in this round**: `IuxComparisonRoleColors.mark` for `above` and
+`IuxFeedbackRoleColors.icon` for `error` resolve to the identical primitive
+value in all four shipped profiles (`critical40`/`70`/`10`/`80`) — a
+structural consequence of `ADR-0013` reusing existing hue families rather than
+inventing new ones. No widget test can therefore tell "resolved through
+`comparison`" apart from "resolved through `feedback`" by the painted colour
+alone; a dedicated test reads the resolver's source instead, the same
+technique `component_standard_test.dart`'s dead-token check already uses for a
+claim a `Color` cannot make.
+
+`marksEnd` draws a filled dot, in the line's own colour, at the last measured
+reading rather than at the end of the axis — a series whose tail has not been
+published stops its marker where the data stops, not where the axis does. The
+marker is silent: `semanticsSummary` remains the entire accessible alternative,
+and a marker that spoke too would repeat it rather than add to it.
+`IuxChartTokens` gains `endMarkerRadius`, twice the stroke width so the dot
+reads as a point and not a thickening.
+
+Ten widget tests, each with a mutation confirmed to fail it, plus one
+source-reading test for the finding above. See `docs/components/chart.md`,
+"The tint is closed, and it is never the signal".
+
 ### `IuxVerticalSeparator` — the package could only separate rows
 
 A pilot summary card needs to separate three peer columns — nights, days,

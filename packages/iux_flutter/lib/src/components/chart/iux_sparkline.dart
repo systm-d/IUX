@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_semantics.dart';
+import '../status/iux_status_model.dart';
 import 'iux_chart_geometry.dart';
 import 'iux_chart_model.dart';
 import 'iux_chart_tokens.dart';
@@ -41,6 +42,8 @@ class IuxSparkline extends StatelessWidget {
     super.key,
     required this.points,
     required this.semanticsSummary,
+    this.direction,
+    this.marksEnd = false,
   });
 
   /// The readings, in drawing order. A null value is a gap.
@@ -53,6 +56,51 @@ class IuxSparkline extends StatelessWidget {
   /// see it, and this parameter is what makes that impossible to ship by
   /// accident.
   final String semanticsSummary;
+
+  /// Which side of a reference these readings fell on, or null for the
+  /// resting colour.
+  ///
+  /// A closed set, never a `Color`: the tint has to stay something the theme
+  /// can be held responsible for at every contrast profile.
+  ///
+  /// **`IuxValueDirection`, not `IuxStatusTone`.** A sparkline of a deviation
+  /// from a normal is the same claim `IuxValueIndicator` makes about its
+  /// latest reading — see
+  /// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md` — and
+  /// reusing that axis here is the point: a second, parallel vocabulary for
+  /// "which side of the reference" would be exactly the duplication ADR-0013
+  /// exists to prevent. A trend that is genuinely *news* — a service that is
+  /// down, a balance that has failed a check — is not what this parameter is
+  /// for; that is a state, not a comparison, and belongs to a component that
+  /// takes an `IuxStatusTone`.
+  ///
+  /// **The tint is never the signal.** [semanticsSummary] is required and says
+  /// the same thing whatever the direction, so a reader who cannot separate
+  /// two hues loses nothing. A pair of sparklines whose only difference is
+  /// their tint is a pair of pictures that say the same thing — which is a
+  /// call-site mistake this parameter cannot refuse, and *Limits* says so.
+  final IuxValueDirection? direction;
+
+  /// Whether to draw a dot where the last measured reading falls.
+  ///
+  /// Off by default, because a sparkline usually sits beside the number it is
+  /// about and the dot would point at a figure already written next to it.
+  /// On, it answers "where is *now* on this line" for a series that stops
+  /// before the axis does — a season three months into a year, a month still
+  /// being published.
+  ///
+  /// The dot lands on the last reading that exists, not at the end of the
+  /// axis: a marker over a stretch nothing drew would claim a measurement.
+  /// [IuxChartPoint] with a null value is skipped for exactly that reason.
+  ///
+  /// **The marker is silent.** It draws no glyph, adds no words, and is
+  /// excluded from the accessibility tree along with the rest of the picture
+  /// — [semanticsSummary] is still the entire alternative. It answers a
+  /// visual question a sighted reader has that a screen reader user does not:
+  /// *where on this strip does the line stop*. The reading and its meaning
+  /// are already the summary's job; a marker that spoke as well would repeat
+  /// them, which is noise rather than information.
+  final bool marksEnd;
 
   /// The vertical range the readings occupy.
   ///
@@ -116,8 +164,9 @@ class IuxSparkline extends StatelessWidget {
     // clamps it anyway.
     if (points.isEmpty) return const SizedBox.shrink();
 
-    final IuxChartTokens tokens = IuxChartResolver.resolve(context);
-    final TextDirection direction = Directionality.of(context);
+    final IuxChartTokens tokens =
+        IuxChartResolver.resolve(context, direction: direction);
+    final TextDirection textDirection = Directionality.of(context);
 
     final Widget strip = SizedBox(
       height: tokens.sparklineHeight,
@@ -128,9 +177,11 @@ class IuxSparkline extends StatelessWidget {
               duration: tokens.reveal.duration,
               curve: tokens.reveal.curve,
               builder: (BuildContext context, double revealed, Widget? child) =>
-                  CustomPaint(painter: _painter(tokens, direction, revealed)),
+                  CustomPaint(
+                painter: _painter(tokens, textDirection, revealed),
+              ),
             )
-          : CustomPaint(painter: _painter(tokens, direction, 1)),
+          : CustomPaint(painter: _painter(tokens, textDirection, 1)),
     );
 
     return IuxSemantics.image(label: semanticsSummary, child: strip);
@@ -138,7 +189,7 @@ class IuxSparkline extends StatelessWidget {
 
   _SparklinePainter _painter(
     IuxChartTokens tokens,
-    TextDirection direction,
+    TextDirection textDirection,
     double revealed,
   ) =>
       _SparklinePainter(
@@ -146,8 +197,9 @@ class IuxSparkline extends StatelessWidget {
         horizontal: _horizontal,
         vertical: _vertical,
         tokens: tokens,
-        direction: direction,
+        direction: textDirection,
         revealed: revealed,
+        marksEnd: marksEnd,
       );
 }
 
@@ -160,6 +212,7 @@ class _SparklinePainter extends CustomPainter {
     required this.tokens,
     required this.direction,
     required this.revealed,
+    required this.marksEnd,
   });
 
   final List<IuxChartPoint> points;
@@ -168,6 +221,24 @@ class _SparklinePainter extends CustomPainter {
   final IuxChartTokens tokens;
   final TextDirection direction;
   final double revealed;
+  final bool marksEnd;
+
+  /// Where the last measured reading falls, or null when nothing was measured.
+  Offset? _endOffset(Size size) {
+    for (int i = points.length - 1; i >= 0; i--) {
+      final double? value = points[i].value;
+      if (value == null) continue;
+      return Offset(
+        horizontalOffset(
+          horizontal.fractionOf(points[i].position),
+          size.width,
+          direction,
+        ),
+        size.height - vertical.fractionOf(value) * size.height,
+      );
+    }
+    return null;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -188,6 +259,20 @@ class _SparklinePainter extends CustomPainter {
     )) {
       canvas.drawPath(pathUpTo(run, revealed), stroke);
     }
+
+    // Drawn only once the line has arrived. A marker ahead of a line still
+    // being drawn in would sit alone on an empty strip, which reads as a
+    // single reading rather than as the end of a trend.
+    if (!marksEnd || revealed < 1) return;
+    final Offset? end = _endOffset(size);
+    if (end == null) return;
+    canvas.drawCircle(
+      end,
+      tokens.endMarkerRadius,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = tokens.primaryStroke,
+    );
   }
 
   @override
@@ -197,5 +282,6 @@ class _SparklinePainter extends CustomPainter {
       old.vertical != vertical ||
       old.tokens != tokens ||
       old.direction != direction ||
-      old.revealed != revealed;
+      old.revealed != revealed ||
+      old.marksEnd != marksEnd;
 }

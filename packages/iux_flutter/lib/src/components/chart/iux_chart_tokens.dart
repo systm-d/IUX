@@ -6,6 +6,7 @@ import '../../motion/iux_motion_role.dart';
 import '../../semantics/iux_semantic_colors.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
 import '../../themes/extensions/iux_typography_theme.dart';
+import '../status/iux_status_model.dart';
 
 /// How many extra-large spacing steps tall a plot is at standard text size.
 ///
@@ -22,6 +23,15 @@ const int _plotSteps = 4;
 /// a chart missing its axis rather than a micro-trend.
 const double _sparklineFraction = 0.25;
 
+/// How much wider than its line the marker at the end of a sparkline is drawn.
+///
+/// Twice, which is a proportion rather than a measurement: a marker the width
+/// of the stroke is a thickening nobody reads as a point, and one much larger
+/// stops being the end of the line and becomes an object beside it. Expressed
+/// as a ratio so the two stay in step under every text scale and contrast
+/// profile, where a fixed radius would drift away from the line it ends.
+const double _endMarkerScale = 2;
+
 /// Everything needed to paint a chart, and nothing about how.
 ///
 /// One class for all three components, so a sparkline cannot end up thinner
@@ -34,6 +44,7 @@ final class IuxChartTokens {
     required this.plotHeight,
     required this.sparklineHeight,
     required this.strokeWidth,
+    required this.endMarkerRadius,
     required this.dashUnit,
     required this.gridline,
     required this.axisStyle,
@@ -55,6 +66,13 @@ final class IuxChartTokens {
 
   /// How thick a line is drawn.
   final double strokeWidth;
+
+  /// The radius of the dot that marks where a sparkline's line ends.
+  ///
+  /// Read only by `IuxSparkline`, and only when it was asked to mark its end.
+  /// The other two charts have axes and labels, so where their data stops is
+  /// already readable.
+  final double endMarkerRadius;
 
   /// The length of one dash at the densest pattern.
   ///
@@ -119,6 +137,7 @@ final class IuxChartTokens {
           other.plotHeight == plotHeight &&
           other.sparklineHeight == sparklineHeight &&
           other.strokeWidth == strokeWidth &&
+          other.endMarkerRadius == endMarkerRadius &&
           other.dashUnit == dashUnit &&
           other.gridline == gridline &&
           other.axisStyle == axisStyle &&
@@ -136,6 +155,7 @@ final class IuxChartTokens {
         plotHeight,
         sparklineHeight,
         strokeWidth,
+        endMarkerRadius,
         dashUnit,
         gridline,
         axisStyle,
@@ -159,7 +179,25 @@ final class IuxChartTokens {
 /// to disagree with the first.
 abstract final class IuxChartResolver {
   /// Resolves the tokens in force at [context].
-  static IuxChartTokens resolve(BuildContext context) {
+  ///
+  /// [direction] tints the primary stroke with the side of a reference a
+  /// sparkline's reading fell on. Null — the default, and what every chart
+  /// written before this parameter existed passes — keeps the primary action
+  /// colour the three charts have always used.
+  ///
+  /// **`IuxValueDirection`, not `IuxStatusTone`.** A sparkline that shows a
+  /// deviation from a normal is not carrying news — see
+  /// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`, which
+  /// already answered this for `IuxValueIndicator`, the pill this stroke sits
+  /// beside on the pilot's card. Both draw the same axis: the pill states the
+  /// latest reading's side of its reference, the line states the shape of the
+  /// readings that led to it, and giving the line its own `IuxStatusTone`
+  /// vocabulary would recreate exactly the duplicate ADR-0013 exists to
+  /// prevent — two closed sets naming the same three-sided fact.
+  static IuxChartTokens resolve(
+    BuildContext context, {
+    IuxValueDirection? direction,
+  }) {
     final IuxAccessibility accessibility = IuxAccessibility.of(context);
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
@@ -167,6 +205,20 @@ abstract final class IuxChartResolver {
 
     final double plotHeight =
         accessibility.scaleText(geometry.spacingXl * _plotSteps);
+    final double strokeWidth =
+        accessibility.scaleText(geometry.strongBorderWidth);
+
+    // The comparison roles' `mark` colour, not `content`: a data line is a
+    // graphical object, and 3:1 is the floor WCAG 2.2 SC 1.4.11 sets for one.
+    // `content` is the 4.5:1 text pair, which would tint the line darker than
+    // the theme intends a line to be — the same choice `IuxValueResolver`
+    // makes for the pill's own mark.
+    final Color stroke = switch (direction) {
+      null => colors.action.primary.background,
+      IuxValueDirection.above => colors.comparison.above.mark,
+      IuxValueDirection.at => colors.comparison.at.mark,
+      IuxValueDirection.below => colors.comparison.below.mark,
+    };
 
     return IuxChartTokens(
       plotHeight: plotHeight,
@@ -174,7 +226,8 @@ abstract final class IuxChartResolver {
       // The strong border width rather than the ordinary one: a data line is
       // the subject of the picture, not the frame around it, and the strong
       // role is the one a high-contrast palette thickens.
-      strokeWidth: accessibility.scaleText(geometry.strongBorderWidth),
+      strokeWidth: strokeWidth,
+      endMarkerRadius: strokeWidth * _endMarkerScale,
       dashUnit: accessibility.scaleText(geometry.spacingXs),
       gridline: colors.border.subtle,
       axisStyle:
@@ -182,7 +235,7 @@ abstract final class IuxChartResolver {
       legendStyle: typography.label.copyWith(color: colors.content.primary),
       bandFill: colors.surface.subtle,
       bandEdge: colors.border.standard,
-      primaryStroke: colors.action.primary.background,
+      primaryStroke: stroke,
       secondaryStroke: colors.content.secondary,
       barTrack: colors.surface.subtle,
       barHeight: accessibility.scaleText(geometry.spacingSm),
