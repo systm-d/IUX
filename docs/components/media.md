@@ -228,6 +228,14 @@ standing to make. `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`
 records the decision in full, including where the four accent colours come
 from and what they cost.
 
+`IuxValueAccent` has since arrived with the same four unranked members, and it
+is a different enum on purpose: it selects `comparison`, whose surface is a
+**tint** a reading sits on, and this one selects `avatarAccent`, whose surface
+is a **fill** with initials on it. Two contrast contracts, two vocabularies —
+merging them would put one enum in front of two sets of colours that are not
+interchangeable, which is the aliasing `action.tertiary` already cost this
+repository once.
+
 **The tone is never announced, the same as every other colour in this
 package.** `IuxAvatar`'s accessible name is `name`; `icon` is drawn and never
 read, exactly like the existing fallback glyph. A decorative avatar with a

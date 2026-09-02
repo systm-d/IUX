@@ -9,10 +9,16 @@ the one changelog. Every entry, for every version, is in
 
 **Breaking.** `IuxSemanticColors` gains a seventh required role group,
 `comparison`, so any application that builds a full palette by hand for
-`IuxTheme.withSemanticColors` no longer compiles until it maps three more
-roles. That is the intended failure: a colour group defaulted silently is a
-group nobody measured. `ADR-0013`, and
-`docs/semantics/comparison-roles.md` is the contract.
+`IuxTheme.withSemanticColors` no longer compiles until it maps it. That is the
+intended failure: a colour group defaulted silently is a group nobody measured.
+`ADR-0013`, and `docs/semantics/comparison-roles.md` is the contract.
+
+**Breaking.** `comparison` holds five accents — `neutral`, `one` to `four` —
+rather than `above`/`at`/`below`, and `IuxComparisonRoleColors` keeps only
+`content` and `surface`. `IuxValue` requires a `meaning` and an `accent`, the
+capsule has no arrow and no outline, and `IuxSparkline.direction` becomes
+`accent`. A side of a reference is not a hue: rain above its normal is *wetter*
+and blue, rain below it is *drier* and orange. `ADR-0015`.
 
 **Breaking.** `IuxOnboardingFlow.forwardLabel` is removed;
 `IuxOnboardingStep.forwardLabel` replaces it, null on the last step only. The

@@ -63,29 +63,32 @@ picture is never the only copy of what it says.
 | --- | --- | --- |
 | `points` | `List<IuxChartPoint>` | required |
 | `semanticsSummary` | `String` | required |
-| `direction` | `IuxValueDirection?` | defaults to null, the resting colour |
+| `accent` | `IuxValueAccent?` | defaults to null, the resting colour |
 | `marksEnd` | `bool` | defaults to `false` |
 
 ### The tint is closed, and it is never the signal
 
-`direction` takes `IuxValueDirection` — the same three-member axis
+`accent` takes `IuxValueAccent` — the same four unnamed hues
 `IuxValueIndicator` resolves against `IuxSemanticColors.comparison` — never a
 `Color`. Component Standard §4 is why: "an API that accepts a colour has
 already lost the contrast guarantee". A sparkline of a deviation from a normal
-is the same claim a value pill makes about its latest reading, so this reuses
-`IuxValueDirection` rather than adding a second, parallel vocabulary for the
-same three-sided fact. `IuxStatusTone` was deliberately not offered: its four
-members are families of *news*, and a trend that is above, level with or below
-a reference is not news until somebody judges it — see
+is the same claim a value capsule makes about its latest reading, so this reuses
+that vocabulary rather than adding a second, parallel one. `IuxStatusTone` was
+deliberately not offered: its four members are families of *news*, and a trend
+compared with a reference is not news until somebody judges it — see
 `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`, which answered
-this question for the pill this line sits beside on the pilot's card.
+this question for the capsule this line sits beside on the pilot's card.
+
+**It is not `IuxValueDirection` either**, and that is
+`docs/decisions/ADR-0015-the-sign-is-not-the-meaning.md`: a series of rainfall
+totals above their normal is *wetter*, and only the application knows that
+wetter is blue here. A line that read its hue off the side of the reference
+would be the same wrong claim made twice in one library.
 
 Null, the default, keeps the primary action colour every sparkline written
-before this parameter existed already resolved. `at`, unlike null, tints the
-line with `comparison.at`'s neutral mark — stating "level with the reference"
-is a different claim from stating nothing.
+before this parameter existed already resolved.
 
-Whatever the direction, [semanticsSummary] says the same thing: the pill's own
+Whatever the accent, [semanticsSummary] says the same thing: the capsule's own
 rule applies here unchanged. A pair of sparklines that differ only in tint is a
 call-site mistake this parameter cannot refuse — see *Limits*.
 
@@ -243,8 +246,9 @@ wrong reason rather than failing:
   want of the Linux desktop toolchain on the machine that built this. Widget
   tests approximate TalkBack and no more — the same limit the rest of the
   package carries, with one more layer of approximation on top.
-- Two sparklines that differ only in direction carry a difference nothing but
-  hue expresses. `semanticsSummary` is required, so neither is silent, but
+- Two sparklines that differ only in accent carry a difference nothing but
+  hue expresses, and two of the four accents are one colour to a reader with a
+  dichromacy — measured in `docs/semantics/comparison-roles.md`. `semanticsSummary` is required, so neither is silent, but
   nothing checks that the two summaries differ.
 - The end marker is a filled dot in the line's own colour. It is not a target,
   carries no label of its own, and a series of one reading already draws a dot

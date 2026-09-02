@@ -276,7 +276,7 @@ move below the row's text — never clipped, never shrunk, never truncated.**
 The trailing control asks whether what it wants fits inside its third of the
 row, `valueFlex / (textFlex + valueFlex)`. That question was put to the details
 before it was reused, and the answer is *no at every text scale*: on the pilot's
-row the third is **119.8 px** on a bare Pixel 7 and the two blocks need **235
+row the third is **90.5 px** on a bare Pixel 7 and the two blocks need **216.5
 px** to be drawn without a word being broken. A share-based rule folds the row
 the maquette draws unfolded, at 100%, which is the failure
 `IUX-LISTITEM-TRAILING-001` recorded against branching on the text scale — *86
@@ -306,14 +306,14 @@ clipping, and a row that decided the fold from that number concluded that it
 fits at a width where its title was already in pieces — and then drew in that
 width. Measured on a Pixel 7 at 100% in the test font, on three rows carrying
 the same two details and differing in nothing but the length of their longest
-word. The line offers 335.4 px, the details need 235.0, and 88.4 px are left
+word. The line offers 335.4 px, the details need 216.5, and 106.9 px are left
 for the text:
 
 | Title | Longest word | Its line | What the row did |
 | --- | --- | --- | --- |
 | `September 2025` | 146.3 | 227.5 | folded, title whole |
-| `March 2026` | 81.3 | 162.5 | kept the line, 88.4 px offered for 162.5 |
-| `July 2025` | 65.0 | 146.3 | kept the line, 88.4 px offered for 146.3 |
+| `March 2026` | 81.3 | 162.5 | kept the line, 106.9 px offered for 162.5 |
+| `July 2025` | 65.0 | 146.3 | kept the line, 106.9 px offered for 146.3 |
 
 Three rows, three renderings, and nothing between them but a space in a string.
 The same number is read a second time as the bound on what the details may take
@@ -334,10 +334,10 @@ still 67.4 above its own minimum.
 rather than an oversight. A subtitle is prose and gives way by wrapping, which
 is what a value does; the title is what a reader scans a list by. Requiring the
 whole text block on one line was implemented and measured: it moves this row's
-fold threshold from **440.00 px of screen to 603.00**, past every phone, so the
+fold threshold from **421.5 px of screen to 585.0**, past every phone, so the
 unfolded arrangement would be unreachable for any dense row carrying a
 supporting line — and three of this row's measured guarantees fail under it.
-The threshold below is unchanged by the correction, at 440.00.
+The threshold below is unchanged by the correction, at 421.5.
 
 ### Where it folds, measured
 
@@ -350,22 +350,22 @@ measures 65 px — so every width below is a ceiling for a proportional font.
 
 | Text scale | Folds below | Row height on 411.43 | Overflow |
 | --- | --- | --- | --- |
-| 100% | **440.0 px** | 196 px | none |
-| 115% | 481.9 px | 218 px | none |
+| 100% | **421.5 px** | 196 px | none |
+| 115% | 470.0 px | 218 px | none |
 | 150% | 583.5 px | 418 px | none |
 | 200% | 745.5 px | 700 px | none |
 | 300% | 1069.5 px | 1876 px | none |
 
 So on a Pixel 7 this row is folded at every scale from 100% up, and the fold is
 what keeps it from overflowing at any of them. Read the other way: it keeps the
-line up to a text scale of **0.898** with its rank mark and chevron, and up to
-**1.276** without them — the two fixed elements cost 88 px of line, which is
+line up to a text scale of **0.970** with its rank mark and chevron, and up to
+**1.300** without them — the two fixed elements cost 88 px of line, which is
 what decides this row on this chassis.
 
 Each further detail costs about the same again. At 100%, the width below which
-the row folds is **440.0 px with two details, 566.0 with three and 692.0 with
+the row folds is **421.5 px with two details, 538.3 with three and 655.0 with
 four**; on the Pixel 7 the same row keeps its line up to a text scale of
-**0.898, 0.566 and 0.351**. Nothing refuses four. Four fold sooner, and the row
+**0.970, 0.700 and 0.532**. Nothing refuses four. Four fold sooner, and the row
 stays correct and becomes tall.
 
 ### All of them, or none of them
@@ -394,10 +394,20 @@ A block moved below the text and left with the width that was between the rank
 mark and the chevron has been moved and not helped. The arrangement therefore
 owns the leading element and the chevron as well, and a folded block runs from
 where the row's text starts to the row's content edge: **319.4 px against the
-283.4 px** left between the two, on this row on a Pixel 7. At 300% the narrower
-of the two overflows by 23 px inside the qualifier's pill — the mark and its gap
-against what is left for them, which is `IUX-LISTITEM-TRAILING-001`'s own
-residual one component over — and the wider does not.
+283.4 px** left between the two, on this row on a Pixel 7. At 300% the same
+difference is **371.4 px across the row against 155.4 px between the leading
+element and the chevron**, and the narrower of the two used to overflow inside
+the qualifier's pill.
+
+**And a folded block starts under the row's *text*, not under the tallest thing
+on the line.** The indent is what makes that safe: the details begin past the
+leading element, so the column the leading element is in carries nothing below
+it, and the two cohabit rather than stack. The row is as tall as the taller of
+two columns — the leading element on one side, the text and the details on the
+other — never shorter than the leading element, which is asserted rather than
+assumed. Measured on the pilot's own row, a 46.0 px circle against a 28.0 px
+title at 115% text: **18.0 px** that used to be spent on a rectangle 46.0 wide
+and 89.0 tall with nothing in it.
 
 ## Targets, in the densest thing an application has
 
@@ -625,7 +635,7 @@ List<IuxRowDetail>` is fine.
 | `value` | yes | the measurement, already formatted and localised; never empty |
 | `label` | no | what the measurement is, drawn above it and announced with it |
 | `glyph` | no | an `IconData` beside the value; drawn, never announced |
-| `qualifier` | no | an `IuxValue` pill under the value |
+| `qualifier` | no | an `IuxValue` capsule under the value, with its own word under that |
 
 Strings, an icon and one qualifier — never a widget. Two reasons, and the second
 is the one that is not obvious. A widget slot lets a control into a row that is
@@ -640,10 +650,15 @@ normal is a reading compared with a reference, not news, and drawing it through
 `IuxStatusTone.error` to obtain the red the eye expects ships the judgement
 *this is a malfunction* as a colour.
 
-There is no `note`. `ADR-0012` rejected it under *Alternatives considered*: the
-qualifier already occupies the space below the value, and two independent blocks
-competing for it is a second layout question asked before the first has been
-measured.
+There is no `note`, and the maquette's third text is not one. Each of its
+columns carries a value, a deviation and a word — `223 mm` / `−42 mm` /
+`plus sec` — and the word arrives through the qualifier rather than beside it:
+`IuxValue.meaning` is required, and `IuxValueIndicator` draws it under the
+capsule. `ADR-0012` rejected a `note` under *Alternatives considered* because
+"the qualifier already occupies the space below the value, and two independent
+blocks competing for it is a second layout question". That reasoning is why the
+third text belongs *inside* the qualifier: there is one block below the value,
+not two, and a row cannot show a deviation without the word that reads it.
 
 ### `IuxListGroup`
 
@@ -769,8 +784,8 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
 - **Two details is what this was measured for. Nothing refuses four, and four
   fold at a lower text scale than two — the row stays correct and becomes
   tall.** Measured on a Pixel 7: the row keeps its line up to a text scale of
-  0.898 with two details, 0.566 with three and 0.351 with four; at 100% it folds
-  below 440.0 px of screen width with two, 566.0 with three and 692.0 with four.
+  0.970 with two details, 0.700 with three and 0.532 with four; at 100% it folds
+  below 421.5 px of screen width with two, 538.3 with three and 655.0 with four.
 - **A dense row cannot carry a trailing control. The details take the width a
   control would have needed, and a row with both would be four things sharing
   one line. Put the control on the screen the row opens.** The arrangement in
@@ -785,16 +800,25 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
   `March 2026`, `July 2025` and `September 2025` all fold. That is the intended
   trade — a folded row is uniform and a title in pieces is not — and it is paid
   for in height on rows whose title is long. It is not paid on the pilot's own
-  row, whose title is a year: its threshold is unchanged at 440.0 px.
-- **The fold is necessary and is not sufficient at every composition.**
-  `ADR-0012` wrote that down before it could be measured; this is the
-  measurement. Two details on a Pixel 7 at 300%: the row is 1876 px tall and
-  nothing overflows. **Three, with the third carrying a label and a value: 24 px
-  out of the qualifier's pill**, whose mark and its gap are the part that cannot
-  wrap. What the row would have to do instead is stop the blocks sharing a line
-  too, which is a second arrangement and a second decision. The current
-  behaviour is pinned by a test that names what should happen, so a fix fails
-  here rather than landing silently.
+  row, whose title is a year: its threshold is 421.5 px.
+- **The fold was necessary and not sufficient, and the arrow was the reason.**
+  `ADR-0012` wrote that risk down before it could be measured; the measurement
+  found it, and removing the capsule's arrow removed it. Two details on a Pixel
+  7 at 300%: the row is 1876 px tall and nothing overflows. Three, with the
+  third carrying a label and a value, used to put **24 px out of the
+  qualifier's pill** — its mark and its gap were the part that could not wrap.
+  Measured this round with no mark to wrap: **2596.0 px tall and nothing
+  raised**. The test that pinned the defect now pins its absence, so spending
+  the recovered room fails there rather than landing silently.
+- **A dense row carrying three texts a column is 157.0 px tall**, measured on
+  the pilot's `Automne 2025` at 411.43 px and 115% text: 16 top, a 28.0 title
+  band, a 12.0 gap, then 23.0 of value, 4.0, a 31.0 capsule, 4.0, 23.0 of word,
+  and 16 bottom. The row that carried two texts was 156.0. Of the 32.0 px of
+  margin, 24.0 is the row's padding and 8.0 is the gap the focus ring reserves,
+  and neither is the dense form's to change: `IuxListItemResolver` resolves one
+  padding for all four constructors so that a row and a row are the same row.
+  **The lever an application has is `IuxDensity.compact`**, which scales every
+  spacing by 0.875 — measured on the same row, 150.5 px.
 - **Nothing can tell a measurement from a sentence.** `ADR-0012`'s fourth bound
   — a detail is a fact compared down the column, not prose — is a review
   criterion. A dense row full of sentences folds correctly, reads as a paragraph

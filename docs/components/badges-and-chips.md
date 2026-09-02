@@ -9,7 +9,8 @@ the meaning.
 - `IuxStatusIndicator` reports a **state** — news about something the user can
   act on.
 - `IuxValueIndicator` reports a **reading**, held against a reference the caller
-  names: a quantity, and which side of the reference it fell on.
+  names: a quantity, which side of the reference it fell on, and the word that
+  says what that means.
 - `IuxBadge` reports a **count**.
 - the chips report an **attribute**, or switch a criterion.
 
@@ -17,7 +18,12 @@ the meaning.
 IuxStatusIndicator(status: IuxStatus.error(l10n.paymentDeclined))
 
 IuxValueIndicator(
-  value: IuxValue.above('+2.1 °C', label: l10n.aboveTheNormalBy(2.1)),
+  value: IuxValue.above(
+    '+2.1 °C',
+    meaning: l10n.warmer,
+    label: l10n.aboveTheNormalBy(2.1),
+    accent: IuxValueAccent.one,
+  ),
 )
 
 IuxBadge.count(count: l10n.formatCount(3), label: l10n.unreadMessages(3))
@@ -49,7 +55,7 @@ makes the rule absolute; this document is what applying it produced.
 | Component | Use it when |
 | --- | --- |
 | `IuxStatusIndicator` | a record, row or connection is in a state that changes what the user can do |
-| `IuxValueIndicator` | a quantity has been compared with a reference and the direction is worth seeing |
+| `IuxValueIndicator` | a quantity has been compared with a reference and the deviation is worth seeing |
 | `IuxBadge.count` | you can say how many of something are waiting |
 | `IuxBadge.marker` | there are some and the number does not matter |
 | `IuxTagChip` | you are showing an attribute the record already has |
@@ -65,7 +71,8 @@ makes the rule absolute; this document is what applying it produced.
   what happened.
 - **A reading nobody compared with anything.** A column of `IuxValue.at` pills
   reading `0.0` on every row is decoration users learn to skip. If there is no
-  reference, there is no direction, and the number belongs in plain text.
+  reference, there is no deviation to interpret, and the number belongs in
+  plain text.
 - **A reading the user can act on.** The pill takes no focus, has no touch
   target and reports no gesture. Put a button beside it.
 - **A badge is the thing being pressed.** A badge is never tappable. Whatever it
@@ -130,16 +137,30 @@ the whole design. See "How the non-colour signal is made structural" below.
 
 | Member | Required | Note |
 | --- | --- | --- |
-| `IuxValue.above(value, label:)` | both | the reading sits on the upper side of its reference |
-| `IuxValue.at(value, label:)` | both | the reading is level with its reference |
-| `IuxValue.below(value, label:)` | both | the reading sits on the lower side |
+| `IuxValue.above(value, meaning:, label:, accent:)` | all four | the reading sits on the upper side of its reference |
+| `IuxValue.at(value, meaning:, label:)` | all three | the reading is level with its reference, and takes no accent |
+| `IuxValue.below(value, meaning:, label:, accent:)` | all four | the reading sits on the lower side |
 | `IuxValueIndicator(value:)` | value | draws it |
 
-`value` is what the eye reads and `label` is what the ear hears, and they are
-different strings: `value` is the formatted numeral, `label` the sentence that
-says what it means. The constructor refuses an empty `value`, an empty `label`,
-and a `label` equal to `value` — a label that repeats the numeral hands a
-screen-reader user a number with no referent.
+Three strings, three jobs:
+
+| field | drawn | announced | example |
+| --- | --- | --- | --- |
+| `value` | yes | no | `+2.1 °C` |
+| `meaning` | yes | no | `warmer` |
+| `label` | no | yes | `2.1 degrees above the 1991 to 2020 normal` |
+
+`value` is the formatted numeral. `meaning` is the word that interprets it,
+drawn under the capsule, and it is **required** — a deviation shown on its own
+leaves its interpretation to the hue, which is exactly what a monochrome screen,
+a colour vision deficiency and a screen reader all fail to deliver. `label` is
+the sentence the screen reader gets; the drawn strings are excluded from the
+semantic tree, so whatever `meaning` says has to be inside `label` too.
+
+The constructor refuses an empty `value`, an empty `meaning`, an empty `label`,
+a `label` equal to `value`, and a `meaning` equal to `value`. A label that
+repeats the numeral hands a screen-reader user a number with no referent; a word
+that repeats it interprets nothing.
 
 `value` is a `String`, not a number, for the reason `IuxBadge.count` is: `2,1`,
 `2.1` and `٢٫١` are three different strings, and only the caller knows which
@@ -148,6 +169,10 @@ applies, along with the unit and where it goes.
 There are three directions and there will not be a fourth. A quantity compared
 with a reference is above it, level with it, or below it; "far above" is not a
 fourth direction, it is a bigger number, and it belongs in `value`.
+
+`accent` is one of four hues that mean nothing on their own —
+`IuxValueAccent.one` to `.four`. It is required on `above` and `below` and
+absent from `at`. See "Why the direction does not choose the colour" below.
 
 ### `IuxBadge`
 
@@ -277,6 +302,11 @@ construction. None of them is a convention.
 6. **A tag cannot announce itself as a button.** It is built from
    `IuxSemantics.group`, never `IuxSemantics.action`, and it has no
    `GestureDetector` and no `Focus` to reach.
+7. **`IuxValue` has no constructor that omits the word.** `meaning` is required
+   on all three, may not be empty, and may not equal the reading. A deviation
+   whose interpretation is its hue cannot be built, which matters here more
+   than anywhere else in this family: two of the four accents are the same
+   colour to a reader with deuteranopia.
 
 The mirror of that: nothing here relies on a glyph *instead* of words. The glyph
 is excluded from the semantic tree in every case, because it repeats what the
@@ -305,35 +335,80 @@ read against a reference, in every domain, and none of them is good or bad news
 until the words say so. See
 [../decisions/ADR-0013-a-reading-is-compared-not-judged.md](../decisions/ADR-0013-a-reading-is-compared-not-judged.md).
 
-## Why the value pill has a mark, when its reading usually carries a sign
+## Why the direction does not choose the colour
 
-`+2.1 °C` reads as "above" on a monochrome screen, under any colour vision
-deficiency, and out loud. So the mark looks redundant, and most of the time it
-is.
+`ADR-0013` gave the pill an axis with a warm end and a cool one, and assumed
+what every diverging scale assumes: that one side of a reference always takes
+one hue. One application disproves it, and it is the application the axis was
+built for.
 
-**The framework cannot rely on most of the time.** `IuxValue.above('2.1 °C', …)`
-compiles, and so does every locale's formatting of a deviation that writes no
-sign. What IUX can promise is what it can refuse to build, and it cannot refuse
-a string. It cannot supply the sign either: it composes no user-facing text, and
-a `+` written by the library would be the wrong glyph in some scripts and on the
-wrong side in others.
+| Quantity | Deviation | Word | Hue |
+| --- | --- | --- | --- |
+| temperature | above | warmer | warm |
+| temperature | below | colder | cool |
+| rainfall | above | wetter | cool |
+| rainfall | below | drier | amber |
 
-So the direction is carried by a mark the component draws — an upward arrow, a
-horizontal rule, a downward arrow — and it is redundant whenever the caller
-wrote a sign. Vertical arrows deliberately: a left or right arrow means the
-opposite thing in a right-to-left interface.
+Two of those are above their reference and two below, and the hues cross the
+axis rather than following it. Worse, the axis had two ends and this needs
+three hues: **"drier" had no colour at all.**
+
+What decides the hue is not the arithmetic but what the quantity *means*, and
+that is the application's to know. So `IuxValueAccent` is four hues with no
+names — `one` to `four`, unranked, in the vocabulary shape `IuxAvatarTone`
+already has — and the caller picks. Naming them `warm` and `cool`, or `hot` and
+`wet`, would ship meteorology inside a framework; naming them nothing ships a
+palette and leaves the meaning in `meaning`, where the user reads it in words.
+
+The one colour the arithmetic still decides is the absence of one: `IuxValue.at`
+takes no accent, because a reading level with its reference has nothing to
+interpret. See
+[../decisions/ADR-0015-the-sign-is-not-the-meaning.md](../decisions/ADR-0015-the-sign-is-not-the-meaning.md).
+
+## Why the value pill has a word, and no longer has a mark
+
+There used to be an arrow, and the argument for it was sound. `+2.1 °C` reads as
+"above" on a monochrome screen, under any colour vision deficiency, and out
+loud — but `IuxValue.above('2.1 °C', …)` compiles, and so does every locale's
+formatting of a deviation that writes no sign. What IUX can promise is what it
+can refuse to build, and it cannot refuse a string; it cannot supply the sign
+either, because it composes no user-facing text and a `+` written by the library
+would be the wrong glyph in some scripts and on the wrong side in others.
+
+The arrow answered that with a shape nobody hears, and it answered nothing at
+all about *meaning*: it said which side, never which sense. `meaning` answers
+both, cannot be omitted, and reaches every reader.
 
 | Signal | Reaches |
 | --- | --- |
-| the mark's shape | a monochrome screen, a colour vision deficiency |
+| `IuxValue.meaning` | a monochrome screen, a colour vision deficiency |
 | `IuxValue.label` | everyone, including a screen reader |
-| the formatted reading | everyone who can see the pill |
-| the direction colour | everyone else, as reinforcement |
+| the formatted reading | everyone who can see the capsule |
+| the accent colour | everyone else, as reinforcement |
 
-The measurement behind the first row: the two directions stand between 30.4 and
-9.9 apart in Oklab ×100 across the four profiles, and between 22.7 and 6.5 apart
-under the worst simulated dichromacy — thinnest in the dark high contrast
-profile, where the mark is not reinforcement but the signal.
+The measurement behind the first row, taken this round in Oklab ×100 on the
+shipped mapping: the four accents reuse the four hue families `avatarAccent`
+spends, so they inherit the collision `IUX-PALETTE-PERCEPTION-001` recorded.
+Every profile has a pair under 3 apart at the worst dichromacy, and the pair the
+pilot needs is one of them — the warm accent against the amber one measures
+**2.2 apart in the light standard profile and 1.1 in light high contrast, under
+deuteranopia**. To the most common dichromacy, "plus chaud" and "plus sec" are
+one colour and two words.
+
+## Why the capsule is a tint with no outline
+
+`ADR-0013` put the reading on the profile's neutral subtle surface and drew a
+line around it, reasoning that a pill repeats down a column of rows and thirty
+tinted panels is a screen of alarms. The reasoning is right and the remedy was
+the wrong one: what reads as an alarm is the *ring*, not the wash. The capsule
+is now a tint of its accent's own hue, with no outline at all.
+
+The tints measure between **1.07 and 1.28** from the page across the four
+profiles — a wash, not an object. That is deliberate: a capsule reaching the 3:1
+WCAG 2.2 SC 1.4.11 asks of a graphical object would be a bordered box in
+everything but name, and the capsule's extent carries nothing. The reading
+inside it and the word beside it are text, and both are held to 4.5:1 — the
+same colour, on two grounds, measured twice.
 
 ### Why a marker badge is not a colour-alone failure
 
@@ -549,24 +624,37 @@ IuxStatus.error(l10n.paymentDeclined)
   describing its domain rather than a UX category, and that belongs in the
   label. This bounds the axis of *news*; `IuxValueDirection` is a second axis
   rather than a fifth tone, and ADR-0013 is where that is argued.
-- **Two pills that differ only in direction are separated by hue and one arrow,
-  and nothing in this component can refuse two that differ by nothing at all.**
-  `IuxValue` requires a label and forbids it repeating the reading, which is as
-  far as a constructor can go; whether two labels actually differ is a
-  judgement no test can make.
-- **In the two dark profiles a value pill and a feedback panel are the same
-  colours.** The shipped palette gives `comparison.above` the rung
-  `feedback.error` takes there, on the same surface, and the mark and the
-  geometry are what separate them. Paling the pill to make the roles
-  numerically distinct was measured and cost the separation between the two
-  directions — 17.2 down to 9.9 in Oklab ×100 — which is the separation a
-  reader actually has to make.
+- **Four accents and no more, and nothing tells an application which is
+  which.** `IuxValueAccent.one` to `.four` mean nothing; an application that
+  maps them consistently gets a column a reader can scan, and one that maps
+  them differently on two screens gets two vocabularies. Nothing here can
+  refuse that, because a hue with no meaning has no wrong use.
+- **Two of the four accents collide under a colour vision deficiency, in every
+  profile.** They reuse the four hue families `avatarAccent` spends, so the
+  collision `IUX-PALETTE-PERCEPTION-001` measured is inherited rather than
+  introduced. Measured this round, worst pair under deuteranopia: **2.2** in
+  light standard, **1.5** in dark standard, **1.1** in light high contrast,
+  **0.4** in dark high contrast, all in Oklab ×100. The word is the mitigation
+  and it is required, which is the strongest form the framework has.
+- **Two pills that differ only in accent are separated by hue and one word, and
+  nothing in this component can refuse two that differ by nothing at all.**
+  `IuxValue` requires a word and a label and forbids either repeating the
+  reading, which is as far as a constructor can go; whether two words actually
+  differ is a judgement no test can make.
+- **In the two dark profiles a value capsule and a feedback panel are the same
+  colours.** The shipped palette gives `comparison.one` the rung
+  `feedback.error` takes there, on the same surface, and the words and the
+  geometry are what separate them.
+- **The capsule's extent is below 3:1 against the page on purpose**, measured
+  this round at 1.07 to 1.28. It is a wash rather than an object, so SC 1.4.11
+  does not apply to it — but an application that needed the capsule's boundary
+  to *mean* something would not get it from here.
 - **Nobody has measured how narrow a value pill can be.** The status
   indicator's floor — 180.3 px at 100% text for one unwrappable word
   (`IUX-LISTITEM-TRAILING-001`) — was taken on a component carrying a glyph, a
-  gap and a *label*, and a value pill carries a mark, a gap and a *reading*
-  with different wrap points. **That number does not transport.** It is to be
-  re-taken on a 320-pixel screen and written here.
+  gap and a *label*, and a value pill now carries a reading, a capsule and a
+  word with different wrap points. **That number does not transport.** It is to
+  be re-taken on a 320-pixel screen and written here.
 - **IUX is never told what counts as "above".** The caller compares and passes
   the result; a framework that chose the tolerance would be choosing it for a
   quantity it cannot see.
@@ -606,8 +694,10 @@ IuxStatus.error(l10n.paymentDeclined)
 | Two chip types rather than one with a flag | Context dependent — IUX governance, §8 of the component standard |
 | Reusing the feedback roles for status tones | Context dependent |
 | A reading gets a direction axis rather than a status tone | Context dependent — IUX governance, ADR-0013 |
-| The warm/cool pair survives the two red-green dichromacies | Measured — `test/themes/palette_perception_test.dart`, this round |
-| The three direction marks are recognisable as up, level and down | Hypothesis — conventional, not measured |
+| The caller picks the accent rather than the direction | Context dependent — IUX governance, ADR-0015 |
+| Two of the four accents collide under deuteranopia | Measured — `test/themes/palette_perception_test.dart`, this round |
+| The capsule's tint is a wash rather than an object | Measured — `test/themes/theme_contrast_test.dart`, this round |
+| A required word beats a drawn arrow as the non-colour signal | Context dependent — it is text rather than a shape, so it also reaches a screen reader |
 | A reserved checkmark slot beats an animated width | Strong guidance — layout stability, Material |
 | `selected` rather than `toggled` for a chip | Strong guidance — Material, Android semantics |
 | A status pill reads as distinct from a tag chip | Hypothesis — not user-tested |

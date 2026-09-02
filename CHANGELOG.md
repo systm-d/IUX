@@ -9,6 +9,107 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### A side of a reference is not a hue, so the caller picks one
+
+**Breaking.** `IuxValue`, `IuxValueIndicator`, `IuxSemanticColors.comparison`
+and `IuxSparkline` all change shape.
+`docs/decisions/ADR-0015-the-sign-is-not-the-meaning.md` records the decision;
+`ADR-0013`, from earlier in this same wave, is what it corrects.
+
+`ADR-0013` gave a compared reading its own axis and argued it correctly. It
+also decided, without arguing it, **which hue each side of the reference
+takes** — warm above, cool below. That is a diverging scale, and the
+application the axis was built for disproves it in one table:
+
+| Quantity | Deviation | Word | Hue |
+| --- | --- | --- | --- |
+| temperature | above | plus chaud | warm |
+| temperature | below | plus froid | cool |
+| rainfall | above | plus humide | cool |
+| rainfall | below | plus sec | amber |
+
+Two are above their reference and two below, and the hues cross the axis
+rather than following it. Worse, the axis has two non-neutral ends and this
+needs three hues: **"plus sec" had no colour at all.**
+
+**`IuxValueAccent` is four hues that mean nothing — `one` to `four`, unranked,
+the vocabulary shape `IuxAvatarTone` already has.** `IuxValue.above` and
+`.below` require one; **`IuxValue.at` takes none**, because a reading level
+with its reference has nothing to interpret, and that is the one colour the
+arithmetic still decides. `IuxSemanticColors.comparison` becomes `neutral`,
+`one`, `two`, `three`, `four`; `IuxComparisonRoleColors` keeps `content` and
+`surface` and drops `mark` and `border`.
+
+**The capsule loses its arrow and its outline, and gains the word.**
+`IuxValue.meaning` is required, may not be empty and may not repeat the
+reading — "un écart n'est jamais montré seul", and the framework enforces it at
+construction rather than advising it. The arrow it replaces said *which side*
+and never *which sense*, was excluded from the semantic tree by design, and
+cost width that could not wrap.
+
+**The word is not reinforcement, and that is measured.** The four accents reuse
+the four hue families `avatarAccent` spends, so they inherit
+`IUX-PALETTE-PERCEPTION-001`'s collision. Taken this round in Oklab ×100, the
+closest pair under deuteranopia is **2.2** apart in light standard, **1.5** in
+dark standard, **1.1** in light high contrast and **0.4** in dark high
+contrast — and in the two light profiles that pair is the warm accent against
+the amber one, which is to say *plus chaud* against *plus sec*, in adjacent
+columns of the same row.
+
+**The capsule is a tint with no outline**, measured at **1.07 to 1.28** against
+the page across the four profiles. `ADR-0013` chose a neutral surface and a
+ring because "thirty tinted panels is a screen of alarms"; the reasoning was
+right and the remedy aimed at the wrong feature — what reads as an alarm is the
+ring. `content` is now held to 4.5:1 **twice**, once on the capsule and once on
+the page, because it paints the reading inside and the word beside. Measured,
+in the order neutral / one / two / three / four: on the capsule 7.12, 5.58,
+5.21, 5.20, 5.39 in light standard, and on the page 7.63, 6.81, 6.30, 5.94,
+6.31; the other three profiles are in the ADR.
+
+**`IuxSparkline.direction` becomes `accent`**, reading
+`comparison.<accent>.content` — byte-identical to the `mark` role it replaces
+in all four mappings, so no shipped chart changes colour.
+`IuxDirectionGlyphs` is deleted; nothing else read it.
+
+**Consequences on the dense row, measured.** Removing the arrow moved the
+palmarès row's fold threshold from **440.0 px of screen to 421.5** at 100%, and
+it closed a pinned defect: three details at 300% on a Pixel 7 used to throw, 24
+px out of the capsule, and the mark and its gap were the residual. The same row
+is now **2596.0 px tall and raises nothing**, so the assertion that pinned the
+overflow is flipped to pin its absence.
+
+**`IuxRowDetail` gains nothing, and the maquette's third text arrives anyway.**
+Its columns carry a value, a deviation and a word — `223 mm` / `−42 mm` /
+`plus sec`. `ADR-0012` refused a `note` because "the qualifier already occupies
+the space below the value, and two independent blocks competing for it is a
+second layout question". That refusal is honoured rather than reversed: the
+word lives *inside* the qualifier, so there is still one block below the value.
+
+### A folded dense row pays for its leading element once
+
+A folded row was laying its details a gap below the tallest thing on its first
+line, and on the pilot's rows that is the leading circle — **46.0 px against a
+28.0 px title**. But the details are indented to where the row's text starts,
+past the circle, so the rectangle **46.0 wide and 89.0 tall** underneath it
+carries nothing: the row was paying for the circle and for the details one
+after the other when the two are side by side.
+
+The details now start a gap below the row's **text**, and the row is as tall as
+the taller of two columns rather than as tall as one stack — never shorter than
+its leading element, which is asserted rather than assumed. Measured on the
+pilot's `Automne 2025` at 411.43 px and 115% text: **18.0 px recovered**.
+
+Read with the change above, the row that carries what the maquette draws —
+three texts a column — is **157.0 px** where the row carrying two was **156.0**:
+the word costs 27.0, the capsule's tighter padding gives 8.0 back and this
+geometry gives 18.0.
+
+**The test that found it could not have been written on the existing sample.**
+`row()`'s title and supporting line together are exactly as tall as its avatar
+in the test font, so the wasted height is zero on it — fifteen green tests and
+a catalogue panel, and none of them could express the defect. The new test
+carries the pilot's shape: a circle, one line of title, no supporting line.
+
 ### `IuxListItem.dense` — a row that carries several measurements, and folds
 
 The pilot's ranking screen (`docs/maquettes/04-palmares.png`) draws a row

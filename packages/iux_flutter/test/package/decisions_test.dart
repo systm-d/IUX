@@ -34,6 +34,7 @@ const Map<int, String> _decisions = <int, String>{
   12: 'A dense row folds rather than overflows',
   13: 'A reading is compared, not judged',
   14: 'A container is not a verdict',
+  15: 'The sign is not the meaning',
 };
 
 void main() {
