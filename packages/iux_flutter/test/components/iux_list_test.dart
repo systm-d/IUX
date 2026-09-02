@@ -2260,6 +2260,112 @@ void main() {
       expect(folded(tester), isTrue, reason: '438 px is below it');
     });
 
+    /// How many lines a string was laid out on.
+    ///
+    /// Read off the paragraph rather than off its box, because a box two lines
+    /// tall and a box one line tall differ by a number this font decides and
+    /// no test should be repeating.
+    int lines(WidgetTester tester, String text) {
+      final RenderParagraph paragraph =
+          tester.renderObject(find.text(text)) as RenderParagraph;
+      return (paragraph.size.height /
+              paragraph.getMaxIntrinsicHeight(double.infinity))
+          .round();
+    }
+
+    /// A row whose title has a wrap point, which is what every row above this
+    /// one lacks.
+    Widget season(String title) => IuxListItem.dense(
+          title: title,
+          details: palmares,
+          hint: 'Opens $title',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: () {},
+        );
+
+    testWidgets('a row that keeps the line keeps its title whole',
+        (WidgetTester tester) async {
+      // Why fifteen green tests and a catalogue panel did not see this: every
+      // title any of them passes is **one word** — `2022`, `2018`, `March` —
+      // and a single word's longest word *is* its line, so the band this test
+      // is about is empty for all of them. The band is
+      //
+      //   textMin + gap + detailMin  <=  line  <  titleLine + gap + detailMin
+      //
+      // and a title with a space in it is the only thing that opens it.
+      //
+      // Measured on a Pixel 7 at 100% in this font, on three rows that differ
+      // in nothing but the length of their longest word. The line offers 335.4
+      // px, the two details need 235.0 of it, so 88.4 px are left for the text
+      // and a row keeps the line whenever its longest word fits in them:
+      //
+      //   September 2025  longest word 146.3  folds, title whole
+      //   March 2026      longest word  81.3  keeps the line, 88.4 px offered
+      //                                       for the 162.5 its line needs
+      //   July 2025       longest word  65.0  keeps the line, 88.4 for 146.3
+      //
+      // Three rows, three renderings, and nothing between them but a word: the
+      // row concluded that it fits from a width at which the title was already
+      // in pieces, and then drew in that width.
+      for (final String title in <String>[
+        'September 2025',
+        'March 2026',
+        'July 2025',
+      ]) {
+        await pump(tester, season(title), size: pixel7);
+        expect(
+          lines(tester, title),
+          1,
+          reason: '"$title" was broken across lines on a row that had just '
+              'measured itself as fitting',
+        );
+      }
+    });
+
+    testWidgets(
+        'the row text is served its line before the details take '
+        'their share', (WidgetTester tester) async {
+      // The same number, on the other side of the decision. Here the fold is
+      // not in question: one short detail needs 28.5 px, the title's line needs
+      // 227.5 and the line offers 335.4, so this row is right to keep the line.
+      // What it does with it is the defect — the details are clamped up to
+      // their minimum and then handed a third of the shared width, 107.8, while
+      // the text is handed *what is left*, 215.6, which is 11.9 px short of the
+      // 227.5 its title asked for. One block's minimum was a floor and the
+      // other's was a target.
+      //
+      // Measured after: the details take 95.9 px, which is still 67.4 above
+      // their own minimum, and the title has its line.
+      const String title = 'Rainfall March';
+      await pump(
+        tester,
+        IuxListItem.dense(
+          title: title,
+          details: const <IuxRowDetail>[IuxRowDetail(value: '68 mm')],
+          hint: 'Opens March',
+          disclosure: IuxListItemDisclosure.opensScreen,
+          onActivate: () {},
+        ),
+        size: pixel7,
+      );
+
+      expect(
+        tester.getTopLeft(find.text('68 mm')).dy,
+        closeTo(tester.getTopLeft(find.text(title)).dy, 1),
+        reason: 'this row fits on its line and should not have folded',
+      );
+      expect(
+        lines(tester, title),
+        1,
+        reason: 'the text was given the remainder rather than its line',
+      );
+      expect(
+        lines(tester, '68 mm'),
+        1,
+        reason: 'serving the text must not starve the detail beside it',
+      );
+    });
+
     testWidgets(
         'at 200% text on a Pixel 7 the details move below the text, '
         'and nothing overflows', (WidgetTester tester) async {

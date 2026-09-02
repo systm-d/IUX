@@ -1446,15 +1446,26 @@ class _IuxListItemContent extends StatelessWidget {
     final Widget? lead = leading;
     final Widget? tick = mark;
 
+    final List<IuxRowDetail>? blocks = details;
+
+    // No line limit and no ellipsis, at any text scale. Truncating the title
+    // removes the only thing that tells this item from the next one, and
+    // truncation gets worse exactly when someone has enlarged their text in
+    // order to read it.
+    //
+    // On a dense row the title also reports its whole line as its minimum,
+    // which is what decides the fold below. Only there: a row with no details
+    // has nothing that could move out of the title's way, so asking for the
+    // line would ask for something no arrangement can give.
+    final Widget headline = Text(title, style: tokens.titleStyle);
+    final Widget rowTitle =
+        blocks == null ? headline : _TitleKeepsItsLine(child: headline);
+
     final Widget texts = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // No line limit and no ellipsis, at any text scale. Truncating the
-        // title removes the only thing that tells this item from the next one,
-        // and truncation gets worse exactly when someone has enlarged their
-        // text in order to read it.
-        Text(title, style: tokens.titleStyle),
+        rowTitle,
         if (supporting != null) ...<Widget>[
           SizedBox(height: tokens.textGap),
           Text(supporting, style: tokens.subtitleStyle),
@@ -1465,8 +1476,6 @@ class _IuxListItemContent extends StatelessWidget {
         ],
       ],
     );
-
-    final List<IuxRowDetail>? blocks = details;
 
     if (blocks != null) {
       // A render object rather than a `Row`, and it owns the whole row rather
@@ -1621,6 +1630,66 @@ class _IuxRowDetails extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A title that asks for the width of its whole line, not of its longest word.
+///
+/// Transparent at layout — it takes the width it is given and its child wraps
+/// in it exactly as before — and it changes one number: the minimum intrinsic
+/// width the row's text reports. `Text` reports its **longest word**, because
+/// that is the narrowest box it can paint in without clipping, and
+/// [_RenderIuxRowDetails] takes that number twice: to decide whether the
+/// details keep the line, and to bound how much of the line they may take.
+///
+/// Both readings were wrong for a title, and the same measurement says so.
+/// Three dense rows on a Pixel 7 at 100% in the test font, carrying the same
+/// two details and differing only in the length of their longest word — the
+/// line offers 335.4 px, the details need 235.0, and 88.4 are left for the
+/// text:
+///
+/// | Title | Longest word | Its line | What happened |
+/// | --- | --- | --- | --- |
+/// | `September 2025` | 146.3 | 227.5 | folds, title whole |
+/// | `March 2026` | 81.3 | 162.5 | keeps the line, 88.4 offered for 162.5 |
+/// | `July 2025` | 65.0 | 146.3 | keeps the line, 88.4 offered for 146.3 |
+///
+/// Two of the three concluded that the row fits from a width at which their
+/// title was already in pieces, and then drew in that width. Nothing separates
+/// the three but a space in a string.
+///
+/// So the title reports the width at which it is whole, and the row's rule
+/// becomes: **the details keep the line only when nothing on it breaks and the
+/// title is not wrapped.** It is the one change that closes both readings,
+/// because both read the same number.
+///
+/// The subtitle is deliberately left alone. A supporting line is prose and
+/// gives way by wrapping, which is what `IUX-LISTITEM-TRAILING-001`'s rule
+/// says a value does; the title is the row's identity and is what a reader
+/// scans a list by. Requiring the subtitle's line too was measured and
+/// rejected: measured on the pilot's row it moves the fold threshold from
+/// **440.00 px of screen to 603.00**, which is past every phone, so the
+/// unfolded arrangement would be unreachable for any dense row carrying a
+/// supporting line — and three of this row's own measured guarantees, the
+/// 442/438 pair among them, would have had to be rewritten to say so.
+class _TitleKeepsItsLine extends SingleChildRenderObjectWidget {
+  const _TitleKeepsItsLine({required Widget super.child});
+
+  @override
+  _RenderTitleKeepsItsLine createRenderObject(BuildContext context) =>
+      _RenderTitleKeepsItsLine();
+}
+
+class _RenderTitleKeepsItsLine extends RenderProxyBox {
+  /// The width the child needs in order not to wrap.
+  ///
+  /// Larger than the child's own minimum, and that is the whole of it. It is
+  /// not a claim that the title cannot be painted narrower — it can, and a
+  /// folded row that is still too narrow paints it on two lines — it is the
+  /// row saying that a width at which its title breaks is not a width it will
+  /// choose while it has somewhere to move the details to.
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      child?.getMaxIntrinsicWidth(height) ?? 0;
 }
 
 /// The four things on a dense row, in reading order.
