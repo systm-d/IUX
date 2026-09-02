@@ -247,6 +247,66 @@ class _AvatarPanel extends StatelessWidget {
             'would be a clipping and text-scaling problem with no announcement '
             'order at all.',
           ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('an avatar for a thing, not a person'),
+          Wrap(
+            spacing: geometry.spacingSm,
+            runSpacing: geometry.spacingSm,
+            children: <Widget>[
+              for (final (IuxAvatarTone tone, IconData glyph, String what) entry
+                  in const <(IuxAvatarTone, IconData, String)>[
+                (IuxAvatarTone.one, Icons.ac_unit, 'Winter'),
+                (IuxAvatarTone.two, Icons.eco_outlined, 'Spring'),
+                (IuxAvatarTone.three, Icons.park_outlined, 'Autumn'),
+                (IuxAvatarTone.four, Icons.wb_sunny_outlined, 'Summer'),
+              ])
+                CatalogSample(
+                  caption: '${entry.$3} · ${entry.$1.name}',
+                  child: CatalogMeasured(
+                    checksTarget: false,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        IuxAvatar.decorative(icon: entry.$2, tone: entry.$1),
+                        SizedBox(width: geometry.spacingXs),
+                        Text(entry.$3),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('both sizes, both constructors, toned'),
+          Wrap(
+            spacing: geometry.spacingSm,
+            children: <Widget>[
+              for (final IuxAvatarSize size in IuxAvatarSize.values)
+                CatalogSample(
+                  caption: size.name,
+                  child: IuxAvatar(
+                    name: 'Winter 2026',
+                    icon: Icons.ac_unit,
+                    tone: IuxAvatarTone.one,
+                    size: size,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogNote(
+            "IuxAvatarTone's members carry no meaning of their own — see "
+            'ADR-0014. Which tone means which season is this catalogue\'s '
+            'choice, not a mapping IUX ships.',
+          ),
+          const CatalogNote(
+            'Anti-pattern: four circles that differ only in tone. Turn the '
+            'contrast down, or imagine them under a colour-vision deficiency, '
+            'and the row says nothing — which is why the glyph changes with '
+            'the tone above, and why IuxAvatar.icon exists in the same change '
+            'as IuxAvatar.tone rather than as a follow-up.',
+            finding: true,
+          ),
         ],
       ),
     );
