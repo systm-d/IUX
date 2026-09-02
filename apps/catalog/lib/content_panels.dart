@@ -523,6 +523,48 @@ class _DenseRowPanelState extends State<_DenseRowPanel> {
             ),
           ),
           SizedBox(height: geometry.spacingXs),
+          const CatalogSubheading('a title with somewhere to break'),
+          CatalogSample(
+            caption: '360 px — the title keeps its line, and the detail beside '
+                'it takes what is left above its own minimum',
+            width: 360,
+            child: CatalogMeasured(
+              child: IuxListItem.dense(
+                title: 'Rainfall March',
+                details: const <IuxRowDetail>[IuxRowDetail(value: '68 mm')],
+                hint: 'Opens March',
+                disclosure: IuxListItemDisclosure.opensScreen,
+                onActivate: _nothing,
+              ),
+            ),
+          ),
+          SizedBox(height: geometry.spacingXs),
+          CatalogSample(
+            caption: '200 px — the same row with no room for that line: the '
+                'detail leaves first, and the title takes the whole row '
+                'rather than what is left of a share',
+            width: 200,
+            child: CatalogMeasured(
+              child: IuxListItem.dense(
+                title: 'Rainfall March',
+                details: const <IuxRowDetail>[IuxRowDetail(value: '68 mm')],
+                hint: 'Opens March',
+                disclosure: IuxListItemDisclosure.opensScreen,
+                onActivate: _nothing,
+              ),
+            ),
+          ),
+          const CatalogNote(
+            'Every other title on this panel is a single word, and a single '
+            'word cannot show what these two show: its longest word already '
+            'is its line. A title with a space in it is the only thing that '
+            'separates "the widest word fits" from "the title fits", and the '
+            'row keeps the line only when the second is true as well. The '
+            'supporting line is not held to it: prose gives way by wrapping, '
+            'and requiring its line too was measured to fold every dense row '
+            'carrying one, at any width a phone has.',
+          ),
+          SizedBox(height: geometry.spacingXs),
           const CatalogSubheading('one short detail, where a value would go'),
           // Not `const`: the assertion that a dense row has something to be
           // dense about reads `List.length`, which no constant expression may.
