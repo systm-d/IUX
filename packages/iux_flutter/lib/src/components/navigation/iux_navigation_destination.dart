@@ -146,7 +146,8 @@ final class IuxNavigationDestination {
           other.badge == badge;
 
   @override
-  int get hashCode => Object.hash(label, icon, selectedIcon, badge, badgePlacement);
+  int get hashCode =>
+      Object.hash(label, icon, selectedIcon, badge, badgePlacement);
 
   @override
   String toString() => 'IuxNavigationDestination($label)';
