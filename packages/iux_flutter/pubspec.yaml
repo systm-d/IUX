@@ -7,7 +7,7 @@ description: Human-centred foundations and UX patterns for Flutter applications.
 # the package changelog at 0.1.0-dev.1, the repository changelog at
 # 0.1.0-dev.11 — was visible for three missions before anyone reconciled it.
 # See CONTRIBUTING.md, "Versioning".
-version: 0.2.0-dev.4
+version: 0.2.0-dev.5
 
 repository: https://github.com/systm-d/IUX
 issue_tracker: https://github.com/systm-d/IUX/issues

@@ -3,7 +3,11 @@
 The version in `packages/iux_flutter/pubspec.yaml` decides; the heading below
 repeats it. See CONTRIBUTING.md, "Versioning".
 
-## 0.2.0-dev.4
+## 0.2.0-dev.5
+
+`0.2.0-dev.4` was pushed while this wave was still being measured on a device,
+and it carries everything below except the title's line. The two versions are
+the same wave; this one is the one to take.
 
 ### `IuxListItem.dense` — a row that carries several measurements, and folds
 
