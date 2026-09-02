@@ -5,6 +5,40 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### A dense list row folds rather than overflowing
+
+`ADR-0012`. A pilot application needs a ranking row carrying a rank badge, a
+year, a count, a named extreme, a total, a qualifying pill and a chevron. Read
+as a request, that asks `IuxListItem` for a fourth content slot. It is not a
+slot that is missing.
+
+The row is already at a **measured** budget: `IUX-LISTITEM-TRAILING-001` put a
+render object into this component for one trailing widget, after an
+`IuxListItem.tappable` with an `IuxStatusIndicator` came out 68 pixels over at
+200% text and 214 at 300% on a 320-pixel screen, with the title's box down to
+2.8 pixels at 150% and nothing thrown until 200%. A fourth block on that row
+moves the overflow earlier rather than removing it, and the earlier it moves,
+the more of the failure is silent.
+
+So the capability recorded is the **fold**: a row may carry a set of
+`IuxRowDetail` blocks, and when they stop fitting they all move below the row's
+text — never clipped, shrunk or truncated. All of them or none, so a row is one
+shape at every width; strings, an `IconData` and an `IuxStatus` rather than a
+widget, which keeps a control out of a row that is itself a control *and* lets
+the row measure the block instead of asking a stranger's subtree for a minimum
+that throws on any `LayoutBuilder`; and tappable only, because a row of five
+facts that does nothing is `IuxDataTable`. The fourth bound — that a detail is
+a fact compared down the column and not a sentence — is judgement, no test can
+hold it, and the record says so rather than letting a green suite imply
+otherwise.
+
+**Nothing is implemented.** `IuxListItem.dense` and `IuxRowDetail` do not
+exist. Neither does the measurement: every number in the record is quoted from
+`IUX-LISTITEM-TRAILING-001`, taken on a row carrying a control and no details,
+and what a row with two detail blocks does at 320 pixels and 200% is unmeasured
+and is not guessed at. `ADR-0011` recorded the same trap on the five-tab cap
+one record earlier.
+
 ### A tab may carry a glyph, for a quantity and never for a view
 
 `ADR-0011` opens a refusal `IuxTabs` had argued for in its own dartdoc: no

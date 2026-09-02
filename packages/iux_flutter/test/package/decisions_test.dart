@@ -31,6 +31,7 @@ const Map<int, String> _decisions = <int, String>{
   9: 'Action model as orthogonal dimensions',
   10: 'IUX draws charts',
   11: 'Icons on tabs, for a measured quantity',
+  12: 'A dense row folds rather than overflows',
 };
 
 void main() {
