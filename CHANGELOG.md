@@ -5,6 +5,57 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxTypographyTheme` — six roles, and none that named the group posed beneath it
+
+The pilot's card (`docs/maquettes/01-saisons.png`) coifs `SAISON EN COURS` and
+`AUTRES SAISONS` above the groups they name: small, letter-spaced capitals,
+quieter than a heading. None of the six existing roles produces that
+register — `IuxSectionHeader` renders its title in `title`, 22/28 — so
+`IuxTypographyRole` and `IuxTypographyTheme` gain a seventh, `overline`,
+following the same `copyWith`/`lerp`/equality pattern every other role
+already has. 14/20, w600, 0.8px of `letterSpacing`: at the ramp's own floor,
+like `label` and `supporting`, and separated from `label` only by weight and
+tracking, because size stopped being available the moment the floor was
+reached.
+
+**IUX writes no capitals.** The role supplies the weight and the spacing; the
+string is the caller's, unchanged. Forcing capitals here would mean calling
+`String.toUpperCase()` on whatever arrived, and Dart's `toUpperCase()` takes
+no locale — measured this round: `'i'.toUpperCase()` returns `'I'` rather
+than Turkish `'İ'`, and `'ß'.toUpperCase()` returns `'ß'` unchanged rather
+than the `SS` German capitalisation expects. Styling the rendering leaves the
+string exactly as the caller wrote it, which is also what a screen reader
+receives; transforming the string risks changing what gets announced.
+
+**A theme role, not a component variant.** The maquette's need is generic to
+any grouped list, not particular to `IuxSectionHeader`, and giving the
+component its own capitals-and-spacing flag would duplicate a typographic
+decision the ramp already owns everywhere else — this is why `IuxSectionHeader`
+is untouched by this change.
+
+**Measured this round, against `packages/flutter/lib/src/painting/text_style.dart`:**
+`TextStyle.getTextStyle` scales `fontSize` by the ambient `TextScaler` but
+copies `letterSpacing` through unscaled. `overline`'s 0.8px tracking is
+therefore fixed rather than proportional: 5.7% of the em at 100% text, 2.9%
+at 200%. The tracking tightens as text grows rather than widening, which is
+the safe direction for a reader who asked for larger text specifically
+because small text is hard to read.
+
+Seven tests in `packages/iux_flutter/test/themes/iux_theme_test.dart` (`the
+overline role`), each confirmed to fail under a mutation of the real
+implementation and restored: the switch returning the wrong style, the size
+dropping below the 14px floor, the tracking being dropped, `copyWith`
+discarding the new value, `lerp` not interpolating it, `==`/`hashCode`
+ignoring it, and `toTextTheme` claiming a Material slot with it.
+`component_standard_test.dart`'s dead-token check (§19) scopes only classes
+literally named `Iux*Tokens`; `IuxTypographyTheme` is a `ThemeExtension` and
+does not match, so that particular test does not fire here — the role still
+gets a real, non-decorative usage in the catalog's "an overline over the
+group it names" sample (`apps/catalog/lib/theme_panels.dart`), verified on
+device across light/standard, light/high-contrast and dark/high-contrast at
+up to 300% text. See `docs/foundations/typography.md`, "The overline, and
+what IUX refuses to do with it".
+
 ### `IuxSparkline` — the miniature curve could not say which way it leaned, or where it stopped
 
 The pilot's card (`docs/maquettes/01-saisons.png`) draws a sparkline of

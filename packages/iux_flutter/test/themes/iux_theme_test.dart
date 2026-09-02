@@ -304,6 +304,99 @@ void main() {
     });
   });
 
+  group('the overline role', () {
+    // `resolve` is a factory that computes its result (it calls a local
+    // `style` closure per role), so it cannot be `const` — unlike
+    // `IuxThemeConfiguration()`, which has no work to do. `final` is the
+    // correct binding here, not a relaxation of the brief's intent.
+    final IuxTypographyTheme resolved =
+        IuxTypographyTheme.resolve(const IuxThemeConfiguration());
+
+    test('every role has a style and forRole answers for all of them', () {
+      // The enum and the extension have to stay in step: a role with no style
+      // is a role whose `forRole` throws at the first call site that uses it.
+      for (final IuxTypographyRole role in IuxTypographyRole.values) {
+        expect(resolved.forRole(role), isNotNull);
+      }
+      expect(resolved.forRole(IuxTypographyRole.overline), resolved.overline);
+    });
+
+    test('it is no smaller than the floor the ramp holds everywhere else', () {
+      // "No size is below 14 logical pixels" is the ramp's own rule, and an
+      // overline is exactly where a design system is tempted to break it —
+      // 11 pt small caps look right and are unreadable at arm's length.
+      for (final IuxTypographyRole role in IuxTypographyRole.values) {
+        expect(resolved.forRole(role).fontSize, greaterThanOrEqualTo(14));
+      }
+    });
+
+    test('it is spaced, which is what makes it an overline', () {
+      // The register is carried by letter spacing and weight, not by size:
+      // a 14-pixel label and a 14-pixel overline have to be told apart, and
+      // the only other thing they could differ by is colour.
+      expect(resolved.overline.letterSpacing, isNotNull);
+      expect(resolved.overline.letterSpacing, greaterThan(0));
+      expect(
+          resolved.overline.fontWeight, isNot(resolved.supporting.fontWeight));
+      expect(resolved.overline, isNot(resolved.label));
+    });
+
+    test('copyWith replaces it and leaves the others alone', () {
+      const TextStyle other = TextStyle(fontSize: 99);
+      final IuxTypographyTheme copy = resolved.copyWith(overline: other);
+      expect(copy.overline, other);
+      expect(copy.label, resolved.label);
+      expect(copy.supporting, resolved.supporting);
+    });
+
+    test('lerp interpolates it like every other role', () {
+      final IuxTypographyTheme other =
+          resolved.copyWith(overline: const TextStyle(fontSize: 30));
+      // `lerp`'s declared return type is already `IuxTypographyTheme` — a
+      // covariant narrowing of `ThemeExtension<IuxTypographyTheme>.lerp` —
+      // so no cast is needed, and `flutter analyze` flags one that is.
+      final IuxTypographyTheme half = resolved.lerp(other, 0.5);
+      expect(
+        half.overline.fontSize,
+        closeTo((resolved.overline.fontSize! + 30) / 2, 1e-9),
+      );
+    });
+
+    test('equality and hashCode see it', () {
+      final IuxTypographyTheme other =
+          resolved.copyWith(overline: const TextStyle(fontSize: 30));
+      expect(resolved == other, isFalse);
+      expect(resolved.hashCode == other.hashCode, isFalse);
+    });
+
+    test('it claims no Material slot', () {
+      // Material 3 dropped `overline`, and every remaining slot in `TextTheme`
+      // is already answered by another role. Claiming one twice would make
+      // `Theme.of(context).textTheme` disagree with `IuxTypographyTheme` about
+      // what that slot means.
+      final TextTheme material = resolved.toTextTheme();
+      for (final TextStyle? style in <TextStyle?>[
+        material.displayLarge,
+        material.displayMedium,
+        material.displaySmall,
+        material.headlineLarge,
+        material.headlineMedium,
+        material.headlineSmall,
+        material.titleLarge,
+        material.titleMedium,
+        material.titleSmall,
+        material.bodyLarge,
+        material.bodyMedium,
+        material.bodySmall,
+        material.labelLarge,
+        material.labelMedium,
+        material.labelSmall,
+      ]) {
+        expect(style, isNot(resolved.overline));
+      }
+    });
+  });
+
   group('customisation', () {
     test('semantic colours can be replaced without touching components', () {
       const IuxSemanticColors branded = IuxSemanticColors(

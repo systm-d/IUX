@@ -105,6 +105,19 @@ enum IuxTypographyRole {
 
   /// Secondary text that qualifies something else, such as help or an error.
   supporting,
+
+  /// The short, spaced line that names the group underneath it.
+  ///
+  /// "SAISON EN COURS" over a card, "SETTINGS" over a list. It identifies what
+  /// follows rather than titling it, which is why it is quieter than
+  /// [headline] and shaped differently from [label] — the two would otherwise
+  /// be one size apart and nothing else.
+  ///
+  /// **IUX does not uppercase it.** The capitals belong to the string the
+  /// caller passes: `toUpperCase()` without a locale is wrong in Turkish, in
+  /// Greek and in German, and it hands a screen reader a spelled-out string
+  /// where the original was a word.
+  overline,
 }
 
 /// Preference for non-essential interface movement.

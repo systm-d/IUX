@@ -3,6 +3,29 @@ import 'package:flutter/material.dart';
 import '../../foundations/iux_foundations.dart';
 import '../iux_theme_configuration.dart';
 
+/// How far apart an overline's letters are set, in logical pixels.
+///
+/// A choice rather than a measurement, and it is what carries the register:
+/// at the same size and one weight apart, spacing is the difference between a
+/// control label and a line that names a group. Small enough that a long
+/// German compound does not stretch past the card it sits over.
+///
+/// Fixed in logical pixels rather than expressed as a fraction of the size,
+/// which matters once the user's text scale changes: Flutter's `TextScaler`
+/// multiplies `fontSize` at paint time (`TextStyle.getTextStyle`) but passes
+/// `letterSpacing` through untouched, so this value stays 0.8px whether the
+/// overline is painted at 14px or, at 200% text, at 28px. Relative to the
+/// glyphs the tracking therefore *tightens* as text grows — from 5.7% of the
+/// em down to 2.9% — which is the safe direction: tracking that widened
+/// instead would add gaps between already-larger letters, which is the
+/// opposite of what a user asking for larger text needs. A value expressed in
+/// em and recomputed from the ambient scale was considered and rejected for
+/// the same reason `IuxTypographyTheme` never reads `MediaQuery` at all: the
+/// theme resolves once, outside any `BuildContext`, and re-deriving it at
+/// paint time would belong to the component painting the text, not to the
+/// theme supplying its style.
+const double _overlineTracking = 0.8;
+
 /// Text styles for each semantic typography role.
 ///
 /// Roles describe what a piece of text *is*, not how large it should be. A
@@ -26,6 +49,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
     required this.body,
     required this.label,
     required this.supporting,
+    required this.overline,
   });
 
   /// Resolves the typography for a configuration.
@@ -33,10 +57,17 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
     final String? family = configuration.typography.fontFamily;
     final List<String>? fallback = configuration.typography.fontFamilyFallback;
 
-    TextStyle style(double size, double height, FontWeight weight) => TextStyle(
+    TextStyle style(
+      double size,
+      double height,
+      FontWeight weight, {
+      double? letterSpacing,
+    }) =>
+        TextStyle(
           fontSize: size,
           height: height / size,
           fontWeight: weight,
+          letterSpacing: letterSpacing,
           fontFamily: family,
           fontFamilyFallback: fallback,
         );
@@ -48,6 +79,11 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
       body: style(16, 24, FontWeight.w400),
       label: style(14, 20, FontWeight.w500),
       supporting: style(14, 20, FontWeight.w400),
+      // At the ramp's floor, like `label` and `supporting`: an overline is
+      // read once per group, and shrinking it below 14 is exactly the trade a
+      // design system makes when it decides small caps look tidy.
+      overline:
+          style(14, 20, FontWeight.w600, letterSpacing: _overlineTracking),
     );
   }
 
@@ -69,6 +105,12 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
   /// Help text, captions and secondary annotations.
   final TextStyle supporting;
 
+  /// The short, spaced line that names the group underneath it.
+  ///
+  /// Drawn in the capitals the caller wrote. See [IuxTypographyRole.overline]
+  /// for why IUX does not produce them itself.
+  final TextStyle overline;
+
   /// Returns the style for a role.
   TextStyle forRole(IuxTypographyRole role) => switch (role) {
         IuxTypographyRole.display => display,
@@ -77,6 +119,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
         IuxTypographyRole.body => body,
         IuxTypographyRole.label => label,
         IuxTypographyRole.supporting => supporting,
+        IuxTypographyRole.overline => overline,
       };
 
   /// Resolves the typography installed on the ambient theme.
@@ -88,6 +131,12 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
       ));
 
   /// Builds the Material text theme corresponding to these roles.
+  ///
+  /// [overline] has no slot here, deliberately. Material 3 removed its own
+  /// `overline` and every remaining slot is already answered by another role;
+  /// filling one twice would leave `Theme.of(context).textTheme` and
+  /// `IuxTypographyTheme` disagreeing about what that slot means. A component
+  /// that needs the role asks the extension for it.
   TextTheme toTextTheme() => TextTheme(
         displayLarge: display,
         displayMedium: display,
@@ -114,6 +163,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
     TextStyle? body,
     TextStyle? label,
     TextStyle? supporting,
+    TextStyle? overline,
   }) =>
       IuxTypographyTheme(
         display: display ?? this.display,
@@ -122,6 +172,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
         body: body ?? this.body,
         label: label ?? this.label,
         supporting: supporting ?? this.supporting,
+        overline: overline ?? this.overline,
       );
 
   @override
@@ -137,6 +188,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
       body: TextStyle.lerp(body, other.body, t)!,
       label: TextStyle.lerp(label, other.label, t)!,
       supporting: TextStyle.lerp(supporting, other.supporting, t)!,
+      overline: TextStyle.lerp(overline, other.overline, t)!,
     );
   }
 
@@ -149,9 +201,17 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
           other.title == title &&
           other.body == body &&
           other.label == label &&
-          other.supporting == supporting;
+          other.supporting == supporting &&
+          other.overline == overline;
 
   @override
-  int get hashCode =>
-      Object.hash(display, headline, title, body, label, supporting);
+  int get hashCode => Object.hash(
+        display,
+        headline,
+        title,
+        body,
+        label,
+        supporting,
+        overline,
+      );
 }

@@ -101,6 +101,34 @@ class ThemePanels extends StatelessWidget {
                         .copyWith(color: colors.content.primary),
                   ),
                 ),
+              SizedBox(height: geometry.spacingSm),
+              const CatalogSubheading('an overline over the group it names'),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'CURRENT SEASON',
+                    style:
+                        type.overline.copyWith(color: colors.content.secondary),
+                  ),
+                  Text(
+                    'Summer 2026',
+                    style: type.title.copyWith(color: colors.content.primary),
+                  ),
+                ],
+              ),
+              SizedBox(height: geometry.spacingSm),
+              const CatalogNote(
+                'IUX writes no capitals. The string above is capitalised by the '
+                'caller, because toUpperCase() without a locale is wrong in '
+                'Turkish and in Greek, and it hands a screen reader a spelled-out '
+                'string where the original was a word.',
+              ),
+              const CatalogNote(
+                'Anti-pattern: an overline used as a heading. It identifies the '
+                'group; it does not title it, and a screen reader is not told it '
+                'is a header unless the caller says so with IuxSemantics.header.',
+              ),
             ],
           ),
         ),
