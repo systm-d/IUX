@@ -475,8 +475,8 @@ class _DenseRowPanelState extends State<_DenseRowPanel> {
     return CatalogPanel(
       title: 'A row carrying several measurements',
       description: 'The details keep the line while the row text and the '
-          'details can both be laid out without a word being broken, and all '
-          'of them move under the text when they cannot. Narrow the sample '
+          'details can both be laid out with the title whole and no word '
+          'broken, and all of them move under the text when they cannot. Narrow the sample '
           'below, or raise the text scale, and watch the fold — it is all or '
           'nothing, because a row in steps gives the reader no way to tell '
           'which row the block underneath belongs to.',
@@ -580,8 +580,8 @@ class _DenseRowPanelState extends State<_DenseRowPanel> {
           ),
           const CatalogNote(
             'The fold is measured, not guessed. It asks whether the row text '
-            'and the details can both be laid out without a word being '
-            'broken, from the minimum intrinsic width of content the row '
+            'and the details can both be laid out with the title whole and no '
+            'word broken, from the intrinsic widths of content the row '
             'built itself — which is why a detail carries strings and an icon '
             'and never a widget: getMinIntrinsicWidth throws on any subtree '
             'holding a LayoutBuilder, and IuxTooltip and IuxAppBar both hold '

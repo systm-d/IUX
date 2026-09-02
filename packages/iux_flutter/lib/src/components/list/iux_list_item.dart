@@ -1791,13 +1791,19 @@ class _IuxRowDetailsArrangement
 /// it would have left the 100% case broken* — arriving from the other side.
 ///
 /// So the question asked here is the one the incident's rule is *about*: can
-/// the row's text and the details both be laid out on this line without a word
-/// being broken. That is `textMin + gap + detailMin <= inner`, it is a
-/// measurement of the content the caller actually passed, and it is the
-/// weakest condition under which nothing on the line breaks inside itself.
-/// The share stays, one job smaller: it is the floor the details are never
-/// drawn below while they keep the line, so a row carrying one short detail
-/// puts it exactly where a plain row puts its trailing value.
+/// the row's text and the details both be laid out on this line with the title
+/// whole and no word broken. That is `textMin + gap + detailMin <= inner`, a
+/// measurement of the content the caller actually passed. The share stays, one
+/// job smaller: it is the floor the details are never drawn below while they
+/// keep the line, so a row carrying one short detail puts it exactly where a
+/// plain row puts its trailing value.
+///
+/// `textMin` is not what a `Text` reports. A `Text` reports its longest word,
+/// and a fold decided from that number concludes that the row fits at a width
+/// where the title is already in pieces — see [_TitleKeepsItsLine], which is
+/// where that number is corrected and where the measurement is written down.
+/// The same number bounds the details below, so both readings are corrected at
+/// once and the layout pass and the intrinsic pass cannot disagree about it.
 class _RenderIuxRowDetails extends RenderBox
     with
         SlottedContainerRenderObjectMixin<_IuxRowDetailsSlot, RenderBox>,
@@ -1939,8 +1945,9 @@ class _RenderIuxRowDetails extends RenderBox
       final double shared = math.max(0, line - _gap);
       // Never below the share a trailing value would have had, never below
       // what the details need, and never so wide that the text is left with
-      // less than it needs. The three cannot conflict: the branch is only
-      // taken when both minima fit.
+      // less than it needs — which for the title means the width at which it
+      // is whole, [_TitleKeepsItsLine]. The three cannot conflict: the branch
+      // is only taken when both minima fit.
       final double detailWidth = clampDouble(
           shared * _share, detailMin, math.max(0, shared - textMin));
       final double textWidth = math.max(0, shared - detailWidth);

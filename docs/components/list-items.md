@@ -284,12 +284,11 @@ px is short of 180 at every scale, so it would have left 100% broken* — arrivi
 from the other side.
 
 So the question asked is the one that rule is *about*: **can the row's text and
-the details both be laid out on this line without a word being broken.** That is
-`textMin + gap + detailMin <= line`, measured from the content the caller
-actually passed, and it is the weakest condition under which nothing on the line
-breaks inside itself. The share is kept, one job smaller: it is the floor the
-details are never drawn below while they keep the line, so a row carrying one
-short detail puts it exactly where a plain row puts its trailing value.
+the details both be laid out on this line with the title whole and no word
+broken.** That is `textMin + gap + detailMin <= line`, measured from the content
+the caller actually passed. The share is kept, one job smaller: it is the floor
+the details are never drawn below while they keep the line, so a row carrying
+one short detail puts it exactly where a plain row puts its trailing value.
 
 Both minima are asked of a subtree the row **built itself**, and that is why a
 detail carries strings, an `IconData` and an `IuxValue` rather than a widget:
@@ -298,6 +297,47 @@ detail carries strings, an `IconData` and an `IuxValue` rather than a widget:
 for its minimum could crash on a legal child. The value type buys a tighter
 decision than a widget slot could offer, which is a gain and not only a
 restriction.
+
+### The title is part of that question, and the supporting line is not
+
+`textMin` above is not what a `Text` reports. A `Text` reports the width of its
+**longest word**, because that is the narrowest box it can paint in without
+clipping, and a row that decided the fold from that number concluded that it
+fits at a width where its title was already in pieces — and then drew in that
+width. Measured on a Pixel 7 at 100% in the test font, on three rows carrying
+the same two details and differing in nothing but the length of their longest
+word. The line offers 335.4 px, the details need 235.0, and 88.4 px are left
+for the text:
+
+| Title | Longest word | Its line | What the row did |
+| --- | --- | --- | --- |
+| `September 2025` | 146.3 | 227.5 | folded, title whole |
+| `March 2026` | 81.3 | 162.5 | kept the line, 88.4 px offered for 162.5 |
+| `July 2025` | 65.0 | 146.3 | kept the line, 88.4 px offered for 146.3 |
+
+Three rows, three renderings, and nothing between them but a space in a string.
+The same number is read a second time as the bound on what the details may take
+while they keep the line, so the defect had two halves: with one short detail
+needing 28.5 px and a title whose line needs 227.5, the row is right to keep the
+line, and then hands the details a third of the shared width — 107.8 — and the
+text *what is left*, 215.6, which is 11.9 short. One block's minimum was a floor
+and the other's was a target.
+
+**So on a dense row the title reports the width at which it is whole**, and both
+readings close at once. The three rows above now fold, their titles whole, and
+they are 172.0 px tall against the 196.0 the two broken ones were: on this
+composition the correction costs no height at all and recovers 24 px on the rows
+that were breaking. Where the line does hold, the short detail keeps 95.9 px,
+still 67.4 above its own minimum.
+
+**The supporting line is not held to the same rule**, and that is a judgement
+rather than an oversight. A subtitle is prose and gives way by wrapping, which
+is what a value does; the title is what a reader scans a list by. Requiring the
+whole text block on one line was implemented and measured: it moves this row's
+fold threshold from **440.00 px of screen to 603.00**, past every phone, so the
+unfolded arrangement would be unreachable for any dense row carrying a
+supporting line — and three of this row's measured guarantees fail under it.
+The threshold below is unchanged by the correction, at 440.00.
 
 ### Where it folds, measured
 
@@ -739,6 +779,13 @@ padding; rows go in `IuxListGroup` or in a `ListView`.
 - **The fold is all or nothing, so a row whose first detail is short and whose
   second is long folds both. That is deliberate, and it costs a line on a row
   that would have half fitted.**
+- **A title with a space in it folds its row sooner than a single word does**,
+  because the row asks for the title's whole line and not for its widest word.
+  Measured on a Pixel 7 at 100% with two details: `2022` keeps the line, and
+  `March 2026`, `July 2025` and `September 2025` all fold. That is the intended
+  trade — a folded row is uniform and a title in pieces is not — and it is paid
+  for in height on rows whose title is long. It is not paid on the pilot's own
+  row, whose title is a year: its threshold is unchanged at 440.0 px.
 - **The fold is necessary and is not sufficient at every composition.**
   `ADR-0012` wrote that down before it could be measured; this is the
   measurement. Two details on a Pixel 7 at 300%: the row is 1876 px tall and
@@ -853,6 +900,13 @@ loses content at a text size the user chose, which is SC 1.4.4.
 below its minimum intrinsic width breaks inside a word, which loses content at a
 text size the user chose (SC 1.4.4). **Context dependent** for what the details
 are given once they keep the line, and for the share used as their floor.
+
+**Context dependent**, and named as such, for requiring the *title's* whole line
+in that same condition. A wrapped title loses no content and fails no success
+criterion; three rows in a list rendering three different ways because their
+longest words differ is a legibility judgement, taken on a device by the
+application that hit it, and it is what folds a row that a word-based rule would
+have kept on the line. The supporting line is deliberately outside it.
 
 **Hypothesis**, and the honest label: that a sibling trailing control on a
 tappable row is understood by users as two targets rather than one. The geometry

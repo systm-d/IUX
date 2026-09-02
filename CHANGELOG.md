@@ -62,6 +62,30 @@ chevron has been moved and not helped. Measured on this row at 300%: 155.4 px
 between the two against 371.4 across the row, and at the narrower of the two
 the qualifier's pill overflows by 23 px inside itself.
 
+**The row asks for its title's line, not for its widest word, and this was
+found on a device before the wave shipped.** `Text` reports its **longest
+word** as its minimum intrinsic width, and the fold above was decided from
+that number and then bounded the details with it a second time. The band
+between the two is a width at which the row concludes that it fits while the
+title is already in pieces. Measured on a Pixel 7 at 100% in the test font, on
+three rows carrying the same two details and differing in nothing but their
+longest word: the line offers 335.4 px, the details need 235.0, and 88.4 are
+left for the text, so `September 2025` (longest word 146.3) folds with its
+title whole while `March 2026` (81.3) and `July 2025` (65.0) keep the line and
+are offered 88.4 px for the 162.5 and 146.3 their titles need. Three rows,
+three renderings, and nothing between them but a space in a string. On a dense
+row the title now reports the width at which it is whole, which closes both
+readings at once: the three fold, their titles whole, and they are 172.0 px
+tall against the 196.0 the two broken ones were. Where the line does hold, a
+short detail beside a long title keeps 95.9 px, still 67.4 above its own
+minimum. **The supporting line is deliberately not held to the same rule** —
+prose gives way by wrapping, and requiring the whole text block on one line
+was implemented and measured to move this row's fold threshold from 440.00 px
+of screen to 603.00, past every phone. The documented threshold is unchanged
+by the correction. Fifteen green tests and a catalogue panel had not seen any
+of this because every dense title they pass is a single word, and a single
+word's longest word is its line.
+
 **The fold is necessary and it is not sufficient at every composition, and now
 there is a number for it.** `ADR-0012` wrote that risk down before it could be
 measured. Two details on a Pixel 7 at 300%: nothing overflows. Three, with the
