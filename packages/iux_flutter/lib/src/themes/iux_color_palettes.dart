@@ -187,35 +187,50 @@ abstract final class IuxColorPalettes {
       ),
     ),
     // A reading is compared, never judged, so these roles are not the feedback
-    // roles under another name — ADR-0013. Three sides of a reference, the
-    // middle one neutral, and the two ends taken from the ramps whose hues sit
-    // furthest apart in this palette. The container is the profile's subtle
-    // surface in all four mappings rather than a tint of the direction's own
-    // hue: a value pill repeats down a column of rows, and thirty tinted
-    // panels is a screen of alarms.
+    // roles under another name — ADR-0013. Four accents with no meaning
+    // attached and a resting fifth, rather than the two ends of an axis:
+    // ADR-0015 removed the assumption that one side of a reference always
+    // takes one hue, because rain above its normal is *wetter* and blue while
+    // rain below it is *drier* and orange, and no arithmetic predicts that.
+    // The application says which accent means what, in the word `IuxValue`
+    // will not let it omit.
     //
-    // Measured on this mapping: content 6.35:1, 7.12:1 and 5.88:1 on
-    // `neutral5`; outlines 6.81:1, 7.63:1 and 6.30:1 on the page. The two
-    // directions stand 30.4 apart in Oklab x100, and 22.7 apart at the worst
-    // of the three simulated dichromacies.
+    // The capsule is a tint of the accent's own hue here, not the neutral
+    // subtle surface ADR-0013 chose. Its reason for the neutral — thirty
+    // tinted panels is a screen of alarms — was answered instead by removing
+    // the outline and the arrow: what reads as an alarm is a bordered capsule
+    // with a glyph in it, not a pale wash behind four characters.
+    //
+    // Measured this round, with `test/support/contrast.dart`, in the order
+    // neutral, one, two, three, four. Content on its own tint: 7.12:1,
+    // 5.58:1, 5.21:1, 5.20:1, 5.39:1. The same colours on the page, which is
+    // where the word under the capsule is painted: 7.63:1, 6.81:1, 6.30:1,
+    // 5.94:1, 6.31:1. Both floors are 4.5:1 — one colour, two grounds, two
+    // measurements.
+    //
+    // The tints themselves stand 1.07 to 1.22 from the page. That is a wash
+    // and not an object, which is the intent: a capsule that reached 3:1
+    // would be a bordered box in everything but name.
     comparison: IuxComparisonColorSet(
-      above: IuxComparisonRoleColors(
-        content: IuxPrimitiveColors.critical40,
-        surface: IuxPrimitiveColors.neutral5,
-        border: IuxPrimitiveColors.critical40,
-        mark: IuxPrimitiveColors.critical40,
-      ),
-      at: IuxComparisonRoleColors(
+      neutral: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.neutral60,
         surface: IuxPrimitiveColors.neutral5,
-        border: IuxPrimitiveColors.neutral60,
-        mark: IuxPrimitiveColors.neutral60,
       ),
-      below: IuxComparisonRoleColors(
+      one: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.critical40,
+        surface: IuxPrimitiveColors.critical90,
+      ),
+      two: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.accent40,
-        surface: IuxPrimitiveColors.neutral5,
-        border: IuxPrimitiveColors.accent40,
-        mark: IuxPrimitiveColors.accent40,
+        surface: IuxPrimitiveColors.accent90,
+      ),
+      three: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.caution40,
+        surface: IuxPrimitiveColors.caution90,
+      ),
+      four: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.positive40,
+        surface: IuxPrimitiveColors.positive90,
       ),
     ),
     state: IuxStateColors(
@@ -368,43 +383,43 @@ abstract final class IuxColorPalettes {
       ),
     ),
     // A reading is compared, never judged, so these roles are not the feedback
-    // roles under another name — ADR-0013. Three sides of a reference, the
-    // middle one neutral, and the two ends taken from the ramps whose hues sit
-    // furthest apart in this palette. The container is the profile's subtle
-    // surface in all four mappings rather than a tint of the direction's own
-    // hue: a value pill repeats down a column of rows, and thirty tinted
-    // panels is a screen of alarms.
+    // roles under another name — ADR-0013. Four accents with no meaning
+    // attached and a resting fifth, rather than the two ends of an axis:
+    // ADR-0015 removed the assumption that one side of a reference always
+    // takes one hue, because rain above its normal is *wetter* and blue while
+    // rain below it is *drier* and orange, and no arithmetic predicts that.
+    // The application says which accent means what, in the word `IuxValue`
+    // will not let it omit.
     //
-    // The two directions take the same rung the feedback content roles take in
-    // this mapping, so on a dark ground a value pill and an error panel are
-    // the same red. That is recorded rather than avoided: paling the pill to
-    // the next rung to make the two roles numerically distinct was measured
-    // and cost the separation between *the two directions*, which is the
-    // separation a user actually has to make — 17.2 down to 9.9 in Oklab
-    // x100, and 11.8 down to 6.5 under protanopia. The mark and the geometry
-    // are what tell a reading from an alarm here, which is what tells
-    // everything in this library apart from everything else.
+    // No tint on a dark ground, and this is inherited rather than chosen: the
+    // whole palette puts every hue on the same raised neutral here, separated
+    // by content alone, because a dark tint of a hue is a colour nobody has
+    // measured. The capsule is therefore the raised surface and the accent is
+    // the reading, which is what `feedback` already does one block above.
     //
-    // Measured: content 6.96:1, 5.61:1 and 7.59:1 on `neutral80`; outlines
-    // 8.22:1, 6.62:1 and 8.95:1 on the page.
+    // Measured this round, in the order neutral, one, two, three, four.
+    // Content on the capsule: 5.61:1, 6.96:1, 7.59:1, 8.31:1, 7.58:1. On the
+    // page: 6.62:1, 8.22:1, 8.95:1, 9.81:1, 8.95:1.
     comparison: IuxComparisonColorSet(
-      above: IuxComparisonRoleColors(
-        content: IuxPrimitiveColors.critical70,
-        surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.critical70,
-        mark: IuxPrimitiveColors.critical70,
-      ),
-      at: IuxComparisonRoleColors(
+      neutral: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.neutral40,
         surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.neutral40,
-        mark: IuxPrimitiveColors.neutral40,
       ),
-      below: IuxComparisonRoleColors(
+      one: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.critical70,
+        surface: IuxPrimitiveColors.neutral80,
+      ),
+      two: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.accent70,
         surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.accent70,
-        mark: IuxPrimitiveColors.accent70,
+      ),
+      three: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.caution70,
+        surface: IuxPrimitiveColors.neutral80,
+      ),
+      four: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.positive70,
+        surface: IuxPrimitiveColors.neutral80,
       ),
     ),
     state: IuxStateColors(
@@ -557,38 +572,42 @@ abstract final class IuxColorPalettes {
       ),
     ),
     // A reading is compared, never judged, so these roles are not the feedback
-    // roles under another name — ADR-0013. Three sides of a reference, the
-    // middle one neutral, and the two ends taken from the ramps whose hues sit
-    // furthest apart in this palette. The container is the profile's subtle
-    // surface in all four mappings rather than a tint of the direction's own
-    // hue: a value pill repeats down a column of rows, and thirty tinted
-    // panels is a screen of alarms.
+    // roles under another name — ADR-0013. Four accents with no meaning
+    // attached and a resting fifth, rather than the two ends of an axis:
+    // ADR-0015 removed the assumption that one side of a reference always
+    // takes one hue, because rain above its normal is *wetter* and blue while
+    // rain below it is *drier* and orange, and no arithmetic predicts that.
+    // The application says which accent means what, in the word `IuxValue`
+    // will not let it omit.
     //
-    // Measured: content 15.00:1, 12.72:1 and 15.14:1 on `neutral10`; outlines
-    // 17.43:1, 14.78:1 and 17.58:1 on the page. The two directions stand 13.2
-    // apart in Oklab x100 and 9.4 at the worst dichromacy — less than the
-    // standard profile, because contrast on a light ground is bought by
-    // darkening and a darkened hue has less chroma to spend. Increasing
-    // contrast trades separability for legibility here; the mark does not
-    // change.
+    // Tinted like the light standard mapping, and darkened rather than
+    // outlined: high contrast is bought here by taking the content to the
+    // dark end of each ramp, which is what the feedback roles one block above
+    // already do.
+    //
+    // Measured this round, in the order neutral, one, two, three, four.
+    // Content on its own tint: 12.72:1, 14.28:1, 14.53:1, 15.29:1, 14.70:1.
+    // On the page: 14.78:1, 17.43:1, 17.58:1, 17.46:1, 17.21:1.
     comparison: IuxComparisonColorSet(
-      above: IuxComparisonRoleColors(
-        content: IuxPrimitiveColors.critical10,
-        surface: IuxPrimitiveColors.neutral10,
-        border: IuxPrimitiveColors.critical10,
-        mark: IuxPrimitiveColors.critical10,
-      ),
-      at: IuxComparisonRoleColors(
+      neutral: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.neutral80,
         surface: IuxPrimitiveColors.neutral10,
-        border: IuxPrimitiveColors.neutral80,
-        mark: IuxPrimitiveColors.neutral80,
       ),
-      below: IuxComparisonRoleColors(
+      one: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.critical10,
+        surface: IuxPrimitiveColors.critical90,
+      ),
+      two: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.accent10,
-        surface: IuxPrimitiveColors.neutral10,
-        border: IuxPrimitiveColors.accent10,
-        mark: IuxPrimitiveColors.accent10,
+        surface: IuxPrimitiveColors.accent90,
+      ),
+      three: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.caution10,
+        surface: IuxPrimitiveColors.caution90,
+      ),
+      four: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.positive10,
+        surface: IuxPrimitiveColors.positive90,
       ),
     ),
     state: IuxStateColors(
@@ -735,38 +754,37 @@ abstract final class IuxColorPalettes {
       ),
     ),
     // A reading is compared, never judged, so these roles are not the feedback
-    // roles under another name — ADR-0013. Three sides of a reference, the
-    // middle one neutral, and the two ends taken from the ramps whose hues sit
-    // furthest apart in this palette. The container is the profile's subtle
-    // surface in all four mappings rather than a tint of the direction's own
-    // hue: a value pill repeats down a column of rows, and thirty tinted
-    // panels is a screen of alarms.
+    // roles under another name — ADR-0013. Four accents with no meaning
+    // attached and a resting fifth, rather than the two ends of an axis:
+    // ADR-0015 removed the assumption that one side of a reference always
+    // takes one hue, because rain above its normal is *wetter* and blue while
+    // rain below it is *drier* and orange, and no arithmetic predicts that.
+    // The application says which accent means what, in the word `IuxValue`
+    // will not let it omit.
     //
-    // Measured: content 9.78:1, 11.16:1 and 10.03:1 on `neutral80`; outlines
-    // 12.51:1, 14.27:1 and 12.83:1 on the page. This is the mapping where the
-    // two directions sit closest — 9.9 in Oklab x100, and 6.5 under
-    // protanopia — because contrast on a dark ground is bought by lightening
-    // and a lightened hue runs out of chroma. It is the same trade the
-    // feedback roles already make in this mapping, and it is the reason the
-    // mark is not optional.
+    // Measured this round, in the order neutral, one, two, three, four.
+    // Content on the capsule: 11.16:1, 9.78:1, 10.03:1, 10.68:1, 10.31:1. On
+    // the page: 14.27:1, 12.51:1, 12.83:1, 13.65:1, 13.19:1.
     comparison: IuxComparisonColorSet(
-      above: IuxComparisonRoleColors(
-        content: IuxPrimitiveColors.critical80,
-        surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.critical80,
-        mark: IuxPrimitiveColors.critical80,
-      ),
-      at: IuxComparisonRoleColors(
+      neutral: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.neutral20,
         surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.neutral20,
-        mark: IuxPrimitiveColors.neutral20,
       ),
-      below: IuxComparisonRoleColors(
+      one: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.critical80,
+        surface: IuxPrimitiveColors.neutral80,
+      ),
+      two: IuxComparisonRoleColors(
         content: IuxPrimitiveColors.accent80,
         surface: IuxPrimitiveColors.neutral80,
-        border: IuxPrimitiveColors.accent80,
-        mark: IuxPrimitiveColors.accent80,
+      ),
+      three: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.caution80,
+        surface: IuxPrimitiveColors.neutral80,
+      ),
+      four: IuxComparisonRoleColors(
+        content: IuxPrimitiveColors.positive80,
+        surface: IuxPrimitiveColors.neutral80,
       ),
     ),
     state: IuxStateColors(

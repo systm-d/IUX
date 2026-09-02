@@ -2113,7 +2113,9 @@ void main() {
         // ship "this is a malfunction" as a colour.
         qualifier: IuxValue.below(
           'Very dry',
+          meaning: 'drier',
           label: 'among the driest years on record',
+          accent: IuxValueAccent.three,
         ),
       ),
     ];
@@ -2136,10 +2138,10 @@ void main() {
 
     /// The width at which this row stops folding at 100%, measured.
     ///
-    /// 440.0 px of screen. 442 keeps the line and 438 does not, and the two
+    /// 422.0 px of screen. 424 keeps the line and 420 does not, and the two
     /// are pinned below so that moving the rule moves this pair.
-    const Size beside = Size(442, 1400);
-    const Size under = Size(438, 1400);
+    const Size beside = Size(424, 1400);
+    const Size under = Size(420, 1400);
 
     /// Whether the details have left the line.
     ///
@@ -2247,17 +2249,21 @@ void main() {
 
     testWidgets('the fold has a measured threshold, not a feeling',
         (WidgetTester tester) async {
-      // 440.0 px of screen width at 100%, on this row, in this font — the
+      // 422.0 px of screen width at 100%, on this row, in this font — the
       // pair below is the measurement, and the width in the documentation is
       // read off it. The rule it pins is "the text and the details can both be
-      // laid out without a word being broken": 65 px for the text, 12 for the
-      // gap and 235 for the two blocks, against the 314 px of line that 442
-      // leaves once the rank mark and the chevron have taken theirs.
+      // laid out without a word being broken".
+      //
+      // It was 440.0 before the capsule lost its arrow. That is 18 px of
+      // screen bought by deleting a glyph and the gap beside it, and it is
+      // also the reason a measurement is re-taken rather than carried: the
+      // number in ADR-0012's own record would have been wrong here by exactly
+      // the width of an icon.
       await pump(tester, row(), size: beside);
-      expect(folded(tester), isFalse, reason: '442 px is above the threshold');
+      expect(folded(tester), isFalse, reason: '424 px is above the threshold');
 
       await pump(tester, row(), size: under);
-      expect(folded(tester), isTrue, reason: '438 px is below it');
+      expect(folded(tester), isTrue, reason: '420 px is below it');
     });
 
     /// How many lines a string was laid out on.
@@ -2456,20 +2462,19 @@ void main() {
     });
 
     testWidgets(
-        'three details at 300% still overflow, and the fold is what '
-        'kept two from doing so', (WidgetTester tester) async {
-      // A pinned defect, in the idiom IUX-008.9 established: assert what
-      // happens now, name what should happen, so that fixing it fails here
-      // rather than landing silently. ADR-0012 wrote this risk down before it
-      // could be measured — *the fold is necessary and is not yet proven
-      // sufficient* — and this is the measurement.
+        'three details at 300% no longer overflow, and the arrow is what '
+        'was costing them the room', (WidgetTester tester) async {
+      // This assertion used to be the other way round, in the idiom IUX-008.9
+      // established: assert what happens now, name what should happen, so that
+      // fixing it fails here rather than landing silently. It did exactly
+      // that, and this is the fix landing — noisily, as intended.
       //
-      // Two details on this chassis at 300%: the row is 1876 px tall and
-      // nothing overflows. Three, with the third carrying a label and a value:
-      // 24 px out of the qualifier's pill, whose mark and gap are the part
-      // that cannot wrap — `IUX-LISTITEM-TRAILING-001`'s own residual, one
-      // component over. What should happen is that the blocks stop sharing a
-      // line too, which is a second arrangement and a second decision.
+      // The measurement then: three details on this chassis at 300% threw, 24
+      // px out of the qualifier's pill, "whose mark and gap are the part that
+      // cannot wrap". Removing the mark removed the residual: measured this
+      // round, the same row is 2596.0 px tall and raises nothing. Nothing
+      // about the fold changed; what changed is that the block it moves is no
+      // longer carrying an icon that could not be re-wrapped.
       await pump(
         tester,
         IuxListItem.dense(
@@ -2490,9 +2495,9 @@ void main() {
 
       expect(
         tester.takeException(),
-        isFlutterError,
-        reason: 'if this now passes, three details fit where they did not: '
-            'flip the assertion and update the Limits entry',
+        isNull,
+        reason: 'three details overflowed again: the room the arrow gave back '
+            'has been spent on something else',
       );
     });
 

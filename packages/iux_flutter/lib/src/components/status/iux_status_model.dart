@@ -119,16 +119,22 @@ final class IuxStatus {
 /// measure — and `IuxStatusTone.neutral` already warns that colouring a neutral
 /// state red "asks the user to react to something that needs no reaction".
 ///
-/// "Four tones and no more" in `docs/components/badges-and-chips.md` bounds the
-/// axis of news. It says an application needing a fifth *meaning of news* is
-/// describing its domain. Above, level and below are not a domain: a budget, a
-/// blood pressure, a lap time and a rainfall total are all compared with a
-/// reference, and none of them is good or bad news until somebody says so. See
-/// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`.
+/// **And it no longer chooses a colour.** A direction is arithmetic: one number
+/// was larger than another. What that *means* — warmer, wetter, later, over
+/// budget — is the caller's, and so is the hue that carries it, which is what
+/// [IuxValueAccent] is for. Rain above its normal and a temperature below one
+/// are two readings on opposite sides of two references and one hue, because
+/// both are the application saying *wetter and colder are the same kind of
+/// thing here*. See
+/// `docs/decisions/ADR-0015-the-sign-is-not-the-meaning.md`.
 ///
-/// The direction is *not* the signal. It selects a mark and a colour pair; the
-/// words in [IuxValue.label] carry the meaning. A screen reader is told nothing
-/// about the direction, which is why the label has to say "2.1 degrees above
+/// The one colour this axis still decides is the absence of one:
+/// [IuxValue.at] takes no accent, because a reading level with its reference
+/// has nothing to interpret.
+///
+/// The direction is *not* the signal. The words in [IuxValue.meaning] and
+/// [IuxValue.label] carry the meaning, and a screen reader is told nothing
+/// about the direction — which is why the label has to say "2.1 degrees above
 /// the 1991 to 2020 normal" rather than "2.1 degrees".
 enum IuxValueDirection {
   /// The reading sits on the upper side of its reference.
@@ -145,11 +151,56 @@ enum IuxValueDirection {
   below,
 }
 
-/// A measured reading, the side of its reference it fell on, and the sentence
-/// that says what that means.
+/// Which of the theme's four reading accents a deviation is drawn in.
+///
+/// **Four names that mean nothing, and that is the point.** A deviation's hue
+/// is a property of the quantity, not of the arithmetic: rainfall above its
+/// normal is *wetter*, and an application that draws wetter in the same blue as
+/// colder is saying something true about its own domain that IUX has no way to
+/// know. Naming these `warm` and `cool`, or `hot` and `wet`, would ship
+/// meteorology in a framework; naming them `one` to `four` ships a palette and
+/// leaves the meaning where it belongs — in [IuxValue.meaning], where the user
+/// reads it in words.
+///
+/// **No order and no rank.** [one] is not first among equals; nothing about its
+/// name means more, worse or more urgent than [four]. This is what separates
+/// these from [IuxValueDirection], whose three members *are* ordered on
+/// purpose. It is the same vocabulary shape `IuxAvatarTone` already has, for
+/// the same reason and by the same argument —
+/// `docs/decisions/ADR-0014-a-container-is-not-a-verdict.md`.
+///
+/// **Four, and only because the palette already has four.** IUX ships four
+/// non-neutral hue families. A fifth would be new primitives measured on four
+/// profiles under three simulated colour vision deficiencies, which
+/// `ADR-0013` already calls "a mission, not a paragraph in a component's ADR".
+///
+/// The accent is never the signal, and never announced. Two accents can collide
+/// under a colour vision deficiency — `IUX-PALETTE-PERCEPTION-001` measured how
+/// completely — which is why [IuxValue.meaning] exists and cannot be omitted.
+enum IuxValueAccent {
+  /// The first accent. Means nothing on its own.
+  one,
+
+  /// The second accent. Means nothing on its own.
+  two,
+
+  /// The third accent. Means nothing on its own.
+  three,
+
+  /// The fourth accent. Means nothing on its own.
+  four,
+}
+
+/// A measured reading, the side of its reference it fell on, and the words that
+/// say what that means.
 ///
 /// ```dart
-/// IuxValue.above('+2.1 °C', label: l10n.aboveTheNormalBy(2.1))
+/// IuxValue.above(
+///   '+2.1 °C',
+///   meaning: l10n.warmer,
+///   label: l10n.aboveTheNormalBy(2.1),
+///   accent: IuxValueAccent.one,
+/// )
 /// ```
 ///
 /// The sister of [IuxStatus], and the difference is what each one is *about*: a
@@ -164,24 +215,47 @@ enum IuxValueDirection {
 /// ships the judgement as a colour nobody can argue with. A direction is a fact
 /// about the arithmetic: the caller compared two numbers and one was larger.
 ///
-/// [value] is what the eye reads, already formatted and localised; [label] is
-/// what the ear hears. They are separate parameters because they are different
-/// strings, and the assertion fires when they are the same one — a label that
-/// repeats the numeral hands a screen-reader user a number with no referent,
-/// which is the whole failure this class exists to prevent.
+/// **Three strings, three jobs.**
+///
+/// | field | drawn | announced | example |
+/// | --- | --- | --- | --- |
+/// | [value] | yes | no | `+2.1 °C` |
+/// | [meaning] | yes | no | `warmer` |
+/// | [label] | no | yes | `2.1 degrees above the 1991 to 2020 normal` |
+///
+/// [value] is the reading, already formatted and localised. [meaning] is the
+/// word that interprets it, and it is **required**: a deviation shown on its own
+/// leaves the interpretation to the hue, and a hue is exactly what a monochrome
+/// screen, a colour vision deficiency and a screen reader all fail to deliver.
+/// [label] is the sentence a screen reader is given, and it has to stand alone —
+/// the drawn strings are excluded from the semantic tree, so whatever [meaning]
+/// says has to be inside it too.
 ///
 /// A value class rather than three widget constructors, because the parent
 /// normally holds the reading in its own model and passes it down. Keeping the
-/// direction and the words in one indivisible object is what stops them
-/// drifting apart — the same reason [IuxStatus] carries its label.
+/// direction, the accent and the words in one indivisible object is what stops
+/// them drifting apart — the same reason [IuxStatus] carries its label.
 @immutable
 final class IuxValue {
-  const IuxValue._(this.direction, this.value, this.label)
-      : assert(
+  const IuxValue._(
+    this.direction,
+    this.value,
+    this.meaning,
+    this.label,
+    this.accent,
+  )   : assert(
           value.length > 0,
           'A value pill with nothing in it is a coloured shape that claims '
           'something was measured and refuses to say what. Pass the formatted '
           'reading — "+2.1 °C", not "".',
+        ),
+        assert(
+          meaning.length > 0,
+          'A deviation is never shown on its own. Without the word that reads '
+          'it, "-47 mm" is a number in a coloured capsule and the colour is '
+          'the only thing saying what it means — which is nothing at all on a '
+          'monochrome screen, to a colour-blind reader, or out loud. Pass the '
+          'localised word: "drier".',
         ),
         assert(
           label.length > 0,
@@ -195,23 +269,46 @@ final class IuxValue {
           '"+2.1 °C" is a reading; "2.1 degrees above the 1991 to 2020 '
           'normal" is information. Pass the localised sentence, not the '
           'numeral twice.',
+        ),
+        assert(
+          meaning != value,
+          'The word repeats the numeral instead of interpreting it. "-47 mm" '
+          'beside "-47 mm" is the reading twice and the meaning never. Pass '
+          'the localised word: "drier".',
         );
 
   /// A reading on the upper side of its reference.
-  const IuxValue.above(String value, {required String label})
-      : this._(IuxValueDirection.above, value, label);
+  const IuxValue.above(
+    String value, {
+    required String meaning,
+    required String label,
+    required IuxValueAccent accent,
+  }) : this._(IuxValueDirection.above, value, meaning, label, accent);
 
   /// A reading level with its reference.
-  const IuxValue.at(String value, {required String label})
-      : this._(IuxValueDirection.at, value, label);
+  ///
+  /// The one constructor with no accent. A reading that matches its reference
+  /// has nothing to interpret, so there is no hue to choose and no way to
+  /// choose one: a column of neutral pills is what "nothing to report" is
+  /// supposed to look like.
+  const IuxValue.at(
+    String value, {
+    required String meaning,
+    required String label,
+  }) : this._(IuxValueDirection.at, value, meaning, label, null);
 
   /// A reading on the lower side of its reference.
-  const IuxValue.below(String value, {required String label})
-      : this._(IuxValueDirection.below, value, label);
+  const IuxValue.below(
+    String value, {
+    required String meaning,
+    required String label,
+    required IuxValueAccent accent,
+  }) : this._(IuxValueDirection.below, value, meaning, label, accent);
 
   /// Which side of the reference this reading fell on.
   ///
-  /// Selects the mark and the colour pair. It never replaces [label].
+  /// Arithmetic, and nothing else: it selects no colour and no glyph. The
+  /// words carry the meaning.
   final IuxValueDirection direction;
 
   /// The formatted reading, drawn and never announced.
@@ -221,13 +318,34 @@ final class IuxValue {
   /// knows which applies, along with the unit and where it goes.
   final String value;
 
+  /// The word that interprets the reading, drawn and never announced.
+  ///
+  /// Required, never empty, and never equal to [value]. "warmer", "drier",
+  /// "over budget", "ahead of schedule" — one or two words, because it is read
+  /// under a capsule in a column rather than in a paragraph. It is the signal
+  /// that survives a monochrome screen, a colour vision deficiency and a
+  /// sun-washed display, which is why the framework draws it rather than
+  /// advising it.
+  ///
+  /// It is not announced, because [label] already says it in a sentence that
+  /// stands alone. Two utterances for one fact is how a list of thirty rows
+  /// becomes unusable.
+  final String meaning;
+
   /// What the reading means, already localised, and never equal to [value].
   ///
   /// It has to stand alone. "Above" beside a row the user has already scrolled
   /// past says nothing; "2.1 degrees above the 1991 to 2020 normal" says what
   /// was measured, against what, and by how much. IUX composes no user-facing
-  /// text and cannot name the reference for you.
+  /// text and cannot name the reference for you — nor join [meaning] to it, so
+  /// whatever the word says has to be in this sentence as well.
   final String label;
+
+  /// Which hue the deviation is drawn in, or null for a level reading.
+  ///
+  /// Null exactly when [direction] is [IuxValueDirection.at], and non-null
+  /// otherwise: the constructors make no other combination reachable.
+  final IuxValueAccent? accent;
 
   @override
   bool operator ==(Object other) =>
@@ -235,11 +353,13 @@ final class IuxValue {
       other is IuxValue &&
           other.direction == direction &&
           other.value == value &&
-          other.label == label;
+          other.meaning == meaning &&
+          other.label == label &&
+          other.accent == accent;
 
   @override
-  int get hashCode => Object.hash(direction, value, label);
+  int get hashCode => Object.hash(direction, value, meaning, label, accent);
 
   @override
-  String toString() => 'IuxValue(${direction.name}, "$value")';
+  String toString() => 'IuxValue(${direction.name}, "$value", "$meaning")';
 }

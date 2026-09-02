@@ -468,30 +468,73 @@ class _ValuePanel extends StatelessWidget {
 
     String sentence(String short, String long) => longLabels ? long : short;
 
-    IuxValue sample(IuxValueDirection direction) => switch (direction) {
-          IuxValueDirection.above => IuxValue.above(
-              '+2,1 °C',
-              label: sentence(
-                '2.1 degrees above normal',
-                '2.1 degrees above the 1991 to 2020 normal, the widest gap in '
-                    'the record',
-              ),
-            ),
-          IuxValueDirection.at => IuxValue.at(
-              '0,0 °C',
-              label: sentence(
-                'at the normal',
-                'within a tenth of a degree of the 1991 to 2020 normal',
-              ),
-            ),
-          IuxValueDirection.below => IuxValue.below(
-              '-47 mm',
-              label: sentence(
-                '47 millimetres below normal',
-                '47 millimetres less rain than the 1991 to 2020 normal',
-              ),
-            ),
-        };
+    // The pilot's own four readings, which is the point of the sample: two of
+    // them are above their reference and two below, and the hues cross the
+    // axis rather than following it. Warmer and drier are both "more than the
+    // normal" in one case and "less than" in the other, and they take two
+    // different accents; wetter and colder sit on opposite sides and take one.
+    final List<(String, IuxValue)> readings = <(String, IuxValue)>[
+      (
+        'above, accent one',
+        IuxValue.above(
+          '+2,1 °C',
+          meaning: 'warmer',
+          label: sentence(
+            '2.1 degrees above normal',
+            '2.1 degrees above the 1991 to 2020 normal, the widest gap in the '
+                'record',
+          ),
+          accent: IuxValueAccent.one,
+        )
+      ),
+      (
+        'above, accent two',
+        IuxValue.above(
+          '+51 mm',
+          meaning: 'wetter',
+          label: sentence(
+            '51 millimetres above normal',
+            '51 millimetres more rain than the 1991 to 2020 normal',
+          ),
+          accent: IuxValueAccent.two,
+        )
+      ),
+      (
+        'below, accent two',
+        IuxValue.below(
+          '-1,8 °C',
+          meaning: 'colder',
+          label: sentence(
+            '1.8 degrees below normal',
+            '1.8 degrees below the 1991 to 2020 normal',
+          ),
+          accent: IuxValueAccent.two,
+        )
+      ),
+      (
+        'below, accent three',
+        IuxValue.below(
+          '-47 mm',
+          meaning: 'drier',
+          label: sentence(
+            '47 millimetres below normal',
+            '47 millimetres less rain than the 1991 to 2020 normal',
+          ),
+          accent: IuxValueAccent.three,
+        )
+      ),
+      (
+        'at, no accent',
+        IuxValue.at(
+          '0,0 °C',
+          meaning: 'as usual',
+          label: sentence(
+            'at the normal',
+            'within a tenth of a degree of the 1991 to 2020 normal',
+          ),
+        )
+      ),
+    ];
 
     return CatalogPanel(
       title: 'A reading, compared',
@@ -499,10 +542,12 @@ class _ValuePanel extends StatelessWidget {
           'the axis: a status is news — it worked, it failed — and a reading '
           'is a number held against a reference. Three directions, because a '
           'quantity is above its reference, level with it, or below it, and '
-          'there is no fourth side. The arrow is not decoration: it is the '
-          'only direction signal a caller who formatted without a sign leaves '
-          'behind, which the last sample shows. Turn the text to 300% and '
-          'watch the narrow sample wrap rather than clip.',
+          'there is no fourth side. The colour is not one of the three: the '
+          'first two samples are both above their reference and are drawn in '
+          'two hues, and the second and third are on opposite sides and drawn '
+          'in one. The word under each capsule is what says which is which, '
+          'and it cannot be left out. Turn the text to 300% and watch the '
+          'narrow sample wrap rather than clip.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -510,13 +555,12 @@ class _ValuePanel extends StatelessWidget {
             spacing: geometry.spacingSm,
             runSpacing: geometry.spacingSm,
             children: <Widget>[
-              for (final IuxValueDirection direction
-                  in IuxValueDirection.values)
+              for (final (String caption, IuxValue value) in readings)
                 CatalogSample(
-                  caption: direction.name,
+                  caption: caption,
                   child: CatalogMeasured(
                     checksTarget: false,
-                    child: IuxValueIndicator(value: sample(direction)),
+                    child: IuxValueIndicator(value: value),
                   ),
                 ),
             ],
@@ -524,10 +568,11 @@ class _ValuePanel extends StatelessWidget {
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('in a row, where it is normally read'),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const Expanded(child: Text('Été 2026')),
               SizedBox(width: geometry.spacingSm),
-              IuxValueIndicator(value: sample(IuxValueDirection.above)),
+              IuxValueIndicator(value: readings.first.$2),
             ],
           ),
           SizedBox(height: geometry.spacingSm),
@@ -540,7 +585,9 @@ class _ValuePanel extends StatelessWidget {
               child: IuxValueIndicator(
                 value: IuxValue.above(
                   '+2,1 °C against the normal',
+                  meaning: 'warmer than the thirty year normal',
                   label: 'well above the normal',
+                  accent: IuxValueAccent.one,
                 ),
               ),
             ),
@@ -552,19 +599,32 @@ class _ValuePanel extends StatelessWidget {
             spacing: geometry.spacingSm,
             children: const <Widget>[
               IuxValueIndicator(
-                value: IuxValue.above('2,1 °C', label: '2.1 degrees warmer'),
+                value: IuxValue.above(
+                  '2,1 °C',
+                  meaning: 'warmer',
+                  label: '2.1 degrees warmer',
+                  accent: IuxValueAccent.one,
+                ),
               ),
               IuxValueIndicator(
-                value: IuxValue.below('2,1 °C', label: '2.1 degrees cooler'),
+                value: IuxValue.below(
+                  '2,1 °C',
+                  meaning: 'colder',
+                  label: '2.1 degrees cooler',
+                  accent: IuxValueAccent.two,
+                ),
               ),
             ],
           ),
           const CatalogNote(
             'Two readings the caller formatted without a sign. Nothing here '
-            'can refuse that, and it is why the arrow is drawn: take the '
-            'colour away — a monochrome screen, a colour vision deficiency, '
-            'the dark high contrast profile where the two hues measure 6.5 '
-            'apart in Oklab x100 — and the arrow is the whole difference.',
+            'can refuse that, and it is why the word is required rather than '
+            'recommended: take the colour away — a monochrome screen, a '
+            'colour vision deficiency, the two light profiles where the warm '
+            'and the amber accent measure 2.2 and 1.1 apart in Oklab x100 '
+            'under deuteranopia — and the word is the whole difference. '
+            'There is no longer an arrow: it said which side and never which '
+            'sense, and it was never in the semantic tree.',
           ),
           const CatalogNote(
             'No focus, no press, no disabled, no loading, no error and no '
@@ -572,10 +632,11 @@ class _ValuePanel extends StatelessWidget {
             'the user can act on a reading, the button goes beside it.',
           ),
           const CatalogNote(
-            'Three directions and no fourth. A reading that is above its '
-            'reference is not a warning and one below it is not an error — '
-            'that judgement is a status, with the words that make it '
-            'arguable. See ADR-0013.',
+            'Three directions and no fourth, and four accents that mean '
+            'nothing on their own. A reading that is above its reference is '
+            'not a warning and one below it is not an error — that judgement '
+            'is a status, with the words that make it arguable. See ADR-0013 '
+            'and ADR-0015.',
           ),
         ],
       ),

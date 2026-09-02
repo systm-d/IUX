@@ -133,44 +133,70 @@ void main() {
         });
       });
 
-      test('every comparison role is readable on its own pill', () {
-        // The roles ADR-0013 added, held to the same floors as the feedback
-        // roles they deliberately are not. A direction whose colour fails here
-        // would be a reading nobody can take, and the mark would be carrying
-        // the pill alone — which it is built to survive and not built to do.
+      test(
+          'every comparison role is readable on its own capsule and on the '
+          'page', () {
+        // The roles ADR-0013 added and ADR-0015 restructured, held to the same
+        // floors as the feedback roles they deliberately are not — and held to
+        // one of them **twice**. `content` paints the reading inside the
+        // capsule and the word beside it, and the word sits on the page, so a
+        // tint that made the reading legible would not on its own make the
+        // word legible. One colour, two grounds, two measurements: that second
+        // one is the cell a tinted capsule makes easy to forget.
         final Map<String, IuxComparisonRoleColors> roles =
             <String, IuxComparisonRoleColors>{
-          'above': colors.comparison.above,
-          'at': colors.comparison.at,
-          'below': colors.comparison.below,
+          'neutral': colors.comparison.neutral,
+          'one': colors.comparison.one,
+          'two': colors.comparison.two,
+          'three': colors.comparison.three,
+          'four': colors.comparison.four,
         };
         roles.forEach((String role, IuxComparisonRoleColors comparison) {
-          expectRatio('comparison.$role content', comparison.content,
+          expectRatio('comparison.$role reading', comparison.content,
               comparison.surface, ContrastMetric.normalText);
-          expectRatio('comparison.$role mark', comparison.mark,
-              comparison.surface, ContrastMetric.nonText);
-          expectRatio('comparison.$role border', comparison.border,
-              colors.surface.base, ContrastMetric.nonText);
+          expectRatio('comparison.$role word on the page', comparison.content,
+              colors.surface.base, ContrastMetric.normalText);
         });
       });
 
-      test('the two directions are not one colour', () {
-        // Two directions a palette renders identically are one direction, and
-        // a reader would have only the mark. The mark is the guarantee; this
-        // is the reinforcement, and it is asserted rather than assumed
-        // because `action.tertiary` once differed from `action.secondary` by
-        // a colour nothing painted and nobody noticed for a whole mission.
+      test('a capsule is a tint, and it is not the page', () {
+        // The two halves of "légèrement teintée". A capsule equal to the page
+        // is a reading with no container; a capsule at 3:1 is a bordered box
+        // in everything but name, and thirty of them down a column is the
+        // screen of alarms ADR-0013 refused. The upper bound is asserted
+        // because nothing else in this file would notice a palette quietly
+        // saturating the wash.
+        for (final IuxComparisonRoleColors role in <IuxComparisonRoleColors>[
+          colors.comparison.neutral,
+          colors.comparison.one,
+          colors.comparison.two,
+          colors.comparison.three,
+          colors.comparison.four,
+        ]) {
+          expect(role.surface, isNot(colors.surface.base));
+          expect(
+            ContrastMetric.ratio(role.surface, colors.surface.base),
+            lessThan(ContrastMetric.nonText),
+            reason: 'the capsule reads as an object rather than as a wash',
+          );
+        }
+      });
+
+      test('the four accents are not one colour', () {
+        // Four accents a palette renders identically are one accent, and the
+        // reader is left with the word alone. The word is the guarantee; this
+        // is the reinforcement, and it is asserted rather than assumed because
+        // `action.tertiary` once differed from `action.secondary` by a colour
+        // nothing painted and nobody noticed for a whole mission.
         expect(
-          colors.comparison.above.content,
-          isNot(colors.comparison.below.content),
-        );
-        expect(
-          colors.comparison.above.content,
-          isNot(colors.comparison.at.content),
-        );
-        expect(
-          colors.comparison.below.content,
-          isNot(colors.comparison.at.content),
+          <Color>{
+            colors.comparison.neutral.content,
+            colors.comparison.one.content,
+            colors.comparison.two.content,
+            colors.comparison.three.content,
+            colors.comparison.four.content,
+          },
+          hasLength(5),
         );
       });
 

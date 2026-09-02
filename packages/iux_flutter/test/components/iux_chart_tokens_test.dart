@@ -22,7 +22,7 @@ void main() {
     WidgetTester tester, {
     IuxThemeConfiguration configuration = const IuxThemeConfiguration(),
     double textScale = 1,
-    IuxValueDirection? direction,
+    IuxValueAccent? accent,
   }) async {
     late IuxChartTokens tokens;
     await tester.pumpWidget(
@@ -30,12 +30,12 @@ void main() {
         data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
         child: MaterialApp(
           key: ValueKey<Object?>(
-            <Object?>[configuration, textScale, direction],
+            <Object?>[configuration, textScale, accent],
           ),
           theme: IuxTheme.fromConfiguration(configuration),
           home: Builder(
             builder: (BuildContext context) {
-              tokens = IuxChartResolver.resolve(context, direction: direction);
+              tokens = IuxChartResolver.resolve(context, accent: accent);
               return const SizedBox.shrink();
             },
           ),
@@ -138,43 +138,42 @@ void main() {
     expect(tokens.endMarkerRadius, greaterThan(tokens.strokeWidth));
   });
 
-  testWidgets('the three comparison directions resolve three distinct strokes',
+  testWidgets('the four reading accents resolve four distinct strokes',
       (WidgetTester tester) async {
-    // `IuxValueDirection`, not `IuxStatusTone`: a sparkline tinted for a
-    // reading compared with a reference is the same claim `IuxValueIndicator`
-    // makes, and ADR-0013 is what says a comparison is not news.
+    // `IuxValueAccent`, not `IuxStatusTone` and not `IuxValueDirection`: a
+    // sparkline tinted for a reading compared with a reference is the same
+    // claim `IuxValueIndicator` makes, ADR-0013 is what says a comparison is
+    // not news, and ADR-0015 is what says the side of the reference does not
+    // pick the hue.
     for (final IuxThemeConfiguration configuration in _profiles) {
       final Set<Color> strokes = <Color>{};
-      for (final IuxValueDirection direction in IuxValueDirection.values) {
+      for (final IuxValueAccent accent in IuxValueAccent.values) {
         final IuxChartTokens tokens = await resolve(
           tester,
           configuration: configuration,
-          direction: direction,
+          accent: accent,
         );
         strokes.add(tokens.primaryStroke);
       }
       expect(
         strokes,
-        hasLength(IuxValueDirection.values.length),
+        hasLength(IuxValueAccent.values.length),
         reason: '$configuration',
       );
     }
   });
 
-  testWidgets(
-      "an `above` direction resolves the comparison axis's own mark colour",
+  testWidgets("an accent resolves the comparison axis's own colour",
       (WidgetTester tester) async {
-    // The point of reusing `IuxValueDirection` instead of introducing a
-    // second, parallel vocabulary: the stroke has to actually come from
-    // `comparison`, not merely happen to differ across directions. `mark`,
-    // not `content` — a data line is a graphical object and 3:1 is the floor
-    // SC 1.4.11 sets for one, the same reasoning `IuxValueResolver` applies
-    // to the pill's own mark.
+    // The point of reusing `IuxValueAccent` instead of introducing a second,
+    // parallel vocabulary: the stroke has to actually come from `comparison`,
+    // not merely happen to differ across accents. A card that drew its line in
+    // one red and its capsule in another would be two hues for one reading.
     for (final IuxThemeConfiguration configuration in _profiles) {
       final IuxChartTokens tinted = await resolve(
         tester,
         configuration: configuration,
-        direction: IuxValueDirection.above,
+        accent: IuxValueAccent.one,
       );
       late Color expected;
       await tester.pumpWidget(
@@ -182,7 +181,7 @@ void main() {
           theme: IuxTheme.fromConfiguration(configuration),
           home: Builder(
             builder: (BuildContext context) {
-              expected = IuxSemanticColors.of(context).comparison.above.mark;
+              expected = IuxSemanticColors.of(context).comparison.one.content;
               return const SizedBox.shrink();
             },
           ),
@@ -193,36 +192,35 @@ void main() {
     }
   });
 
-  test('the direction is resolved through the comparison axis, not feedback',
-      () {
-    // `comparison.above.mark` and `feedback.error.icon` are the same value in
-    // every shipped profile — both `critical40`/`critical70`/`critical10`/
+  test('the accent is resolved through the comparison axis, not feedback', () {
+    // `comparison.one.content` and `feedback.error.content` are the same value
+    // in every shipped profile — both `critical40`/`critical70`/`critical10`/
     // `critical80` — because ADR-0013 reused the existing hue families rather
-    // than inventing new ones for the axis. Measured in this round: swapping
-    // `colors.comparison.above.mark` for `colors.feedback.error.icon` above
-    // does not change a single resolved `Color`, so no widget test can catch
-    // that substitution — the test above this one is blind to it. This reads
-    // the source instead, which is the same technique
-    // `component_standard_test.dart`'s dead-token check already uses for a
-    // claim a resolved `Color` cannot make.
+    // than inventing new ones for the axis, and ADR-0015 kept them. Measured
+    // in this round: swapping `colors.comparison.one.content` for
+    // `colors.feedback.error.content` above does not change a single resolved
+    // `Color`, so no widget test can catch that substitution — the test above
+    // this one is blind to it. This reads the source instead, which is the
+    // same technique `component_standard_test.dart`'s dead-token check already
+    // uses for a claim a resolved `Color` cannot make.
     final String body = File('lib/src/components/chart/iux_chart_tokens.dart')
         .readAsStringSync();
-    final int switchStart = body.indexOf('switch (direction)');
+    final int switchStart = body.indexOf('switch (accent)');
     expect(switchStart, greaterThan(-1),
         reason: 'the switch moved or was '
             'renamed; update this test to find it again');
     final int switchEnd = body.indexOf('};', switchStart);
     final String branch = body.substring(switchStart, switchEnd);
 
-    expect(branch, contains('colors.comparison.above.mark'));
-    expect(branch, contains('colors.comparison.at.mark'));
-    expect(branch, contains('colors.comparison.below.mark'));
+    for (final String role in <String>['one', 'two', 'three', 'four']) {
+      expect(branch, contains('colors.comparison.$role.content'));
+    }
     expect(
       branch,
       isNot(contains('colors.feedback')),
       reason: 'a reading compared with a reference is not news — ADR-0013 — '
-          'and feedback.error.icon happening to paint the same red as '
-          'comparison.above.mark is not licence to read it from there',
+          'and feedback.error.content happening to paint the same red as '
+          'comparison.one.content is not licence to read it from there',
     );
   });
 }

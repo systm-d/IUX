@@ -42,7 +42,7 @@ class IuxSparkline extends StatelessWidget {
     super.key,
     required this.points,
     required this.semanticsSummary,
-    this.direction,
+    this.accent,
     this.marksEnd = false,
   });
 
@@ -57,29 +57,32 @@ class IuxSparkline extends StatelessWidget {
   /// accident.
   final String semanticsSummary;
 
-  /// Which side of a reference these readings fell on, or null for the
-  /// resting colour.
+  /// Which of the theme's four reading accents to draw the line in, or null
+  /// for the resting colour.
   ///
   /// A closed set, never a `Color`: the tint has to stay something the theme
   /// can be held responsible for at every contrast profile.
   ///
-  /// **`IuxValueDirection`, not `IuxStatusTone`.** A sparkline of a deviation
-  /// from a normal is the same claim `IuxValueIndicator` makes about its
-  /// latest reading — see
+  /// **`IuxValueAccent`, not `IuxStatusTone` and not `IuxValueDirection`.** A
+  /// sparkline of a deviation from a normal is the same claim
+  /// `IuxValueIndicator` makes about its latest reading — see
   /// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md` — and
-  /// reusing that axis here is the point: a second, parallel vocabulary for
-  /// "which side of the reference" would be exactly the duplication ADR-0013
-  /// exists to prevent. A trend that is genuinely *news* — a service that is
-  /// down, a balance that has failed a check — is not what this parameter is
-  /// for; that is a state, not a comparison, and belongs to a component that
-  /// takes an `IuxStatusTone`.
+  /// reusing that vocabulary here is the point: a second, parallel set of hues
+  /// for the same kind of reading would be exactly the duplication ADR-0013
+  /// exists to prevent. It is not `IuxValueDirection` either, because
+  /// `ADR-0015` removed the assumption that a side of a reference picks a hue:
+  /// a series of rainfall totals above their normal is *wetter*, and only the
+  /// application knows that wetter is blue here. A trend that is genuinely
+  /// *news* — a service that is down, a balance that has failed a check — is
+  /// not what this parameter is for; that is a state, not a comparison, and
+  /// belongs to a component that takes an `IuxStatusTone`.
   ///
   /// **The tint is never the signal.** [semanticsSummary] is required and says
-  /// the same thing whatever the direction, so a reader who cannot separate
-  /// two hues loses nothing. A pair of sparklines whose only difference is
-  /// their tint is a pair of pictures that say the same thing — which is a
+  /// the same thing whatever the accent, so a reader who cannot separate two
+  /// hues loses nothing. A pair of sparklines whose only difference is their
+  /// tint is a pair of pictures that say the same thing — which is a
   /// call-site mistake this parameter cannot refuse, and *Limits* says so.
-  final IuxValueDirection? direction;
+  final IuxValueAccent? accent;
 
   /// Whether to draw a dot where the last measured reading falls.
   ///
@@ -165,7 +168,7 @@ class IuxSparkline extends StatelessWidget {
     if (points.isEmpty) return const SizedBox.shrink();
 
     final IuxChartTokens tokens =
-        IuxChartResolver.resolve(context, direction: direction);
+        IuxChartResolver.resolve(context, accent: accent);
     final TextDirection textDirection = Directionality.of(context);
 
     final Widget strip = SizedBox(

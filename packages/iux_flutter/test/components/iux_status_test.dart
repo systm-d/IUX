@@ -1255,18 +1255,49 @@ void main() {
 
   group('a reading is compared, never judged', () {
     test('a reading must name what it measures, not repeat its own digits', () {
-      // The three ways a value pill can be built into something that says
+      // The four ways a value pill can be built into something that says
       // nothing, each made unconstructable rather than discouraged.
       expect(
-        () => IuxValue.above('+2.1 °C', label: '+2.1 °C'),
+        () => IuxValue.above('+2.1 °C',
+            meaning: 'warmer', label: '+2.1 °C', accent: IuxValueAccent.one),
         throwsAssertionError,
         reason: 'a label that repeats the reading tells a screen-reader user a '
             'number with no referent, which is the failure this class exists '
             'to prevent',
       );
       expect(
-          () => IuxValue.at('', label: 'at the normal'), throwsAssertionError);
-      expect(() => IuxValue.below('-47 mm', label: ''), throwsAssertionError);
+        () => IuxValue.at('', meaning: 'as usual', label: 'at the normal'),
+        throwsAssertionError,
+      );
+      expect(
+        () => IuxValue.below('-47 mm',
+            meaning: 'drier', label: '', accent: IuxValueAccent.three),
+        throwsAssertionError,
+      );
+    });
+
+    test('a deviation cannot be built without the word that reads it', () {
+      // The rule the pilot's debrief states and this class enforces: "un écart
+      // n'est jamais montré seul". A caller who has nothing to say about a
+      // deviation has a number, not a reading — and a bare `-47 mm` in a
+      // coloured capsule leaves the meaning to the hue, which is the one thing
+      // this family refuses to do.
+      expect(
+        () => IuxValue.below('-47 mm',
+            meaning: '',
+            label: '47 millimetres below normal',
+            accent: IuxValueAccent.three),
+        throwsAssertionError,
+        reason: 'an empty word draws a capsule that interprets nothing',
+      );
+      expect(
+        () => IuxValue.below('-47 mm',
+            meaning: '-47 mm',
+            label: '47 millimetres below normal',
+            accent: IuxValueAccent.three),
+        throwsAssertionError,
+        reason: 'a word that repeats the reading interprets nothing either',
+      );
     });
 
     test('a direction is not a piece of news, and the two axes stay apart', () {
@@ -1280,34 +1311,163 @@ void main() {
         <String>{'above', 'at', 'below'},
       );
       expect(
-          const IuxValue.above('+2.1 °C', label: 'above the normal').direction,
-          IuxValueDirection.above);
+        const IuxValue.above('+2.1 °C',
+                meaning: 'warmer',
+                label: 'above the normal',
+                accent: IuxValueAccent.one)
+            .direction,
+        IuxValueDirection.above,
+      );
     });
 
-    test('the three directions are drawn with three different marks', () {
-      // Render the screen in one hue and every direction carried by colour
-      // alone disappears. Two directions sharing a mark would be exactly that
-      // failure, so the marks are asserted distinct rather than reviewed.
-      final Set<IconData> marks =
-          IuxValueDirection.values.map(IuxValueResolver.mark).toSet();
-      expect(marks, hasLength(IuxValueDirection.values.length));
+    test('a reading level with its reference has no hue to choose', () {
+      // `at` is the one place the framework still decides a colour, and it
+      // decides the absence of one. There is no accent parameter on the
+      // constructor, so a neutral reading cannot be built into a coloured one.
+      expect(
+        const IuxValue.at('0 mm',
+                meaning: 'as usual', label: 'at the 1991 to 2020 normal')
+            .accent,
+        isNull,
+      );
+      expect(IuxValueAccent.values, hasLength(4));
     });
   });
 
-  group('a value pill says its direction without its colour', () {
-    testWidgets('the reading is drawn and only the sentence is announced',
+  group('the direction says which side, the caller says which hue', () {
+    /// What a pill would paint for [value] under [configuration].
+    Future<IuxValueTokens> tokensFor(
+      WidgetTester tester,
+      IuxValue value, [
+      IuxThemeConfiguration configuration = const IuxThemeConfiguration(),
+    ]) =>
+        resolve(
+          tester,
+          configuration,
+          (BuildContext context) => IuxValueResolver.resolve(context, value),
+        );
+
+    const IuxValue warmer = IuxValue.above('+1.5 °C',
+        meaning: 'warmer',
+        label: '1.5 degrees above the normal',
+        accent: IuxValueAccent.one);
+    const IuxValue wetter = IuxValue.above('+51 mm',
+        meaning: 'wetter',
+        label: '51 millimetres above the normal',
+        accent: IuxValueAccent.two);
+    const IuxValue colder = IuxValue.below('-1.8 °C',
+        meaning: 'colder',
+        label: '1.8 degrees below the normal',
+        accent: IuxValueAccent.two);
+    const IuxValue drier = IuxValue.below('-42 mm',
+        meaning: 'drier',
+        label: '42 millimetres below the normal',
+        accent: IuxValueAccent.three);
+
+    testWidgets('one side of a reference is not one hue',
+        (WidgetTester tester) async {
+      // The assumption ADR-0013 shipped and this record removes: that a
+      // direction picks the colour. Rain above its normal is blue because it
+      // is wetter, not because it is above — and rain below it is orange while
+      // a temperature below it is blue. Both pairs are asserted, because
+      // either one alone is satisfied by a mapping that merely renamed the
+      // ends of the old axis.
+      final IuxValueTokens above = await tokensFor(tester, wetter);
+      final IuxValueTokens below = await tokensFor(tester, colder);
+      expect(
+        above.foreground,
+        below.foreground,
+        reason: 'two readings on opposite sides, drawn in one hue, because the '
+            'caller said so',
+      );
+
+      final IuxValueTokens sameSide = await tokensFor(tester, warmer);
+      expect(
+        sameSide.foreground,
+        isNot(above.foreground),
+        reason: 'two readings on the same side, drawn in two hues, for the '
+            'same reason',
+      );
+    });
+
+    testWidgets('a level reading is neutral, and nothing else is',
+        (WidgetTester tester) async {
+      final IuxValueTokens level = await tokensFor(
+        tester,
+        const IuxValue.at('0 mm',
+            meaning: 'as usual', label: 'at the 1991 to 2020 normal'),
+      );
+      for (final IuxValue coloured in <IuxValue>[
+        warmer,
+        wetter,
+        colder,
+        drier
+      ]) {
+        expect(
+          (await tokensFor(tester, coloured)).foreground,
+          isNot(level.foreground),
+          reason: '"${coloured.meaning}" resolved the resting colour',
+        );
+      }
+    });
+
+    for (final IuxThemeConfiguration configuration in _profiles) {
+      testWidgets('four accents resolve four readable appearances',
+          (WidgetTester tester) async {
+        final IuxSemanticColors colors = colorsOf(configuration);
+        final Set<Color> foregrounds = <Color>{};
+
+        for (final IuxValueAccent accent in IuxValueAccent.values) {
+          final IuxValueTokens tokens = await tokensFor(
+            tester,
+            IuxValue.above('+1',
+                meaning: 'more', label: 'more than', accent: accent),
+            configuration,
+          );
+          foregrounds.add(tokens.foreground);
+
+          expect(
+            ContrastMetric.ratio(tokens.foreground, tokens.background),
+            greaterThanOrEqualTo(ContrastMetric.normalText),
+            reason: '$accent reading on its own capsule',
+          );
+          // The word sits on the page, not on the capsule, so it is held to
+          // the page's floor. One colour, two grounds, two measurements — the
+          // second is the one a tinted capsule makes easy to forget.
+          expect(
+            ContrastMetric.ratio(
+                tokens.meaningStyle.color!, colors.surface.base),
+            greaterThanOrEqualTo(ContrastMetric.normalText),
+            reason: '$accent word on the page',
+          );
+        }
+
+        expect(foregrounds, hasLength(IuxValueAccent.values.length));
+      });
+    }
+  });
+
+  group('a value pill says what it means without its colour', () {
+    testWidgets('the reading and its word are drawn, the sentence announced',
         (WidgetTester tester) async {
       await host(
         tester,
         const IuxValueIndicator(
           value: IuxValue.above(
             '+2.1 °C',
+            meaning: 'warmer',
             label: '2.1 degrees above the 1991 to 2020 normal',
+            accent: IuxValueAccent.one,
           ),
         ),
       );
 
       expect(find.text('+2.1 °C'), findsOneWidget);
+      expect(
+        find.text('warmer'),
+        findsOneWidget,
+        reason: 'the word that interprets the deviation is drawn beside it',
+      );
       final SemanticsNode node =
           tester.getSemantics(find.byType(IuxValueIndicator));
       expect(node.label, '2.1 degrees above the 1991 to 2020 normal');
@@ -1316,28 +1476,37 @@ void main() {
       expect(find.bySemanticsLabel('+2.1 °C'), findsNothing);
     });
 
-    testWidgets('the mark is drawn and adds no announcement of its own',
+    testWidgets('nothing is drawn that a monochrome screen would lose',
         (WidgetTester tester) async {
+      // The arrow is gone, and what replaced it is stronger than it was: a
+      // word this class cannot be built without. An icon here would be a
+      // second, weaker signal for something the text already says — and the
+      // arrow was never in the semantic tree, where the word's sentence is.
       await host(
         tester,
         const IuxValueIndicator(
-          value: IuxValue.below('-47 mm', label: '47 millimetres below normal'),
+          value: IuxValue.below('-47 mm',
+              meaning: 'drier',
+              label: '47 millimetres below normal',
+              accent: IuxValueAccent.three),
         ),
       );
-
-      final Icon mark = tester.widget<Icon>(find.byType(Icon));
-      expect(mark.icon, IuxValueResolver.mark(IuxValueDirection.below));
       expect(
-        tester.getSemantics(find.byType(IuxValueIndicator)).label,
-        '47 millimetres below normal',
+        find.descendant(
+            of: find.byType(IuxValueIndicator), matching: find.byType(Icon)),
+        findsNothing,
       );
+      expect(find.text('drier'), findsOneWidget);
     });
 
     testWidgets('it is not a control', (WidgetTester tester) async {
       await host(
         tester,
         const IuxValueIndicator(
-          value: IuxValue.below('-47 mm', label: '47 millimetres below normal'),
+          value: IuxValue.below('-47 mm',
+              meaning: 'drier',
+              label: '47 millimetres below normal',
+              accent: IuxValueAccent.three),
         ),
       );
       expect(
@@ -1349,63 +1518,83 @@ void main() {
       );
     });
 
-    testWidgets('the mark grows with the text it sits beside',
+    testWidgets('the capsule is a tint rather than an outlined object',
         (WidgetTester tester) async {
-      // A mark that stayed twenty pixels while the reading doubled is a mark
-      // the person who enlarged their text can no longer use.
-      final IuxValueTokens standard = await resolve(
-        tester,
-        const IuxThemeConfiguration(),
-        (BuildContext context) =>
-            IuxValueResolver.resolve(context, IuxValueDirection.above),
-      );
-      final IuxValueTokens enlarged = await resolve(
-        tester,
-        const IuxThemeConfiguration(),
-        (BuildContext context) =>
-            IuxValueResolver.resolve(context, IuxValueDirection.above),
-        textScale: 2,
-      );
-      expect(enlarged.markSize, greaterThan(standard.markSize));
+      // "Une petite capsule légèrement teintée, sans flèche et sans bordure
+      // forte." A capsule that rings itself in its own hue reads as an alert
+      // the moment it is repeated down a column, which is the only place this
+      // component is ever used. ADR-0013 drew an outline and ADR-0015 removed
+      // it: the capsule's extent is not information — the reading in it and
+      // the word under it are, and both are text.
+      //
+      // The tint still has to be *visible*, or the reading has no container at
+      // all, so the two halves are asserted together: no line, and a fill the
+      // page does not already have.
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        await host(
+          tester,
+          const IuxValueIndicator(
+            value: IuxValue.above('+1.5 °C',
+                meaning: 'warmer',
+                label: 'above the normal',
+                accent: IuxValueAccent.one),
+          ),
+          configuration: configuration,
+        );
+        final ShapeDecoration decoration = tester
+            .widget<DecoratedBox>(find.descendant(
+              of: find.byType(IuxValueIndicator),
+              matching: find.byType(DecoratedBox),
+            ))
+            .decoration as ShapeDecoration;
+        expect(
+          (decoration.shape as StadiumBorder).side,
+          BorderSide.none,
+          reason: 'the capsule is outlined on $configuration',
+        );
+        expect(
+          decoration.color,
+          isNot(colorsOf(configuration).surface.base),
+          reason: 'the capsule is invisible on $configuration',
+        );
+      }
     });
-  });
 
-  group('the direction axis is separated on every profile', () {
-    for (final IuxThemeConfiguration configuration in _profiles) {
-      testWidgets('three directions resolve three readable appearances',
-          (WidgetTester tester) async {
-        final IuxSemanticColors colors = colorsOf(configuration);
-        final Set<Color> foregrounds = <Color>{};
+    testWidgets('the word is drawn under the reading and lighter than it',
+        (WidgetTester tester) async {
+      // The debrief's hierarchy, in the one place a component can hold it:
+      // "le chiffre donne la mesure, l'écart lui donne son contexte, le texte
+      // sa signification". A word set at the reading's own weight competes
+      // with it, and a column of four rows then has eight things of equal
+      // weight in it.
+      //
+      // Lighter and not smaller, and that is the type ramp's decision rather
+      // than this component's: `label` and `supporting` are both 14 px,
+      // because 14 is the floor below which IUX does not set text. Weight is
+      // the whole of the hierarchy that is left, so it is the whole of what
+      // is asserted.
+      const IuxValue value = IuxValue.above('+2.1 °C',
+          meaning: 'warmer',
+          label: 'above the normal',
+          accent: IuxValueAccent.one);
+      final IuxValueTokens tokens = await resolve(
+        tester,
+        const IuxThemeConfiguration(),
+        (BuildContext context) => IuxValueResolver.resolve(context, value),
+      );
+      expect(tokens.meaningStyle.fontSize, tokens.textStyle.fontSize);
+      expect(
+        tokens.meaningStyle.fontWeight!.value,
+        lessThan(tokens.textStyle.fontWeight!.value),
+      );
 
-        for (final IuxValueDirection direction in IuxValueDirection.values) {
-          final IuxValueTokens tokens = await resolve(
-            tester,
-            configuration,
-            (BuildContext context) =>
-                IuxValueResolver.resolve(context, direction),
-          );
-          foregrounds.add(tokens.foreground);
-
-          expect(
-            ContrastMetric.ratio(tokens.foreground, tokens.background),
-            greaterThanOrEqualTo(ContrastMetric.normalText),
-            reason: '$direction reading on its own pill',
-          );
-          expect(
-            ContrastMetric.ratio(tokens.markColor, tokens.background),
-            greaterThanOrEqualTo(ContrastMetric.nonText),
-            reason: '$direction mark on its own pill',
-          );
-          expect(
-            ContrastMetric.ratio(tokens.border, colors.surface.base),
-            greaterThanOrEqualTo(ContrastMetric.nonText),
-            reason: '$direction outline on the page',
-          );
-        }
-
-        expect(foregrounds, hasLength(IuxValueDirection.values.length));
-      });
-    }
+      await host(tester, const IuxValueIndicator(value: value));
+      expect(
+        tester.getTopLeft(find.text('warmer')).dy,
+        greaterThan(tester.getBottomLeft(find.text('+2.1 °C')).dy),
+        reason: 'the word sits under the capsule, not inside it',
+      );
+    });
   });
 
   group('a value pill survives the conditions its readings arrive in', () {
@@ -1418,17 +1607,28 @@ void main() {
           child: IuxValueIndicator(
             value: IuxValue.above(
               '+2.1 °C compared with the normal',
+              meaning: 'warmer than the thirty year normal',
               label: 'well above the normal',
+              accent: IuxValueAccent.one,
             ),
           ),
         ),
         textScale: 2,
+        // Tall, because the subject is: eleven wrapped lines of reading and
+        // nine of word is 812 px at 200%, and a host that clipped it would be
+        // testing its own harness rather than this component.
+        size: const Size(400, 2000),
       );
       expect(tester.takeException(), isNull);
-      final Text text =
-          tester.widget<Text>(find.text('+2.1 °C compared with the normal'));
-      expect(text.maxLines, isNull, reason: 'no line limit, at any text scale');
-      expect(text.overflow, isNot(TextOverflow.ellipsis));
+      for (final String drawn in <String>[
+        '+2.1 °C compared with the normal',
+        'warmer than the thirty year normal',
+      ]) {
+        final Text text = tester.widget<Text>(find.text(drawn));
+        expect(text.maxLines, isNull,
+            reason: 'no line limit, at any text scale');
+        expect(text.overflow, isNot(TextOverflow.ellipsis));
+      }
     });
 
     testWidgets('it renders in RTL and on every theme profile',
@@ -1439,12 +1639,16 @@ void main() {
             tester,
             IuxValueIndicator(
               value: switch (direction) {
-                IuxValueDirection.above =>
-                  const IuxValue.above('٣+', label: 'فوق المعدل'),
-                IuxValueDirection.at =>
-                  const IuxValue.at('٠', label: 'عند المعدل'),
-                IuxValueDirection.below =>
-                  const IuxValue.below('٣-', label: 'دون المعدل'),
+                IuxValueDirection.above => const IuxValue.above('٣+',
+                    meaning: 'أكثر',
+                    label: 'فوق المعدل',
+                    accent: IuxValueAccent.one),
+                IuxValueDirection.at => const IuxValue.at('٠',
+                    meaning: 'كالمعتاد', label: 'عند المعدل'),
+                IuxValueDirection.below => const IuxValue.below('٣-',
+                    meaning: 'أقل',
+                    label: 'دون المعدل',
+                    accent: IuxValueAccent.two),
               },
             ),
             configuration: configuration,
@@ -1452,15 +1656,23 @@ void main() {
           );
           expect(tester.takeException(), isNull);
 
-          // Reading order, not left-to-right order. The mark leads the
-          // reading, so in a right-to-left interface it sits on the right —
-          // a Row that hard-coded its direction would render without an
-          // exception and put the arrow on the wrong side of the number,
-          // which no `takeException` can see.
+          // Reading order, not left-to-right order. The word sits under the
+          // capsule and starts where reading starts, so in a right-to-left
+          // interface both start on the right — a Column that hard-coded its
+          // cross-axis alignment would render without an exception and put
+          // the word under the wrong end of the capsule, which no
+          // `takeException` can see.
           expect(
-            tester.getCenter(find.byType(Icon)).dx,
-            greaterThan(tester.getCenter(find.byType(Text)).dx),
-            reason: 'the mark leads the reading, so RTL puts it on the right',
+            tester.getTopRight(find.byType(IuxValueIndicator)).dx -
+                tester
+                    .getTopRight(find.text(direction == IuxValueDirection.at
+                        ? 'كالمعتاد'
+                        : direction == IuxValueDirection.above
+                            ? 'أكثر'
+                            : 'أقل'))
+                    .dx,
+            lessThan(1),
+            reason: 'the word starts where reading starts',
           );
         }
       }

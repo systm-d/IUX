@@ -409,10 +409,9 @@ class _SparklinePanel extends StatelessWidget {
             spacing: geometry.spacingSm,
             runSpacing: geometry.spacingSm,
             children: <Widget>[
-              for (final IuxValueDirection direction
-                  in IuxValueDirection.values)
+              for (final IuxValueAccent accent in IuxValueAccent.values)
                 CatalogSample(
-                  caption: direction.name,
+                  caption: accent.name,
                   width: 120,
                   child: IuxSparkline(
                     points: const <IuxChartPoint>[
@@ -422,7 +421,7 @@ class _SparklinePanel extends StatelessWidget {
                     ],
                     semanticsSummary:
                         'Further from the normal each month of the season.',
-                    direction: direction,
+                    accent: accent,
                     marksEnd: true,
                   ),
                 ),
@@ -430,10 +429,13 @@ class _SparklinePanel extends StatelessWidget {
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogNote(
-            'The same axis `IuxValueIndicator` uses for its pill, reused '
-            'rather than duplicated — ADR-0013. `IuxStatusTone` was '
-            'deliberately not offered here: a sparkline of a deviation from '
-            'a normal is a comparison, not news.',
+            'The same accents `IuxValueIndicator` uses for its capsule, '
+            'reused rather than duplicated — ADR-0013 and ADR-0015. '
+            '`IuxStatusTone` was deliberately not offered here: a sparkline '
+            'of a deviation from a normal is a comparison, not news. Nor is '
+            'the hue read off the side of the reference: a series of rainfall '
+            'totals above their normal is wetter, and only the application '
+            'knows that wetter is blue.',
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('a series whose tail has not been published'),

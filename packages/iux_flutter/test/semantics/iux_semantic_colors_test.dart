@@ -53,14 +53,14 @@ void main() {
         probe,
       );
       expect(light.feedback.error.copyWith(icon: probe).icon, probe);
-      expect(light.comparison.above.copyWith(mark: probe).mark, probe);
+      expect(light.comparison.one.copyWith(surface: probe).surface, probe);
       expect(
         light.comparison
             .copyWith(
-              at: light.comparison.above,
+              neutral: light.comparison.one,
             )
-            .at,
-        light.comparison.above,
+            .neutral,
+        light.comparison.one,
       );
       expect(light.avatarAccent.one.copyWith(icon: probe).icon, probe);
       expect(

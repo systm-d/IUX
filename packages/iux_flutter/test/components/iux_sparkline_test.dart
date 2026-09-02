@@ -150,11 +150,11 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  group('a sparkline that carries a direction and marks where it ends', () {
+  group('a sparkline that carries an accent and marks where it ends', () {
     testWidgets('an untinted sparkline is drawn exactly as before',
         (WidgetTester tester) async {
       // The compatibility clause. Every sparkline written before this change
-      // passes `direction: null`, and must resolve the same stroke it always
+      // passes `accent: null`, and must resolve the same stroke it always
       // did.
       late Color plain;
       late Color primary;
@@ -173,19 +173,18 @@ void main() {
       expect(plain, primary);
     });
 
-    testWidgets('the three directions resolve three distinct strokes',
+    testWidgets('the four accents resolve four distinct strokes',
         (WidgetTester tester) async {
       final Set<Color> strokes = <Color>{};
-      for (final IuxValueDirection direction in IuxValueDirection.values) {
+      for (final IuxValueAccent accent in IuxValueAccent.values) {
         late Color resolved;
         await tester.pumpWidget(
           MaterialApp(
             theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
             home: Builder(
               builder: (BuildContext context) {
-                resolved =
-                    IuxChartResolver.resolve(context, direction: direction)
-                        .primaryStroke;
+                resolved = IuxChartResolver.resolve(context, accent: accent)
+                    .primaryStroke;
                 return const SizedBox.shrink();
               },
             ),
@@ -193,7 +192,7 @@ void main() {
         );
         strokes.add(resolved);
       }
-      expect(strokes, hasLength(IuxValueDirection.values.length));
+      expect(strokes, hasLength(IuxValueAccent.values.length));
     });
 
     testWidgets('the end marker is drawn, and only when asked',
@@ -326,9 +325,9 @@ void main() {
               'edge in a right-to-left interface');
     });
 
-    testWidgets('the direction is never the only signal',
+    testWidgets('the accent is never the only signal',
         (WidgetTester tester) async {
-      // The summary is required and unchanged by the direction, so a tinted
+      // The summary is required and unchanged by the accent, so a tinted
       // sparkline says the same thing to a screen reader as an untinted one.
       // This asserts the parameter did not quietly become a way to ship a
       // picture whose meaning is a hue.
@@ -342,7 +341,7 @@ void main() {
                 IuxChartPoint(position: 1, value: 2),
               ],
               semanticsSummary: 'Warmer every month of the season.',
-              direction: IuxValueDirection.above,
+              accent: IuxValueAccent.one,
               marksEnd: true,
             ),
           ),

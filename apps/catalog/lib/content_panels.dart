@@ -463,7 +463,9 @@ class _DenseRowPanelState extends State<_DenseRowPanel> {
           // get a red pill would ship the judgement as a colour.
           qualifier: const IuxValue.below(
             'Very dry',
+            meaning: 'drier',
             label: 'among the driest years on record',
+            accent: IuxValueAccent.three,
           ),
         ),
       ];

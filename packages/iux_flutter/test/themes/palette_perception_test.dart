@@ -306,127 +306,115 @@ void main() {
     });
   });
 
-  group('colour alone does not separate the two directions either', () {
-    // The measurement ADR-0013 rests on, taken here rather than quoted from
-    // the feedback finding above — `ADR-0011` and `ADR-0012` each recorded a
-    // number carried across a change it did not survive, and the comparison
-    // roles are a change.
-    //
-    // The pair is warm against cool, which is the diverging pair that survives
-    // the two red-green dichromacies best. It survives them; it does not
-    // survive them everywhere by a margin worth relying on, and the numbers
-    // below say where.
-    for (final (String name, IuxThemeConfiguration configuration) in profiles) {
-      test('$name keeps the two directions apart under every dichromacy', () {
-        final IuxSemanticColors c = resolve(configuration);
-        final OklabColor above =
-            OklabColor.fromColor(c.comparison.above.content);
-        final OklabColor below =
-            OklabColor.fromColor(c.comparison.below.content);
-
-        expect(
-          above.distanceTo(below),
-          greaterThan(2),
-          reason: 'the two directions measure '
-              '${above.distanceTo(below).toStringAsFixed(1)} apart with '
-              'ordinary colour vision, which is at or under the smallest '
-              'difference most people notice side by side',
-        );
-
-        for (final ColourVisionDeficiency deficiency
-            in ColourVisionDeficiency.values) {
-          final OklabColor a = OklabColor.fromColor(
-            ColourVision.simulate(c.comparison.above.content, deficiency),
-          );
-          final OklabColor b = OklabColor.fromColor(
-            ColourVision.simulate(c.comparison.below.content, deficiency),
-          );
-          expect(
-            a.distanceTo(b),
-            greaterThan(2),
-            reason: 'under ${deficiency.name} the two directions measure '
-                '${a.distanceTo(b).toStringAsFixed(1)} apart '
-                '(${a.chromaticDistanceTo(b).toStringAsFixed(1)} of it '
-                'chromatic), which is the point at which the mark is the only '
-                'thing left',
-          );
+  group('colour alone does not separate the four reading accents', () {
+    /// The two accents that sit closest under [deficiency], in Oklab x100.
+    ({String pair, double distance}) closest(
+      IuxSemanticColors c,
+      ColourVisionDeficiency deficiency,
+    ) {
+      final Map<String, Color> accents = <String, Color>{
+        'neutral': c.comparison.neutral.content,
+        'one': c.comparison.one.content,
+        'two': c.comparison.two.content,
+        'three': c.comparison.three.content,
+        'four': c.comparison.four.content,
+      };
+      final List<String> names = accents.keys.toList();
+      String pair = '';
+      double distance = double.infinity;
+      for (int i = 0; i < names.length; i++) {
+        for (int j = i + 1; j < names.length; j++) {
+          final double d = OklabColor.fromColor(
+            ColourVision.simulate(accents[names[i]]!, deficiency),
+          ).distanceTo(OklabColor.fromColor(
+            ColourVision.simulate(accents[names[j]]!, deficiency),
+          ));
+          if (d < distance) {
+            distance = d;
+            pair = '${names[i]} and ${names[j]}';
+          }
         }
+      }
+      return (pair: pair, distance: distance);
+    }
+
+    // ADR-0015 spends the same four hue families ADR-0014 spent on avatar
+    // accents, so it inherits the collision `IUX-PALETTE-PERCEPTION-001`
+    // measured rather than introducing a new one. The measurement is taken
+    // here rather than quoted — `ADR-0011`, `ADR-0012` and `ADR-0013` each
+    // recorded a number carried across a change it did not survive, and a
+    // five-role set where there used to be three is a change.
+    //
+    // **This is a characterisation, not a floor.** It records that hue does
+    // not separate these for everyone, which is the whole reason
+    // `IuxValue.meaning` is required and cannot be omitted.
+    for (final (String name, IuxThemeConfiguration configuration) in profiles) {
+      test(
+          '$name has a pair of accents nobody with a dichromacy can tell '
+          'apart', () {
+        final IuxSemanticColors c = resolve(configuration);
+        final ({String pair, double distance}) worst =
+            closest(c, ColourVisionDeficiency.deuteranopia);
+        expect(
+          worst.distance,
+          lessThan(3),
+          reason: 'the closest pair is ${worst.pair} at '
+              '${worst.distance.toStringAsFixed(1)} in Oklab x100 under '
+              'deuteranopia. If this has risen above the threshold most '
+              'people notice side by side, the palette moved: re-take the '
+              'numbers in ADR-0015 rather than adjusting the bound',
+        );
       });
     }
 
-    test('the dark high contrast profile is where the pair is thinnest', () {
-      // A characterisation test, not a target. Buying contrast on a dark
-      // ground means lightening, and a lightened hue has less chroma to
-      // spend — so the profile whose job is separation is the one where these
-      // two colours sit closest. **If this fails the ramps moved: re-take the
-      // numbers in ADR-0013 rather than adjusting the bound here.**
-      double worst(IuxThemeConfiguration configuration) {
+    test('the pair the pilot needs is a pair that collides', () {
+      // Not an abstract risk. The application this record came from draws
+      // "plus chaud" in the warm accent and "plus sec" in the amber one, on
+      // the same row, in adjacent columns — `one` and `three`. Measured this
+      // round, worst dichromacy per profile:
+      //
+      //   light standard        7.5 / 2.2 / 5.1  (prot / deut / trit)
+      //   light high contrast   2.5 / 1.1 / 3.4
+      //   dark standard        15.0 / 11.8 / 5.8
+      //   dark high contrast    9.6 / 8.3 / 2.8
+      //
+      // The two light profiles are where the pilot's own pair disappears, and
+      // they are the profiles the pilot ships in. The bound is asserted there
+      // and the dark figures are recorded rather than asserted: a bound on a
+      // number that is comfortably large is a bound that fails the day a ramp
+      // improves.
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        if (configuration.brightness != Brightness.light) continue;
         final IuxSemanticColors c = resolve(configuration);
-        return ColourVisionDeficiency.values
-            .map((ColourVisionDeficiency d) => OklabColor.fromColor(
-                  ColourVision.simulate(c.comparison.above.content, d),
-                ).distanceTo(OklabColor.fromColor(
-                  ColourVision.simulate(c.comparison.below.content, d),
-                )))
-            .reduce((double a, double b) => a < b ? a : b);
+        final double apart = OklabColor.fromColor(
+          ColourVision.simulate(
+              c.comparison.one.content, ColourVisionDeficiency.deuteranopia),
+        ).distanceTo(OklabColor.fromColor(
+          ColourVision.simulate(
+              c.comparison.three.content, ColourVisionDeficiency.deuteranopia),
+        ));
+        expect(
+          apart,
+          lessThan(3),
+          reason: '$name draws the warm and the amber accent '
+              '${apart.toStringAsFixed(1)} apart under deuteranopia. A reader '
+              'with the most common dichromacy sees one colour twice and two '
+              'different words, which is the split of work this component is '
+              'built on',
+        );
       }
-
-      final double standardDark =
-          worst(const IuxThemeConfiguration(brightness: Brightness.dark));
-      final double highDark = worst(
-        const IuxThemeConfiguration(
-          brightness: Brightness.dark,
-          profile: IuxAccessibilityProfile(contrast: IuxContrast.high),
-        ),
-      );
-
-      expect(
-        highDark,
-        lessThan(standardDark),
-        reason: 'dark high contrast measures '
-            '${highDark.toStringAsFixed(1)} against the standard profile\'s '
-            '${standardDark.toStringAsFixed(1)}; if raising contrast has '
-            'stopped costing separability, the record in ADR-0013 is out of '
-            'date',
-      );
-      expect(
-        highDark,
-        lessThan(10),
-        reason: 'it measures ${highDark.toStringAsFixed(1)}, which is tens '
-            'rather than units — the pair is now separable enough that the '
-            'argument for the mark should be re-read, not that the mark '
-            'should go',
-      );
     });
 
-    testWidgets('each direction carries a distinct mark', (tester) async {
-      // The channel that does the work colour cannot, and the reason the
-      // measurement above is a record rather than a failure.
-      final Map<IuxValueDirection, IconData> marks =
-          <IuxValueDirection, IconData>{};
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: IuxTheme.fromConfiguration(const IuxThemeConfiguration()),
-          home: Builder(
-            builder: (BuildContext context) {
-              for (final IuxValueDirection direction
-                  in IuxValueDirection.values) {
-                marks[direction] =
-                    IuxValueResolver.resolve(context, direction).mark;
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      );
-
-      expect(marks.length, IuxValueDirection.values.length);
+    test('the word is the channel that does not collide', () {
+      // The reason the measurements above are a record rather than a defect.
+      // A mark can be missed, a hue can be lost, and neither of them reaches a
+      // screen reader; a word this class cannot be built without reaches every
+      // one of them.
       expect(
-        marks.values.toSet().length,
-        marks.length,
-        reason: 'two directions share a mark, which leaves them separated by '
-            'colour alone — and the measurement above says how little colour '
-            'separates them in the dark profiles',
+        () => IuxValue.above('+2.1 °C',
+            meaning: '', label: 'above the normal', accent: IuxValueAccent.one),
+        throwsAssertionError,
       );
     });
   });

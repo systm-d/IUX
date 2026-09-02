@@ -180,23 +180,23 @@ final class IuxChartTokens {
 abstract final class IuxChartResolver {
   /// Resolves the tokens in force at [context].
   ///
-  /// [direction] tints the primary stroke with the side of a reference a
-  /// sparkline's reading fell on. Null — the default, and what every chart
-  /// written before this parameter existed passes — keeps the primary action
-  /// colour the three charts have always used.
+  /// [accent] tints the primary stroke with one of the theme's four reading
+  /// accents. Null — the default, and what every chart written before this
+  /// parameter existed passes — keeps the primary action colour the three
+  /// charts have always used.
   ///
-  /// **`IuxValueDirection`, not `IuxStatusTone`.** A sparkline that shows a
-  /// deviation from a normal is not carrying news — see
+  /// **`IuxValueAccent`, not `IuxStatusTone` and not `IuxValueDirection`.** A
+  /// sparkline that shows a deviation from a normal is not carrying news — see
   /// `docs/decisions/ADR-0013-a-reading-is-compared-not-judged.md`, which
   /// already answered this for `IuxValueIndicator`, the pill this stroke sits
-  /// beside on the pilot's card. Both draw the same axis: the pill states the
-  /// latest reading's side of its reference, the line states the shape of the
-  /// readings that led to it, and giving the line its own `IuxStatusTone`
-  /// vocabulary would recreate exactly the duplicate ADR-0013 exists to
-  /// prevent — two closed sets naming the same three-sided fact.
+  /// beside on the pilot's card. Nor is the hue decided by the side of the
+  /// reference the readings fell on: `ADR-0015` removed that assumption from
+  /// the pill, and a line that kept it would be the same claim made twice in
+  /// one library, once correctly and once not. Both components draw from one
+  /// vocabulary, which is the duplication ADR-0013 exists to prevent.
   static IuxChartTokens resolve(
     BuildContext context, {
-    IuxValueDirection? direction,
+    IuxValueAccent? accent,
   }) {
     final IuxAccessibility accessibility = IuxAccessibility.of(context);
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
@@ -208,16 +208,18 @@ abstract final class IuxChartResolver {
     final double strokeWidth =
         accessibility.scaleText(geometry.strongBorderWidth);
 
-    // The comparison roles' `mark` colour, not `content`: a data line is a
-    // graphical object, and 3:1 is the floor WCAG 2.2 SC 1.4.11 sets for one.
-    // `content` is the 4.5:1 text pair, which would tint the line darker than
-    // the theme intends a line to be — the same choice `IuxValueResolver`
-    // makes for the pill's own mark.
-    final Color stroke = switch (direction) {
+    // The comparison roles' `content`, which is the one colour those roles
+    // carry for anything a reader looks at. It is held to 4.5:1 on the page in
+    // every profile, comfortably above the 3:1 WCAG 2.2 SC 1.4.11 asks of a
+    // graphical object — the pill's reading and this line are the same value
+    // in every shipped mapping, which is what keeps a card's line and its
+    // capsule from drifting into two reds.
+    final Color stroke = switch (accent) {
       null => colors.action.primary.background,
-      IuxValueDirection.above => colors.comparison.above.mark,
-      IuxValueDirection.at => colors.comparison.at.mark,
-      IuxValueDirection.below => colors.comparison.below.mark,
+      IuxValueAccent.one => colors.comparison.one.content,
+      IuxValueAccent.two => colors.comparison.two.content,
+      IuxValueAccent.three => colors.comparison.three.content,
+      IuxValueAccent.four => colors.comparison.four.content,
     };
 
     return IuxChartTokens(
