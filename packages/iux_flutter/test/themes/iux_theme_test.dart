@@ -396,6 +396,26 @@ void main() {
             icon: Color(0xFFB00020),
           ),
         ),
+        comparison: IuxComparisonColorSet(
+          above: IuxComparisonRoleColors(
+            content: Color(0xFFB00020),
+            surface: Color(0xFFF0F0F0),
+            border: Color(0xFFB00020),
+            mark: Color(0xFFB00020),
+          ),
+          at: IuxComparisonRoleColors(
+            content: Color(0xFF505050),
+            surface: Color(0xFFF0F0F0),
+            border: Color(0xFF505050),
+            mark: Color(0xFF505050),
+          ),
+          below: IuxComparisonRoleColors(
+            content: Color(0xFF0000EE),
+            surface: Color(0xFFF0F0F0),
+            border: Color(0xFF0000EE),
+            mark: Color(0xFF0000EE),
+          ),
+        ),
         state: IuxStateColors(
           focus: Color(0xFF0000EE),
           selected: Color(0xFF0000EE),

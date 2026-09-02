@@ -133,6 +133,47 @@ void main() {
         });
       });
 
+      test('every comparison role is readable on its own pill', () {
+        // The roles ADR-0013 added, held to the same floors as the feedback
+        // roles they deliberately are not. A direction whose colour fails here
+        // would be a reading nobody can take, and the mark would be carrying
+        // the pill alone — which it is built to survive and not built to do.
+        final Map<String, IuxComparisonRoleColors> roles =
+            <String, IuxComparisonRoleColors>{
+          'above': colors.comparison.above,
+          'at': colors.comparison.at,
+          'below': colors.comparison.below,
+        };
+        roles.forEach((String role, IuxComparisonRoleColors comparison) {
+          expectRatio('comparison.$role content', comparison.content,
+              comparison.surface, ContrastMetric.normalText);
+          expectRatio('comparison.$role mark', comparison.mark,
+              comparison.surface, ContrastMetric.nonText);
+          expectRatio('comparison.$role border', comparison.border,
+              colors.surface.base, ContrastMetric.nonText);
+        });
+      });
+
+      test('the two directions are not one colour', () {
+        // Two directions a palette renders identically are one direction, and
+        // a reader would have only the mark. The mark is the guarantee; this
+        // is the reinforcement, and it is asserted rather than assumed
+        // because `action.tertiary` once differed from `action.secondary` by
+        // a colour nothing painted and nobody noticed for a whole mission.
+        expect(
+          colors.comparison.above.content,
+          isNot(colors.comparison.below.content),
+        );
+        expect(
+          colors.comparison.above.content,
+          isNot(colors.comparison.at.content),
+        );
+        expect(
+          colors.comparison.below.content,
+          isNot(colors.comparison.at.content),
+        );
+      });
+
       test('focus is visible and never transparent', () {
         expect(colors.state.focus.a, 1.0);
         expectRatio('state.focus on base', colors.state.focus,

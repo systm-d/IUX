@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../accessibility/iux_accessibility.dart';
 import '../../accessibility/iux_category_glyphs.dart';
+import '../../accessibility/iux_direction_glyphs.dart';
 import '../../layout/iux_spacing_primitives.dart';
 import '../../motion/iux_motion_policy.dart';
 import '../../motion/iux_motion_role.dart';
+import '../../semantics/colors/iux_comparison_colors.dart';
 import '../../semantics/colors/iux_feedback_colors.dart';
 import '../../semantics/iux_semantic_colors.dart';
 import '../../themes/extensions/iux_geometry_theme.dart';
@@ -516,6 +518,155 @@ abstract final class IuxChipResolver {
         role: IuxMotionRole.stateChange,
         scale: IuxMotionScale.short,
       ),
+    );
+  }
+}
+
+/// Everything needed to paint a value pill, and nothing about how.
+///
+/// There is no `IuxValueTheme`, for the reason there is no `IuxStatusTheme`: a
+/// value pill has no decision an application could usefully vary that the
+/// semantic palette, geometry and typography do not already carry.
+@immutable
+final class IuxValueTokens {
+  /// Creates a resolved appearance.
+  const IuxValueTokens({
+    required this.mark,
+    required this.markColor,
+    required this.markSize,
+    required this.background,
+    required this.foreground,
+    required this.border,
+    required this.borderWidth,
+    required this.padding,
+    required this.gap,
+    required this.textStyle,
+  });
+
+  /// The shape that distinguishes this direction from the other two.
+  ///
+  /// This is the signal that survives a monochrome screen, and the reason this
+  /// component has a mark at all: the reading beside it *usually* carries a
+  /// sign, and usually is not a guarantee the framework can make. It is
+  /// redundant with the sign when the caller wrote one, and it is the whole
+  /// visual signal when they did not — which is why it is excluded from the
+  /// semantic tree and never optional.
+  final IconData mark;
+
+  /// The mark colour, held to 3:1 against [background] by the theme.
+  final Color markColor;
+
+  /// The mark edge length, already scaled for the user's text size.
+  final double markSize;
+
+  /// The pill's fill.
+  final Color background;
+
+  /// The reading's colour, held to 4.5:1 against [background] by the theme.
+  final Color foreground;
+
+  /// The pill's outline.
+  ///
+  /// Always drawn, under every profile. A high contrast palette flattens fill
+  /// differences, so the pill states its extent with a line as well as with an
+  /// area — the same reason `IuxChartTokens.bandEdge` is never optional.
+  final Color border;
+
+  /// The outline width.
+  final double borderWidth;
+
+  /// Space between the reading and the pill's edge.
+  final EdgeInsets padding;
+
+  /// Space between the mark and the reading.
+  final double gap;
+
+  /// The reading's style, already carrying [foreground].
+  final TextStyle textStyle;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IuxValueTokens &&
+          other.mark == mark &&
+          other.markColor == markColor &&
+          other.markSize == markSize &&
+          other.background == background &&
+          other.foreground == foreground &&
+          other.border == border &&
+          other.borderWidth == borderWidth &&
+          other.padding == padding &&
+          other.gap == gap &&
+          other.textStyle == textStyle;
+
+  @override
+  int get hashCode => Object.hashAll(<Object>[
+        mark,
+        markColor,
+        markSize,
+        background,
+        foreground,
+        border,
+        borderWidth,
+        padding,
+        gap,
+        textStyle,
+      ]);
+}
+
+/// Resolves the appearance of a value pill.
+abstract final class IuxValueResolver {
+  /// The mark that identifies [direction] without using its colour.
+  ///
+  /// Public so the rule can be asserted directly: the three marks must stay
+  /// distinct from one another, because two directions drawn with the same
+  /// shape are two directions separated by hue alone — exactly the failure the
+  /// mark exists to prevent. The shapes are defined once, in
+  /// [IuxDirectionGlyphs], rather than per component.
+  static IconData mark(IuxValueDirection direction) => switch (direction) {
+        IuxValueDirection.above => IuxDirectionGlyphs.above,
+        IuxValueDirection.at => IuxDirectionGlyphs.at,
+        IuxValueDirection.below => IuxDirectionGlyphs.below,
+      };
+
+  /// Resolves the tokens for [direction] at [context].
+  static IuxValueTokens resolve(
+    BuildContext context,
+    IuxValueDirection direction,
+  ) {
+    final IuxAccessibility accessibility = IuxAccessibility.of(context);
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+    final IuxTypographyTheme typography = IuxTypographyTheme.of(context);
+    final IuxSemanticColors colors = IuxSemanticColors.of(context);
+
+    // The comparison roles, not the feedback ones. A reading that sits above
+    // its reference is not an error, and reaching for `feedback.error` to get
+    // the colour the eye expects would ship that judgement as a colour the
+    // user cannot argue with — ADR-0013. Their contrast pairs are measured on
+    // all four theme profiles in `theme_contrast_test.dart`.
+    final IuxComparisonRoleColors role = switch (direction) {
+      IuxValueDirection.above => colors.comparison.above,
+      IuxValueDirection.at => colors.comparison.at,
+      IuxValueDirection.below => colors.comparison.below,
+    };
+
+    return IuxValueTokens(
+      mark: mark(direction),
+      markColor: role.mark,
+      // Scaled through the runtime rather than by Flutter, so the mark and the
+      // reading enlarge by the same factor. A user who enlarged their text
+      // because 14pt was unreadable gains nothing from a 20-pixel arrow that
+      // stayed where it was.
+      markSize: accessibility.scaleText(_glyphSize),
+      background: role.surface,
+      foreground: role.content,
+      border: role.border,
+      borderWidth: geometry.borderWidth,
+      padding: IuxInsets.compact(context),
+      gap: geometry.spacingXs,
+      // The label role rather than supporting: a reading is the subject of the
+      // pill, and the pill sits beside prose that is already at body size.
+      textStyle: typography.label.copyWith(color: role.content),
     );
   }
 }

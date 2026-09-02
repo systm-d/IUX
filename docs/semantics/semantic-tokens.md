@@ -46,6 +46,7 @@ rather than a sweep through every widget.
 | `border` | `IuxBorderColors` | outlines, dividers, focus |
 | `action` | `IuxActionColorSet` | four intents, each with its full state contract |
 | `feedback` | `IuxFeedbackColorSet` | info, success, warning, error |
+| `comparison` | `IuxComparisonColorSet` | above, at, below — which side of a reference a reading fell on |
 | `state` | `IuxStateColors` | focus, selection, hover, press, drag |
 
 Each group is documented separately:
@@ -55,6 +56,7 @@ Each group is documented separately:
 - [border-roles.md](border-roles.md)
 - [action-roles.md](action-roles.md)
 - [feedback-roles.md](feedback-roles.md)
+- [comparison-roles.md](comparison-roles.md)
 - [state-roles.md](state-roles.md)
 
 ## Why grouped rather than flat

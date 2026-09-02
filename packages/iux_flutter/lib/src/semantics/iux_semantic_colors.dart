@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'colors/iux_action_colors.dart';
 import 'colors/iux_border_colors.dart';
+import 'colors/iux_comparison_colors.dart';
 import 'colors/iux_content_colors.dart';
 import 'colors/iux_feedback_colors.dart';
 import 'colors/iux_state_colors.dart';
@@ -32,6 +33,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
     required this.border,
     required this.action,
     required this.feedback,
+    required this.comparison,
     required this.state,
   });
 
@@ -49,6 +51,12 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
 
   /// The color contract of each feedback category.
   final IuxFeedbackColorSet feedback;
+
+  /// The color contract of each side of a reference a reading can fall on.
+  ///
+  /// Separate from [feedback] because a direction is not a piece of news. See
+  /// [IuxComparisonColorSet].
+  final IuxComparisonColorSet comparison;
 
   /// Interaction states applying to any element.
   final IuxStateColors state;
@@ -87,6 +95,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
     IuxBorderColors? border,
     IuxActionColorSet? action,
     IuxFeedbackColorSet? feedback,
+    IuxComparisonColorSet? comparison,
     IuxStateColors? state,
   }) =>
       IuxSemanticColors(
@@ -95,6 +104,7 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
         border: border ?? this.border,
         action: action ?? this.action,
         feedback: feedback ?? this.feedback,
+        comparison: comparison ?? this.comparison,
         state: state ?? this.state,
       );
 
@@ -110,6 +120,11 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
       border: IuxBorderColors.lerp(border, other.border, t),
       action: IuxActionColorSet.lerp(action, other.action, t),
       feedback: IuxFeedbackColorSet.lerp(feedback, other.feedback, t),
+      comparison: IuxComparisonColorSet.lerp(
+        comparison,
+        other.comparison,
+        t,
+      ),
       state: IuxStateColors.lerp(state, other.state, t),
     );
   }
@@ -123,9 +138,17 @@ final class IuxSemanticColors extends ThemeExtension<IuxSemanticColors> {
           other.border == border &&
           other.action == action &&
           other.feedback == feedback &&
+          other.comparison == comparison &&
           other.state == state;
 
   @override
-  int get hashCode =>
-      Object.hash(content, surface, border, action, feedback, state);
+  int get hashCode => Object.hash(
+        content,
+        surface,
+        border,
+        action,
+        feedback,
+        comparison,
+        state,
+      );
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iux_flutter/iux_flutter.dart';
@@ -1249,6 +1250,220 @@ void main() {
       await tester.tap(find.byType(IuxFilterChip), warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('a reading is compared, never judged', () {
+    test('a reading must name what it measures, not repeat its own digits', () {
+      // The three ways a value pill can be built into something that says
+      // nothing, each made unconstructable rather than discouraged.
+      expect(
+        () => IuxValue.above('+2.1 °C', label: '+2.1 °C'),
+        throwsAssertionError,
+        reason: 'a label that repeats the reading tells a screen-reader user a '
+            'number with no referent, which is the failure this class exists '
+            'to prevent',
+      );
+      expect(
+          () => IuxValue.at('', label: 'at the normal'), throwsAssertionError);
+      expect(() => IuxValue.below('-47 mm', label: ''), throwsAssertionError);
+    });
+
+    test('a direction is not a piece of news, and the two axes stay apart', () {
+      // The whole point of the separate axis. A reading that sits above its
+      // reference is not a warning, and a reading below it is not an error;
+      // IuxStatusTone says "good or bad news" in its own dartdoc, and a dry
+      // year is neither.
+      expect(IuxValueDirection.values, hasLength(3));
+      expect(
+        IuxValueDirection.values.map((IuxValueDirection d) => d.name).toSet(),
+        <String>{'above', 'at', 'below'},
+      );
+      expect(
+          const IuxValue.above('+2.1 °C', label: 'above the normal').direction,
+          IuxValueDirection.above);
+    });
+
+    test('the three directions are drawn with three different marks', () {
+      // Render the screen in one hue and every direction carried by colour
+      // alone disappears. Two directions sharing a mark would be exactly that
+      // failure, so the marks are asserted distinct rather than reviewed.
+      final Set<IconData> marks =
+          IuxValueDirection.values.map(IuxValueResolver.mark).toSet();
+      expect(marks, hasLength(IuxValueDirection.values.length));
+    });
+  });
+
+  group('a value pill says its direction without its colour', () {
+    testWidgets('the reading is drawn and only the sentence is announced',
+        (WidgetTester tester) async {
+      await host(
+        tester,
+        const IuxValueIndicator(
+          value: IuxValue.above(
+            '+2.1 °C',
+            label: '2.1 degrees above the 1991 to 2020 normal',
+          ),
+        ),
+      );
+
+      expect(find.text('+2.1 °C'), findsOneWidget);
+      final SemanticsNode node =
+          tester.getSemantics(find.byType(IuxValueIndicator));
+      expect(node.label, '2.1 degrees above the 1991 to 2020 normal');
+      // The numeral is excluded, so the reader hears the sentence once rather
+      // than "plus two point one degrees Celsius" and then the same fact.
+      expect(find.bySemanticsLabel('+2.1 °C'), findsNothing);
+    });
+
+    testWidgets('the mark is drawn and adds no announcement of its own',
+        (WidgetTester tester) async {
+      await host(
+        tester,
+        const IuxValueIndicator(
+          value: IuxValue.below('-47 mm', label: '47 millimetres below normal'),
+        ),
+      );
+
+      final Icon mark = tester.widget<Icon>(find.byType(Icon));
+      expect(mark.icon, IuxValueResolver.mark(IuxValueDirection.below));
+      expect(
+        tester.getSemantics(find.byType(IuxValueIndicator)).label,
+        '47 millimetres below normal',
+      );
+    });
+
+    testWidgets('it is not a control', (WidgetTester tester) async {
+      await host(
+        tester,
+        const IuxValueIndicator(
+          value: IuxValue.below('-47 mm', label: '47 millimetres below normal'),
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(IuxValueIndicator)),
+        matchesSemantics(
+          label: '47 millimetres below normal',
+          textDirection: TextDirection.ltr,
+        ),
+      );
+    });
+
+    testWidgets('the mark grows with the text it sits beside',
+        (WidgetTester tester) async {
+      // A mark that stayed twenty pixels while the reading doubled is a mark
+      // the person who enlarged their text can no longer use.
+      final IuxValueTokens standard = await resolve(
+        tester,
+        const IuxThemeConfiguration(),
+        (BuildContext context) =>
+            IuxValueResolver.resolve(context, IuxValueDirection.above),
+      );
+      final IuxValueTokens enlarged = await resolve(
+        tester,
+        const IuxThemeConfiguration(),
+        (BuildContext context) =>
+            IuxValueResolver.resolve(context, IuxValueDirection.above),
+        textScale: 2,
+      );
+      expect(enlarged.markSize, greaterThan(standard.markSize));
+    });
+  });
+
+  group('the direction axis is separated on every profile', () {
+    for (final IuxThemeConfiguration configuration in _profiles) {
+      testWidgets('three directions resolve three readable appearances',
+          (WidgetTester tester) async {
+        final IuxSemanticColors colors = colorsOf(configuration);
+        final Set<Color> foregrounds = <Color>{};
+
+        for (final IuxValueDirection direction in IuxValueDirection.values) {
+          final IuxValueTokens tokens = await resolve(
+            tester,
+            configuration,
+            (BuildContext context) =>
+                IuxValueResolver.resolve(context, direction),
+          );
+          foregrounds.add(tokens.foreground);
+
+          expect(
+            ContrastMetric.ratio(tokens.foreground, tokens.background),
+            greaterThanOrEqualTo(ContrastMetric.normalText),
+            reason: '$direction reading on its own pill',
+          );
+          expect(
+            ContrastMetric.ratio(tokens.markColor, tokens.background),
+            greaterThanOrEqualTo(ContrastMetric.nonText),
+            reason: '$direction mark on its own pill',
+          );
+          expect(
+            ContrastMetric.ratio(tokens.border, colors.surface.base),
+            greaterThanOrEqualTo(ContrastMetric.nonText),
+            reason: '$direction outline on the page',
+          );
+        }
+
+        expect(foregrounds, hasLength(IuxValueDirection.values.length));
+      });
+    }
+  });
+
+  group('a value pill survives the conditions its readings arrive in', () {
+    testWidgets('it wraps rather than clips at 200% text',
+        (WidgetTester tester) async {
+      await host(
+        tester,
+        const SizedBox(
+          width: 120,
+          child: IuxValueIndicator(
+            value: IuxValue.above(
+              '+2.1 °C compared with the normal',
+              label: 'well above the normal',
+            ),
+          ),
+        ),
+        textScale: 2,
+      );
+      expect(tester.takeException(), isNull);
+      final Text text =
+          tester.widget<Text>(find.text('+2.1 °C compared with the normal'));
+      expect(text.maxLines, isNull, reason: 'no line limit, at any text scale');
+      expect(text.overflow, isNot(TextOverflow.ellipsis));
+    });
+
+    testWidgets('it renders in RTL and on every theme profile',
+        (WidgetTester tester) async {
+      for (final IuxThemeConfiguration configuration in _profiles) {
+        for (final IuxValueDirection direction in IuxValueDirection.values) {
+          await host(
+            tester,
+            IuxValueIndicator(
+              value: switch (direction) {
+                IuxValueDirection.above =>
+                  const IuxValue.above('٣+', label: 'فوق المعدل'),
+                IuxValueDirection.at =>
+                  const IuxValue.at('٠', label: 'عند المعدل'),
+                IuxValueDirection.below =>
+                  const IuxValue.below('٣-', label: 'دون المعدل'),
+              },
+            ),
+            configuration: configuration,
+            direction: TextDirection.rtl,
+          );
+          expect(tester.takeException(), isNull);
+
+          // Reading order, not left-to-right order. The mark leads the
+          // reading, so in a right-to-left interface it sits on the right —
+          // a Row that hard-coded its direction would render without an
+          // exception and put the arrow on the wrong side of the number,
+          // which no `takeException` can see.
+          expect(
+            tester.getCenter(find.byType(Icon)).dx,
+            greaterThan(tester.getCenter(find.byType(Text)).dx),
+            reason: 'the mark leads the reading, so RTL puts it on the right',
+          );
+        }
+      }
     });
   });
 }

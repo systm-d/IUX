@@ -21,6 +21,7 @@ void main() {
         border: dark.border,
         action: dark.action,
         feedback: dark.feedback,
+        comparison: dark.comparison,
         state: dark.state,
       );
       expect(copy, equals(dark));
@@ -33,6 +34,7 @@ void main() {
       expect(copy.border, equals(light.border));
       expect(copy.action, equals(light.action));
       expect(copy.feedback, equals(light.feedback));
+      expect(copy.comparison, equals(light.comparison));
       expect(copy.state, equals(light.state));
     });
 
@@ -49,6 +51,15 @@ void main() {
         probe,
       );
       expect(light.feedback.error.copyWith(icon: probe).icon, probe);
+      expect(light.comparison.above.copyWith(mark: probe).mark, probe);
+      expect(
+        light.comparison
+            .copyWith(
+              at: light.comparison.above,
+            )
+            .at,
+        light.comparison.above,
+      );
     });
 
     test('an empty copy equals the original', () {

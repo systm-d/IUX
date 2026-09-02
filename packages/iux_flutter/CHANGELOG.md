@@ -7,6 +7,13 @@ the one changelog. Every entry, for every version, is in
 
 ## Unreleased
 
+**Breaking.** `IuxSemanticColors` gains a seventh required role group,
+`comparison`, so any application that builds a full palette by hand for
+`IuxTheme.withSemanticColors` no longer compiles until it maps three more
+roles. That is the intended failure: a colour group defaulted silently is a
+group nobody measured. `ADR-0013`, and
+`docs/semantics/comparison-roles.md` is the contract.
+
 **Breaking.** `IuxOnboardingFlow.forwardLabel` is removed;
 `IuxOnboardingStep.forwardLabel` replaces it, null on the last step only. The
 pattern's assertion demanded a named destination while its API offered one

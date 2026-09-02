@@ -32,6 +32,7 @@ const Map<int, String> _decisions = <int, String>{
   10: 'IUX draws charts',
   11: 'Icons on tabs, for a measured quantity',
   12: 'A dense row folds rather than overflows',
+  13: 'A reading is compared, not judged',
 };
 
 void main() {

@@ -1,13 +1,24 @@
-# IuxStatusIndicator, IuxBadge and the chips
+# IuxStatusIndicator, IuxValueIndicator, IuxBadge and the chips
 
 ## Purpose
 
-Report a state, a count, or an attribute in the smallest amount of space an
-interface has — without letting colour become the thing that carries the
-meaning.
+Report a state, a reading, a count, or an attribute in the smallest amount of
+space an interface has — without letting colour become the thing that carries
+the meaning.
+
+- `IuxStatusIndicator` reports a **state** — news about something the user can
+  act on.
+- `IuxValueIndicator` reports a **reading**, held against a reference the caller
+  names: a quantity, and which side of the reference it fell on.
+- `IuxBadge` reports a **count**.
+- the chips report an **attribute**, or switch a criterion.
 
 ```dart
 IuxStatusIndicator(status: IuxStatus.error(l10n.paymentDeclined))
+
+IuxValueIndicator(
+  value: IuxValue.above('+2.1 °C', label: l10n.aboveTheNormalBy(2.1)),
+)
 
 IuxBadge.count(count: l10n.formatCount(3), label: l10n.unreadMessages(3))
 IuxBadge.marker(label: l10n.unreadMessages)
@@ -38,6 +49,7 @@ makes the rule absolute; this document is what applying it produced.
 | Component | Use it when |
 | --- | --- |
 | `IuxStatusIndicator` | a record, row or connection is in a state that changes what the user can do |
+| `IuxValueIndicator` | a quantity has been compared with a reference and the direction is worth seeing |
 | `IuxBadge.count` | you can say how many of something are waiting |
 | `IuxBadge.marker` | there are some and the number does not matter |
 | `IuxTagChip` | you are showing an attribute the record already has |
@@ -48,6 +60,14 @@ makes the rule absolute; this document is what applying it produced.
 
 - **A status is something the user can act on.** The indicator reports; it takes
   no focus and no gesture. Put a button beside it.
+- **A reading is really a state.** An order that failed is not a number above a
+  reference. Use `IuxStatusIndicator`, which draws a category glyph and says
+  what happened.
+- **A reading nobody compared with anything.** A column of `IuxValue.at` pills
+  reading `0.0` on every row is decoration users learn to skip. If there is no
+  reference, there is no direction, and the number belongs in plain text.
+- **A reading the user can act on.** The pill takes no focus, has no touch
+  target and reports no gesture. Put a button beside it.
 - **A badge is the thing being pressed.** A badge is never tappable. Whatever it
   decorates owns the gesture and the touch target; the badge owns neither.
 - **A badge stands for a state.** An order that failed is a status, not a
@@ -105,6 +125,29 @@ control.
 
 There is no constructor without a label and no label that may be empty. That is
 the whole design. See "How the non-colour signal is made structural" below.
+
+### `IuxValue` and `IuxValueIndicator`
+
+| Member | Required | Note |
+| --- | --- | --- |
+| `IuxValue.above(value, label:)` | both | the reading sits on the upper side of its reference |
+| `IuxValue.at(value, label:)` | both | the reading is level with its reference |
+| `IuxValue.below(value, label:)` | both | the reading sits on the lower side |
+| `IuxValueIndicator(value:)` | value | draws it |
+
+`value` is what the eye reads and `label` is what the ear hears, and they are
+different strings: `value` is the formatted numeral, `label` the sentence that
+says what it means. The constructor refuses an empty `value`, an empty `label`,
+and a `label` equal to `value` — a label that repeats the numeral hands a
+screen-reader user a number with no referent.
+
+`value` is a `String`, not a number, for the reason `IuxBadge.count` is: `2,1`,
+`2.1` and `٢٫١` are three different strings, and only the caller knows which
+applies, along with the unit and where it goes.
+
+There are three directions and there will not be a fourth. A quantity compared
+with a reference is above it, level with it, or below it; "far above" is not a
+fourth direction, it is a bigger number, and it belongs in `value`.
 
 ### `IuxBadge`
 
@@ -240,6 +283,58 @@ is excluded from the semantic tree in every case, because it repeats what the
 label already says. An icon carrying information the label does not is
 information a screen-reader user never receives.
 
+## Why the reading has its own axis, and does not borrow the four tones
+
+`IuxStatusTone` has four members and they are four families of **news**: a fact,
+a state the user wanted, a state that will stop working, a state that has
+stopped. `iux_status_model.dart` says so in those words, and warns on `neutral`
+that colouring a neutral state red "asks the user to react to something that
+needs no reaction".
+
+A reading is not news until somebody judges it, and the framework is not who
+judges it. Drawing "2.1 degrees above the normal" through `IuxStatusTone.error`
+to obtain the red the eye expects asserts that a warm summer is a malfunction —
+a claim IUX has no standing to make and the user no way to argue with, because
+it arrives as a colour rather than as a sentence.
+
+So the pill has a second axis, not a fifth tone. **"Four tones and no more"
+still holds**: it bounds the axis of news, and its reason — that a fifth family
+of news would be a domain concept — is exactly why above, level and below are
+not one. A budget, a blood pressure, a lap time and a rainfall total are all
+read against a reference, in every domain, and none of them is good or bad news
+until the words say so. See
+[../decisions/ADR-0013-a-reading-is-compared-not-judged.md](../decisions/ADR-0013-a-reading-is-compared-not-judged.md).
+
+## Why the value pill has a mark, when its reading usually carries a sign
+
+`+2.1 °C` reads as "above" on a monochrome screen, under any colour vision
+deficiency, and out loud. So the mark looks redundant, and most of the time it
+is.
+
+**The framework cannot rely on most of the time.** `IuxValue.above('2.1 °C', …)`
+compiles, and so does every locale's formatting of a deviation that writes no
+sign. What IUX can promise is what it can refuse to build, and it cannot refuse
+a string. It cannot supply the sign either: it composes no user-facing text, and
+a `+` written by the library would be the wrong glyph in some scripts and on the
+wrong side in others.
+
+So the direction is carried by a mark the component draws — an upward arrow, a
+horizontal rule, a downward arrow — and it is redundant whenever the caller
+wrote a sign. Vertical arrows deliberately: a left or right arrow means the
+opposite thing in a right-to-left interface.
+
+| Signal | Reaches |
+| --- | --- |
+| the mark's shape | a monochrome screen, a colour vision deficiency |
+| `IuxValue.label` | everyone, including a screen reader |
+| the formatted reading | everyone who can see the pill |
+| the direction colour | everyone else, as reinforcement |
+
+The measurement behind the first row: the two directions stand between 30.4 and
+9.9 apart in Oklab ×100 across the four profiles, and between 22.7 and 6.5 apart
+under the worst simulated dichromacy — thinnest in the dark high contrast
+profile, where the mark is not reinforcement but the signal.
+
 ### Why a marker badge is not a colour-alone failure
 
 A dot with no number looks like the thing this document forbids, and is not.
@@ -253,12 +348,20 @@ different things, which is why `IuxBadge` has exactly one tone.
 | Component | State | Source |
 | --- | --- | --- |
 | `IuxStatusIndicator` | one of four tones | the `IuxStatus` the parent holds |
+| `IuxValueIndicator` | at rest — the only one it has | — |
 | `IuxBadge` | counted / marker | which constructor was called |
 | `IuxFilterChip` | unselected, selected | `selected`, owned by the parent |
 | | disabled | `onSelectionChanged == null` |
 | | pressed | the widget's own, while a finger is down |
 | | focused | the widget's own, drawn additively |
 | `IuxTagChip` | read-only | the only one it has |
+
+**`IuxValueIndicator` has one state and it is at rest.** It has no focus, no
+pressed, no disabled, no loading, no error and no empty state, and it has no
+motion of any kind. That is written here rather than left to be discovered
+because §6 of the component standard asks a component that cannot express a
+state to say so: a reading that is loading is a row that is loading, and a
+reading the user can act on is a reading beside a button.
 
 Neither the status indicator nor the badge has a disabled, focused, pressed or
 error state: they are not interactive. `IuxFilterChip` has no loading state — a
@@ -444,7 +547,29 @@ IuxStatus.error(l10n.paymentDeclined)
   in `IuxSemantics.liveRegion` at the call site when a change must be heard.
 - **Four tones and no more.** An application needing a fifth meaning is
   describing its domain rather than a UX category, and that belongs in the
-  label.
+  label. This bounds the axis of *news*; `IuxValueDirection` is a second axis
+  rather than a fifth tone, and ADR-0013 is where that is argued.
+- **Two pills that differ only in direction are separated by hue and one arrow,
+  and nothing in this component can refuse two that differ by nothing at all.**
+  `IuxValue` requires a label and forbids it repeating the reading, which is as
+  far as a constructor can go; whether two labels actually differ is a
+  judgement no test can make.
+- **In the two dark profiles a value pill and a feedback panel are the same
+  colours.** The shipped palette gives `comparison.above` the rung
+  `feedback.error` takes there, on the same surface, and the mark and the
+  geometry are what separate them. Paling the pill to make the roles
+  numerically distinct was measured and cost the separation between the two
+  directions — 17.2 down to 9.9 in Oklab ×100 — which is the separation a
+  reader actually has to make.
+- **Nobody has measured how narrow a value pill can be.** The status
+  indicator's floor — 180.3 px at 100% text for one unwrappable word
+  (`IUX-LISTITEM-TRAILING-001`) — was taken on a component carrying a glyph, a
+  gap and a *label*, and a value pill carries a mark, a gap and a *reading*
+  with different wrap points. **That number does not transport.** It is to be
+  re-taken on a 320-pixel screen and written here.
+- **IUX is never told what counts as "above".** The caller compares and passes
+  the result; a framework that chose the tolerance would be choosing it for a
+  quantity it cannot see.
 - **No overlay badge.** See the anti-pattern above. If a later mission
   demonstrates the need, it should arrive as a positioning widget with its own
   clipping and text-scaling tests, not as a parameter here.
@@ -480,6 +605,9 @@ IuxStatus.error(l10n.paymentDeclined)
 | A control's role and state must be exposed | Standard — SC 4.1.2 |
 | Two chip types rather than one with a flag | Context dependent — IUX governance, §8 of the component standard |
 | Reusing the feedback roles for status tones | Context dependent |
+| A reading gets a direction axis rather than a status tone | Context dependent — IUX governance, ADR-0013 |
+| The warm/cool pair survives the two red-green dichromacies | Measured — `test/themes/palette_perception_test.dart`, this round |
+| The three direction marks are recognisable as up, level and down | Hypothesis — conventional, not measured |
 | A reserved checkmark slot beats an animated width | Strong guidance — layout stability, Material |
 | `selected` rather than `toggled` for a chip | Strong guidance — Material, Android semantics |
 | A status pill reads as distinct from a tag chip | Hypothesis — not user-tested |

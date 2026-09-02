@@ -28,6 +28,7 @@ class StatusPanels extends StatelessWidget {
           const _AvatarPanel(),
           _ImagePanel(longLabels: longLabels),
           _StatusPanel(longLabels: longLabels),
+          _ValuePanel(longLabels: longLabels),
           _ChipPanel(longLabels: longLabels),
           const _BadgePanel(),
         ],
@@ -388,6 +389,133 @@ class _StatusPanel extends StatelessWidget {
             'Four tones and no more. An application needing a fifth is '
             'describing its domain rather than a UX category, and the domain '
             'belongs in the label.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The pill that reports a reading against a reference.
+class _ValuePanel extends StatelessWidget {
+  const _ValuePanel({required this.longLabels});
+
+  final bool longLabels;
+
+  @override
+  Widget build(BuildContext context) {
+    final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
+
+    String sentence(String short, String long) => longLabels ? long : short;
+
+    IuxValue sample(IuxValueDirection direction) => switch (direction) {
+          IuxValueDirection.above => IuxValue.above(
+              '+2,1 °C',
+              label: sentence(
+                '2.1 degrees above normal',
+                '2.1 degrees above the 1991 to 2020 normal, the widest gap in '
+                    'the record',
+              ),
+            ),
+          IuxValueDirection.at => IuxValue.at(
+              '0,0 °C',
+              label: sentence(
+                'at the normal',
+                'within a tenth of a degree of the 1991 to 2020 normal',
+              ),
+            ),
+          IuxValueDirection.below => IuxValue.below(
+              '-47 mm',
+              label: sentence(
+                '47 millimetres below normal',
+                '47 millimetres less rain than the 1991 to 2020 normal',
+              ),
+            ),
+        };
+
+    return CatalogPanel(
+      title: 'A reading, compared',
+      description: 'The sister of the status indicator, and the difference is '
+          'the axis: a status is news — it worked, it failed — and a reading '
+          'is a number held against a reference. Three directions, because a '
+          'quantity is above its reference, level with it, or below it, and '
+          'there is no fourth side. The arrow is not decoration: it is the '
+          'only direction signal a caller who formatted without a sign leaves '
+          'behind, which the last sample shows. Turn the text to 300% and '
+          'watch the narrow sample wrap rather than clip.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Wrap(
+            spacing: geometry.spacingSm,
+            runSpacing: geometry.spacingSm,
+            children: <Widget>[
+              for (final IuxValueDirection direction
+                  in IuxValueDirection.values)
+                CatalogSample(
+                  caption: direction.name,
+                  child: CatalogMeasured(
+                    checksTarget: false,
+                    child: IuxValueIndicator(value: sample(direction)),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('in a row, where it is normally read'),
+          Row(
+            children: <Widget>[
+              const Expanded(child: Text('Été 2026')),
+              SizedBox(width: geometry.spacingSm),
+              IuxValueIndicator(value: sample(IuxValueDirection.above)),
+            ],
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('narrow, which is where it has to wrap'),
+          const CatalogSample(
+            caption: '120 px',
+            width: 120,
+            child: CatalogMeasured(
+              checksTarget: false,
+              child: IuxValueIndicator(
+                value: IuxValue.above(
+                  '+2,1 °C against the normal',
+                  label: 'well above the normal',
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading(
+              'the reading the caller wrote without a sign'),
+          Wrap(
+            spacing: geometry.spacingSm,
+            children: const <Widget>[
+              IuxValueIndicator(
+                value: IuxValue.above('2,1 °C', label: '2.1 degrees warmer'),
+              ),
+              IuxValueIndicator(
+                value: IuxValue.below('2,1 °C', label: '2.1 degrees cooler'),
+              ),
+            ],
+          ),
+          const CatalogNote(
+            'Two readings the caller formatted without a sign. Nothing here '
+            'can refuse that, and it is why the arrow is drawn: take the '
+            'colour away — a monochrome screen, a colour vision deficiency, '
+            'the dark high contrast profile where the two hues measure 6.5 '
+            'apart in Oklab x100 — and the arrow is the whole difference.',
+          ),
+          const CatalogNote(
+            'No focus, no press, no disabled, no loading, no error and no '
+            'movement. A value pill has one state and reports no gesture; if '
+            'the user can act on a reading, the button goes beside it.',
+          ),
+          const CatalogNote(
+            'Three directions and no fourth. A reading that is above its '
+            'reference is not a warning and one below it is not an error — '
+            'that judgement is a status, with the words that make it '
+            'arguable. See ADR-0013.',
           ),
         ],
       ),

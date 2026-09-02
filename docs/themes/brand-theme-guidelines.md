@@ -22,6 +22,7 @@ final theme = IuxTheme.withSemanticColors(
     border: IuxBorderColors(...),
     action: IuxActionColorSet(...),
     feedback: IuxFeedbackColorSet(...),
+    comparison: IuxComparisonColorSet(...),
     state: IuxStateColors(...),
   ),
 );
@@ -46,6 +47,7 @@ At minimum, verify:
 - every border that identifies a control — 3:1;
 - every action intent in its resting, hovered and pressed states — 4.5:1;
 - every feedback role on its own surface — 4.5:1;
+- every comparison role on its own surface — 4.5:1, and its mark 3:1;
 - focus, and that it stays distinguishable from selection.
 
 ## What must not be bypassed
@@ -53,6 +55,15 @@ At minimum, verify:
 - **A role's meaning.** Do not map `feedback.error` to a calm colour because
   red is off-brand. If your palette cannot express a failure, the palette is
   the problem.
+- **The two vocabularies.** `feedback` classifies news; `comparison` says which
+  side of a reference a reading fell on. Mapping `comparison.above` to the same
+  values as `feedback.error` is allowed and is what the shipped dark profiles
+  do, but mapping them because "above is bad" is deciding for your users
+  something only your words can say. See
+  [../decisions/ADR-0013-a-reading-is-compared-not-judged.md](../decisions/ADR-0013-a-reading-is-compared-not-judged.md).
+- **`comparison.above` and `comparison.below` must differ.** Two directions a
+  palette renders identically are one direction, and the reader is left with
+  the mark alone.
 - **Colour alone.** Every rule in
   [../accessibility/color-and-non-color-signals.md](../accessibility/color-and-non-color-signals.md)
   still applies.

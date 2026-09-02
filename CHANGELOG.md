@@ -5,6 +5,55 @@ repeats it. See CONTRIBUTING.md, "Versioning".
 
 ## Unreleased
 
+### `IuxValueIndicator` — a reading is compared, not judged
+
+`ADR-0013`, and the decision `ADR-0012` left open by name. A pilot application
+draws coloured pills for deviations — `+2,1 °C`, `−47 mm` — and asked for them
+by reusing the four status tones, letting the application decide which tone
+carries which climate.
+
+**That is a category error rather than a poor fit.** `IuxStatusTone`'s four
+members are families of *news* — its own dartdoc calls `neutral` "a fact rather
+than good or bad news" and `error` "a state that has stopped working" — and a
+summer two degrees above its thirty-year normal is not a state that stopped
+working. Drawing it through `IuxStatusTone.error` to get the red the eye expects
+ships a judgement as a colour, in a library whose premise is that a colour never
+carries a claim alone. "Four tones and no more" is kept, and it is kept where it
+was written: it bounds the axis of *news*, and above/level/below is a second
+axis rather than a fifth tone.
+
+So `IuxValue` and `IuxValueIndicator` arrive with `IuxValueDirection`, whose
+three members are closed by arithmetic rather than by taste — there is no fourth
+side of a reference. `IuxSemanticColors` gains a seventh role group,
+`comparison`, the first since `ADR-0002` defined the contract, mapped on all
+four shipped profiles.
+
+**The pill draws a mark, and the request said it would not need one.** The
+argument was that `+2.1 °C` already reads as "above" without colour, which is
+true and is not a guarantee: `IuxValue.above('2.1 °C', …)` compiles, the
+catalogue sample that came with the request drew `0.0 °C` with no sign, and the
+framework cannot add one — it composes no user-facing text, and a `+` written by
+the library is the wrong glyph in some scripts and on the wrong side in others.
+An arrow it draws itself is the one signal it can promise.
+
+**Measured in this round, on the shipped mapping**, with the instruments in
+`test/support/perception.dart`: the two directions stand 30.4 / 13.2 / 17.2 /
+9.9 apart in Oklab ×100 in the light standard, light high contrast, dark
+standard and dark high contrast profiles, and 22.7 / 9.4 / 11.8 / 6.5 apart at
+the worst of the three simulated dichromacies. Contrast on the new roles: 6.35,
+7.12 and 5.88 to 1 in light; 6.96, 5.61 and 7.59 in dark; 15.00, 12.72 and 15.14
+in light high contrast; 9.78, 11.16 and 10.03 in dark high contrast. The dark
+high contrast pair is **units rather than tens**, which is recorded as a bound
+and is the arithmetic reason the mark is not optional.
+
+**Two things the record refuses to claim.** The pilot's maquettes do not
+actually encode direction in colour — `+51 mm` and `−47 mm` are both drawn cool,
+so the hue is tracking the quantity, not the side of the reference — and
+applying this record gives `+51 mm` the *above* appearance instead. And nobody
+has measured how narrow a value pill can be: the status indicator's 180.3-pixel
+floor was taken on a component carrying a label rather than a reading, and it
+does not transport.
+
 ### A dense list row folds rather than overflowing
 
 `ADR-0012`. A pilot application needs a ranking row carrying a rank badge, a
