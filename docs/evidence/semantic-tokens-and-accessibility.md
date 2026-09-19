@@ -1905,9 +1905,21 @@ today.
 ### IUX-GUIDED-FORM-LIVE-001 — The collision it refused a progress bar to avoid (FIXED)
 
 - **Level**: standard
-- **Status**: open. `IuxGuidedForm` puts a live region in the same frame as its
-  focus move — which is precisely the failure it declined to ship a progress
-  bar in order to prevent.
+- **Status**: **closed.** The finding was that `IuxGuidedForm` put a live region
+  in the same frame as its focus move — precisely the failure it declined to
+  ship a progress bar in order to prevent. Two things now say it does not:
+  - **The source.** There is no `liveRegion` anywhere in
+    `lib/src/patterns/form/`. A step change is announced by moving focus to the
+    heading, and the collision needs both halves.
+  - **A device.** Block A check A8 was run with TalkBack speaking on
+    2026-09-01 — the check the protocol introduces with *"Expect a defect;
+    describe it"* — and nothing overlapped or was cut off.
+    `docs/accessibility/session-2026-09-01-block-a.md`.
+
+  The title had said `(FIXED)` for some time while this line still said `open`.
+  **The title was right and this line was stale**, which is the failure
+  `IUX-REGISTER-002` describes one step earlier: the register is the one
+  artefact here whose staleness nothing checks.
 
 ### IUX-DESTRUCTIVE-FOCUS-001 — Cancelling drops focus to the page root (FIXED)
 
@@ -3355,10 +3367,18 @@ that costs when it happens on a page.
 - **Status**: **open, and it is still the release blocker** — but no longer
   unstarted. A protocol exists,
   `docs/accessibility/manual-validation-protocol.md`, with a handover runsheet
-  beside it. **The mechanical half of its Block A was run on 2026-08-31** on a
-  Pixel 7, Android 17, TalkBack 17.0.1, and is recorded in
-  `docs/accessibility/session-2026-08-31-pixel7.md`. Nothing was heard, no
-  reading order was observed, and Blocks B to F were not attempted.
+  beside it. Two partial sessions have now run on a Pixel 7, Android 17,
+  TalkBack 17.0.1:
+  - **2026-08-31**, the mechanical half of Block A — the node tree, no listener.
+    `docs/accessibility/session-2026-08-31-pixel7.md`.
+  - **2026-09-01**, **Block A with a listener**, run by the repository owner.
+    No defect reported, and A8 refuted `IUX-GUIDED-FORM-LIVE-001`.
+    `docs/accessibility/session-2026-09-01-block-a.md`.
+
+  **Blocks B to F have never been attempted**, including D3 and F6 — the two the
+  mission ranked immediately after A. A6 and A5 ask for prose rather than a
+  verdict and their answers were not captured. The five newest components have
+  no blocks at all.
 
 - **This entry exists because four other entries defer to an ID that had none.**
   `IUX-MANUAL-001` is cited as the limit on the list-item press tint, the radio
