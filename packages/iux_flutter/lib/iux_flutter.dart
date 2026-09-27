@@ -32,9 +32,13 @@ export 'src/components/help/iux_contextual_help.dart';
 export 'src/components/help/iux_help_tokens.dart';
 export 'src/components/help/iux_tooltip.dart';
 export 'src/components/input/iux_date_field.dart';
+export 'src/components/input/iux_password_field.dart';
 export 'src/components/input/iux_select_field.dart';
 export 'src/components/input/iux_slider.dart';
-export 'src/components/input/iux_text_field.dart';
+// IuxSecretEntry is hidden so the one way to obscure a field stays
+// IuxPasswordField. IuxTextField.secret is @internal as well; without its
+// argument type, a caller outside the package cannot build the call.
+export 'src/components/input/iux_text_field.dart' hide IuxSecretEntry;
 export 'src/components/list/iux_list_group.dart';
 export 'src/components/list/iux_list_item.dart';
 export 'src/components/list/iux_list_tokens.dart';

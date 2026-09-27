@@ -7,6 +7,10 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+`IuxPasswordField` and `IuxSecretPurpose`: a concealed field and a labelled
+switch that reveals it, with autofill decided by what the secret is for.
+Additive; `IuxTextField` still cannot conceal a value. `IUX-PASSWORD-001`.
+
 Documentation: `docs/components/deliberately-absent.md` collects what IUX
 refuses on purpose and what to use instead, quoted from source and guarded by a
 test. `IUX-ABSENT-001`.

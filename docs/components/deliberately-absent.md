@@ -27,7 +27,7 @@ not exist.
 
 | You are looking for | Use instead |
 | --- | --- |
-| a password or token field | nothing in IUX yet — see below |
+| a password or token field | `IuxPasswordField` |
 | a number field | `IuxTextContent.text`, validated by the parent |
 | a `textInputAction` | nothing: it follows from `IuxTextContent` |
 | per-keystroke validation on a form | the parent's own controller |
@@ -51,11 +51,12 @@ not exist.
 
 ### A password or token field
 
-**Use instead:** nothing in IUX yet. The refusal below describes a component,
-not a missing flag, and that component is not built (systm-d/IUX#67). Until it
-is, the honest workaround is a Flutter `TextField` for that one field, with
-obscuring, autocorrect and suggestions all off — and a reveal control of your
-own, because the reason given below is the reason you need one.
+**Use instead:** `IuxPasswordField`, with an `IuxSecretPurpose` saying whether
+it is a sign-in password, a new one, or a token pasted from elsewhere. The
+refusal below described a component rather than a missing flag before that
+component existed; it was built from the refusal when the first migrated
+application needed it (systm-d/IUX#67). `IuxTextField` still cannot conceal a
+value, and a test holds that.
 
 > There is no `password` value. An obscured field owes the user a way to
 > reveal what they typed — otherwise a motor or dyslexic user cannot check a

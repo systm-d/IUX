@@ -4534,3 +4534,79 @@ that costs when it happens on a page.
     say which.
   - The guard checks that a quote is still *present*, not that the refusal is
     still *right*.
+
+### IUX-PASSWORD-001 — The component a refusal described, built when an application needed it
+
+- **Level**: standard for concealment and the reveal control; context_dependent
+  for the choice of a labelled switch over an icon
+- **Scope**: new `IuxPasswordField` and `IuxSecretPurpose`. Additive:
+  `IuxTextField`'s public API is unchanged and still cannot conceal a value.
+- **Sources**: WCAG 2.2 SC 3.3.2 (labels or instructions), SC 4.1.2 (name, role,
+  value), SC 1.3.5 (identify input purpose, through the autofill hints);
+  `IuxTextContent`'s own refusal of a `password` value; reported from a migration
+  (systm-d/IUX#67).
+- **Status**: implemented; 25 assertions in
+  `test/components/iux_password_field_test.dart`, four of them verified in the
+  failing direction by mutation. A catalog panel lists what only a device can
+  settle.
+
+- **It was specified before it was built.** `IuxTextContent` already said there
+  is no `password` value because "an obscured field owes the user a way to reveal
+  what they typed — otherwise a motor or dyslexic user cannot check a long
+  password before submitting it — and that reveal control is a second
+  interactive element with its own name, state and announcement. It is a
+  component, not an enum value." The migration that needed one — a GitHub token
+  on a setup screen — reached past IUX to a bare `TextField`, and its report
+  reconstructed that argument on its own.
+
+- **The reveal control is a labelled `IuxSwitch` under the field, and the eye
+  icon was refused.** Three reasons, each already written down somewhere in
+  this project. An icon on its own is a guess (`IuxNavigationDestination`'s
+  words), and the eye is a worse guess than most because applications disagree
+  about what the open one means. A control inside the box is refused by
+  `IuxTextField` (IUX-TEXTFIELD-GAPS-001): a target that meets the floor leaves
+  too little of a small-screen field for the text. And a switch is a control
+  already measured for its floor, focus ring, press feedback and announcement,
+  where an eye would have been a new one. It is a switch and not a checkbox by
+  `IuxSwitch`'s own rule — revealing is immediate and reversible, and waits for
+  no Save.
+
+- **Its name does not change with its state**, for the reason
+  `IuxOnboardingFlow.backLabel` gives: a control renamed on each use has to be
+  read again each time. The state is announced as on or off.
+
+- **The purpose is required, because getting it wrong is harmful both ways.** A
+  sign-in field that does not say so is a forty-character password typed by
+  hand. A token declared as a password is offered to be saved *as the account's
+  password*, and a user who accepts has overwritten it. `token` therefore asks
+  autofill for nothing at all.
+
+- **Nothing leaves the box, in either state.** Suggestions, autocorrect,
+  capitalisation, smart punctuation and the keyboard's personalised learning are
+  off — each would put the secret somewhere other than this field. The keyboard
+  is the visible-password one throughout, so revealing never re-lays it out
+  mid-word.
+
+- **Concealed on arrival, with no parameter to change that.** Whether to show a
+  credential is decided by the user in the moment, knowing who can see their
+  screen; an application deciding it in advance has decided for a room it
+  cannot see.
+
+- **How `IuxTextField` stays closed.** The settings reach it through an
+  `@internal` constructor carrying an `@internal` `IuxSecretEntry`, which the
+  package's barrel hides. Outside the package the constructor is flagged and its
+  argument type cannot be named. A test pumps every public `IuxTextContent` and
+  asserts none of them obscures.
+
+- **Limits.**
+  - **Every platform behaviour is unmeasured**: what a password manager offers
+    per purpose, what TalkBack says for an obscured field, whether the keyboard
+    really stays put on reveal. The catalog's password panel lists them.
+    `IUX-MANUAL-001`.
+  - **The switch was chosen over the eye on this project's own arguments, not on
+    a study.** That a labelled reveal is found and understood faster than an
+    icon is plausible and unmeasured.
+  - **Nothing re-conceals the value on its own** — not on submit, not when the
+    application is backgrounded. Left open rather than decided by default.
+  - No confirmation field, strength meter or rule list: those belong to the form
+    that knows the rules.

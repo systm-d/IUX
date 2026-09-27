@@ -12,6 +12,28 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### `IuxPasswordField`: the component a refusal described, built when it was needed
+
+**Additive.** `IuxTextContent` refused a `password` value long ago, and said why:
+an obscured field owes the user a way to reveal what they typed, and that reveal
+control is a second interactive element — a component, not an enum value. The
+first application migrated onto IUX needed one for a GitHub token, reached past
+IUX to a bare `TextField`, and reported it in nearly the same words.
+
+The reveal control is a **labelled `IuxSwitch` under the field**, not an eye icon
+inside it. An icon on its own is a guess, and the eye is a worse one than most
+because applications disagree about what the open eye means; `IuxTextField`
+refuses a control inside its box; and a switch is a control this project has
+already measured. Its name stays "Show token" and its state is announced as on
+or off.
+
+`IuxSecretPurpose` is required — `current`, `created` or `token` — because a token
+declared as a password is offered to be saved as the account's password.
+Suggestions, autocorrect, capitalisation and the keyboard's own learning are off
+in both states, the keyboard never changes on reveal, and the field is concealed
+on arrival with no way to start it otherwise. `IuxTextField` still cannot conceal
+a value from outside the package, and a test holds that. `IUX-PASSWORD-001`.
+
 ### When something is not there: a page for what IUX leaves out on purpose
 
 **Documentation only.** Of six reports from the first migration of an existing
