@@ -12,6 +12,23 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### Every digit takes the same width, including inside components
+
+**Visual change only where a face's default figures are proportional; no API
+change.** Three applications aligned their figures by laying a monospace family
+over IUX's styles by hand — about twenty call sites in one, ninety-five in
+another. The workaround reached only their own text, because list rows, table
+cells and chart labels take a `String`, so each interface ended up half aligned.
+One of them then set the family at the theme root and made its prose monospace
+too.
+
+Every typography role now requests `FontFeature.tabularFigures()`, so every
+component inherits it without changing. It is a request to the face — one
+without tabular figures ignores it, and the typography page says so. What it
+does not solve is the other half of that report: a commit hash or a token needs
+glyphs that cannot be mistaken for each other, not aligned digits, and whether
+IUX should carry a role for that is left open. `IUX-TYPOGRAPHY-FIGURES-001`.
+
 ### `IuxPasswordField`: the component a refusal described, built when it was needed
 
 **Additive.** `IuxTextContent` refused a `password` value long ago, and said why:

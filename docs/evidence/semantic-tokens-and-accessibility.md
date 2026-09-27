@@ -4610,3 +4610,59 @@ that costs when it happens on a page.
     application is backgrounded. Left open rather than decided by default.
   - No confirmation field, strength meter or rule list: those belong to the form
     that knows the rules.
+
+### IUX-TYPOGRAPHY-FIGURES-001 — Three applications aligned their digits by hand, and could not reach the components'
+
+- **Level**: strong_guidance for the principle (aligned figures in a column);
+  context_dependent for applying it to every role
+- **Scope**: `IuxTypographyTheme.resolve` — every role now requests tabular
+  figures. **Visual change** only where the face's default figures are
+  proportional. No API change.
+- **Sources**: reported from three integrations (systm-d/IUX#66): terminus,
+  disconnected, and sentinel, whose comment gives the count of ninety-five.
+- **Status**: implemented, partly. Six assertions in
+  `test/themes/typography_figures_test.dart`, all six failing without the
+  change. The half of the report about monospace identifiers is recorded here
+  and **left open**.
+
+- **What the applications did.** Each declared a monospace family and laid it
+  over IUX's resolved style wherever a figure appeared — terminus at about
+  twenty call sites, sentinel at ninety-five. Sentinel then removed all
+  ninety-five by passing the family once at the theme root, which works and
+  makes the whole application monospace, prose included. The remedy was worse
+  than the workaround.
+
+- **Why the workaround could not finish the job.** It reaches only the text an
+  application draws. `IuxListItem.trailingText`, table cells and chart labels
+  take a `String`, so the interface ended up half aligned — the application's
+  own figures lining up, the ones inside components not — which, as the report
+  put it, looks like a bug rather than a decision.
+
+- **Every role, rather than the roles that "carry values".** Roles do not carry
+  values; components do, and they all resolve their text from the roles. So the
+  feature is on every role, and a list row's trailing time and a table cell
+  inherit it without either component changing. The tests hold both: every role
+  in four configurations, including one with a brand family, and the text a list
+  row and a table actually paint.
+
+- **A feature rather than a family.** It asks the face for its tabular figures
+  and changes nothing else — no font to vendor, no face imposed on prose. The
+  cost is that it is a request: a face without tabular figures ignores it.
+
+- **The open half: identifiers are not figures.** Sentinel's ninety-five were
+  version numbers, commit hashes, durations and counts. Tabular figures fix the
+  durations and counts. A commit hash, a token or a recovery code is read
+  character by character, and what it needs is glyphs that cannot be mistaken
+  for each other — `0` and `O`, `1`, `l` and `I`. Aligned digits do nothing for
+  that. It is plausibly a legibility property IUX should own, like contrast, and
+  plausibly an application's choice of face; **a `code` role with its own family
+  is the shape the question would take, and it is not decided here.**
+
+- **Limits.**
+  - **Nothing here can observe the result.** `flutter_test` draws every glyph
+    in a face where all characters are already one width. The assertions prove
+    the request reaches the text; whether a given face honours it is the face's.
+    The Android platform default is understood to carry tabular figures; that is
+    not measured here either. `IUX-MANUAL-001`.
+  - Prose gets tabular digits too. Judged the right trade for an interface of
+    short labels and values; not measured with readers.

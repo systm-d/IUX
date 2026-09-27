@@ -7,6 +7,10 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Every typography role requests tabular figures, so a column of digits lines up
+in every component, including those that take only a `String`.
+`IUX-TYPOGRAPHY-FIGURES-001`.
+
 `IuxPasswordField` and `IuxSecretPurpose`: a concealed field and a labelled
 switch that reveals it, with autofill decided by what the secret is for.
 Additive; `IuxTextField` still cannot conceal a value. `IUX-PASSWORD-001`.

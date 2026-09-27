@@ -98,6 +98,37 @@ anywhere else: `IuxTypographyTheme` resolves once, from a configuration, with
 no `BuildContext` in scope; recomputing a style from the ambient text scale is
 something only the widget painting the text could do, and none does today.
 
+## Figures: every digit takes the same width
+
+Every role resolves with `FontFeature.tabularFigures()`. A column of times,
+counts or amounts lines up, wherever it is drawn — including inside components
+that take a `String` and give the application no style to change.
+
+That last clause is why this lives in the roles. Three applications needed
+aligned figures and each applied a monospace family over IUX's styles by hand:
+terminus at about twenty call sites, disconnected, and sentinel at ninety-five
+(systm-d/IUX#66). The workaround reached only their own text; a list row's
+trailing time or a table cell stayed proportional, and the interface was half
+aligned. Roles do not carry values — components do — so the feature is on every
+role, and every component inherits it without changing.
+
+**Two limits, stated rather than hidden.**
+
+- **It is a request to the face.** A face that has tabular figures honours it;
+  one that does not ignores it, and nothing here can tell. The Android platform
+  default has them. A brand face passed through
+  `IuxTypographyConfiguration.fontFamily` may not — check it before relying on
+  alignment.
+- **It does not make anything monospace, and that is a second need.** A commit
+  hash, a token or a recovery code is read one character at a time, and what it
+  needs is letters that cannot be mistaken for each other: `0` and `O`; `1`,
+  `l` and `I`. Aligned digits do nothing for that. Whether IUX should carry a
+  role for such identifiers is open — `IUX-TYPOGRAPHY-FIGURES-001`.
+
+The cost is tabular digits in running prose, where a `1` sits in a slightly
+wider slot than a proportional face would give it. In an interface made mostly
+of short labels and values, that is the right side of the trade.
+
 ## Best practices
 
 - Use `overline` for the line that names the group beneath it — a card, a
@@ -119,6 +150,10 @@ something only the widget painting the text could do, and none does today.
   decision the role deliberately leaves at the call site — see above.
 
 ## Limits
+
+- **Tabular figures are requested, not guaranteed.** See "Figures" above: a
+  face without them ignores the request, and `flutter_test` cannot tell the two
+  apart, because its test face draws every glyph at one width already.
 
 - **The role provides the register, not the capitals.** Nothing checks that a
   caller passing lowercase text gets an overline that reads as one, and

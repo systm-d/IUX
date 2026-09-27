@@ -70,6 +70,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
           letterSpacing: letterSpacing,
           fontFamily: family,
           fontFamilyFallback: fallback,
+          fontFeatures: _figures,
         );
 
     return IuxTypographyTheme(
@@ -86,6 +87,39 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
           style(14, 20, FontWeight.w600, letterSpacing: _overlineTracking),
     );
   }
+
+  /// Every digit IUX draws takes the same width, in every role.
+  ///
+  /// A column of times whose digits shift by a pixel or two a row is harder to
+  /// scan, and hardest for the readers already scanning slowly. That makes
+  /// alignment a legibility property — the family of the contrast and target
+  /// floors IUX owns — rather than something each application applies by hand.
+  /// Three did: terminus at about twenty call sites, disconnected, and
+  /// sentinel at ninety-five, each declaring a monospace family and laying it
+  /// over the resolved style (systm-d/IUX#66).
+  ///
+  /// **Every role rather than the ones that "carry values"**, because roles do
+  /// not carry values: components do, and most of them take a `String`, which
+  /// is exactly why the workaround stopped at the application's own text. A
+  /// list row's trailing time, a table cell, a chart label all resolve from
+  /// these roles, so the feature reaches them without any of them changing.
+  /// The cost is tabular digits in running prose, where a "1" sits in a
+  /// slightly wider slot than it would. In an interface made mostly of short
+  /// labels and values, that is the right side of the trade.
+  ///
+  /// **A feature, not a family**, and the limit that follows is stated rather
+  /// than hidden: it asks the face for its tabular figures, and a face without
+  /// them ignores the request. The platform default on Android has them. A
+  /// brand face may not, and nothing here can tell.
+  ///
+  /// **It does not make an interface monospace, and that is a second need.**
+  /// A commit hash, a token or a code is read character by character, and what
+  /// it needs is letters that cannot be mistaken for each other — `0` and `O`,
+  /// `1`, `l` and `I`. Aligned digits do nothing for that.
+  /// `IUX-TYPOGRAPHY-FIGURES-001` records it as the open half of the question.
+  static const List<FontFeature> _figures = <FontFeature>[
+    FontFeature.tabularFigures(),
+  ];
 
   /// The largest role, for a single short statement per screen.
   final TextStyle display;
