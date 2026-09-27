@@ -3370,9 +3370,9 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 523 tests, every claim probed rather
-  than read. It is **not** what a screen reader says, in what order, or whether
-  it says it at all. The distinction is load-bearing for a framework whose
+  would be *told*. That is a great deal: 2 723 tests at the last count, every
+  claim probed rather than read. It is **not** what a screen reader says, in
+  what order, or whether it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
 
 - **The instrument has a proven blind spot, and it is not hypothetical.** The
@@ -4779,3 +4779,66 @@ that costs when it happens on a page.
     nothing.
   - The alpha section is advice. No test can catch an application applying
     transparency to a token at its own call site.
+
+### IUX-TAG-REMOVABLE-001 — A tag the user can take back out, with one control and a place for focus to go
+
+- **Level**: standard — WCAG 2.2 SC 2.5.8, SC 2.4.3, SC 2.4.6 and SC 4.1.2
+- **Scope**: `IuxTagChip.removable`, its documentation, the chips page, the
+  catalog, and seventeen assertions in
+  `test/components/iux_removable_tag_test.dart`. Additive: the read-only
+  `IuxTagChip` is unchanged.
+- **Sources**: reported from a migration onto IUX (systm-d/IUX#68).
+- **Status**: implemented.
+
+- **What the migration met.** An account's organisations, shown as chips the
+  user adds and removes. `IuxTagChip` rendered them and offered no way to take
+  one out, so adopting it removed the ability — silently. The code compiled,
+  the tests passed, and the chips looked right; only a reading of what the
+  screen used to do caught it.
+
+- **Why a constructor on the tag, not a new component and not a filter chip.**
+  A filter is chosen from a set the application offers; a removable tag stands
+  for something the user put there. The body of a removable tag is still a
+  tag — no focus, no gesture, read as text — and every guarantee
+  `IuxTagChip` makes about the body still holds. What is added is **one**
+  control inside it, an `IuxIconButton`, so the target floor, the focus ring,
+  the action model and the announced name come from the one place every IUX
+  button gets them.
+
+- **The name.** `removeLabel` is required and a debug build refuses one that
+  does not contain `label`, ignoring case. A screen reader listing a page's
+  controls reads names without the text beside them; five buttons called
+  "Remove" are five guesses (SC 2.4.6). IUX has no localisation, so the caller
+  writes the sentence.
+
+- **Focus.** When the button is activated with focus on it, focus moves to the
+  previous traversal stop *before* the callback runs — while the node still has
+  a place in the order. Left alone, the node is disposed with the tag and focus
+  falls to the scope, which puts a keyboard user back at the top of the screen
+  (SC 2.4.3). The previous stop is the tag before, or for the first tag the
+  control the list grows from. A tap moves nothing.
+
+- **Measured.** In-harness, the removable tag is 56 logical pixels tall — the
+  48-pixel target plus the focus ring's reserved inset — and the read-only tag
+  keeps its own height. The semantics tree is the named group, then the tag's
+  text as a plain node, then the button with its own name, focus and tap.
+
+- **What the tests hold, and that they bite.** The previous-stop rule and the
+  name check were each removed in turn, and the tests failed three times
+  between them. A tap on the label does nothing; the button meets the floor at
+  200% text; right-to-left puts it at the reading end; two tags keep the target
+  separation.
+
+- **Limits.**
+  - **Previous, not next.** Some systems move focus to the next tag and fall
+    back to the previous for the last. Previous was chosen because it needs no
+    knowledge of the group — it uses the application's own traversal order —
+    and because the stop before a list is usually where the list is added from.
+    It is argued, not tested with users.
+  - **A screen reader's own cursor is not input focus.** Where TalkBack or
+    VoiceOver lands after the node disappears is the platform's decision; the
+    rule above moves keyboard focus. Nothing announces the removal. Both are
+    `IUX-MANUAL-001` check F7, not yet run.
+  - **Removal is immediate.** Right when the item can be re-added; an item that
+    cannot needs an undo or `IuxDestructiveAction`, which the documentation
+    says and nothing enforces.

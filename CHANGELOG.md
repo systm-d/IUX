@@ -12,6 +12,19 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### A tag the user can take back out
+
+`IuxTagChip.removable(label:, removeLabel:, onRemove:)`. A migration adopted
+`IuxTagChip` for an account's organisations and lost, silently, the ability to
+remove one: there was no delete affordance, and nothing failed. The removable
+form keeps the tag's body exactly as it was — no focus, no gesture, read as
+text — and adds one control inside it, an icon button with a full target and a
+name of its own. The name must contain the tag's, so a list of controls never
+reads "Remove" five times; a debug build refuses one that does not. Removing
+from the keyboard moves focus to the previous stop before the tag leaves, so a
+keyboard user is not sent back to the top of the screen. Closes systm-d/IUX#68.
+`IUX-TAG-REMOVABLE-001`.
+
 ### Feedback in dark is not tinted — now said where it is met
 
 **No colour changes.** In both dark profiles the four `feedback.*.surface`

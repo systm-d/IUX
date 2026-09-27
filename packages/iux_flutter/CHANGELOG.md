@@ -7,6 +7,9 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Added: `IuxTagChip.removable`, a tag with one control that removes it. The
+read-only `IuxTagChip` is unchanged. `IUX-TAG-REMOVABLE-001`.
+
 Documentation: in dark, the four feedback surfaces are one neutral, and
 `IuxFeedbackRoleColors.surface` now says so. `IUX-FEEDBACK-DARK-SURFACE-001`.
 

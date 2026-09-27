@@ -118,6 +118,45 @@ differently from a filter chip, it *looks* different, because it is drawn with
 the border role whose own documentation says never to use it to delimit a
 control.
 
+### A tag the user can take back out
+
+A tag that stands for the user's own list — organisations on an account,
+recipients, labels they typed — has to be removable, or adopting it takes the
+removal away without a sound. That is how it was found (systm-d/IUX#68): the
+migrated code compiled, its tests passed, the chips looked right, and nobody
+could take an organisation back out.
+
+`IuxTagChip.removable` keeps the table above for the tag and adds **one**
+control inside it:
+
+| | the tag body | the remove button |
+| --- | --- | --- |
+| announced as | text | a button, named by `removeLabel` |
+| focus | never takes it | one stop per tag |
+| touch target | none | at least the resolved floor |
+| gesture | none — a tap on the label does nothing | tap, Enter, Space |
+
+It is not a filter chip that can be switched off. A filter is chosen from a set
+the application offers; a removable tag stands for something the user put there.
+
+- **The button's name contains the tag's.** `removeLabel` is the whole
+  sentence, already localised — "Remove acme-corp". A screen reader listing a
+  page's controls reads them without the text beside them, and five buttons
+  called "Remove" are five guesses. A debug build refuses a `removeLabel` that
+  does not contain `label`, ignoring case.
+- **Focus goes to the previous stop before the tag leaves.** Removing from the
+  keyboard lands on the tag before it, or — for the first tag — on whatever
+  precedes the list, usually the control that adds to it. Without that, focus
+  falls to the top of the screen. A tap moves no focus.
+- **It removes at once.** That is right when the item can be added straight
+  back. When it cannot, pair the removal with an undo (`IuxTransientMessage`
+  carries one) or use `IuxDestructiveAction` instead.
+- **It is taller than a read-only tag**, because the button sets the height and
+  the button's target is not shrunk to fit the tag. A row mixing the two has
+  two heights and members that respond beside members that do not — the reason
+  `IuxChipGroup` already asks for one kind per group. Keep a list's tags all
+  removable or all read-only.
+
 ### Why a tag has no fill, and a badge has no selected state
 
 The first application migrated onto IUX from its own design system met both of
@@ -228,6 +267,9 @@ and numeral form all vary and only the caller knows the language.
 | Component | Parameter | Required | Note |
 | --- | --- | --- | --- |
 | `IuxTagChip` | `label` | yes | visible text and accessible name |
+| `IuxTagChip.removable` | `label` | yes | as above |
+| | `removeLabel` | yes | the button's name; must contain `label` |
+| | `onRemove` | yes | the parent drops the tag and rebuilds |
 | `IuxFilterChip` | `label` | yes | the criterion |
 | | `selected` | yes | owned by the parent |
 | | `onSelectionChanged` | yes, nullable | null means unavailable |
