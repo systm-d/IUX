@@ -7,6 +7,12 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+The focus ring is now drawn in the space it always reserved, `gap` outside the
+element, instead of on the element's own edge — where it went through the glyphs
+of any focused text. `IuxFocusRing.borderRadius` declares the element's shape,
+null meaning a rectangle. Visual change, no layout change.
+`IUX-FOCUS-RING-001`.
+
 **Breaking.** `IuxSemanticColors` gains a seventh required role group,
 `comparison`, so any application that builds a full palette by hand for
 `IuxTheme.withSemanticColors` no longer compiles until it maps it. That is the

@@ -4401,3 +4401,75 @@ that costs when it happens on a page.
     is a visual comparison *down a column* — one row's band against the row
     above. A semantics tree cannot hold that claim at all, and no test here
     asserts it.
+
+### IUX-FOCUS-RING-001 — Three places said the ring was outside the element; the paint put it on the element (FIXED)
+
+- **Level**: standard
+- **Scope**: `IuxFocusRing`, and through it every focusable IUX surface.
+  **Visual change**: the ring sits `gap` further out, and a ring drawn without
+  a declared shape has tighter corners. **No layout change** — nothing moves
+  and nothing grows.
+- **Sources**: WCAG 2.2 SC 2.4.7 (focus visible) and the requirement that an
+  indicator not obscure what it identifies; reported from a device by an
+  integrator (systm-d/IUX#54), at 100% text, in a debug build.
+- **Status**: implemented; six pixel assertions in
+  `test/accessibility/iux_focus_ring_test.dart`, five of which fail on the
+  previous implementation. Full suite passes.
+
+- **What three places said.** `IuxFocusRing`'s own documentation: "Focus is
+  drawn *outside* the child rather than over it, so the indicator never covers
+  the content it identifies." `IuxFocusStyle.gap`: "Space between the element
+  and its focus ring." And a button test whose failure message sends the reader
+  to "IuxFocusRing, which reserves space outside".
+
+- **What the paint did.** The ring decorated the child's own box, so it was
+  drawn *on* the child's edge — and the reserved gap sat *outside* the ring,
+  between the ring and the neighbours. Measured on a plain 120 × 48 box at
+  standard contrast: **584 ring pixels inside the element the ring
+  identifies.** A control hid this, because a control carries its own padding.
+  A block of text does not, and the ring went through the first and last glyph
+  of every line.
+
+- **Where it was seen, and where else it was.** On `IuxOnboardingFlow`'s step
+  heading, which takes focus on every step change by design. `IuxGuidedForm`'s
+  step heading is the same composition and had the same defect; so did the
+  selection-control row and every other surface that focuses text or a row
+  rather than a padded control. None was reported. All are fixed by the same
+  change, because the fix is in the ring rather than at the call sites.
+
+- **The fix spends no space.** The reservation stays exactly `width + gap` on
+  every side; the ring moved into it. `Border` strokes inside the box it
+  decorates, so decorating the *padded* box puts the stroke on the outermost
+  `width` and ends it exactly `gap` short of the child — which is what the gap
+  was always documented to be. The integrator's proposal was an inner padding;
+  that costs space around every focused control, including the buttons that
+  did not need it. This costs none, and it was available only because the
+  reservation already existed.
+
+- **The default radius was wrong for ten callers out of eleven.** It was the
+  theme's medium radius, which describes a rounded control — and of the eleven
+  call sites relying on it, ten surround a rectangle: a block of text, a row, a
+  navigation destination, the box around an icon. `borderRadius` now declares
+  the **element's** shape, null means a rectangle, and the ring is drawn
+  concentric with whatever is declared. `IuxButton`, the one genuinely rounded
+  default caller, now passes its real shape — declared once, used by both the
+  container and the ring, so the two cannot drift.
+
+- **A rounder ring was tried and refused.** The roundest ring that still clears
+  a rectangle's corner has an inner radius up to (2 + √2) gaps. It does not
+  touch the rectangle, and it passes a third of a pixel from its corner on the
+  diagonal — which honours "never covers the content" and breaks what
+  `IuxFocusStyle.gap` says the gap is. The chosen ring is the rectangle's
+  outline pushed out by the gap, so every point of it is exactly `gap` from the
+  element. Its corners are tighter than they were. The promise is kept
+  everywhere rather than along the straight sides.
+
+- **Limits.**
+  - **Declaring a radius larger than the element really has still puts the ring
+    on it.** A concentric ring follows the shape it is told about, and a square
+    corner under a rounded declaration pokes through. The call sites that pass
+    a radius pass the one they paint with; nothing enforces that they do.
+  - The pixel assertions run under `flutter_test`, where a glyph is a filled
+    box. That makes "no ring pixel inside the text" an exact statement about
+    the layout, and says nothing about how the tighter corners look on a
+    device. `IUX-MANUAL-001`.

@@ -31,34 +31,86 @@ class IuxFocusRing extends StatelessWidget {
   /// Whether the indicator is visible.
   final bool focused;
 
-  /// Corner radius of the ring. Defaults to the theme's medium radius.
+  /// Corner radius of the element the ring surrounds, or null for a
+  /// rectangle.
+  ///
+  /// Given, the ring is drawn concentric with this shape, `gap` outside it, so
+  /// its own corners are this radius grown by the gap and the ring's width. A
+  /// caller passes the shape of the thing being focused — a field's radius, a
+  /// button's — and never does that arithmetic.
+  ///
+  /// **Null means the element is a rectangle**, which is what most things a
+  /// ring surrounds actually are: a row, a block of text, a navigation
+  /// destination, the box around an icon. The ring is then that rectangle's
+  /// outline pushed out by the gap, so its inner corners have exactly the gap
+  /// as their radius and every point of it is exactly `gap` from the element.
+  ///
+  /// A rounder ring was tried and refused. The roundest one that still clears
+  /// a square corner — radius up to (2 + √2) gaps — does clear it, but passes
+  /// a third of a pixel from it on the diagonal, which honours "never touches"
+  /// and breaks what `IuxFocusStyle.gap` says the gap is. The ring's corners
+  /// are tighter than they were; the promise is kept everywhere instead of
+  /// along the straight sides only.
+  ///
+  /// Declaring a radius larger than the element really has is the one way left
+  /// to put the ring on content: a concentric ring follows the shape it was
+  /// told about, and a square corner under a rounded declaration pokes through
+  /// it.
   final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
     final IuxSemanticColors colors = IuxSemanticColors.of(context);
-    final BorderRadius radius =
-        borderRadius ?? BorderRadius.circular(geometry.radiusMedium);
+    final double inset = geometry.focus.width + geometry.focus.gap;
+    final BorderRadius ring = _grow(borderRadius ?? BorderRadius.zero, inset);
 
-    return Padding(
-      // The gap is reserved whether or not the ring is drawn, so gaining focus
-      // never shifts the layout — a moving target is hard to follow, and for a
-      // screen-magnifier user it can push the element off screen.
-      padding: EdgeInsets.all(geometry.focus.width + geometry.focus.gap),
-      child: DecoratedBox(
-        position: DecorationPosition.foreground,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: focused
-              ? Border.all(
-                  color: colors.state.focus,
-                  width: geometry.focus.width,
-                )
-              : Border.all(color: const Color(0x00000000), width: 0),
-        ),
+    // The ring is painted on the *outer* edge of the reserved space, not on the
+    // child's own edge. `Border` strokes inside the box it decorates, so the
+    // stroke occupies the outermost `width` of the padded box and ends exactly
+    // `gap` short of the child — which is what `IuxFocusStyle.gap` has always
+    // said it was: "space between the element and its focus ring".
+    //
+    // It used to decorate the child directly and reserve the gap *outside* the
+    // ring instead. A control survived that, because a control carries its own
+    // padding. A block of text does not, so the ring was drawn through the
+    // first and last glyph of every line — reported from a device on
+    // `IuxOnboardingFlow`'s own step heading, at 100% text, which takes focus
+    // on every step change (IUX-FOCUS-RING-001). The fix spends no space: the
+    // reservation is the same size, and the ring moved into it.
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: ring,
+        border: focused
+            ? Border.all(
+                color: colors.state.focus,
+                width: geometry.focus.width,
+              )
+            : Border.all(color: const Color(0x00000000), width: 0),
+      ),
+      child: Padding(
+        // Reserved whether or not the ring is drawn, so gaining focus never
+        // shifts the layout — a moving target is hard to follow, and for a
+        // screen-magnifier user it can push the element off screen.
+        padding: EdgeInsets.all(inset),
         child: child,
       ),
+    );
+  }
+
+  /// [radius] with every corner grown by [by], so a ring drawn [by] outside a
+  /// shape stays concentric with it rather than tightening at the corners.
+  ///
+  /// A square corner grows into a rounded one of radius [by], which is the
+  /// offset curve of a square corner and not a styling choice.
+  static BorderRadius _grow(BorderRadius radius, double by) {
+    final Radius grown = Radius.circular(by);
+    return BorderRadius.only(
+      topLeft: radius.topLeft + grown,
+      topRight: radius.topRight + grown,
+      bottomLeft: radius.bottomLeft + grown,
+      bottomRight: radius.bottomRight + grown,
     );
   }
 }
@@ -107,7 +159,12 @@ class IuxFocusable extends StatefulWidget {
   /// Whether this participates in focus traversal at all.
   final bool canRequestFocus;
 
-  /// Corner radius of the focus ring.
+  /// Corner radius of the element being focused, or null for a rectangle.
+  ///
+  /// Passed straight to [IuxFocusRing.borderRadius], which draws the ring
+  /// concentric with it. Leave it null for a row, a block of text or any other
+  /// rectangular region; pass the real radius for a rounded control, and never
+  /// a larger one — see [IuxFocusRing.borderRadius] for why.
   final BorderRadius? borderRadius;
 
   @override

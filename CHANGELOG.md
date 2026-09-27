@@ -12,6 +12,25 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### The focus ring is drawn outside the element, as three places already said
+
+**Visual change, no layout change.** `IuxFocusRing` drew its ring on the
+element's own edge and reserved the gap *outside* the ring. Its documentation,
+`IuxFocusStyle.gap` and a button test all said the opposite, and nothing checked
+the paint: **584 ring pixels** landed inside a plain box at standard contrast. A
+control hid it behind its own padding; a block of text did not, and the ring
+went through the glyphs — seen on a device on `IuxOnboardingFlow`'s step
+heading, which takes focus on every step change. `IuxGuidedForm`'s step heading
+and the selection-control row had the same defect, unreported.
+
+The ring now sits in the space that was already reserved for it, so it ends
+exactly `gap` short of the element and nothing moves. `borderRadius` declares
+the element's shape, and null now means a rectangle — true of ten of the eleven
+callers that relied on the old medium-radius default. `IuxButton` passes its
+real shape. Rings drawn without a declared shape have tighter corners than
+before: a rounder ring that still missed the corner was measured, and it passed
+a third of a pixel from it. `IUX-FOCUS-RING-001`.
+
 ### A side of a reference is not a hue, so the caller picks one
 
 **Breaking.** `IuxValue`, `IuxValueIndicator`, `IuxSemanticColors.comparison`
