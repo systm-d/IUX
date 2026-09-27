@@ -4473,3 +4473,64 @@ that costs when it happens on a page.
     box. That makes "no ring pixel inside the text" an exact statement about
     the layout, and says nothing about how the tighter corners look on a
     device. `IUX-MANUAL-001`.
+
+### IUX-ABSENT-001 — Every refusal was argued where nobody looking for the thing would read it
+
+- **Level**: context_dependent
+- **Scope**: documentation — `docs/components/deliberately-absent.md`, linked
+  from `docs/README.md`, and a guard in
+  `test/package/deliberately_absent_test.dart`. No library change.
+- **Sources**: the first migration of an existing application onto IUX
+  (`exec-d/sentinel`, reported as systm-d/IUX#67 to #72); seventeen refusals
+  read out of the source and quoted verbatim.
+- **Status**: implemented. Three assertions: every quoted refusal still stands
+  in the file it is attributed to, every alternative the page recommends
+  exists, and the page is non-vacuous. Both substantive checks verified in the
+  failing direction.
+
+- **The finding.** Of six reports from that migration, two asked for things
+  IUX refuses on purpose and says so. #69 asked for an error tone on a
+  transient message; `IuxTransientTone` argues at length that it will never
+  have one, and `docs/components/transient-feedback.md` has a table sending a
+  failure to `IuxAlert`. #67 asked for an obscured text field, and its closing
+  paragraph reconstructed, nearly word for word, the reason `IuxTextContent`
+  gives for not having one. **The answers existed, twice in one case, and
+  neither reporter found them.**
+
+- **Why they could not have.** A refusal is written in the documentation of
+  the component that lacks the thing — the enum that has no `error`, the field
+  that has no `password`. Someone migrating works from the thing they expect
+  to use, finds it missing, and stops there. Nothing searches for an absence.
+  The component page was no better placed than the dartdoc, because the
+  reporter's path was typed: they reached `IuxTransientTone`, saw two values,
+  and filed.
+
+- **The page.** Seventeen refusals an integrator is likely to meet, each with
+  what to use instead, gathered where someone looks when something is missing.
+  A quick-answer table, then each refusal quoted from its source with the file
+  named.
+
+- **The guard, and the mistake that justified it.** Collecting the refusals
+  creates a second copy that can drift from the first, which is
+  `IUX-FOCUS-RING-001`'s defect in documentary form. So every quote is checked
+  against the dartdoc of the file it names, and every recommended alternative
+  against the library. **The first draft of the page recommended
+  `IuxAsyncButton`, which does not exist** — the widget is
+  `IuxAsyncActionButton`. The check was written before the mistake was noticed
+  and caught it on its first run.
+
+- **The page does not close the question it answers.** Its last section says
+  so: a refusal is an argument and can be wrong, and the right response to one
+  that costs an application something real is an issue that answers the quoted
+  argument. Both reports that led here were worth filing even where the
+  refusal stood.
+
+- **Limits.**
+  - The page lists refusals someone *thought to write down*. A thing IUX lacks
+    by oversight rather than decision is not on it, and nothing can make it be.
+  - Seventeen were chosen out of roughly fifty written refusals, by judging
+    which an integrator is likely to reach for. That judgement is this
+    project's and it will be wrong about some of them; the next migration will
+    say which.
+  - The guard checks that a quote is still *present*, not that the refusal is
+    still *right*.

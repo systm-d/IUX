@@ -12,6 +12,22 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### When something is not there: a page for what IUX leaves out on purpose
+
+**Documentation only.** Of six reports from the first migration of an existing
+application onto IUX, two asked for things refused on purpose — an error tone on
+a transient message, an obscured text field — and one reconstructed the refusal
+almost word for word. The answers existed, one of them twice. Neither reporter
+could have found them, because a refusal is written in the documentation of the
+component that lacks the thing, and nobody searches for an absence.
+
+`docs/components/deliberately-absent.md` gathers seventeen of them where someone
+looks when something is missing: what you are looking for, what to use instead,
+and the refusal quoted from its source. `docs/README.md` sends readers there
+before they build a workaround. A test checks every quote against the file it is
+attributed to and every alternative against the library — and caught the first
+draft recommending `IuxAsyncButton`, which does not exist. `IUX-ABSENT-001`.
+
 ### The focus ring is drawn outside the element, as three places already said
 
 **Visual change, no layout change.** `IuxFocusRing` drew its ring on the

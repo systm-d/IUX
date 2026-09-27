@@ -7,6 +7,10 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Documentation: `docs/components/deliberately-absent.md` collects what IUX
+refuses on purpose and what to use instead, quoted from source and guarded by a
+test. `IUX-ABSENT-001`.
+
 The focus ring is now drawn in the space it always reserved, `gap` outside the
 element, instead of on the element's own edge — where it went through the glyphs
 of any focused text. `IuxFocusRing.borderRadius` declares the element's shape,
