@@ -12,6 +12,19 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### Feedback in dark is not tinted — now said where it is met
+
+**No colour changes.** In both dark profiles the four `feedback.*.surface`
+values are one neutral, the colour of `surface.subtle`, and nothing said so: a
+migration found out by watching a status banner's tinted fill turn plain. The
+field's documentation, `docs/themes/light-and-dark.md` and the
+deliberately-absent page now say that the category is carried by the words, the
+icon, the content colour and the border, and why no dark tint ships. The same
+page gains a section against softening a token with alpha, which breaks the
+ratio the role was measured at. A test holds the dark surfaces to
+`surface.subtle` and names the pages to update if that changes. Closes
+systm-d/IUX#72. `IUX-FEEDBACK-DARK-SURFACE-001`.
+
 ### A tag has no fill and a badge has no selected state — now said where they are
 
 **No behaviour change.** The first migration from another design system met two

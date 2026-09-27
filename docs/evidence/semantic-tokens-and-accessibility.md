@@ -4729,3 +4729,53 @@ that costs when it happens on a page.
   - The guard compares against two fills. A tone that reproduced the primary
     fill's *look* from a different token — a close hue at a close lightness —
     would pass it.
+
+### IUX-FEEDBACK-DARK-SURFACE-001 — Four feedback surfaces that are one colour in dark, now said where an integrator looks
+
+- **Level**: standard — a documentation decision over a measured fact
+- **Scope**: `IuxFeedbackRoleColors.surface` documentation, the comment above
+  each dark feedback block in `iux_color_palettes.dart`,
+  `docs/themes/light-and-dark.md`, `docs/components/deliberately-absent.md`, and
+  one assertion over both dark profiles. **No colour changes.**
+- **Sources**: Finding 5 of `IUX-PALETTE-PERCEPTION-001`; reported from a
+  migration onto IUX as systm-d/IUX#72.
+- **Status**: implemented.
+
+- **What the migration met.** A status banner whose fill carried the category —
+  a reddish haze for a failure, a green one for success — became a plain
+  neutral in dark, because `feedback.info.surface`, `.success.surface`,
+  `.warning.surface` and `.error.surface` all resolve to `neutral80` in both
+  dark profiles. The report did not ask for tints; it asked that the decision be
+  read rather than discovered by finding four token paths returning one colour.
+
+- **What is now written, and where.** On the `surface` field itself, which is
+  where an integrator reading the API lands; on the light-and-dark page, which
+  is where one reading the themes lands; and on the deliberately-absent page.
+  All three say the same thing: the category is carried by the words, the icon,
+  the content colour and the border, and the fill does not vary because a dark
+  tint of a hue is a colour nobody has measured.
+
+- **A wording corrected on the way.** The comparison block's comment called
+  that neutral "the raised neutral". `surface.raised` is `neutral70` in both
+  dark profiles; `neutral80` is `surface.subtle`. The comment now names the
+  token, and the new text was written against it.
+
+- **Alpha.** The same report noted the migration had been diluting its old tint
+  with `withValues(alpha:)` and dropped it because an alpha on
+  `feedback.*.border` undercuts the 3:1 the field's documentation promises. The
+  light-and-dark page now carries a section saying so for every role: each is
+  measured opaque, as shipped, and a transparency is a colour the contrast tests
+  never saw.
+
+- **The guard.** `palette_perception_test.dart` asserts that in both dark
+  profiles the four surfaces are exactly `surface.subtle`, and its failure
+  message names the three places to update. A tint added later is welcome; it
+  cannot arrive without the page moving with it.
+
+- **Limits.**
+  - Nothing here measures whether a category banner without a tinted fill is
+    recognised as quickly as one with it. The argument is that the other four
+    channels are stronger carriers than a fill, not that the fill carried
+    nothing.
+  - The alpha section is advice. No test can catch an application applying
+    transparency to a token at its own call site.

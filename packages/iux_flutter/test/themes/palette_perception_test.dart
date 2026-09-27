@@ -273,6 +273,32 @@ void main() {
       }
     });
 
+    test('in dark the four surfaces are one colour, and the docs say so', () {
+      // Finding 5 of IUX-PALETTE-PERCEPTION-001, pinned because an integrator
+      // met it by discovering four token paths returning one colour
+      // (systm-d/IUX#72). The value is inherited rather than chosen, and
+      // `docs/themes/light-and-dark.md` states it; a tint added later is
+      // welcome, but it has to be measured and the page has to move with it.
+      for (final (String name, IuxThemeConfiguration configuration)
+          in profiles) {
+        if (configuration.brightness != Brightness.dark) continue;
+        final IuxSemanticColors colors = resolve(configuration);
+        final Set<Color> surfaces = categories(colors)
+            .values
+            .map((IuxFeedbackRoleColors r) => r.surface)
+            .toSet();
+        expect(
+          surfaces,
+          <Color>{colors.surface.subtle},
+          reason: '$name: the dark feedback surfaces are no longer the one '
+              'neutral of surface.subtle. Update "Feedback in dark is not '
+              'tinted" in docs/themes/light-and-dark.md, the comment above '
+              'each dark feedback block in iux_color_palettes.dart, and '
+              'Finding 5 of IUX-PALETTE-PERCEPTION-001.',
+        );
+      }
+    });
+
     testWidgets('each category carries a distinct glyph', (tester) async {
       // The channel that does the work colour cannot. Asserted rather than
       // trusted to a doc comment, because the measurement above says a

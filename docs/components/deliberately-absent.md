@@ -46,6 +46,7 @@ not exist.
 | a badge the user can select | `IuxFilterChip` |
 | a label filled with the accent colour | `IuxTagChip`, which is outlined on purpose |
 | an `empty` loading state | `IuxEmptyState` |
+| a status fill tinted by category, in dark | `IuxAlert`, whose icon, words and border carry it |
 
 ---
 
@@ -123,6 +124,22 @@ made on accessibility grounds — a user who glances rather than reads gets no
 cue that anything is wrong. The refusal is made on the same grounds, and it is
 the stronger one: a user who glanced away gets nothing at all, because the
 message has gone.
+
+### A background tinted by category, in dark
+
+**Use instead:** `IuxAlert` as it is. In the dark profiles all four feedback
+surfaces are one neutral, and the category reaches the user through the words,
+the icon — four distinct glyphs, and the one pair colour confuses most is a
+circle against an octagon — the content colour and the border.
+Design a status banner for that rather than around it; the reasoning is on
+[Light and dark](../themes/light-and-dark.md), "Feedback in dark is not tinted".
+
+> **In both dark profiles this is one neutral for all four categories** —
+> the colour of `surface.subtle` — so a fill does not say which category a
+> message is; the words, the icon, [content] and [border] do. A dark tint
+> of a hue is a colour nobody has measured, which is why none is shipped.
+
+Source: `packages/iux_flutter/lib/src/semantics/colors/iux_feedback_colors.dart`
 
 ## Controls, media and theming
 
