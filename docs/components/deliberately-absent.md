@@ -43,6 +43,8 @@ not exist.
 | an `async` `onPressed` | `IuxAsyncActionButton` and an `IuxAsyncOutcome` |
 | `debounce` or `throttle` on an action | a timer the application owns |
 | a link or control inside a tooltip | `IuxContextualHelp` |
+| a badge the user can select | `IuxFilterChip` |
+| a label filled with the accent colour | `IuxTagChip`, which is outlined on purpose |
 | an `empty` loading state | `IuxEmptyState` |
 
 ---
@@ -231,6 +233,34 @@ Source: `packages/iux_flutter/lib/src/actions/iux_action_model.dart`
 > reachable, and this box is reachable only by the three routes above.
 
 Source: `packages/iux_flutter/lib/src/components/help/iux_tooltip.dart`
+
+### A badge the user can select
+
+**Use instead:** `IuxFilterChip`, inside an `IuxChipGroup` with
+`IuxChipMark.outline` when width is tight. A badge that toggles would be a
+control with no target, no focus stop and no announced state.
+
+> **A small label the user taps to filter a list is not a badge, and so a
+> badge has no selected state.** That control is `IuxFilterChip`, which has
+> the target, the focus stop and the announced state a toggle needs
+
+Source: `packages/iux_flutter/lib/src/components/status/iux_badge.dart`
+
+### A label filled with the accent colour
+
+**Use instead:** `IuxTagChip`. It names what a record *is* — a category, a
+type, a plan — and is drawn outlined and untinted so that it can never be
+mistaken for something to press. The words carry the category.
+
+> **There is no tone and no fill, and that is a decision rather than a
+> gap.** A small pill filled with the accent is the exact shape of a filled
+> primary button, whichever token painted it.
+
+Source: `packages/iux_flutter/lib/src/components/status/iux_chip.dart`
+
+Borrowing `action.primary` for the fill, as the migration that reported this
+did, makes the same claim twice: the screen says the label can be pressed, and
+the code says so to anyone auditing what is actionable.
 
 ## Navigation
 

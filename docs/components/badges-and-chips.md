@@ -118,6 +118,39 @@ differently from a filter chip, it *looks* different, because it is drawn with
 the border role whose own documentation says never to use it to delimit a
 control.
 
+### Why a tag has no fill, and a badge has no selected state
+
+The first application migrated onto IUX from its own design system met both of
+these as silences (systm-d/IUX#70, #71): its project cards carried a type label
+filled with the accent colour, and its list filters were badges whose selected
+state had been colour. Neither had anywhere to go, and it found out by looking.
+
+**A tag has no tone and no fill.** A small pill filled with the accent is the
+exact shape of a filled primary button, whichever token painted it. The
+migration borrowed `action.primary` for the fill and said so in a comment; the
+screen said the same thing to its users without the comment. A tag's one
+guarantee is that it never looks pressable, so the category is carried by the
+words and the pill stays outlined on `surface.subtle`. A test holds that the
+tag's fill is never the primary or destructive action fill, on all four
+profiles.
+
+IUX does have decorative accents with no meaning attached — `IuxAvatarTone`,
+the answer `ADR-0014` gives to "which one of several unrelated things is this."
+They fill a circle carrying a glyph, which reads as identity rather than as an
+action. Extending them to a text label is what a "yes" to #71 would look like,
+and it would need its own record: the same four hues on a second component, in
+the one shape where they most resemble a control.
+
+**A badge has no selected state, because a badge is not a control.** A label the
+user taps to filter a list is an `IuxFilterChip`: it has the target, the focus
+stop and the announced state a toggle needs. Where width is tight, an
+`IuxChipGroup` with `IuxChipMark.outline` gives back the space a reserved
+checkmark would take — see *The width budget* below.
+
+Both refusals are also on
+[deliberately-absent.md](deliberately-absent.md), which is where someone looking
+for them will actually look.
+
 ## API
 
 ### `IuxStatus` and `IuxStatusIndicator`

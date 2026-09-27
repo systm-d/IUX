@@ -34,6 +34,24 @@ import 'iux_status_tokens.dart';
 ///
 /// The label is required and never empty: an unlabelled tag is a shape whose
 /// only content is its colour.
+///
+/// **There is no tone and no fill, and that is a decision rather than a
+/// gap.** A small pill filled with the accent is the exact shape of a filled
+/// primary button, whichever token painted it. A tag drawn that way tells the
+/// user it can be pressed, and the one thing this widget exists to guarantee
+/// is that it never says so. The category is carried by the words, which is
+/// the only channel that survives a monochrome screen anyway.
+///
+/// Reported from a migration that wanted a project's type as a filled badge
+/// and found no role for it (systm-d/IUX#71). The report was right that the
+/// refusal was silent; it is now written here. IUX does have decorative
+/// accents with no meaning — `IuxAvatarTone`, for the question "which one of
+/// several unrelated things is this" (ADR-0014) — and they fill a *circle
+/// carrying a glyph*, which reads as identity rather than as an action.
+/// Extending them to a text label is the shape a "yes" would take, and it
+/// would need its own record: it spends the same four hues on a second
+/// component, and a filled label is the case where they look most like a
+/// control.
 class IuxTagChip extends StatelessWidget {
   /// Creates a read-only tag.
   const IuxTagChip({super.key, required this.label})

@@ -7,6 +7,10 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Documentation: `IuxTagChip` carries no fill and `IuxBadge` no selected state,
+and both now say why. A test holds that a tag's fill is never an action fill.
+`IUX-CHIP-FILL-001`.
+
 Every typography role requests tabular figures, so a column of digits lines up
 in every component, including those that take only a `String`.
 `IUX-TYPOGRAPHY-FIGURES-001`.

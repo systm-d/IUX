@@ -4666,3 +4666,66 @@ that costs when it happens on a page.
     not measured here either. `IUX-MANUAL-001`.
   - Prose gets tabular digits too. Judged the right trade for an interface of
     short labels and values; not measured with readers.
+
+### IUX-CHIP-FILL-001 — A label filled like a button, and a badge used as a toggle: two silences made into refusals
+
+- **Level**: context_dependent — a judgement about affordance, argued from this
+  project's own records, not measured with users
+- **Scope**: `IuxTagChip` and `IuxBadge` documentation, the component page,
+  `docs/components/deliberately-absent.md`, and one assertion per profile. **No
+  behaviour change**: both components already did what is now written down.
+- **Sources**: reported from the first migration of an existing application
+  onto IUX (systm-d/IUX#70, #71); `ADR-0014`; `IuxTagChip`'s and `IuxBadge`'s
+  existing documentation.
+- **Status**: decided and implemented as documentation, with a guard. Offered as
+  a decision the maintainer may overturn; the shape of a "yes" is recorded
+  below.
+
+- **What the migration met.** Project cards carrying a type label filled with
+  the accent colour, and list filters drawn as badges whose selected state was
+  colour. Mapped onto IUX, the first found no role — the migration borrowed
+  `action.primary.background` and commented the lie — and the second found a
+  badge that "renders identically whether chosen or not." The report on #71 put
+  the real complaint precisely: a design system that refuses decorative
+  emphasis makes a defensible argument, "but the refusal is currently silent."
+
+- **The decision on #71: a tag carries no fill.** A small pill filled with the
+  accent is the shape of a filled primary button whichever token painted it;
+  borrowing `action.primary` merely made the code agree with what the screen
+  was already telling users. `IuxTagChip` exists for exactly the migration's
+  case — "an attribute a record already has — a category, a tag, a language, a
+  plan tier" — and it already guarantees it never looks pressable. So the type
+  label is an `IuxTagChip`, the words carry the category, and the refusal is now
+  in its documentation instead of in its absence.
+
+- **Why this is not a contradiction of `ADR-0014`.** IUX does ship decorative
+  accents with no meaning — `IuxAvatarTone`, for "which one of several
+  unrelated things is this." They fill a *circle carrying a glyph*, which reads
+  as identity. A filled *text pill* is the one shape in which the same hues read
+  as a control. That difference is the argument, and it is also where the
+  argument could fail: extending the ADR-0014 accents to `IuxTagChip` is what a
+  "yes" would look like, and it would need its own record.
+
+- **Why refusal and not the role, when the question was open.** Asymmetry of
+  cost. A tone added to `IuxTagChip` later is additive; a tone shipped now and
+  found to make tags look tappable is a breaking removal from every application
+  that used it. The reversible answer was taken.
+
+- **The decision on #70 was already made.** `IuxBadge` said "a badge is never
+  tappable"; a badge that can be selected is a control with no target, no focus
+  stop and no announced state. The migration's toggles are `IuxFilterChip`s,
+  and `IuxChipMark.outline` — added for a width complaint from a different
+  migration — gives back the width a reserved checkmark would take. The badge's
+  documentation now says so where a reader looking for a selected state lands.
+
+- **The guard.** The tag's resolved fill is asserted to be neither the primary
+  nor the destructive action fill, on all four profiles, and the assertion fails
+  when the tag is painted with `action.primary`. The two refusals are quoted on
+  the deliberately-absent page, whose own test keeps the quotes true.
+
+- **Limits.**
+  - That a filled label is mistaken for a button is argued, not measured. It is
+    the assumption this decision rests on, and a study could overturn it.
+  - The guard compares against two fills. A tone that reproduced the primary
+    fill's *look* from a different token — a close hue at a close lightness —
+    would pass it.

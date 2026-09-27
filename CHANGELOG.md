@@ -12,6 +12,24 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### A tag has no fill and a badge has no selected state — now said where they are
+
+**No behaviour change.** The first migration from another design system met two
+silences: a project-type label it wanted filled with the accent colour, which
+had no role and so borrowed `action.primary`; and list filters drawn as badges,
+which could not show being chosen. Both were already answered by what the
+components do, and neither answer was written anywhere a reader would find it.
+
+A tag carries no fill because a small pill filled with the accent is the shape of
+a filled primary button whichever token paints it, and `IuxTagChip`'s one
+guarantee is that it never looks pressable — the words carry the category. The
+decorative accents IUX does ship, `IuxAvatarTone`, fill a circle with a glyph,
+which reads as identity; extending them to a label is recorded as what a "yes"
+would take. A badge has no selected state because a badge is not a control; the
+toggle is an `IuxFilterChip`. Both refusals are now in the components'
+documentation and on the deliberately-absent page, and a test holds that a tag's
+fill is never an action fill. `IUX-CHIP-FILL-001`.
+
 ### Every digit takes the same width, including inside components
 
 **Visual change only where a face's default figures are proportional; no API

@@ -851,6 +851,27 @@ void main() {
     test('an unnamed tag is rejected', () {
       expect(() => IuxTagChip(label: ''), throwsAssertionError);
     });
+
+    for (final IuxThemeConfiguration configuration in _profiles) {
+      testWidgets('it never wears the fill of a primary action, $configuration',
+          (WidgetTester tester) async {
+        // The decision IuxTagChip's documentation records (systm-d/IUX#71): a
+        // small pill filled like a primary button tells the user it can be
+        // pressed, whichever token painted it. Held here, so a later tone or
+        // tint cannot quietly reach the one fill that means "act".
+        late IuxSemanticColors colors;
+        final IuxChipTokens tag = await resolve(
+          tester,
+          configuration,
+          (BuildContext context) {
+            colors = IuxSemanticColors.of(context);
+            return IuxChipResolver.resolve(context, IuxChipState.readOnly);
+          },
+        );
+        expect(tag.background, isNot(colors.action.primary.background));
+        expect(tag.background, isNot(colors.action.destructive.background));
+      });
+    }
   });
 
   group('adjacent interactive chips keep the minimum separation', () {
