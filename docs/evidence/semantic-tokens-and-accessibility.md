@@ -3370,9 +3370,9 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 523 tests, every claim probed rather
-  than read. It is **not** what a screen reader says, in what order, or whether
-  it says it at all. The distinction is load-bearing for a framework whose
+  would be *told*. That is a great deal: 2 723 tests at the last count, every
+  claim probed rather than read. It is **not** what a screen reader says, in
+  what order, or whether it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
 
 - **The instrument has a proven blind spot, and it is not hypothetical.** The
@@ -4401,3 +4401,444 @@ that costs when it happens on a page.
     is a visual comparison *down a column* — one row's band against the row
     above. A semantics tree cannot hold that claim at all, and no test here
     asserts it.
+
+### IUX-FOCUS-RING-001 — Three places said the ring was outside the element; the paint put it on the element (FIXED)
+
+- **Level**: standard
+- **Scope**: `IuxFocusRing`, and through it every focusable IUX surface.
+  **Visual change**: the ring sits `gap` further out, and a ring drawn without
+  a declared shape has tighter corners. **No layout change** — nothing moves
+  and nothing grows.
+- **Sources**: WCAG 2.2 SC 2.4.7 (focus visible) and the requirement that an
+  indicator not obscure what it identifies; reported from a device by an
+  integrator (systm-d/IUX#54), at 100% text, in a debug build.
+- **Status**: implemented; six pixel assertions in
+  `test/accessibility/iux_focus_ring_test.dart`, five of which fail on the
+  previous implementation. Full suite passes.
+
+- **What three places said.** `IuxFocusRing`'s own documentation: "Focus is
+  drawn *outside* the child rather than over it, so the indicator never covers
+  the content it identifies." `IuxFocusStyle.gap`: "Space between the element
+  and its focus ring." And a button test whose failure message sends the reader
+  to "IuxFocusRing, which reserves space outside".
+
+- **What the paint did.** The ring decorated the child's own box, so it was
+  drawn *on* the child's edge — and the reserved gap sat *outside* the ring,
+  between the ring and the neighbours. Measured on a plain 120 × 48 box at
+  standard contrast: **584 ring pixels inside the element the ring
+  identifies.** A control hid this, because a control carries its own padding.
+  A block of text does not, and the ring went through the first and last glyph
+  of every line.
+
+- **Where it was seen, and where else it was.** On `IuxOnboardingFlow`'s step
+  heading, which takes focus on every step change by design. `IuxGuidedForm`'s
+  step heading is the same composition and had the same defect; so did the
+  selection-control row and every other surface that focuses text or a row
+  rather than a padded control. None was reported. All are fixed by the same
+  change, because the fix is in the ring rather than at the call sites.
+
+- **The fix spends no space.** The reservation stays exactly `width + gap` on
+  every side; the ring moved into it. `Border` strokes inside the box it
+  decorates, so decorating the *padded* box puts the stroke on the outermost
+  `width` and ends it exactly `gap` short of the child — which is what the gap
+  was always documented to be. The integrator's proposal was an inner padding;
+  that costs space around every focused control, including the buttons that
+  did not need it. This costs none, and it was available only because the
+  reservation already existed.
+
+- **The default radius was wrong for ten callers out of eleven.** It was the
+  theme's medium radius, which describes a rounded control — and of the eleven
+  call sites relying on it, ten surround a rectangle: a block of text, a row, a
+  navigation destination, the box around an icon. `borderRadius` now declares
+  the **element's** shape, null means a rectangle, and the ring is drawn
+  concentric with whatever is declared. `IuxButton`, the one genuinely rounded
+  default caller, now passes its real shape — declared once, used by both the
+  container and the ring, so the two cannot drift.
+
+- **A rounder ring was tried and refused.** The roundest ring that still clears
+  a rectangle's corner has an inner radius up to (2 + √2) gaps. It does not
+  touch the rectangle, and it passes a third of a pixel from its corner on the
+  diagonal — which honours "never covers the content" and breaks what
+  `IuxFocusStyle.gap` says the gap is. The chosen ring is the rectangle's
+  outline pushed out by the gap, so every point of it is exactly `gap` from the
+  element. Its corners are tighter than they were. The promise is kept
+  everywhere rather than along the straight sides.
+
+- **Limits.**
+  - **Declaring a radius larger than the element really has still puts the ring
+    on it.** A concentric ring follows the shape it is told about, and a square
+    corner under a rounded declaration pokes through. The call sites that pass
+    a radius pass the one they paint with; nothing enforces that they do.
+  - The pixel assertions run under `flutter_test`, where a glyph is a filled
+    box. That makes "no ring pixel inside the text" an exact statement about
+    the layout, and says nothing about how the tighter corners look on a
+    device. `IUX-MANUAL-001`.
+
+### IUX-ABSENT-001 — Every refusal was argued where nobody looking for the thing would read it
+
+- **Level**: context_dependent
+- **Scope**: documentation — `docs/components/deliberately-absent.md`, linked
+  from `docs/README.md`, and a guard in
+  `test/package/deliberately_absent_test.dart`. No library change.
+- **Sources**: the first migration of an existing application onto IUX
+  (`exec-d/sentinel`, reported as systm-d/IUX#67 to #72); seventeen refusals
+  read out of the source and quoted verbatim.
+- **Status**: implemented. Three assertions: every quoted refusal still stands
+  in the file it is attributed to, every alternative the page recommends
+  exists, and the page is non-vacuous. Both substantive checks verified in the
+  failing direction.
+
+- **The finding.** Of six reports from that migration, two asked for things
+  IUX refuses on purpose and says so. #69 asked for an error tone on a
+  transient message; `IuxTransientTone` argues at length that it will never
+  have one, and `docs/components/transient-feedback.md` has a table sending a
+  failure to `IuxAlert`. #67 asked for an obscured text field, and its closing
+  paragraph reconstructed, nearly word for word, the reason `IuxTextContent`
+  gives for not having one. **The answers existed, twice in one case, and
+  neither reporter found them.**
+
+- **Why they could not have.** A refusal is written in the documentation of
+  the component that lacks the thing — the enum that has no `error`, the field
+  that has no `password`. Someone migrating works from the thing they expect
+  to use, finds it missing, and stops there. Nothing searches for an absence.
+  The component page was no better placed than the dartdoc, because the
+  reporter's path was typed: they reached `IuxTransientTone`, saw two values,
+  and filed.
+
+- **The page.** Seventeen refusals an integrator is likely to meet, each with
+  what to use instead, gathered where someone looks when something is missing.
+  A quick-answer table, then each refusal quoted from its source with the file
+  named.
+
+- **The guard, and the mistake that justified it.** Collecting the refusals
+  creates a second copy that can drift from the first, which is
+  `IUX-FOCUS-RING-001`'s defect in documentary form. So every quote is checked
+  against the dartdoc of the file it names, and every recommended alternative
+  against the library. **The first draft of the page recommended
+  `IuxAsyncButton`, which does not exist** — the widget is
+  `IuxAsyncActionButton`. The check was written before the mistake was noticed
+  and caught it on its first run.
+
+- **The page does not close the question it answers.** Its last section says
+  so: a refusal is an argument and can be wrong, and the right response to one
+  that costs an application something real is an issue that answers the quoted
+  argument. Both reports that led here were worth filing even where the
+  refusal stood.
+
+- **Limits.**
+  - The page lists refusals someone *thought to write down*. A thing IUX lacks
+    by oversight rather than decision is not on it, and nothing can make it be.
+  - Seventeen were chosen out of roughly fifty written refusals, by judging
+    which an integrator is likely to reach for. That judgement is this
+    project's and it will be wrong about some of them; the next migration will
+    say which.
+  - The guard checks that a quote is still *present*, not that the refusal is
+    still *right*.
+
+### IUX-PASSWORD-001 — The component a refusal described, built when an application needed it
+
+- **Level**: standard for concealment and the reveal control; context_dependent
+  for the choice of a labelled switch over an icon
+- **Scope**: new `IuxPasswordField` and `IuxSecretPurpose`. Additive:
+  `IuxTextField`'s public API is unchanged and still cannot conceal a value.
+- **Sources**: WCAG 2.2 SC 3.3.2 (labels or instructions), SC 4.1.2 (name, role,
+  value), SC 1.3.5 (identify input purpose, through the autofill hints);
+  `IuxTextContent`'s own refusal of a `password` value; reported from a migration
+  (systm-d/IUX#67).
+- **Status**: implemented; 25 assertions in
+  `test/components/iux_password_field_test.dart`, four of them verified in the
+  failing direction by mutation. A catalog panel lists what only a device can
+  settle.
+
+- **It was specified before it was built.** `IuxTextContent` already said there
+  is no `password` value because "an obscured field owes the user a way to reveal
+  what they typed — otherwise a motor or dyslexic user cannot check a long
+  password before submitting it — and that reveal control is a second
+  interactive element with its own name, state and announcement. It is a
+  component, not an enum value." The migration that needed one — a GitHub token
+  on a setup screen — reached past IUX to a bare `TextField`, and its report
+  reconstructed that argument on its own.
+
+- **The reveal control is a labelled `IuxSwitch` under the field, and the eye
+  icon was refused.** Three reasons, each already written down somewhere in
+  this project. An icon on its own is a guess (`IuxNavigationDestination`'s
+  words), and the eye is a worse guess than most because applications disagree
+  about what the open one means. A control inside the box is refused by
+  `IuxTextField` (IUX-TEXTFIELD-GAPS-001): a target that meets the floor leaves
+  too little of a small-screen field for the text. And a switch is a control
+  already measured for its floor, focus ring, press feedback and announcement,
+  where an eye would have been a new one. It is a switch and not a checkbox by
+  `IuxSwitch`'s own rule — revealing is immediate and reversible, and waits for
+  no Save.
+
+- **Its name does not change with its state**, for the reason
+  `IuxOnboardingFlow.backLabel` gives: a control renamed on each use has to be
+  read again each time. The state is announced as on or off.
+
+- **The purpose is required, because getting it wrong is harmful both ways.** A
+  sign-in field that does not say so is a forty-character password typed by
+  hand. A token declared as a password is offered to be saved *as the account's
+  password*, and a user who accepts has overwritten it. `token` therefore asks
+  autofill for nothing at all.
+
+- **Nothing leaves the box, in either state.** Suggestions, autocorrect,
+  capitalisation, smart punctuation and the keyboard's personalised learning are
+  off — each would put the secret somewhere other than this field. The keyboard
+  is the visible-password one throughout, so revealing never re-lays it out
+  mid-word.
+
+- **Concealed on arrival, with no parameter to change that.** Whether to show a
+  credential is decided by the user in the moment, knowing who can see their
+  screen; an application deciding it in advance has decided for a room it
+  cannot see.
+
+- **How `IuxTextField` stays closed.** The settings reach it through an
+  `@internal` constructor carrying an `@internal` `IuxSecretEntry`, which the
+  package's barrel hides. Outside the package the constructor is flagged and its
+  argument type cannot be named. A test pumps every public `IuxTextContent` and
+  asserts none of them obscures.
+
+- **Limits.**
+  - **Every platform behaviour is unmeasured**: what a password manager offers
+    per purpose, what TalkBack says for an obscured field, whether the keyboard
+    really stays put on reveal. The catalog's password panel lists them.
+    `IUX-MANUAL-001`.
+  - **The switch was chosen over the eye on this project's own arguments, not on
+    a study.** That a labelled reveal is found and understood faster than an
+    icon is plausible and unmeasured.
+  - **Nothing re-conceals the value on its own** — not on submit, not when the
+    application is backgrounded. Left open rather than decided by default.
+  - No confirmation field, strength meter or rule list: those belong to the form
+    that knows the rules.
+
+### IUX-TYPOGRAPHY-FIGURES-001 — Three applications aligned their digits by hand, and could not reach the components'
+
+- **Level**: strong_guidance for the principle (aligned figures in a column);
+  context_dependent for applying it to every role
+- **Scope**: `IuxTypographyTheme.resolve` — every role now requests tabular
+  figures. **Visual change** only where the face's default figures are
+  proportional. No API change.
+- **Sources**: reported from three integrations (systm-d/IUX#66): terminus,
+  disconnected, and sentinel, whose comment gives the count of ninety-five.
+- **Status**: implemented, partly. Six assertions in
+  `test/themes/typography_figures_test.dart`, all six failing without the
+  change. The half of the report about monospace identifiers is recorded here
+  and **left open**.
+
+- **What the applications did.** Each declared a monospace family and laid it
+  over IUX's resolved style wherever a figure appeared — terminus at about
+  twenty call sites, sentinel at ninety-five. Sentinel then removed all
+  ninety-five by passing the family once at the theme root, which works and
+  makes the whole application monospace, prose included. The remedy was worse
+  than the workaround.
+
+- **Why the workaround could not finish the job.** It reaches only the text an
+  application draws. `IuxListItem.trailingText`, table cells and chart labels
+  take a `String`, so the interface ended up half aligned — the application's
+  own figures lining up, the ones inside components not — which, as the report
+  put it, looks like a bug rather than a decision.
+
+- **Every role, rather than the roles that "carry values".** Roles do not carry
+  values; components do, and they all resolve their text from the roles. So the
+  feature is on every role, and a list row's trailing time and a table cell
+  inherit it without either component changing. The tests hold both: every role
+  in four configurations, including one with a brand family, and the text a list
+  row and a table actually paint.
+
+- **A feature rather than a family.** It asks the face for its tabular figures
+  and changes nothing else — no font to vendor, no face imposed on prose. The
+  cost is that it is a request: a face without tabular figures ignores it.
+
+- **The open half: identifiers are not figures.** Sentinel's ninety-five were
+  version numbers, commit hashes, durations and counts. Tabular figures fix the
+  durations and counts. A commit hash, a token or a recovery code is read
+  character by character, and what it needs is glyphs that cannot be mistaken
+  for each other — `0` and `O`, `1`, `l` and `I`. Aligned digits do nothing for
+  that. It is plausibly a legibility property IUX should own, like contrast, and
+  plausibly an application's choice of face; **a `code` role with its own family
+  is the shape the question would take, and it is not decided here.**
+
+- **Limits.**
+  - **Nothing here can observe the result.** `flutter_test` draws every glyph
+    in a face where all characters are already one width. The assertions prove
+    the request reaches the text; whether a given face honours it is the face's.
+    The Android platform default is understood to carry tabular figures; that is
+    not measured here either. `IUX-MANUAL-001`.
+  - Prose gets tabular digits too. Judged the right trade for an interface of
+    short labels and values; not measured with readers.
+
+### IUX-CHIP-FILL-001 — A label filled like a button, and a badge used as a toggle: two silences made into refusals
+
+- **Level**: context_dependent — a judgement about affordance, argued from this
+  project's own records, not measured with users
+- **Scope**: `IuxTagChip` and `IuxBadge` documentation, the component page,
+  `docs/components/deliberately-absent.md`, and one assertion per profile. **No
+  behaviour change**: both components already did what is now written down.
+- **Sources**: reported from the first migration of an existing application
+  onto IUX (systm-d/IUX#70, #71); `ADR-0014`; `IuxTagChip`'s and `IuxBadge`'s
+  existing documentation.
+- **Status**: decided and implemented as documentation, with a guard. Offered as
+  a decision the maintainer may overturn; the shape of a "yes" is recorded
+  below.
+
+- **What the migration met.** Project cards carrying a type label filled with
+  the accent colour, and list filters drawn as badges whose selected state was
+  colour. Mapped onto IUX, the first found no role — the migration borrowed
+  `action.primary.background` and commented the lie — and the second found a
+  badge that "renders identically whether chosen or not." The report on #71 put
+  the real complaint precisely: a design system that refuses decorative
+  emphasis makes a defensible argument, "but the refusal is currently silent."
+
+- **The decision on #71: a tag carries no fill.** A small pill filled with the
+  accent is the shape of a filled primary button whichever token painted it;
+  borrowing `action.primary` merely made the code agree with what the screen
+  was already telling users. `IuxTagChip` exists for exactly the migration's
+  case — "an attribute a record already has — a category, a tag, a language, a
+  plan tier" — and it already guarantees it never looks pressable. So the type
+  label is an `IuxTagChip`, the words carry the category, and the refusal is now
+  in its documentation instead of in its absence.
+
+- **Why this is not a contradiction of `ADR-0014`.** IUX does ship decorative
+  accents with no meaning — `IuxAvatarTone`, for "which one of several
+  unrelated things is this." They fill a *circle carrying a glyph*, which reads
+  as identity. A filled *text pill* is the one shape in which the same hues read
+  as a control. That difference is the argument, and it is also where the
+  argument could fail: extending the ADR-0014 accents to `IuxTagChip` is what a
+  "yes" would look like, and it would need its own record.
+
+- **Why refusal and not the role, when the question was open.** Asymmetry of
+  cost. A tone added to `IuxTagChip` later is additive; a tone shipped now and
+  found to make tags look tappable is a breaking removal from every application
+  that used it. The reversible answer was taken.
+
+- **The decision on #70 was already made.** `IuxBadge` said "a badge is never
+  tappable"; a badge that can be selected is a control with no target, no focus
+  stop and no announced state. The migration's toggles are `IuxFilterChip`s,
+  and `IuxChipMark.outline` — added for a width complaint from a different
+  migration — gives back the width a reserved checkmark would take. The badge's
+  documentation now says so where a reader looking for a selected state lands.
+
+- **The guard.** The tag's resolved fill is asserted to be neither the primary
+  nor the destructive action fill, on all four profiles, and the assertion fails
+  when the tag is painted with `action.primary`. The two refusals are quoted on
+  the deliberately-absent page, whose own test keeps the quotes true.
+
+- **Limits.**
+  - That a filled label is mistaken for a button is argued, not measured. It is
+    the assumption this decision rests on, and a study could overturn it.
+  - The guard compares against two fills. A tone that reproduced the primary
+    fill's *look* from a different token — a close hue at a close lightness —
+    would pass it.
+
+### IUX-FEEDBACK-DARK-SURFACE-001 — Four feedback surfaces that are one colour in dark, now said where an integrator looks
+
+- **Level**: standard — a documentation decision over a measured fact
+- **Scope**: `IuxFeedbackRoleColors.surface` documentation, the comment above
+  each dark feedback block in `iux_color_palettes.dart`,
+  `docs/themes/light-and-dark.md`, `docs/components/deliberately-absent.md`, and
+  one assertion over both dark profiles. **No colour changes.**
+- **Sources**: Finding 5 of `IUX-PALETTE-PERCEPTION-001`; reported from a
+  migration onto IUX as systm-d/IUX#72.
+- **Status**: implemented.
+
+- **What the migration met.** A status banner whose fill carried the category —
+  a reddish haze for a failure, a green one for success — became a plain
+  neutral in dark, because `feedback.info.surface`, `.success.surface`,
+  `.warning.surface` and `.error.surface` all resolve to `neutral80` in both
+  dark profiles. The report did not ask for tints; it asked that the decision be
+  read rather than discovered by finding four token paths returning one colour.
+
+- **What is now written, and where.** On the `surface` field itself, which is
+  where an integrator reading the API lands; on the light-and-dark page, which
+  is where one reading the themes lands; and on the deliberately-absent page.
+  All three say the same thing: the category is carried by the words, the icon,
+  the content colour and the border, and the fill does not vary because a dark
+  tint of a hue is a colour nobody has measured.
+
+- **A wording corrected on the way.** The comparison block's comment called
+  that neutral "the raised neutral". `surface.raised` is `neutral70` in both
+  dark profiles; `neutral80` is `surface.subtle`. The comment now names the
+  token, and the new text was written against it.
+
+- **Alpha.** The same report noted the migration had been diluting its old tint
+  with `withValues(alpha:)` and dropped it because an alpha on
+  `feedback.*.border` undercuts the 3:1 the field's documentation promises. The
+  light-and-dark page now carries a section saying so for every role: each is
+  measured opaque, as shipped, and a transparency is a colour the contrast tests
+  never saw.
+
+- **The guard.** `palette_perception_test.dart` asserts that in both dark
+  profiles the four surfaces are exactly `surface.subtle`, and its failure
+  message names the three places to update. A tint added later is welcome; it
+  cannot arrive without the page moving with it.
+
+- **Limits.**
+  - Nothing here measures whether a category banner without a tinted fill is
+    recognised as quickly as one with it. The argument is that the other four
+    channels are stronger carriers than a fill, not that the fill carried
+    nothing.
+  - The alpha section is advice. No test can catch an application applying
+    transparency to a token at its own call site.
+
+### IUX-TAG-REMOVABLE-001 — A tag the user can take back out, with one control and a place for focus to go
+
+- **Level**: standard — WCAG 2.2 SC 2.5.8, SC 2.4.3, SC 2.4.6 and SC 4.1.2
+- **Scope**: `IuxTagChip.removable`, its documentation, the chips page, the
+  catalog, and seventeen assertions in
+  `test/components/iux_removable_tag_test.dart`. Additive: the read-only
+  `IuxTagChip` is unchanged.
+- **Sources**: reported from a migration onto IUX (systm-d/IUX#68).
+- **Status**: implemented.
+
+- **What the migration met.** An account's organisations, shown as chips the
+  user adds and removes. `IuxTagChip` rendered them and offered no way to take
+  one out, so adopting it removed the ability — silently. The code compiled,
+  the tests passed, and the chips looked right; only a reading of what the
+  screen used to do caught it.
+
+- **Why a constructor on the tag, not a new component and not a filter chip.**
+  A filter is chosen from a set the application offers; a removable tag stands
+  for something the user put there. The body of a removable tag is still a
+  tag — no focus, no gesture, read as text — and every guarantee
+  `IuxTagChip` makes about the body still holds. What is added is **one**
+  control inside it, an `IuxIconButton`, so the target floor, the focus ring,
+  the action model and the announced name come from the one place every IUX
+  button gets them.
+
+- **The name.** `removeLabel` is required and a debug build refuses one that
+  does not contain `label`, ignoring case. A screen reader listing a page's
+  controls reads names without the text beside them; five buttons called
+  "Remove" are five guesses (SC 2.4.6). IUX has no localisation, so the caller
+  writes the sentence.
+
+- **Focus.** When the button is activated with focus on it, focus moves to the
+  previous traversal stop *before* the callback runs — while the node still has
+  a place in the order. Left alone, the node is disposed with the tag and focus
+  falls to the scope, which puts a keyboard user back at the top of the screen
+  (SC 2.4.3). The previous stop is the tag before, or for the first tag the
+  control the list grows from. A tap moves nothing.
+
+- **Measured.** In-harness, the removable tag is 56 logical pixels tall — the
+  48-pixel target plus the focus ring's reserved inset — and the read-only tag
+  keeps its own height. The semantics tree is the named group, then the tag's
+  text as a plain node, then the button with its own name, focus and tap.
+
+- **What the tests hold, and that they bite.** The previous-stop rule and the
+  name check were each removed in turn, and the tests failed three times
+  between them. A tap on the label does nothing; the button meets the floor at
+  200% text; right-to-left puts it at the reading end; two tags keep the target
+  separation.
+
+- **Limits.**
+  - **Previous, not next.** Some systems move focus to the next tag and fall
+    back to the previous for the last. Previous was chosen because it needs no
+    knowledge of the group — it uses the application's own traversal order —
+    and because the stop before a list is usually where the list is added from.
+    It is argued, not tested with users.
+  - **A screen reader's own cursor is not input focus.** Where TalkBack or
+    VoiceOver lands after the node disappears is the platform's decision; the
+    rule above moves keyboard focus. Nothing announces the removal. Both are
+    `IUX-MANUAL-001` check F7, not yet run.
+  - **Removal is immediate.** Right when the item can be re-added; an item that
+    cannot needs an undo or `IuxDestructiveAction`, which the documentation
+    says and nothing enforces.

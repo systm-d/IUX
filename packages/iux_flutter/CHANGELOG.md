@@ -7,6 +7,34 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Added: `IuxTagChip.removable`, a tag with one control that removes it. The
+read-only `IuxTagChip` is unchanged. `IUX-TAG-REMOVABLE-001`.
+
+Documentation: in dark, the four feedback surfaces are one neutral, and
+`IuxFeedbackRoleColors.surface` now says so. `IUX-FEEDBACK-DARK-SURFACE-001`.
+
+Documentation: `IuxTagChip` carries no fill and `IuxBadge` no selected state,
+and both now say why. A test holds that a tag's fill is never an action fill.
+`IUX-CHIP-FILL-001`.
+
+Every typography role requests tabular figures, so a column of digits lines up
+in every component, including those that take only a `String`.
+`IUX-TYPOGRAPHY-FIGURES-001`.
+
+`IuxPasswordField` and `IuxSecretPurpose`: a concealed field and a labelled
+switch that reveals it, with autofill decided by what the secret is for.
+Additive; `IuxTextField` still cannot conceal a value. `IUX-PASSWORD-001`.
+
+Documentation: `docs/components/deliberately-absent.md` collects what IUX
+refuses on purpose and what to use instead, quoted from source and guarded by a
+test. `IUX-ABSENT-001`.
+
+The focus ring is now drawn in the space it always reserved, `gap` outside the
+element, instead of on the element's own edge — where it went through the glyphs
+of any focused text. `IuxFocusRing.borderRadius` declares the element's shape,
+null meaning a rectangle. Visual change, no layout change.
+`IUX-FOCUS-RING-001`.
+
 **Breaking.** `IuxSemanticColors` gains a seventh required role group,
 `comparison`, so any application that builds a full palette by hand for
 `IuxTheme.withSemanticColors` no longer compiles until it maps it. That is the

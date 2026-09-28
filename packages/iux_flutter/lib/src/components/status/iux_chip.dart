@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import '../../accessibility/iux_focus.dart';
 import '../../accessibility/iux_focus_ownership.dart';
 import '../../accessibility/iux_semantics.dart';
+import '../../actions/iux_action_descriptor.dart';
+import '../../actions/iux_action_model.dart';
 import '../../layout/iux_spacing_primitives.dart';
+import '../button/iux_button.dart';
 import 'iux_status_tokens.dart';
 
-/// A compact label the user cannot act on.
+/// A compact label the user cannot act on, except — in one form — to remove it.
 ///
 /// ```dart
 /// IuxTagChip(label: l10n.categoryVegetarian)
@@ -17,7 +20,9 @@ import 'iux_status_tokens.dart';
 /// sentence would be too long.
 ///
 /// **Do not use it** for anything the user can change or choose: that is
-/// [IuxFilterChip], and the difference is not cosmetic. A tag takes no focus,
+/// [IuxFilterChip], and the difference is not cosmetic. (Taking a tag out of a
+/// list the user built is the one exception, and it has its own constructor —
+/// see [IuxTagChip.removable] below.) A tag takes no focus,
 /// has no touch target, announces no selected state and reports no gesture, so
 /// a user who tried to act on one would get silence. Do not use it to report a
 /// state either — an order that failed is `IuxStatusIndicator`, which has room
@@ -34,21 +39,121 @@ import 'iux_status_tokens.dart';
 ///
 /// The label is required and never empty: an unlabelled tag is a shape whose
 /// only content is its colour.
+///
+/// **There is no tone and no fill, and that is a decision rather than a
+/// gap.** A small pill filled with the accent is the exact shape of a filled
+/// primary button, whichever token painted it. A tag drawn that way tells the
+/// user it can be pressed, and the one thing this widget exists to guarantee
+/// is that it never says so. The category is carried by the words, which is
+/// the only channel that survives a monochrome screen anyway.
+///
+/// Reported from a migration that wanted a project's type as a filled badge
+/// and found no role for it (systm-d/IUX#71). The report was right that the
+/// refusal was silent; it is now written here. IUX does have decorative
+/// accents with no meaning — `IuxAvatarTone`, for the question "which one of
+/// several unrelated things is this" (ADR-0014) — and they fill a *circle
+/// carrying a glyph*, which reads as identity rather than as an action.
+/// Extending them to a text label is the shape a "yes" would take, and it
+/// would need its own record: it spends the same four hues on a second
+/// component, and a filled label is the case where they look most like a
+/// control.
+///
+/// ## A tag the user can take back out
+///
+/// ```dart
+/// IuxTagChip.removable(
+///   label: organisation.name,
+///   removeLabel: l10n.removeOrganisation(organisation.name),
+///   onRemove: () => controller.remove(organisation),
+/// )
+/// ```
+///
+/// **Use it** where the tags are the user's own list — organisations on an
+/// account, recipients of a message, labels they typed — and taking one out is
+/// part of editing that list. The tag is still a tag: its body takes no focus
+/// and reports no gesture. It carries **one** control, a remove button with a
+/// full touch target, a focus stop and a name of its own.
+///
+/// **Do not use it** for a filter the user switches off — that is
+/// [IuxFilterChip], chosen from a set the application offers. A removable tag
+/// stands for something the user put there, and removing it takes it away.
+///
+/// **The name of the button must name the tag.** A screen reader listing the
+/// controls on a page reads them without the text around them, and five
+/// buttons called "Remove" are five guesses. [removeLabel] is therefore the
+/// whole sentence, already localised — "Remove acme-corp" — and a debug build
+/// refuses one that does not contain [label].
+///
+/// **Where focus goes.** When the button is activated from the keyboard, focus
+/// moves to the previous stop before the tag disappears — the tag before it, or
+/// the field the list is added from. Left alone, focus would fall to the top of
+/// the screen and a keyboard user would start over. A tap moves nothing.
+///
+/// **Removing is immediate, with no question asked.** That is right when the
+/// user can add the item straight back. When removal loses something that
+/// cannot be re-added, the list needs an undo — `IuxTransientMessage` carries
+/// one — or the removal belongs in `IuxDestructiveAction`, not here.
+///
+/// Reported from a migration whose chips lost their delete affordance the
+/// moment they were adopted, silently: the code compiled and the tests passed
+/// (systm-d/IUX#68).
 class IuxTagChip extends StatelessWidget {
   /// Creates a read-only tag.
   const IuxTagChip({super.key, required this.label})
-      : assert(
+      : removeLabel = null,
+        onRemove = null,
+        assert(
           label.length > 0,
           'A tag must say something. An empty one leaves a coloured shape that '
           'a screen reader announces as nothing, and that a sighted user can '
           'see but cannot read.',
         );
 
+  /// Creates a tag carrying one control, which removes it.
+  const IuxTagChip.removable({
+    super.key,
+    required this.label,
+    required String this.removeLabel,
+    required VoidCallback this.onRemove,
+  })  : assert(
+          label.length > 0,
+          'A tag must say something. An empty one leaves a coloured shape that '
+          'a screen reader announces as nothing, and that a sighted user can '
+          'see but cannot read.',
+        ),
+        assert(
+          removeLabel.length > 0,
+          'The remove button needs a name, and the name has to say which tag '
+          'it removes: "Remove acme-corp", already localised.',
+        );
+
   /// The visible text, already localised, and also the accessible name.
   final String label;
 
+  /// The accessible name of the remove button, already localised.
+  ///
+  /// Null on a read-only tag. On a removable one it must contain [label]: a
+  /// screen reader listing controls reads this without the tag beside it.
+  final String? removeLabel;
+
+  /// Called when the user asks to remove the tag. Null on a read-only tag.
+  ///
+  /// The tag does not remove itself. The parent drops it from its list and
+  /// rebuilds, as with every other IUX control.
+  final VoidCallback? onRemove;
+
   @override
   Widget build(BuildContext context) {
+    final String? removeLabel = this.removeLabel;
+    final VoidCallback? onRemove = this.onRemove;
+    if (removeLabel != null && onRemove != null) {
+      return _IuxRemovableTag(
+        label: label,
+        removeLabel: removeLabel,
+        onRemove: onRemove,
+      );
+    }
+
     final IuxChipTokens tokens = IuxChipResolver.resolve(
       context,
       IuxChipState.readOnly,
@@ -75,6 +180,108 @@ class IuxTagChip extends StatelessWidget {
     return IuxSemantics.group(
       label: label,
       child: IuxSemantics.decorative(child: visual),
+    );
+  }
+}
+
+/// The removable form of [IuxTagChip]: a read-only body and one control.
+///
+/// Stateful only to own the remove button's focus node, which is what lets it
+/// hand focus back before the tag leaves the tree.
+class _IuxRemovableTag extends StatefulWidget {
+  const _IuxRemovableTag({
+    required this.label,
+    required this.removeLabel,
+    required this.onRemove,
+  });
+
+  final String label;
+  final String removeLabel;
+  final VoidCallback onRemove;
+
+  @override
+  State<_IuxRemovableTag> createState() => _IuxRemovableTagState();
+}
+
+class _IuxRemovableTagState extends State<_IuxRemovableTag> {
+  late final FocusNode _removeNode =
+      FocusNode(debugLabel: 'remove ${widget.label}');
+
+  @override
+  void dispose() {
+    _removeNode.dispose();
+    super.dispose();
+  }
+
+  void _remove() {
+    // Before the callback, while this node still has a place in the traversal
+    // order. Once the parent rebuilds without the tag, the node is gone and
+    // focus would fall back to the scope — the top of the screen, for a
+    // keyboard user who was halfway down a list.
+    if (_removeNode.hasPrimaryFocus) _removeNode.previousFocus();
+    widget.onRemove();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    assert(
+      widget.removeLabel.toLowerCase().contains(widget.label.toLowerCase()),
+      'The remove button is named "${widget.removeLabel}", which does not '
+      'say which tag it removes. A screen reader listing the controls reads '
+      'the name alone, so write the tag into it: "Remove ${widget.label}", '
+      'in the user\'s language.',
+    );
+
+    final IuxChipTokens tokens = IuxChipResolver.resolve(
+      context,
+      IuxChipState.readOnly,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.background,
+        borderRadius: BorderRadius.circular(tokens.radius),
+        border: Border.all(color: tokens.border, width: tokens.borderWidth),
+      ),
+      // Each part keeps its own node: the tag's text, read as text, and the
+      // button, announced as a button with its own name. Merging them would
+      // make the whole tag a button, which is the failure the read-only form
+      // exists to avoid.
+      child: IuxSemantics.contentContainer(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Flexible(
+              child: Padding(
+                padding: EdgeInsetsDirectional.only(
+                  start: tokens.padding.left,
+                ),
+                // No line limit and no ellipsis, as on the read-only tag.
+                child: Text(
+                  widget.label,
+                  style: tokens.textStyle,
+                  softWrap: true,
+                ),
+              ),
+            ),
+            // The button sets the height, so the target is never shrunk to
+            // the tag. The glyph stays small inside it; see IuxIconButton.
+            IuxIconButton(
+              icon: Icons.close,
+              focusNode: _removeNode,
+              // Derived rather than accepted, as on the search field's clear
+              // button: a caller-supplied descriptor could ask for a
+              // confirmation this control cannot hold, or paint the least
+              // consequential control on the screen as destructive.
+              action: IuxActionDescriptor(
+                semantics: IuxActionSemantics(label: widget.removeLabel),
+                role: IuxActionRole.delete,
+              ),
+              onActivate: _remove,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -413,8 +620,9 @@ class _SelectionMark extends StatelessWidget {
 /// ## Do not use it for
 ///
 /// Anything other than chips — [IuxTargetSpacing] is the general primitive. Do
-/// not mix [IuxTagChip] and [IuxFilterChip] in one group: a set where some
-/// members respond and others do not is a set the user has to probe one by one.
+/// not mix [IuxTagChip] and [IuxFilterChip] in one group, nor read-only tags
+/// with [IuxTagChip.removable] ones: a set where some members respond and
+/// others do not is a set the user has to probe one by one.
 ///
 class IuxChipGroup extends StatelessWidget {
   /// Creates a named group of chips.

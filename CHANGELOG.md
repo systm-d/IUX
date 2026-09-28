@@ -12,6 +12,124 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### A tag the user can take back out
+
+`IuxTagChip.removable(label:, removeLabel:, onRemove:)`. A migration adopted
+`IuxTagChip` for an account's organisations and lost, silently, the ability to
+remove one: there was no delete affordance, and nothing failed. The removable
+form keeps the tag's body exactly as it was — no focus, no gesture, read as
+text — and adds one control inside it, an icon button with a full target and a
+name of its own. The name must contain the tag's, so a list of controls never
+reads "Remove" five times; a debug build refuses one that does not. Removing
+from the keyboard moves focus to the previous stop before the tag leaves, so a
+keyboard user is not sent back to the top of the screen. Closes systm-d/IUX#68.
+`IUX-TAG-REMOVABLE-001`.
+
+### Feedback in dark is not tinted — now said where it is met
+
+**No colour changes.** In both dark profiles the four `feedback.*.surface`
+values are one neutral, the colour of `surface.subtle`, and nothing said so: a
+migration found out by watching a status banner's tinted fill turn plain. The
+field's documentation, `docs/themes/light-and-dark.md` and the
+deliberately-absent page now say that the category is carried by the words, the
+icon, the content colour and the border, and why no dark tint ships. The same
+page gains a section against softening a token with alpha, which breaks the
+ratio the role was measured at. A test holds the dark surfaces to
+`surface.subtle` and names the pages to update if that changes. Closes
+systm-d/IUX#72. `IUX-FEEDBACK-DARK-SURFACE-001`.
+
+### A tag has no fill and a badge has no selected state — now said where they are
+
+**No behaviour change.** The first migration from another design system met two
+silences: a project-type label it wanted filled with the accent colour, which
+had no role and so borrowed `action.primary`; and list filters drawn as badges,
+which could not show being chosen. Both were already answered by what the
+components do, and neither answer was written anywhere a reader would find it.
+
+A tag carries no fill because a small pill filled with the accent is the shape of
+a filled primary button whichever token paints it, and `IuxTagChip`'s one
+guarantee is that it never looks pressable — the words carry the category. The
+decorative accents IUX does ship, `IuxAvatarTone`, fill a circle with a glyph,
+which reads as identity; extending them to a label is recorded as what a "yes"
+would take. A badge has no selected state because a badge is not a control; the
+toggle is an `IuxFilterChip`. Both refusals are now in the components'
+documentation and on the deliberately-absent page, and a test holds that a tag's
+fill is never an action fill. `IUX-CHIP-FILL-001`.
+
+### Every digit takes the same width, including inside components
+
+**Visual change only where a face's default figures are proportional; no API
+change.** Three applications aligned their figures by laying a monospace family
+over IUX's styles by hand — about twenty call sites in one, ninety-five in
+another. The workaround reached only their own text, because list rows, table
+cells and chart labels take a `String`, so each interface ended up half aligned.
+One of them then set the family at the theme root and made its prose monospace
+too.
+
+Every typography role now requests `FontFeature.tabularFigures()`, so every
+component inherits it without changing. It is a request to the face — one
+without tabular figures ignores it, and the typography page says so. What it
+does not solve is the other half of that report: a commit hash or a token needs
+glyphs that cannot be mistaken for each other, not aligned digits, and whether
+IUX should carry a role for that is left open. `IUX-TYPOGRAPHY-FIGURES-001`.
+
+### `IuxPasswordField`: the component a refusal described, built when it was needed
+
+**Additive.** `IuxTextContent` refused a `password` value long ago, and said why:
+an obscured field owes the user a way to reveal what they typed, and that reveal
+control is a second interactive element — a component, not an enum value. The
+first application migrated onto IUX needed one for a GitHub token, reached past
+IUX to a bare `TextField`, and reported it in nearly the same words.
+
+The reveal control is a **labelled `IuxSwitch` under the field**, not an eye icon
+inside it. An icon on its own is a guess, and the eye is a worse one than most
+because applications disagree about what the open eye means; `IuxTextField`
+refuses a control inside its box; and a switch is a control this project has
+already measured. Its name stays "Show token" and its state is announced as on
+or off.
+
+`IuxSecretPurpose` is required — `current`, `created` or `token` — because a token
+declared as a password is offered to be saved as the account's password.
+Suggestions, autocorrect, capitalisation and the keyboard's own learning are off
+in both states, the keyboard never changes on reveal, and the field is concealed
+on arrival with no way to start it otherwise. `IuxTextField` still cannot conceal
+a value from outside the package, and a test holds that. `IUX-PASSWORD-001`.
+
+### When something is not there: a page for what IUX leaves out on purpose
+
+**Documentation only.** Of six reports from the first migration of an existing
+application onto IUX, two asked for things refused on purpose — an error tone on
+a transient message, an obscured text field — and one reconstructed the refusal
+almost word for word. The answers existed, one of them twice. Neither reporter
+could have found them, because a refusal is written in the documentation of the
+component that lacks the thing, and nobody searches for an absence.
+
+`docs/components/deliberately-absent.md` gathers seventeen of them where someone
+looks when something is missing: what you are looking for, what to use instead,
+and the refusal quoted from its source. `docs/README.md` sends readers there
+before they build a workaround. A test checks every quote against the file it is
+attributed to and every alternative against the library — and caught the first
+draft recommending `IuxAsyncButton`, which does not exist. `IUX-ABSENT-001`.
+
+### The focus ring is drawn outside the element, as three places already said
+
+**Visual change, no layout change.** `IuxFocusRing` drew its ring on the
+element's own edge and reserved the gap *outside* the ring. Its documentation,
+`IuxFocusStyle.gap` and a button test all said the opposite, and nothing checked
+the paint: **584 ring pixels** landed inside a plain box at standard contrast. A
+control hid it behind its own padding; a block of text did not, and the ring
+went through the glyphs — seen on a device on `IuxOnboardingFlow`'s step
+heading, which takes focus on every step change. `IuxGuidedForm`'s step heading
+and the selection-control row had the same defect, unreported.
+
+The ring now sits in the space that was already reserved for it, so it ends
+exactly `gap` short of the element and nothing moves. `borderRadius` declares
+the element's shape, and null now means a rectangle — true of ten of the eleven
+callers that relied on the old medium-radius default. `IuxButton` passes its
+real shape. Rings drawn without a declared shape have tighter corners than
+before: a rounder ring that still missed the corner was measured, and it passed
+a third of a pixel from it. `IUX-FOCUS-RING-001`.
+
 ### A side of a reference is not a hue, so the caller picks one
 
 **Breaking.** `IuxValue`, `IuxValueIndicator`, `IuxSemanticColors.comparison`

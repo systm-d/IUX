@@ -356,6 +356,12 @@ abstract final class IuxColorPalettes {
         disabledBackground: IuxPrimitiveColors.neutral80,
       ),
     ),
+    // All four surfaces are `neutral80`, the colour of `surface.subtle`, so the
+    // category is carried by content, icon and border and not by the fill. Inherited rather than
+    // chosen: a dark tint of a hue is a colour nobody has measured, and the
+    // comparison block below gives the same reason for the same arrangement.
+    // Stated for integrators in `docs/themes/light-and-dark.md`, and pinned in
+    // `test/themes/palette_perception_test.dart` so the two cannot drift.
     feedback: IuxFeedbackColorSet(
       info: IuxFeedbackRoleColors(
         content: IuxPrimitiveColors.accent70,
@@ -392,10 +398,11 @@ abstract final class IuxColorPalettes {
     // will not let it omit.
     //
     // No tint on a dark ground, and this is inherited rather than chosen: the
-    // whole palette puts every hue on the same raised neutral here, separated
-    // by content alone, because a dark tint of a hue is a colour nobody has
-    // measured. The capsule is therefore the raised surface and the accent is
-    // the reading, which is what `feedback` already does one block above.
+    // whole palette puts every hue on the same neutral here — `neutral80`, the
+    // colour of `surface.subtle` — separated by content alone, because a dark
+    // tint of a hue is a colour nobody has measured. The capsule is therefore
+    // that neutral and the accent is the reading, which is what `feedback`
+    // already does one block above.
     //
     // Measured this round, in the order neutral, one, two, three, four.
     // Content on the capsule: 5.61:1, 6.96:1, 7.59:1, 8.31:1, 7.58:1. On the
@@ -727,6 +734,12 @@ abstract final class IuxColorPalettes {
         disabledBackground: IuxPrimitiveColors.neutral70,
       ),
     ),
+    // All four surfaces are `neutral80`, the colour of `surface.subtle`, so the
+    // category is carried by content, icon and border and not by the fill. Inherited rather than
+    // chosen: a dark tint of a hue is a colour nobody has measured, and the
+    // comparison block below gives the same reason for the same arrangement.
+    // Stated for integrators in `docs/themes/light-and-dark.md`, and pinned in
+    // `test/themes/palette_perception_test.dart` so the two cannot drift.
     feedback: IuxFeedbackColorSet(
       info: IuxFeedbackRoleColors(
         content: IuxPrimitiveColors.accent80,

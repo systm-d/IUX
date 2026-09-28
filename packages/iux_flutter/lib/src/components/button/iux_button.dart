@@ -466,6 +466,13 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
       scale: IuxMotionScale.short,
     );
 
+    // One shape, used for the container and handed to the focus ring, so the
+    // two cannot drift apart. A pill is declared as half the minimum size and
+    // is clamped to half the real height when drawn.
+    final BorderRadius shape = BorderRadius.circular(
+      tokens.radius.isFinite ? tokens.radius : tokens.minimumSize / 2,
+    );
+
     Widget visual = AnimatedContainer(
       duration: motion.duration,
       curve: motion.curve,
@@ -476,9 +483,7 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
       padding: tokens.padding,
       decoration: BoxDecoration(
         color: tokens.background,
-        borderRadius: BorderRadius.circular(
-          tokens.radius.isFinite ? tokens.radius : tokens.minimumSize / 2,
-        ),
+        borderRadius: shape,
         border: tokens.borderWidth > 0
             ? Border.all(color: tokens.border, width: tokens.borderWidth)
             : null,
@@ -518,6 +523,10 @@ class _IuxActionSurfaceState extends State<_IuxActionSurface> {
           focusNode: node,
           canRequestFocus: available,
           onActivate: activatable ? _handleActivate : null,
+          // The button's own shape, so the ring is drawn concentric with it.
+          // Without it the ring assumes a rectangle, which never touches the
+          // button but no longer follows a pill.
+          borderRadius: shape,
           child: MouseRegion(
             onEnter: (_) => _setHovered(true),
             onExit: (_) => _setHovered(false),

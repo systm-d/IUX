@@ -659,6 +659,13 @@ class _ChipPanelState extends State<_ChipPanel> {
 
   static const List<String> _filters = <String>['Draft', 'Paid', 'Overdue'];
 
+  static const List<String> _allOrganisations = <String>[
+    'acme-corp',
+    'globex',
+    'initech',
+  ];
+  final List<String> _organisations = List<String>.of(_allOrganisations);
+
   @override
   Widget build(BuildContext context) {
     final IuxGeometryTheme geometry = IuxGeometryTheme.of(context);
@@ -686,6 +693,44 @@ class _ChipPanelState extends State<_ChipPanel> {
             'chip will look inconsistent, and the two should not be mixed. '
             'IuxChipGroup does not enforce that, because a List<Widget> '
             'cannot.',
+          ),
+          SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('tags the user can take back out'),
+          CatalogTestable(
+            what: 'Remove one from the keyboard: focus lands on the tag before '
+                'it, or on "Restore all" for the first. Tapping the label does '
+                'nothing; only the button removes.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                IuxButton(
+                  label: 'Restore all',
+                  variant: IuxButtonVariant.outlined,
+                  action: const IuxActionDescriptor(
+                    semantics: IuxActionSemantics(label: 'Restore all'),
+                  ),
+                  onActivate: () => setState(
+                    () => _organisations
+                      ..clear()
+                      ..addAll(_allOrganisations),
+                  ),
+                ),
+                SizedBox(height: geometry.spacingXs),
+                IuxChipGroup(
+                  label: 'Organisations on this account',
+                  chips: <Widget>[
+                    for (final String name in _organisations)
+                      IuxTagChip.removable(
+                        key: ValueKey<String>(name),
+                        label: label(name),
+                        removeLabel: 'Remove ${label(name)}',
+                        onRemove: () =>
+                            setState(() => _organisations.remove(name)),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
           SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('filters, which are'),

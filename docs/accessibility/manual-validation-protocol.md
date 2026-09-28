@@ -296,7 +296,7 @@ breaks.
 # Block F — What shipped after this protocol was written
 
 Roughly 10 minutes, and it is different in kind from the blocks above. Those
-check whether the platform does what the tree says. **These six check
+check whether the platform does what the tree says. **These seven check
 judgements** — decisions taken on a measurement that a measurement cannot
 finish, each one recorded in the register as resting on an eye nobody has yet
 applied.
@@ -305,7 +305,8 @@ Six changes landed on 2026-08-27 from a real migration. Every one of them was
 argued from numbers, and five left a question a number cannot close. F6 was
 added afterwards, from the measurement in `IUX-PALETTE-PERCEPTION-001`: it is
 the only check here whose subject is a change the numbers **caused** rather
-than a number they left unfinished.
+than a number they left unfinished. F7 came with `IuxTagChip.removable`, and asks
+where a screen reader's cursor goes when the thing it was on is removed.
 
 ### F1 — The warning colour reads as a warning
 **Do:** **Feedback** → the inline feedback panel, light theme, standard
@@ -395,6 +396,22 @@ nothing beyond that. This library has already shipped with no icons at all for
 weeks while every test passed. The greyscale filter is what makes the check
 honest — it removes the channel `IUX-PALETTE-PERCEPTION-001` measured as
 failing, rather than asking you to imagine it failing.
+
+### F7 — Removing a tag leaves the user somewhere
+**Do:** **Media and status** → *tags the user can take back out*. With a
+physical keyboard, Tab to the second tag's remove button and press Enter. Then
+**Restore all**, turn TalkBack on, swipe to the second tag's remove button and
+double-tap.
+**Expect:** with the keyboard, the focus ring lands on the first tag's remove
+button. With TalkBack, the next thing read is a neighbour of the removed tag —
+not the top of the screen, and not silence.
+**Fail:** focus or the TalkBack cursor goes to the top of the screen, or
+TalkBack says nothing and the user cannot tell the removal happened.
+**Also record:** what TalkBack says, word for word, after the double-tap.
+**Status:** `IUX-TAG-REMOVABLE-001`. The suite proves where *keyboard* focus
+goes. Where a screen reader's own cursor goes when the node it was on
+disappears is the platform's decision, and nothing announces the removal —
+this is the check that says whether that is enough.
 
 ---
 

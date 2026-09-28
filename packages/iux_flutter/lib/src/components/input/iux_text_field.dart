@@ -5,6 +5,7 @@ import 'dart:math' as math;
 // an email address rather than prose, which changes how the value is spoken.
 import 'dart:ui' show SemanticsInputType;
 
+import 'package:flutter/foundation.dart' show internal;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
@@ -42,7 +43,7 @@ const int _kMultilineMinimumLines = 3;
 /// reveal what they typed — otherwise a motor or dyslexic user cannot check a
 /// long password before submitting it — and that reveal control is a second
 /// interactive element with its own name, state and announcement. It is a
-/// component, not an enum value.
+/// component, not an enum value. That component is `IuxPasswordField`.
 ///
 /// There is no `number` value either. "A number" is three different fields: a
 /// quantity, a formatted code, and a currency amount, each with its own
@@ -209,7 +210,8 @@ extension _IuxTextContentResolution on IuxTextContent {
 ///
 /// **Use it** wherever the user types something the application has to keep.
 ///
-/// **Do not use it** for a password — see [IuxTextContent] — for a value that
+/// **Do not use it** for a password or a token — that is `IuxPasswordField`,
+/// and [IuxTextContent] says why it is a component of its own — for a value that
 /// is chosen rather than typed (that is IUX-011's selection controls), or as a
 /// display for text nobody may change. A field that can never be edited under
 /// any circumstance is a label and a value, not a control; reach for
@@ -260,7 +262,8 @@ class IuxTextField extends StatefulWidget {
     this.autofocus = false,
     this.focusNode,
     this.onSubmitted,
-  })  : assert(
+  })  : _secret = null,
+        assert(
           placeholder == null || placeholder.length > 0,
           'An empty placeholder is not a placeholder. Pass null instead, so '
           'the field does not fade an empty string in and out.',
@@ -273,6 +276,37 @@ class IuxTextField extends StatefulWidget {
           'callback the platform is never going to send. Put the action in a '
           'button the user can see.',
         );
+
+  /// A field that holds a secret, for `IuxPasswordField` and nothing else.
+  ///
+  /// Internal, so the public constructor goes on refusing a password: there is
+  /// still no way to obscure an `IuxTextField` from outside this package. The
+  /// settings a secret needs are the field's to apply, because they are the
+  /// same five-settings-in-one problem [IuxTextContent] exists to solve; the
+  /// control that reveals it is the password field's, because it is a second
+  /// interactive element and the field has no place for one.
+  @internal
+  const IuxTextField.secret({
+    super.key,
+    required this.input,
+    required this.controller,
+    required this.onChanged,
+    required IuxSecretEntry secret,
+    this.placeholder,
+    this.variant,
+    this.autofocus = false,
+    this.focusNode,
+    this.onSubmitted,
+  })  : content = IuxTextContent.text,
+        _secret = secret,
+        assert(
+          placeholder == null || placeholder.length > 0,
+          'An empty placeholder is not a placeholder. Pass null instead, so '
+          'the field does not fade an empty string in and out.',
+        );
+
+  /// Set only by [IuxTextField.secret].
+  final IuxSecretEntry? _secret;
 
   /// What the field is, what may be done to it, and what is known about its
   /// value.
@@ -515,6 +549,7 @@ class _IuxTextFieldState extends State<IuxTextField> {
                     focusNode: _focusNode,
                     autofocus: widget.autofocus,
                     cursorWidth: geometry.strongBorderWidth,
+                    secret: widget._secret,
                   ),
                 ),
               ),
@@ -617,8 +652,10 @@ class _IuxFieldRow extends StatelessWidget {
     required this.focusNode,
     required this.autofocus,
     required this.cursorWidth,
+    required this.secret,
   });
 
+  final IuxSecretEntry? secret;
   final IuxInputDescriptor input;
   final IuxInputTokens tokens;
   final IuxTextContent content;
@@ -655,12 +692,26 @@ class _IuxFieldRow extends StatelessWidget {
       // theme's strong border, so high contrast widens it too.
       cursorColor: tokens.valueStyle.color,
       cursorWidth: cursorWidth,
-      keyboardType: content.keyboardType,
-      textCapitalization: content.capitalization,
-      autocorrect: content.autocorrect,
-      autofillHints: content.autofillHints,
-      maxLines: content.maxLines,
-      minLines: content.minLines,
+      // A secret takes none of the content's settings. The keyboard is the
+      // visible-password one whether or not the value is shown, so revealing it
+      // does not re-lay the keyboard out under the user's fingers; suggestions,
+      // correction and learning are all off, because each of them would put the
+      // secret somewhere other than this box — a suggestion strip, a corrected
+      // word, the keyboard's own dictionary.
+      keyboardType:
+          secret == null ? content.keyboardType : TextInputType.visiblePassword,
+      textCapitalization:
+          secret == null ? content.capitalization : TextCapitalization.none,
+      autocorrect: secret == null && content.autocorrect,
+      enableSuggestions: secret == null,
+      enableIMEPersonalizedLearning: secret == null,
+      smartDashesType: secret == null ? null : SmartDashesType.disabled,
+      smartQuotesType: secret == null ? null : SmartQuotesType.disabled,
+      obscureText: secret?.concealed ?? false,
+      autofillHints:
+          secret == null ? content.autofillHints : secret!.autofillHints,
+      maxLines: secret == null ? content.maxLines : 1,
+      minLines: secret == null ? content.minLines : null,
       // The container draws the outline and owns the padding, so the
       // decorator would only add a second one.
       decoration: null,
@@ -762,4 +813,22 @@ class _IuxReadOnlyMarker extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What `IuxPasswordField` asks of the field it composes.
+///
+/// Internal, and carrying resolved settings rather than a purpose: the field
+/// does not need to know what a secret is *for*, only whether it is shown and
+/// what the platform may autofill into it.
+@internal
+@immutable
+final class IuxSecretEntry {
+  /// Describes the secret the field holds.
+  const IuxSecretEntry({required this.concealed, required this.autofillHints});
+
+  /// Whether the value is drawn as bullets.
+  final bool concealed;
+
+  /// What the platform's autofill may offer, or null for nothing at all.
+  final List<String>? autofillHints;
 }

@@ -36,7 +36,7 @@ reference, a message.
   otherwise a motor-impaired or dyslexic user cannot check a long password
   before submitting it. That reveal control is a second interactive element
   with its own name, state and announcement, so it is a component, not an enum
-  value.
+  value. That component is [`IuxPasswordField`](password-field.md).
 - **The value is chosen rather than typed.** A choice among known options is a
   selection control (IUX-011). A text field that only accepts six spellings of
   "yes" is a dropdown that has been made harder.
@@ -417,7 +417,8 @@ helpText: l10n.emailHelp
 
 ## Limits
 
-- **No obscured / password mode.** See "Do not use when".
+- **No obscured / password mode.** See "Do not use when", and
+  [`IuxPasswordField`](password-field.md).
 - **No character counter and no `maxLength`.** A counter is caller-supplied
   localised text ("12 of 40", "٤٠ / ١٢") and a limit that truncates silently is
   a data-loss bug. Both belong with the form patterns that know what the limit

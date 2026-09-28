@@ -24,6 +24,10 @@ If you are **building an application** on IUX:
    install, and where the modal and transient layers go.
 3. `components/` and `patterns/` for the widget you need. Each page carries a
    *Limits* section, and on this project those sections are load-bearing.
+4. [components/deliberately-absent.md](components/deliberately-absent.md) when
+   something you expected is not there. Most of what IUX leaves out it leaves
+   out on purpose, and the reason used to live only in the documentation of
+   the component that lacks it — where nobody looking for it would read.
 
 If you are **contributing**:
 
@@ -37,7 +41,11 @@ If you are **contributing**:
 ## Finding a component
 
 There is no generated index; `packages/iux_flutter/lib/iux_flutter.dart` is the
-authoritative list of what is public. Two page names do not match the type they
+authoritative list of what is public. **If what you are looking for is not in
+it, read [components/deliberately-absent.md](components/deliberately-absent.md)
+before building a workaround** — a password field, an error toast, a colour
+parameter, a standalone radio and a dozen others are refused on purpose, with
+the reason and the alternative. Two page names do not match the type they
 document, which is worth knowing before you search:
 
 | Type | Page |

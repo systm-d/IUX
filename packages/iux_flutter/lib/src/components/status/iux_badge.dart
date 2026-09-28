@@ -38,6 +38,16 @@ class IuxBadgeOnGlyph extends InheritedWidget {
 /// and the touch target. Do not use it to draw attention to something that is
 /// not countable; a badge with nothing behind it trains users to ignore badges.
 ///
+/// **A small label the user taps to filter a list is not a badge, and so a
+/// badge has no selected state.** That control is `IuxFilterChip`, which has
+/// the target, the focus stop and the announced state a toggle needs; inside an
+/// `IuxChipGroup` with `IuxChipMark.outline` it gives back the width a reserved
+/// checkmark would take. A badge that could be selected would be a control with
+/// none of those — reported from a migration whose filter toggles had been
+/// drawn as badges and rendered identically chosen or not (systm-d/IUX#70).
+/// And a label naming what something *is*, rather than how many, is
+/// `IuxTagChip`.
+///
 /// **Accessibility.** A badge announces its subject, never its number alone.
 /// "3" is meaningless to anyone who has not already worked out what it refers
 /// to, and a screen-reader user landing on it hears a digit with no noun. So

@@ -24,6 +24,12 @@ final class IuxFeedbackRoleColors {
   final Color content;
 
   /// The background of the feedback area.
+  ///
+  /// **In both dark profiles this is one neutral for all four categories** —
+  /// the colour of `surface.subtle` — so a fill does not say which category a
+  /// message is; the words, the icon, [content] and [border] do. A dark tint
+  /// of a hue is a colour nobody has measured, which is why none is shipped.
+  /// See `docs/themes/light-and-dark.md`, "Feedback in dark is not tinted".
   final Color surface;
 
   /// The outline, targeting 3:1 against the surface behind the feedback.

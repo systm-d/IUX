@@ -28,6 +28,7 @@ class InputPanels extends StatelessWidget {
           _SelectionPanel(longLabels: longLabels),
           const _SelectPanel(),
           const _DatePanel(),
+          const _PasswordPanel(),
           const _SliderPanel(),
           const _SelectionRefusalPanel(),
         ],
@@ -195,6 +196,74 @@ class _SliderPanelState extends State<_SliderPanel> {
 }
 
 /// The date field, and the calendar it refuses.
+class _PasswordPanel extends StatefulWidget {
+  const _PasswordPanel();
+
+  @override
+  State<_PasswordPanel> createState() => _PasswordPanelState();
+}
+
+class _PasswordPanelState extends State<_PasswordPanel> {
+  final TextEditingController _password = TextEditingController();
+  final TextEditingController _token =
+      // Deliberately not shaped like a real provider's token, so no secret
+      // scanner mistakes the catalog for a leak.
+      TextEditingController(text: 'example-token-not-a-real-credential');
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _token.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CatalogPanel(
+        title: 'A secret, and the switch that shows it',
+        description: 'Concealed on arrival, always. The reveal control is a '
+            'labelled switch under the field rather than an eye inside it: an '
+            'icon on its own is a guess, and the eye is a worse guess than '
+            'most, because applications disagree about what the open one '
+            'means.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            IuxPasswordField(
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Password'),
+                requirement: IuxInputRequirement.required,
+              ),
+              purpose: IuxSecretPurpose.current,
+              revealLabel: 'Show password',
+              controller: _password,
+              onChanged: (String _) => setState(() {}),
+            ),
+            const IuxGap.standard(),
+            IuxPasswordField(
+              input: const IuxInputDescriptor(
+                semantics: IuxInputSemantics(label: 'Personal access token'),
+                helpText: 'Shown once. Copy it before leaving this screen.',
+                availability: IuxInputAvailability.readOnly,
+              ),
+              purpose: IuxSecretPurpose.token,
+              revealLabel: 'Show token',
+              controller: _token,
+              onChanged: (String _) {},
+            ),
+            const IuxGap.standard(),
+            const CatalogNote(
+              'Check on a device: the keyboard offers no suggestions in either '
+              'state and does not change when the value is revealed; a '
+              'password manager offers a saved password for the first field '
+              'and nothing for the token; TalkBack reads the switch as "Show '
+              'password, switch, off" and, once it is on, speaks the value '
+              'when you move to the field.',
+            ),
+          ],
+        ),
+      );
+}
+
 class _DatePanel extends StatefulWidget {
   const _DatePanel();
 
