@@ -12,6 +12,19 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### Identifiers get a face of their own
+
+`IuxTypographyRole.identifier`, `IuxTypographyConfiguration.identifierFontFamily`
+and `IuxIdentifier`. A commit hash, a version, a token or a recovery code is read
+one character at a time, and needs letters that cannot be confused — `0` and
+`O`; `1`, `l` and `I`. Three applications laid a monospace family over IUX's
+styles by hand, one at ninety-five call sites, and one gave up and made its whole
+interface monospace. The new role is the only one with its own family — the
+platform's monospace face unless the application names another — and asks for a
+slashed zero with ligatures off. `IuxIdentifier` draws a string in it and tells a
+screen reader to spell it out. **Breaking** for an exhaustive `switch` over
+`IuxTypographyRole`. Closes systm-d/IUX#66. `IUX-TYPOGRAPHY-IDENTIFIER-001`.
+
 ### A tag the user can take back out
 
 `IuxTagChip.removable(label:, removeLabel:, onRemove:)`. A migration adopted

@@ -71,6 +71,7 @@ export 'src/components/status/iux_value_indicator.dart';
 export 'src/components/table/iux_data_table.dart';
 export 'src/components/tabs/iux_tabs.dart';
 export 'src/components/tabs/iux_tabs_tokens.dart';
+export 'src/components/text/iux_identifier.dart';
 export 'src/components/transient/iux_transient_layer.dart';
 export 'src/components/transient/iux_transient_message.dart';
 export 'src/components/transient/iux_transient_timing.dart';

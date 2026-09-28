@@ -4657,6 +4657,8 @@ that costs when it happens on a page.
   that. It is plausibly a legibility property IUX should own, like contrast, and
   plausibly an application's choice of face; **a `code` role with its own family
   is the shape the question would take, and it is not decided here.**
+  Decided afterwards, by the maintainer: a role, `identifier` —
+  `IUX-TYPOGRAPHY-IDENTIFIER-001`.
 
 - **Limits.**
   - **Nothing here can observe the result.** `flutter_test` draws every glyph
@@ -4842,3 +4844,60 @@ that costs when it happens on a page.
   - **Removal is immediate.** Right when the item can be re-added; an item that
     cannot needs an undo or `IuxDestructiveAction`, which the documentation
     says and nothing enforces.
+
+### IUX-TYPOGRAPHY-IDENTIFIER-001 — Identifiers get a face of their own, and a screen reader is told to spell them
+
+- **Level**: context_dependent — WCAG 2.2 SC 1.4.8 (visual presentation) and
+  SC 4.1.2 by analogy; the choice of features is argued, not measured
+- **Scope**: `IuxTypographyRole.identifier`, `IuxTypographyTheme.identifier`,
+  `IuxTypographyConfiguration.identifierFontFamily`, the new `IuxIdentifier`,
+  `docs/foundations/typography.md`, `docs/components/identifier.md`, the
+  catalog, and manual check F8. **Breaking for an exhaustive `switch` over
+  `IuxTypographyRole`**, which gains a member.
+- **Sources**: systm-d/IUX#66 and its sentinel comment; the open half of
+  `IUX-TYPOGRAPHY-FIGURES-001`; the maintainer's decision to take the role.
+- **Status**: implemented.
+
+- **What was left after tabular figures.** Sentinel's ninety-five hand-applied
+  families covered version numbers, commit hashes, durations and counts.
+  Tabular figures fixed the last two. The first two are read character by
+  character, and what they need is glyphs that cannot be mistaken for each other
+  — `0` and `O`; `1`, `l` and `I`. Sentinel had solved it by setting
+  `fontFamily` to a monospace face, which put its whole interface, prose
+  included, in a typewriter face.
+
+- **The decision: a role with a family of its own.** `identifier` is the only
+  role that does not take `fontFamily`. It resolves to
+  `IuxTypographyConfiguration.identifierFontFamily`, or to the generic
+  `monospace` family Android maps to its system face, with `monospace` also
+  first in the fallback list when a brand face is named — so a missing glyph
+  falls back to another monospace face, not to proportional text. Metrics are
+  `body`'s, 16/24: the size the ramp trusts for reading, for the text that most
+  needs room.
+
+- **What it asks of the face.** A slashed zero (`zero`); ligatures off (`liga`
+  and `calt`), because programming faces — JetBrains Mono, which terminus
+  ships — draw `->`, `!=` or `www` as one shape, and an identifier is copied
+  character by character; and tabular figures, like every role.
+
+- **Why a widget as well.** A style cannot change what is announced. A screen
+  reader meeting `a1b2c3` guesses how to say it. `IuxIdentifier` puts the
+  string on its node with Flutter's `SpellOutStringAttribute`, which the Android
+  embedding passes to text-to-speech as a verbatim span, and excludes the
+  visible `Text` so the string is not announced twice. Both halves are asserted,
+  and each was removed in turn to confirm the tests fail without it.
+
+- **Limits.**
+  - **Requests, not guarantees.** A face without a slashed-zero alternate draws
+    its ordinary zero; `flutter_test` draws every glyph as one box and cannot
+    tell. Whether the Android system monospace face has the alternate is F8's to
+    record.
+  - **Whether TalkBack honours the attribute is F8's too.** The suite proves it
+    is on the node.
+  - **`monospace` is an Android alias.** Other platforms may resolve it to the
+    default face.
+  - **Not selectable.** Copying a token is a real need and is left out rather
+    than half-done.
+  - **Components that take a `String` draw it in their own role**, so a hash
+    passed to `IuxListItem` is proportional and not spelled out. The role and
+    the widget reach only where the application puts them.
