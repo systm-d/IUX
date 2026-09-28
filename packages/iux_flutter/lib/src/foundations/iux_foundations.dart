@@ -118,6 +118,20 @@ enum IuxTypographyRole {
   /// Greek and in German, and it hands a screen reader a spelled-out string
   /// where the original was a word.
   overline,
+
+  /// A string read one character at a time: a commit hash, a version, a
+  /// token, a recovery code, an order reference.
+  ///
+  /// The only role with a family of its own — a monospace face, the platform's
+  /// unless `IuxTypographyConfiguration.identifierFontFamily` names another —
+  /// because what it needs is not a size or a weight but letters that cannot
+  /// be mistaken for each other: `0` and `O`; `1`, `l` and `I`. It asks the
+  /// face for a slashed zero and turns ligatures off, so no two characters
+  /// are ever drawn as one.
+  ///
+  /// **Not for figures in running text or in a column.** Every role already
+  /// draws digits at one width. This is for strings that are not words.
+  identifier,
 }
 
 /// Preference for non-essential interface movement.

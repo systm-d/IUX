@@ -6,7 +6,10 @@ import '../../accessibility/iux_semantics.dart';
 import '../../actions/iux_action_descriptor.dart';
 import '../../actions/iux_action_model.dart';
 import '../../layout/iux_spacing_primitives.dart';
+import '../../semantics/colors/iux_avatar_accent_colors.dart';
+import '../../semantics/iux_semantic_colors.dart';
 import '../button/iux_button.dart';
+import '../media/iux_media_model.dart';
 import 'iux_status_tokens.dart';
 
 /// A compact label the user cannot act on, except — in one form — to remove it.
@@ -40,23 +43,34 @@ import 'iux_status_tokens.dart';
 /// The label is required and never empty: an unlabelled tag is a shape whose
 /// only content is its colour.
 ///
-/// **There is no tone and no fill, and that is a decision rather than a
-/// gap.** A small pill filled with the accent is the exact shape of a filled
-/// primary button, whichever token painted it. A tag drawn that way tells the
-/// user it can be pressed, and the one thing this widget exists to guarantee
-/// is that it never says so. The category is carried by the words, which is
-/// the only channel that survives a monochrome screen anyway.
+/// ## A tone is a dot, never a fill
+///
+/// ```dart
+/// IuxTagChip(label: project.typeName, tone: toneFor(project.type))
+/// ```
+///
+/// [tone] draws a small circle in one of the four decorative accents before
+/// the label. The vocabulary is `IuxAvatarTone` and the colour is the one
+/// `IuxAvatar` fills its circle with, so a tag and an avatar standing for the
+/// same thing match. Like the avatar's, the members mean nothing: the
+/// application decides which one is which.
+///
+/// **The pill itself stays outlined, and is never filled.** Filled with the
+/// accent, it would be the exact colour of a filled primary button —
+/// `accent40` in the light profile, `accent70` in the dark one, the same value
+/// and not a near one — and the one thing this widget exists to guarantee is
+/// that it never looks pressable. A tint is no better: in the light profiles a
+/// hue-tinted capsule is already what `IuxValue` draws. A circle is the shape
+/// `ADR-0014` found reads as identity rather than as an action, so the accent
+/// goes there (`ADR-0016`).
+///
+/// **The words still carry the category.** The dot helps a sighted user scan a
+/// list of cards. It is never announced, two of the four accents collide under
+/// colour-vision deficiency, and a monochrome screen draws them all grey — so
+/// a tag whose meaning lives only in its tone has no meaning for those users.
 ///
 /// Reported from a migration that wanted a project's type as a filled badge
-/// and found no role for it (systm-d/IUX#71). The report was right that the
-/// refusal was silent; it is now written here. IUX does have decorative
-/// accents with no meaning — `IuxAvatarTone`, for the question "which one of
-/// several unrelated things is this" (ADR-0014) — and they fill a *circle
-/// carrying a glyph*, which reads as identity rather than as an action.
-/// Extending them to a text label is the shape a "yes" would take, and it
-/// would need its own record: it spends the same four hues on a second
-/// component, and a filled label is the case where they look most like a
-/// control.
+/// and found no role for it (systm-d/IUX#71).
 ///
 /// ## A tag the user can take back out
 ///
@@ -99,7 +113,7 @@ import 'iux_status_tokens.dart';
 /// (systm-d/IUX#68).
 class IuxTagChip extends StatelessWidget {
   /// Creates a read-only tag.
-  const IuxTagChip({super.key, required this.label})
+  const IuxTagChip({super.key, required this.label, this.tone})
       : removeLabel = null,
         onRemove = null,
         assert(
@@ -115,6 +129,7 @@ class IuxTagChip extends StatelessWidget {
     required this.label,
     required String this.removeLabel,
     required VoidCallback this.onRemove,
+    this.tone,
   })  : assert(
           label.length > 0,
           'A tag must say something. An empty one leaves a coloured shape that '
@@ -129,6 +144,13 @@ class IuxTagChip extends StatelessWidget {
 
   /// The visible text, already localised, and also the accessible name.
   final String label;
+
+  /// Which of the four decorative accents colours this tag's dot, or null for
+  /// none.
+  ///
+  /// Drawn as a dot before the label and never announced. See "A tone is a
+  /// dot, never a fill" above.
+  final IuxAvatarTone? tone;
 
   /// The accessible name of the remove button, already localised.
   ///
@@ -151,6 +173,7 @@ class IuxTagChip extends StatelessWidget {
         label: label,
         removeLabel: removeLabel,
         onRemove: onRemove,
+        tone: tone,
       );
     }
 
@@ -167,10 +190,11 @@ class IuxTagChip extends StatelessWidget {
       ),
       child: Padding(
         padding: tokens.padding,
-        // No line limit and no ellipsis. A truncated tag is a tag the user
-        // cannot identify, and truncation gets worse exactly when someone has
-        // enlarged their text.
-        child: Text(label, style: tokens.textStyle, softWrap: true),
+        child: _TagContent(
+          label: label,
+          tone: tone,
+          tokens: tokens,
+        ),
       ),
     );
 
@@ -184,6 +208,62 @@ class IuxTagChip extends StatelessWidget {
   }
 }
 
+/// A tag's label, and the accent dot before it when it has a tone.
+///
+/// One widget for both forms of the tag, so the dot cannot be drawn one way on
+/// a read-only tag and another on a removable one.
+class _TagContent extends StatelessWidget {
+  const _TagContent({
+    required this.label,
+    required this.tone,
+    required this.tokens,
+  });
+
+  final String label;
+  final IuxAvatarTone? tone;
+  final IuxChipTokens tokens;
+
+  /// The colour an avatar of the same tone is filled with. See ADR-0014 and
+  /// ADR-0016.
+  static Color? accentFor(BuildContext context, IuxAvatarTone? tone) {
+    final IuxAvatarAccentColorSet accents =
+        IuxSemanticColors.of(context).avatarAccent;
+    return switch (tone) {
+      null => null,
+      IuxAvatarTone.one => accents.one.surface,
+      IuxAvatarTone.two => accents.two.surface,
+      IuxAvatarTone.three => accents.three.surface,
+      IuxAvatarTone.four => accents.four.surface,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // No line limit and no ellipsis. A truncated tag is a tag the user cannot
+    // identify, and truncation gets worse exactly when someone has enlarged
+    // their text.
+    final Widget text = Text(label, style: tokens.textStyle, softWrap: true);
+    final Color? accent = accentFor(context, tone);
+    if (accent == null) return text;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // Half the glyph size, which scales with text: a dot that stayed
+        // small while the label doubled would stop reading as belonging to it.
+        ExcludeSemantics(
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            child: SizedBox.square(dimension: tokens.glyphSize / 2),
+          ),
+        ),
+        SizedBox(width: tokens.gap),
+        Flexible(child: text),
+      ],
+    );
+  }
+}
+
 /// The removable form of [IuxTagChip]: a read-only body and one control.
 ///
 /// Stateful only to own the remove button's focus node, which is what lets it
@@ -193,11 +273,13 @@ class _IuxRemovableTag extends StatefulWidget {
     required this.label,
     required this.removeLabel,
     required this.onRemove,
+    required this.tone,
   });
 
   final String label;
   final String removeLabel;
   final VoidCallback onRemove;
+  final IuxAvatarTone? tone;
 
   @override
   State<_IuxRemovableTag> createState() => _IuxRemovableTagState();
@@ -256,11 +338,10 @@ class _IuxRemovableTagState extends State<_IuxRemovableTag> {
                 padding: EdgeInsetsDirectional.only(
                   start: tokens.padding.left,
                 ),
-                // No line limit and no ellipsis, as on the read-only tag.
-                child: Text(
-                  widget.label,
-                  style: tokens.textStyle,
-                  softWrap: true,
+                child: _TagContent(
+                  label: widget.label,
+                  tone: widget.tone,
+                  tokens: tokens,
                 ),
               ),
             ),

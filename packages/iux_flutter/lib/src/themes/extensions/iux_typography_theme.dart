@@ -50,6 +50,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
     required this.label,
     required this.supporting,
     required this.overline,
+    required this.identifier,
   });
 
   /// Resolves the typography for a configuration.
@@ -85,8 +86,48 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
       // design system makes when it decides small caps look tidy.
       overline:
           style(14, 20, FontWeight.w600, letterSpacing: _overlineTracking),
+      // Body metrics, because a string read character by character is the
+      // text that most needs room, and the running-text size is the one the
+      // ramp already trusts for reading.
+      identifier: TextStyle(
+        fontSize: 16,
+        height: 24 / 16,
+        fontWeight: FontWeight.w400,
+        fontFamily:
+            configuration.typography.identifierFontFamily ?? _platformMonospace,
+        fontFamilyFallback: <String>[
+          // A brand monospace face missing a glyph falls back to the
+          // platform's, which is still monospace, before the application's
+          // own fallbacks for other scripts.
+          if (configuration.typography.identifierFontFamily != null)
+            _platformMonospace,
+          ...?fallback,
+        ],
+        fontFeatures: _identifierFeatures,
+      ),
     );
   }
+
+  /// The generic family Android resolves to its system monospace face.
+  static const String _platformMonospace = 'monospace';
+
+  /// What an identifier asks of its face, beyond being monospace.
+  ///
+  /// - **A slashed zero** (`zero`), so `0` cannot be read as `O`. A request: a
+  ///   face without the alternate ignores it, which is why the choice of
+  ///   face matters — see `IuxTypographyConfiguration.identifierFontFamily`.
+  /// - **No ligatures** (`liga` and `calt` off). Programming faces draw `->`,
+  ///   `!=` or `www` as one shape, which is right in code and wrong in a string
+  ///   the user copies character by character. JetBrains Mono, which one of the
+  ///   applications behind systm-d/IUX#66 ships, does exactly this.
+  /// - **Tabular figures**, like every other role, although a monospace face
+  ///   already has them.
+  static const List<FontFeature> _identifierFeatures = <FontFeature>[
+    FontFeature.tabularFigures(),
+    FontFeature.slashedZero(),
+    FontFeature.disable('liga'),
+    FontFeature.disable('calt'),
+  ];
 
   /// Every digit IUX draws takes the same width, in every role.
   ///
@@ -116,7 +157,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
   /// A commit hash, a token or a code is read character by character, and what
   /// it needs is letters that cannot be mistaken for each other — `0` and `O`,
   /// `1`, `l` and `I`. Aligned digits do nothing for that.
-  /// `IUX-TYPOGRAPHY-FIGURES-001` records it as the open half of the question.
+  /// That need is [identifier]'s (`IUX-TYPOGRAPHY-IDENTIFIER-001`).
   static const List<FontFeature> _figures = <FontFeature>[
     FontFeature.tabularFigures(),
   ];
@@ -145,6 +186,12 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
   /// for why IUX does not produce them itself.
   final TextStyle overline;
 
+  /// A string read one character at a time, in a monospace face.
+  ///
+  /// See [IuxTypographyRole.identifier]. `IuxIdentifier` draws one and also
+  /// tells a screen reader to spell it out.
+  final TextStyle identifier;
+
   /// Returns the style for a role.
   TextStyle forRole(IuxTypographyRole role) => switch (role) {
         IuxTypographyRole.display => display,
@@ -154,6 +201,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
         IuxTypographyRole.label => label,
         IuxTypographyRole.supporting => supporting,
         IuxTypographyRole.overline => overline,
+        IuxTypographyRole.identifier => identifier,
       };
 
   /// Resolves the typography installed on the ambient theme.
@@ -166,7 +214,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
 
   /// Builds the Material text theme corresponding to these roles.
   ///
-  /// [overline] has no slot here, deliberately. Material 3 removed its own
+  /// [overline] and [identifier] have no slot here, deliberately. Material 3 removed its own
   /// `overline` and every remaining slot is already answered by another role;
   /// filling one twice would leave `Theme.of(context).textTheme` and
   /// `IuxTypographyTheme` disagreeing about what that slot means. A component
@@ -198,6 +246,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
     TextStyle? label,
     TextStyle? supporting,
     TextStyle? overline,
+    TextStyle? identifier,
   }) =>
       IuxTypographyTheme(
         display: display ?? this.display,
@@ -207,6 +256,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
         label: label ?? this.label,
         supporting: supporting ?? this.supporting,
         overline: overline ?? this.overline,
+        identifier: identifier ?? this.identifier,
       );
 
   @override
@@ -223,6 +273,7 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
       label: TextStyle.lerp(label, other.label, t)!,
       supporting: TextStyle.lerp(supporting, other.supporting, t)!,
       overline: TextStyle.lerp(overline, other.overline, t)!,
+      identifier: TextStyle.lerp(identifier, other.identifier, t)!,
     );
   }
 
@@ -236,7 +287,8 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
           other.body == body &&
           other.label == label &&
           other.supporting == supporting &&
-          other.overline == overline;
+          other.overline == overline &&
+          other.identifier == identifier;
 
   @override
   int get hashCode => Object.hash(
@@ -247,5 +299,6 @@ final class IuxTypographyTheme extends ThemeExtension<IuxTypographyTheme> {
         label,
         supporting,
         overline,
+        identifier,
       );
 }

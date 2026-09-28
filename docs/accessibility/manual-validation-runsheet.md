@@ -92,6 +92,7 @@ qu'un chiffre ne peut pas fermer.
 | **F5** | **Navigation** → panneau de la barre, sélecteur *Heading* = **mark**, **police système au maximum** | Regarder, puis TalkBack et balayer sur la barre | Tout grandit **sauf la marque**. TalkBack annonce le nom de l'écran en en-tête et **ne dit rien** de la marque | |
 | **F6** ⭐ | **Feedback** → les quatre catégories ensemble, puis **Status**. **Correction des couleurs → Nuances de gris** | Nommer chaque bloc **à bout de bras**, sans se pencher, à la seule forme | Un rond, un rond à coche, un triangle, un **octogone**. Surtout : *success* et *error* ne se ressemblent pas. Mêmes formes dans les deux panneaux | |
 | **F7** | **Media and status** → *tags the user can take back out*. Clavier, puis TalkBack | Tab jusqu'au bouton de retrait du 2ᵉ tag, Entrée. **Restore all**, puis TalkBack : balayer jusqu'au même bouton, double-tap | Clavier : le focus arrive sur le bouton du 1ᵉʳ tag. TalkBack : lit ensuite un voisin du tag retiré — pas le haut de l'écran, pas le silence. Noter mot pour mot ce qui est dit | |
+| **F8** | **Theme** → *identifiers*. TalkBack | Balayer jusqu'à l'identifiant | TalkBack l'épelle caractère par caractère, pas comme un mot ni comme un nombre. Noter si `0` et `O` se distinguent à l'écran | |
 
 **F6 est la raison d'être du changement de glyphes.** `IUX-PALETTE-PERCEPTION-001`
 a mesuré *success* et *error* à **0,4** l'un de l'autre sous deutéranopie dans le

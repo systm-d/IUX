@@ -7,6 +7,14 @@ the one changelog. Every entry, for every version, is in
 
 ## 0.2.0-dev.6
 
+Added: `IuxTagChip.tone`, an accent dot before the label, never a fill.
+`ADR-0016`, `IUX-TAG-TONE-001`.
+
+Added: `IuxTypographyRole.identifier`, `IuxTypographyTheme.identifier`,
+`IuxTypographyConfiguration.identifierFontFamily` and `IuxIdentifier`. Breaking
+for an exhaustive `switch` over `IuxTypographyRole`.
+`IUX-TYPOGRAPHY-IDENTIFIER-001`.
+
 Added: `IuxTagChip.removable`, a tag with one control that removes it. The
 read-only `IuxTagChip` is unchanged. `IUX-TAG-REMOVABLE-001`.
 

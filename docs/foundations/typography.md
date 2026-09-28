@@ -6,7 +6,7 @@ Typography roles express hierarchy without selecting a brand font. A component
 asks `IuxTypographyTheme` for what a piece of text *is* — `display`,
 `headline`, `title`, `body`, `label`, `supporting`, `overline` — and the
 resolved theme decides the size, the line height, the weight and, for one
-role, the letter spacing. Final themes resolve readable styles that remain
+role, the letter spacing. One role, `identifier`, also has a face of its own. Final themes resolve readable styles that remain
 compatible with Flutter text scaling.
 
 ## Roles
@@ -20,6 +20,7 @@ compatible with Flutter text scaling.
 | `label` | 14 | 20 | w500 | — |
 | `supporting` | 14 | 20 | w400 | — |
 | `overline` | 14 | 20 | w600 | 0.8 |
+| `identifier` | 16 | 24 | w400 | — |
 
 No size is below 14 logical pixels — the ramp's own floor, held even by the
 two roles that already sit on it (`label`, `supporting`) and by the one this
@@ -122,12 +123,39 @@ role, and every component inherits it without changing.
 - **It does not make anything monospace, and that is a second need.** A commit
   hash, a token or a recovery code is read one character at a time, and what it
   needs is letters that cannot be mistaken for each other: `0` and `O`; `1`,
-  `l` and `I`. Aligned digits do nothing for that. Whether IUX should carry a
-  role for such identifiers is open — `IUX-TYPOGRAPHY-FIGURES-001`.
+  `l` and `I`. Aligned digits do nothing for that. That is the `identifier`
+  role, below.
 
 The cost is tabular digits in running prose, where a `1` sits in a slightly
 wider slot than a proportional face would give it. In an interface made mostly
 of short labels and values, that is the right side of the trade.
+
+## Identifiers: a face of their own
+
+`identifier` is the one role that does not take `fontFamily`. It resolves to the
+platform's monospace face, or to `IuxTypographyConfiguration.identifierFontFamily`
+when the application names one, and it asks that face for three things:
+
+| Feature | Why |
+| --- | --- |
+| `zero` — slashed zero | `0` is not `O` |
+| `liga` and `calt` off | a programming face draws `->`, `!=` or `www` as one shape; an identifier is copied character by character |
+| `tnum` | like every role |
+
+It is a family rather than a feature because being monospace is a property of
+the face, not a request to it — the same reason the issue that asked for it gave
+(systm-d/IUX#66). Three applications had each laid a monospace family over IUX's
+styles by hand, at up to ninety-five call sites; one gave up and set
+`fontFamily` to a monospace face, which put the whole interface, prose
+included, in a typewriter face. A family per role lets the type scale say which
+text is which.
+
+Metrics are `body`'s: a string read one character at a time is the text that
+most needs room, and 16/24 is the size the ramp already trusts for reading.
+
+The role gives the shapes; `IuxIdentifier` also gives the announcement — a
+screen reader told to spell the string out. See
+[identifier.md](../components/identifier.md). `IUX-TYPOGRAPHY-IDENTIFIER-001`.
 
 ## Best practices
 
@@ -151,6 +179,9 @@ of short labels and values, that is the right side of the trade.
 
 ## Limits
 
+- **The identifier's slashed zero is requested, not guaranteed**, for the same
+  reason: a monospace face without the alternate draws its ordinary zero. Name a
+  face that has one.
 - **Tabular figures are requested, not guaranteed.** See "Figures" above: a
   face without them ignores the request, and `flutter_test` cannot tell the two
   apart, because its test face draws every glyph at one width already.

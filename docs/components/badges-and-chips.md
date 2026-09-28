@@ -147,7 +147,8 @@ the application offers; a removable tag stands for something the user put there.
 - **Focus goes to the previous stop before the tag leaves.** Removing from the
   keyboard lands on the tag before it, or — for the first tag — on whatever
   precedes the list, usually the control that adds to it. Without that, focus
-  falls to the top of the screen. A tap moves no focus.
+  falls to the top of the screen. A tap moves no focus. Previous rather than
+  next is a decision, confirmed by the maintainer (`IUX-TAG-REMOVABLE-001`).
 - **It removes at once.** That is right when the item can be added straight
   back. When it cannot, pair the removal with an undo (`IuxTransientMessage`
   carries one) or use `IuxDestructiveAction` instead.
@@ -157,28 +158,43 @@ the application offers; a removable tag stands for something the user put there.
   `IuxChipGroup` already asks for one kind per group. Keep a list's tags all
   removable or all read-only.
 
-### Why a tag has no fill, and a badge has no selected state
+### Why a tag's tone is a dot, and a badge has no selected state
 
 The first application migrated onto IUX from its own design system met both of
 these as silences (systm-d/IUX#70, #71): its project cards carried a type label
 filled with the accent colour, and its list filters were badges whose selected
 state had been colour. Neither had anywhere to go, and it found out by looking.
 
-**A tag has no tone and no fill.** A small pill filled with the accent is the
-exact shape of a filled primary button, whichever token painted it. The
-migration borrowed `action.primary` for the fill and said so in a comment; the
-screen said the same thing to its users without the comment. A tag's one
-guarantee is that it never looks pressable, so the category is carried by the
-words and the pill stays outlined on `surface.subtle`. A test holds that the
-tag's fill is never the primary or destructive action fill, on all four
-profiles.
+**A tag takes a tone, and the tone is a dot, never a fill** (`ADR-0016`).
 
-IUX does have decorative accents with no meaning attached — `IuxAvatarTone`,
-the answer `ADR-0014` gives to "which one of several unrelated things is this."
-They fill a circle carrying a glyph, which reads as identity rather than as an
-action. Extending them to a text label is what a "yes" to #71 would look like,
-and it would need its own record: the same four hues on a second component, in
-the one shape where they most resemble a control.
+```dart
+IuxTagChip(label: l10n.library, tone: IuxAvatarTone.two)
+```
+
+The tone is `IuxAvatarTone`, the vocabulary `ADR-0014` gave the avatar for
+"which one of several unrelated things is this", and the dot is the colour an
+avatar of that tone is filled with — so a tag and an avatar standing for the
+same thing match. The members mean nothing; the application decides which is
+which.
+
+Why not fill the pill, as the migration did: measured, the avatar's accent *is*
+the primary button's fill — `accent40` in light, `accent70` in dark, `accent80`
+in dark high contrast — and tone `four` is the destructive button's in light
+and dark. A tag filled that way is not like a button; it is one, to the value.
+A tint does not escape it: in light a hue-tinted capsule is already `IuxValue`,
+and in dark no tint of a hue ships at all. A circle is the shape `ADR-0014`
+found reads as identity, so the accent goes there, inside the outline.
+
+| | untoned | toned |
+| --- | --- | --- |
+| pill | outlined, `surface.subtle` | the same — a test holds it is never an action fill |
+| before the label | nothing | a dot, `avatarAccent.<tone>.surface`, half the glyph size, scaling with text |
+| announced | the label | the label — the tone is never read |
+
+The dot clears 3:1 against the tag in all sixteen profile-and-tone cells, from
+5.54:1 to 15.14:1. It is a scanning aid, not a carrier: two of the four accents
+collide under colour-vision deficiency and a monochrome screen draws all four
+grey, so the words still carry the category.
 
 **A badge has no selected state, because a badge is not a control.** A label the
 user taps to filter a list is an `IuxFilterChip`: it has the target, the focus
@@ -267,7 +283,8 @@ and numeral form all vary and only the caller knows the language.
 | Component | Parameter | Required | Note |
 | --- | --- | --- | --- |
 | `IuxTagChip` | `label` | yes | visible text and accessible name |
-| `IuxTagChip.removable` | `label` | yes | as above |
+| | `tone` | no | `IuxAvatarTone`; a dot before the label, never a fill |
+| `IuxTagChip.removable` | `label`, `tone` | `label` only | as above |
 | | `removeLabel` | yes | the button's name; must contain `label` |
 | | `onRemove` | yes | the parent drops the tag and rebuilds |
 | `IuxFilterChip` | `label` | yes | the criterion |

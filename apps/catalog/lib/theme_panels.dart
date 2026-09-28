@@ -129,6 +129,19 @@ class ThemePanels extends StatelessWidget {
                 'group; it does not title it, and a screen reader is not told it '
                 'is a header unless the caller says so with IuxSemantics.header.',
               ),
+              SizedBox(height: geometry.spacingSm),
+              const CatalogSubheading('identifiers'),
+              Text(
+                'Commit',
+                style:
+                    type.supporting.copyWith(color: colors.content.secondary),
+              ),
+              const IuxIdentifier(value: '0O1lI-a1b2c3'),
+              const CatalogNote(
+                'The identifier role: a monospace face, a slashed zero if the '
+                'face has one, no ligatures. With TalkBack on, the string is '
+                'spelled out one character at a time.',
+              ),
             ],
           ),
         ),

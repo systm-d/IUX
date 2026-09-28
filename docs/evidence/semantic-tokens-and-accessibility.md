@@ -3370,7 +3370,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 723 tests at the last count, every
+  would be *told*. That is a great deal: 2 764 tests at the last count, every
   claim probed rather than read. It is **not** what a screen reader says, in
   what order, or whether it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -4657,6 +4657,8 @@ that costs when it happens on a page.
   that. It is plausibly a legibility property IUX should own, like contrast, and
   plausibly an application's choice of face; **a `code` role with its own family
   is the shape the question would take, and it is not decided here.**
+  Decided afterwards, by the maintainer: a role, `identifier` —
+  `IUX-TYPOGRAPHY-IDENTIFIER-001`.
 
 - **Limits.**
   - **Nothing here can observe the result.** `flutter_test` draws every glyph
@@ -4680,6 +4682,9 @@ that costs when it happens on a page.
 - **Status**: decided and implemented as documentation, with a guard. Offered as
   a decision the maintainer may overturn; the shape of a "yes" is recorded
   below.
+  **The #71 half was overturned by the maintainer: a tag now takes a tone, drawn
+  as a dot and never as a fill — `IUX-TAG-TONE-001`, `ADR-0016`.** The #70
+  half, and the guard that a tag's fill is never an action fill, stand.
 
 - **What the migration met.** Project cards carrying a type label filled with
   the accent colour, and list filters drawn as badges whose selected state was
@@ -4834,7 +4839,9 @@ that costs when it happens on a page.
     back to the previous for the last. Previous was chosen because it needs no
     knowledge of the group — it uses the application's own traversal order —
     and because the stop before a list is usually where the list is added from.
-    It is argued, not tested with users.
+    It is argued, not tested with users. **Confirmed by the maintainer on
+    2026-09-28**, which settles the choice for IUX and leaves the user test
+    open.
   - **A screen reader's own cursor is not input focus.** Where TalkBack or
     VoiceOver lands after the node disappears is the platform's decision; the
     rule above moves keyboard focus. Nothing announces the removal. Both are
@@ -4842,3 +4849,106 @@ that costs when it happens on a page.
   - **Removal is immediate.** Right when the item can be re-added; an item that
     cannot needs an undo or `IuxDestructiveAction`, which the documentation
     says and nothing enforces.
+
+### IUX-TYPOGRAPHY-IDENTIFIER-001 — Identifiers get a face of their own, and a screen reader is told to spell them
+
+- **Level**: context_dependent — WCAG 2.2 SC 1.4.8 (visual presentation) and
+  SC 4.1.2 by analogy; the choice of features is argued, not measured
+- **Scope**: `IuxTypographyRole.identifier`, `IuxTypographyTheme.identifier`,
+  `IuxTypographyConfiguration.identifierFontFamily`, the new `IuxIdentifier`,
+  `docs/foundations/typography.md`, `docs/components/identifier.md`, the
+  catalog, and manual check F8. **Breaking for an exhaustive `switch` over
+  `IuxTypographyRole`**, which gains a member.
+- **Sources**: systm-d/IUX#66 and its sentinel comment; the open half of
+  `IUX-TYPOGRAPHY-FIGURES-001`; the maintainer's decision to take the role.
+- **Status**: implemented.
+
+- **What was left after tabular figures.** Sentinel's ninety-five hand-applied
+  families covered version numbers, commit hashes, durations and counts.
+  Tabular figures fixed the last two. The first two are read character by
+  character, and what they need is glyphs that cannot be mistaken for each other
+  — `0` and `O`; `1`, `l` and `I`. Sentinel had solved it by setting
+  `fontFamily` to a monospace face, which put its whole interface, prose
+  included, in a typewriter face.
+
+- **The decision: a role with a family of its own.** `identifier` is the only
+  role that does not take `fontFamily`. It resolves to
+  `IuxTypographyConfiguration.identifierFontFamily`, or to the generic
+  `monospace` family Android maps to its system face, with `monospace` also
+  first in the fallback list when a brand face is named — so a missing glyph
+  falls back to another monospace face, not to proportional text. Metrics are
+  `body`'s, 16/24: the size the ramp trusts for reading, for the text that most
+  needs room.
+
+- **What it asks of the face.** A slashed zero (`zero`); ligatures off (`liga`
+  and `calt`), because programming faces — JetBrains Mono, which terminus
+  ships — draw `->`, `!=` or `www` as one shape, and an identifier is copied
+  character by character; and tabular figures, like every role.
+
+- **Why a widget as well.** A style cannot change what is announced. A screen
+  reader meeting `a1b2c3` guesses how to say it. `IuxIdentifier` puts the
+  string on its node with Flutter's `SpellOutStringAttribute`, which the Android
+  embedding passes to text-to-speech as a verbatim span, and excludes the
+  visible `Text` so the string is not announced twice. Both halves are asserted,
+  and each was removed in turn to confirm the tests fail without it.
+
+- **Limits.**
+  - **Requests, not guarantees.** A face without a slashed-zero alternate draws
+    its ordinary zero; `flutter_test` draws every glyph as one box and cannot
+    tell. Whether the Android system monospace face has the alternate is F8's to
+    record.
+  - **Whether TalkBack honours the attribute is F8's too.** The suite proves it
+    is on the node.
+  - **`monospace` is an Android alias.** Other platforms may resolve it to the
+    default face.
+  - **Not selectable.** Copying a token is a real need and is left out rather
+    than half-done.
+  - **Components that take a `String` draw it in their own role**, so a hash
+    passed to `IuxListItem` is proportional and not spelled out. The role and
+    the widget reach only where the application puts them.
+
+### IUX-TAG-TONE-001 — A tag takes a tone, and the tone is a dot, because the fill would have been a button
+
+- **Level**: context_dependent — an affordance judgement resting on a measured
+  identity of colours
+- **Scope**: `IuxTagChip.tone` on both constructors, `ADR-0016`, the tag's
+  documentation, the chips and deliberately-absent pages, the catalog, and
+  twenty-two tests in `test/components/iux_tag_tone_test.dart`. Additive.
+- **Sources**: systm-d/IUX#71; `IUX-CHIP-FILL-001`, whose #71 half this
+  overtakes; `ADR-0014`; the maintainer's decision to say yes.
+- **Status**: implemented.
+
+- **The decision it carries out.** `IUX-CHIP-FILL-001` refused a tone on tags
+  and recorded what a "yes" would be: `ADR-0014`'s decorative accents extended
+  to a label. The maintainer said yes. What was left to decide was the form.
+
+- **Why not the fill, measured.** `avatarAccent.one.surface` equals
+  `action.primary.background` in light (`accent40`), dark (`accent70`) and dark
+  high contrast (`accent80`); `avatarAccent.four.surface` equals
+  `action.destructive.background` in light and dark. A tag filled with the
+  avatar's accent would not resemble a button; it would be one, to the value.
+  A tint is `IuxValue`'s capsule in light and does not exist in dark.
+
+- **What ships.** `tone: IuxAvatarTone?`, drawn as a solid circle before the
+  label in `avatarAccent.<tone>.surface` — the avatar's own fill, so the two
+  match — at half the glyph size, scaling with text. The pill is unchanged.
+  The tone is never announced. One private widget draws the label for both
+  forms of the tag.
+
+- **Measured.** The dot against the tag's surface: 5.54:1 to 6.35:1 in light,
+  6.96:1 to 8.31:1 in dark, 14.82:1 to 15.14:1 in light high contrast, 9.78:1
+  to 10.68:1 in dark high contrast. All sixteen cells are asserted at 3:1.
+
+- **Guards.** In every profile and tone: the dot is the avatar's colour, it
+  clears 3:1, and the pill's fill is never the primary or destructive action
+  fill. A separate test holds the premise — tone `one` equals the primary fill
+  in the three profiles above — so a palette change that weakens the argument
+  fails a test instead of passing quietly.
+
+- **Limits.**
+  - The report asked for a filled label, and a dot is quieter. Whether it is
+    enough to scan cards by is not tested with users.
+  - Two of the four accents collide under colour-vision deficiency; the words
+    are what every user can rely on. Inherited from `ADR-0014`.
+  - Four tones. An application with more types maps four and leaves the rest
+    untoned.

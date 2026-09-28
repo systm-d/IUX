@@ -296,7 +296,7 @@ breaks.
 # Block F — What shipped after this protocol was written
 
 Roughly 10 minutes, and it is different in kind from the blocks above. Those
-check whether the platform does what the tree says. **These seven check
+check whether the platform does what the tree says. **These eight check
 judgements** — decisions taken on a measurement that a measurement cannot
 finish, each one recorded in the register as resting on an eye nobody has yet
 applied.
@@ -306,7 +306,8 @@ argued from numbers, and five left a question a number cannot close. F6 was
 added afterwards, from the measurement in `IUX-PALETTE-PERCEPTION-001`: it is
 the only check here whose subject is a change the numbers **caused** rather
 than a number they left unfinished. F7 came with `IuxTagChip.removable`, and asks
-where a screen reader's cursor goes when the thing it was on is removed.
+where a screen reader's cursor goes when the thing it was on is removed. F8
+came with `IuxIdentifier`, and asks whether a string is spelled out.
 
 ### F1 — The warning colour reads as a warning
 **Do:** **Feedback** → the inline feedback panel, light theme, standard
@@ -412,6 +413,18 @@ TalkBack says nothing and the user cannot tell the removal happened.
 goes. Where a screen reader's own cursor goes when the node it was on
 disappears is the platform's decision, and nothing announces the removal —
 this is the check that says whether that is enough.
+
+### F8 — An identifier is spelled, not guessed
+**Do:** **Theme** → *identifiers*. With TalkBack on, swipe to the identifier.
+**Expect:** TalkBack reads it one character at a time — "a, one, b, two…" —
+not as a word and not as a number.
+**Fail:** it is read as a word, or letters are skipped.
+**Also record:** whether `0` and `O` look different on screen in the platform
+monospace face, and what TalkBack says word for word.
+**Status:** `IUX-TYPOGRAPHY-IDENTIFIER-001`. The suite proves the spell-out
+attribute is on the node. Whether TalkBack honours it — Flutter hands it to the
+platform as a verbatim span — is only visible on a device, and so is whether the
+platform face has a slashed zero.
 
 ---
 

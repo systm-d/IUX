@@ -292,15 +292,19 @@ void main() {
           reason: 'the platform font is the default; IUX imposes no brand');
     });
 
-    test('a font family override reaches every role', () {
+    test('a font family override reaches every role but the identifier', () {
+      // The identifier keeps its monospace face: the whole point of giving it
+      // a family of its own is that a brand face for prose does not reach it.
       final IuxTypographyTheme typography = IuxTheme.resolve(
         const IuxThemeConfiguration(
           typography: IuxTypographyConfiguration(fontFamily: 'Atkinson'),
         ),
       ).typography;
       for (final IuxTypographyRole role in IuxTypographyRole.values) {
+        if (role == IuxTypographyRole.identifier) continue;
         expect(typography.forRole(role).fontFamily, 'Atkinson');
       }
+      expect(typography.identifier.fontFamily, isNot('Atkinson'));
     });
   });
 

@@ -90,10 +90,29 @@ final class IuxTypographyConfiguration {
   const IuxTypographyConfiguration({
     this.fontFamily,
     this.fontFamilyFallback,
+    this.identifierFontFamily,
   });
 
   /// The font family to apply to every role, or null for the platform font.
+  ///
+  /// Every role except [IuxTypographyRole.identifier], which has its own
+  /// family: see [identifierFontFamily].
   final String? fontFamily;
+
+  /// The monospace family for [IuxTypographyRole.identifier], or null for the
+  /// platform's.
+  ///
+  /// Separate from [fontFamily] so an application can keep proportional prose
+  /// and still show a commit hash in a face made for reading character by
+  /// character. Setting [fontFamily] to a monospace face does the second by
+  /// putting the whole interface in a typewriter face, which is the
+  /// workaround this field replaces (systm-d/IUX#66).
+  ///
+  /// Choose a face that separates `0` from `O` and `1` from `l` and `I` — a
+  /// slashed or dotted zero, a serifed `1` — because that is the whole reason
+  /// the role exists. The platform's monospace face on Android is the
+  /// fallback when a glyph is missing.
+  final String? identifierFontFamily;
 
   /// Families to fall back to, in order, when a glyph is missing.
   ///
@@ -106,10 +125,12 @@ final class IuxTypographyConfiguration {
   IuxTypographyConfiguration copyWith({
     String? fontFamily,
     List<String>? fontFamilyFallback,
+    String? identifierFontFamily,
   }) =>
       IuxTypographyConfiguration(
         fontFamily: fontFamily ?? this.fontFamily,
         fontFamilyFallback: fontFamilyFallback ?? this.fontFamilyFallback,
+        identifierFontFamily: identifierFontFamily ?? this.identifierFontFamily,
       );
 
   @override
@@ -117,11 +138,13 @@ final class IuxTypographyConfiguration {
       identical(this, other) ||
       other is IuxTypographyConfiguration &&
           other.fontFamily == fontFamily &&
-          listEquals(other.fontFamilyFallback, fontFamilyFallback);
+          listEquals(other.fontFamilyFallback, fontFamilyFallback) &&
+          other.identifierFontFamily == identifierFontFamily;
 
   @override
   int get hashCode => Object.hash(
         fontFamily,
         fontFamilyFallback == null ? null : Object.hashAll(fontFamilyFallback!),
+        identifierFontFamily,
       );
 }
