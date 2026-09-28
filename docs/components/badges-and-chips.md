@@ -147,7 +147,8 @@ the application offers; a removable tag stands for something the user put there.
 - **Focus goes to the previous stop before the tag leaves.** Removing from the
   keyboard lands on the tag before it, or — for the first tag — on whatever
   precedes the list, usually the control that adds to it. Without that, focus
-  falls to the top of the screen. A tap moves no focus.
+  falls to the top of the screen. A tap moves no focus. Previous rather than
+  next is a decision, confirmed by the maintainer (`IUX-TAG-REMOVABLE-001`).
 - **It removes at once.** That is right when the item can be added straight
   back. When it cannot, pair the removal with an undo (`IuxTransientMessage`
   carries one) or use `IuxDestructiveAction` instead.

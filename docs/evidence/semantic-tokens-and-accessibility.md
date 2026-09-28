@@ -3370,7 +3370,7 @@ that costs when it happens on a page.
 
 - **What is and is not claimed.** Everything here is measured on Flutter's
   semantics tree inside `flutter_test` — a model of what an assistive service
-  would be *told*. That is a great deal: 2 723 tests at the last count, every
+  would be *told*. That is a great deal: 2 764 tests at the last count, every
   claim probed rather than read. It is **not** what a screen reader says, in
   what order, or whether it says it at all. The distinction is load-bearing for a framework whose
   proposition is that accessibility is the design constraint.
@@ -4839,7 +4839,9 @@ that costs when it happens on a page.
     back to the previous for the last. Previous was chosen because it needs no
     knowledge of the group — it uses the application's own traversal order —
     and because the stop before a list is usually where the list is added from.
-    It is argued, not tested with users.
+    It is argued, not tested with users. **Confirmed by the maintainer on
+    2026-09-28**, which settles the choice for IUX and leaves the user test
+    open.
   - **A screen reader's own cursor is not input focus.** Where TalkBack or
     VoiceOver lands after the node disappears is the platform's decision; the
     rule above moves keyboard focus. Nothing announces the removal. Both are
