@@ -44,7 +44,7 @@ not exist.
 | `debounce` or `throttle` on an action | a timer the application owns |
 | a link or control inside a tooltip | `IuxContextualHelp` |
 | a badge the user can select | `IuxFilterChip` |
-| a label filled with the accent colour | `IuxTagChip`, which is outlined on purpose |
+| a label filled with the accent colour | `IuxTagChip` with a `tone`: the accent in a dot, the pill outlined |
 | an `empty` loading state | `IuxEmptyState` |
 | a status fill tinted by category, in dark | `IuxAlert`, whose icon, words and border carry it |
 
@@ -265,13 +265,17 @@ Source: `packages/iux_flutter/lib/src/components/status/iux_badge.dart`
 
 ### A label filled with the accent colour
 
-**Use instead:** `IuxTagChip`. It names what a record *is* — a category, a
-type, a plan — and is drawn outlined and untinted so that it can never be
-mistaken for something to press. The words carry the category.
+**Use instead:** `IuxTagChip` with a `tone`. It names what a record *is* — a
+category, a type, a plan — and puts one of the four decorative accents in a dot
+before the words, the same colour an `IuxAvatar` of that tone is filled with.
+The pill stays outlined. The words still carry the category; the dot helps a
+sighted user scan. `ADR-0016`.
 
-> **There is no tone and no fill, and that is a decision rather than a
-> gap.** A small pill filled with the accent is the exact shape of a filled
-> primary button, whichever token painted it.
+> **The pill itself stays outlined, and is never filled.** Filled with the
+> accent, it would be the exact colour of a filled primary button —
+> `accent40` in the light profile, `accent70` in the dark one, the same value
+> and not a near one — and the one thing this widget exists to guarantee is
+> that it never looks pressable.
 
 Source: `packages/iux_flutter/lib/src/components/status/iux_chip.dart`
 

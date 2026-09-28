@@ -4682,6 +4682,9 @@ that costs when it happens on a page.
 - **Status**: decided and implemented as documentation, with a guard. Offered as
   a decision the maintainer may overturn; the shape of a "yes" is recorded
   below.
+  **The #71 half was overturned by the maintainer: a tag now takes a tone, drawn
+  as a dot and never as a fill — `IUX-TAG-TONE-001`, `ADR-0016`.** The #70
+  half, and the guard that a tag's fill is never an action fill, stand.
 
 - **What the migration met.** Project cards carrying a type label filled with
   the accent colour, and list filters drawn as badges whose selected state was
@@ -4901,3 +4904,49 @@ that costs when it happens on a page.
   - **Components that take a `String` draw it in their own role**, so a hash
     passed to `IuxListItem` is proportional and not spelled out. The role and
     the widget reach only where the application puts them.
+
+### IUX-TAG-TONE-001 — A tag takes a tone, and the tone is a dot, because the fill would have been a button
+
+- **Level**: context_dependent — an affordance judgement resting on a measured
+  identity of colours
+- **Scope**: `IuxTagChip.tone` on both constructors, `ADR-0016`, the tag's
+  documentation, the chips and deliberately-absent pages, the catalog, and
+  twenty-two tests in `test/components/iux_tag_tone_test.dart`. Additive.
+- **Sources**: systm-d/IUX#71; `IUX-CHIP-FILL-001`, whose #71 half this
+  overtakes; `ADR-0014`; the maintainer's decision to say yes.
+- **Status**: implemented.
+
+- **The decision it carries out.** `IUX-CHIP-FILL-001` refused a tone on tags
+  and recorded what a "yes" would be: `ADR-0014`'s decorative accents extended
+  to a label. The maintainer said yes. What was left to decide was the form.
+
+- **Why not the fill, measured.** `avatarAccent.one.surface` equals
+  `action.primary.background` in light (`accent40`), dark (`accent70`) and dark
+  high contrast (`accent80`); `avatarAccent.four.surface` equals
+  `action.destructive.background` in light and dark. A tag filled with the
+  avatar's accent would not resemble a button; it would be one, to the value.
+  A tint is `IuxValue`'s capsule in light and does not exist in dark.
+
+- **What ships.** `tone: IuxAvatarTone?`, drawn as a solid circle before the
+  label in `avatarAccent.<tone>.surface` — the avatar's own fill, so the two
+  match — at half the glyph size, scaling with text. The pill is unchanged.
+  The tone is never announced. One private widget draws the label for both
+  forms of the tag.
+
+- **Measured.** The dot against the tag's surface: 5.54:1 to 6.35:1 in light,
+  6.96:1 to 8.31:1 in dark, 14.82:1 to 15.14:1 in light high contrast, 9.78:1
+  to 10.68:1 in dark high contrast. All sixteen cells are asserted at 3:1.
+
+- **Guards.** In every profile and tone: the dot is the avatar's colour, it
+  clears 3:1, and the pill's fill is never the primary or destructive action
+  fill. A separate test holds the premise — tone `one` equals the primary fill
+  in the three profiles above — so a palette change that weakens the argument
+  fails a test instead of passing quietly.
+
+- **Limits.**
+  - The report asked for a filled label, and a dot is quieter. Whether it is
+    enough to scan cards by is not tested with users.
+  - Two of the four accents collide under colour-vision deficiency; the words
+    are what every user can rely on. Inherited from `ADR-0014`.
+  - Four tones. An application with more types maps four and leaves the rest
+    untoned.

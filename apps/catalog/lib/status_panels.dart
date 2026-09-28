@@ -695,6 +695,23 @@ class _ChipPanelState extends State<_ChipPanel> {
             'cannot.',
           ),
           SizedBox(height: geometry.spacingSm),
+          const CatalogSubheading('tags with a tone — a dot, never a fill'),
+          IuxChipGroup(
+            label: 'Project types',
+            chips: <Widget>[
+              IuxTagChip(label: label('Library'), tone: IuxAvatarTone.one),
+              IuxTagChip(label: label('Service'), tone: IuxAvatarTone.two),
+              IuxTagChip(label: label('Tool'), tone: IuxAvatarTone.three),
+              IuxTagChip(label: label('Archive'), tone: IuxAvatarTone.four),
+            ],
+          ),
+          const CatalogNote(
+            'The dot is the colour an IuxAvatar of the same tone is filled '
+            'with. The pill stays outlined: filled, tone one would be the '
+            'primary button to the value. Turn on greyscale and the words '
+            'still say which is which (ADR-0016).',
+          ),
+          SizedBox(height: geometry.spacingSm),
           const CatalogSubheading('tags the user can take back out'),
           CatalogTestable(
             what: 'Remove one from the keyboard: focus lands on the tag before '

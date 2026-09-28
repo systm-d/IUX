@@ -12,6 +12,17 @@ the fold's freed column are here rather than under it.
 and it carries everything below except the title's line. The two versions are
 the same wave; this one is the one to take.
 
+### A tag takes a tone, drawn as a dot
+
+`IuxTagChip(tone:)` and `IuxTagChip.removable(tone:)`, taking `IuxAvatarTone`.
+The maintainer overturned the earlier refusal (systm-d/IUX#71): a tag may now
+say which of several things it is with one of `ADR-0014`'s four decorative
+accents. It says so with a dot before the label, in the colour an `IuxAvatar` of
+the same tone is filled with, and the pill stays outlined. A fill was measured
+and refused: the avatar's accent is the primary button's fill to the value in
+three of four profiles, and the destructive button's in two. The tone is never
+announced; the words carry the category. `ADR-0016`, `IUX-TAG-TONE-001`.
+
 ### Identifiers get a face of their own
 
 `IuxTypographyRole.identifier`, `IuxTypographyConfiguration.identifierFontFamily`
